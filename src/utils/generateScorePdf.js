@@ -1,0 +1,367 @@
+import jsPDF from "jspdf";
+
+function safeText(value) {
+  return String(value ?? "");
+}
+
+function sanitizeFilePart(value) {
+  return safeText(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "_");
+}
+
+function formatTimestampForFile(date = new Date()) {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  const hh = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+  const ss = String(date.getSeconds()).padStart(2, "0");
+  return `${yyyy}${mm}${dd}-${hh}${min}${ss}`;
+}
+
+function fitCellText(doc, value, maxWidth, fontSize, minFontSize = 4.5) {
+  const text = safeText(value).trim();
+  if (!text) {
+    return { text: "", fontSize };
+  }
+
+  let nextFontSize = fontSize;
+  doc.setFontSize(nextFontSize);
+
+  while (nextFontSize > minFontSize && doc.getTextWidth(text) > maxWidth) {
+    nextFontSize -= 0.5;
+    doc.setFontSize(nextFontSize);
+  }
+
+  if (doc.getTextWidth(text) <= maxWidth) {
+    return { text, fontSize: nextFontSize };
+  }
+
+  let shortened = text;
+  while (shortened.length > 1 && doc.getTextWidth(`${shortened}…`) > maxWidth) {
+    shortened = shortened.slice(0, -1);
+  }
+
+  return { text: `${shortened}…`, fontSize: nextFontSize };
+}
+function getImageFormatFromDataUrl(dataUrl) {
+  if (!dataUrl || typeof dataUrl !== "string") return "PNG";
+  if (dataUrl.startsWith("data:image/jpeg")) return "JPEG";
+  if (dataUrl.startsWith("data:image/jpg")) return "JPEG";
+  if (dataUrl.startsWith("data:image/webp")) return "WEBP";
+  return "PNG";
+}
+
+function formatFinalizedText(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  const hh = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+
+  return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+}
+
+export function buildScorePdfFileName({
+  associationAbbreviation,
+  showName,
+  className,
+  finalizedAt,
+}) {
+  const ts = formatTimestampForFile(finalizedAt ? new Date(finalizedAt) : new Date());
+  const assoc = sanitizeFilePart(associationAbbreviation || "ASSOC");
+  const show = sanitizeFilePart(showName || "show");
+  const classPart = sanitizeFilePart(className || "classe");
+
+  return `${assoc}-${show}-${classPart}-${ts}.pdf`;
+}
+
+export function generateScorePdf({
+  associationName,
+  associationLogoDataUrl,
+  eventName,
+  eventDate,
+  classItem,
+  classSetup,
+  runs,
+  headers,
+}) {
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "letter",
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  const marginLeft = 8;
+  const marginRight = 8;
+  const top = 10;
+
+  const drawW = 10;
+  const exhW = 12;
+  const penLabelW = 14;
+  const summaryW = 13;
+
+  const usableWidth =
+    pageWidth -
+    marginLeft -
+    marginRight -
+    drawW -
+    exhW -
+    penLabelW -
+    summaryW -
+    summaryW;
+
+  const manoeuvreCount = headers.length;
+  const manoeuvreW = usableWidth / Math.max(manoeuvreCount, 1);
+
+  const penRowH = 4.5;
+  const scoreRowH = 6.5;
+  const runBlockH = penRowH + scoreRowH;
+  const headerH = 5.5;
+
+  let y = top;
+
+  function drawText(text, x, yPos, options = {}) {
+    doc.text(String(text ?? ""), x, yPos, options);
+  }
+
+  function drawCell(x, yPos, w, h, text = "", options = {}) {
+    doc.rect(x, yPos, w, h);
+
+    const align = options.align || "center";
+    const fontStyle = options.fontStyle || "normal";
+    const fontSize = options.fontSize || 7;
+    const horizontalPadding = options.horizontalPadding ?? 1.2;
+
+    doc.setFont("helvetica", fontStyle);
+
+    const fitted = fitCellText(
+      doc,
+      text,
+      Math.max(1, w - horizontalPadding * 2),
+      fontSize,
+      4.5
+    );
+
+    doc.setFontSize(fitted.fontSize);
+
+    let textX = x + w / 2;
+    if (align === "left") textX = x + horizontalPadding;
+    if (align === "right") textX = x + w - horizontalPadding;
+
+    const textY = yPos + h / 2 + 1.1;
+
+    drawText(fitted.text, textX, textY, {
+      align,
+      baseline: "middle",
+    });
+  }
+
+  function drawRunBlock(run) {
+    const startX = marginLeft;
+    const startY = y;
+
+    drawCell(startX, startY, drawW, runBlockH, run.draw || "", {
+      fontStyle: "bold",
+    });
+
+    drawCell(startX + drawW, startY, exhW, runBlockH, run.backNumber || "", {
+      fontStyle: "bold",
+    });
+
+    drawCell(startX + drawW + exhW, startY, penLabelW, penRowH, "P", {
+      fontStyle: "bold",
+      fontSize: 6.5,
+    });
+
+    for (let i = 0; i < manoeuvreCount; i += 1) {
+      drawCell(
+        startX + drawW + exhW + penLabelW + i * manoeuvreW,
+        startY,
+        manoeuvreW,
+        penRowH,
+        run.penalties?.[i] || "",
+        { fontSize: 5.8 }
+      );
+    }
+
+    drawCell(
+      startX + drawW + exhW + penLabelW + manoeuvreCount * manoeuvreW,
+      startY,
+      summaryW,
+      runBlockH,
+      run.penTotal ?? "",
+      { fontStyle: "bold", fontSize: 6.2 }
+    );
+
+    drawCell(
+      startX + drawW + exhW + penLabelW + manoeuvreCount * manoeuvreW + summaryW,
+      startY,
+      summaryW,
+      runBlockH,
+      run.scoreTotal ?? "",
+      { fontStyle: "bold", fontSize: 6.8 }
+    );
+
+    drawCell(startX + drawW + exhW, startY + penRowH, penLabelW, scoreRowH, "S", {
+      fontStyle: "bold",
+      fontSize: 6.8,
+    });
+
+    for (let i = 0; i < manoeuvreCount; i += 1) {
+      drawCell(
+        startX + drawW + exhW + penLabelW + i * manoeuvreW,
+        startY + penRowH,
+        manoeuvreW,
+        scoreRowH,
+        run.scores?.[i] || "",
+        { fontSize: 6.5 }
+      );
+    }
+
+    y += runBlockH;
+  }
+
+  function drawPageHeader() {
+        const hasLogo = Boolean(associationLogoDataUrl);
+        const logoX = marginLeft;
+        const logoY = y - 1;
+        const logoW = 14;
+        const logoH = 14;
+
+    if (hasLogo) {
+      try {
+        doc.addImage(associationLogoDataUrl, "PNG", logoX, logoY, logoW, logoH);
+      } catch (error) {
+        console.error("Erreur ajout logo au PDF:", error);
+      }
+    }
+
+    doc.setFont("times", "bold");
+        doc.setFontSize(11);
+        drawText(
+        `${associationName || "Association"} Score Card / Feuille de pointage`,
+        hasLogo ? marginLeft + 18 : marginLeft,
+        y + 4
+    );
+
+doc.setFont("helvetica", "normal");
+doc.setFontSize(8);
+drawText(`Judge: ${classSetup?.judgeName || ""}`, pageWidth - 48, y + 4);
+
+y += 9;
+
+    doc.setFontSize(8);
+        drawText(`Event: ${eventName || ""}`, marginLeft, y);
+        drawText(`Date: ${eventDate || ""}`, 52, y);
+        drawText(`Class: ${classItem?.name || ""}`, 88, y);
+        drawText(`Pattern: ${classSetup?.pattern || ""}`, pageWidth - 36, y);
+
+        y += 5;;
+
+    doc.setFontSize(5.8);
+    drawText(
+      "MANEUVER SCORES: -1 1/2 Extremely Poor   -1 Very Poor   -1/2 Poor   0 Correct   +1/2 Good   +1 Very Good   +1 1/2 Excellent",
+      marginLeft,
+      y
+    );
+
+    y += 4.5;
+
+    let x = marginLeft;
+    drawCell(x, y, drawW, headerH, "DRAW", { fontStyle: "bold", fontSize: 6.2 });
+    x += drawW;
+    drawCell(x, y, exhW, headerH, "EXH#", { fontStyle: "bold", fontSize: 6.2 });
+    x += exhW;
+    drawCell(x, y, penLabelW, headerH, "PENALTY", {
+      fontStyle: "bold",
+      fontSize: 6.2,
+    });
+    x += penLabelW;
+
+    headers.forEach((header) => {
+      drawCell(x, y, manoeuvreW, headerH, header, {
+        fontStyle: "bold",
+        fontSize: 6.2,
+      });
+      x += manoeuvreW;
+    });
+
+    drawCell(x, y, summaryW, headerH, "PEN TOT", {
+      fontStyle: "bold",
+      fontSize: 5.8,
+    });
+    x += summaryW;
+    drawCell(x, y, summaryW, headerH, "SCORE", {
+      fontStyle: "bold",
+      fontSize: 6.2,
+    });
+
+    y += headerH;
+  }
+
+  function drawSignatureFooter() {
+  const footerY = pageHeight - 14;
+  const finalizedText = formatFinalizedText(
+    classSetup?.finalizedAt || classSetup?.judgeSignedAt || ""
+  );
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+
+  drawText("Judge Signature", marginLeft, footerY);
+  doc.line(marginLeft + 18, footerY, marginLeft + 78, footerY);
+
+  if (classSetup?.judgeSignature) {
+    try {
+      const imageFormat = getImageFormatFromDataUrl(classSetup.judgeSignature);
+      doc.addImage(
+        classSetup.judgeSignature,
+        imageFormat,
+        marginLeft + 22,
+        footerY - 8,
+        28,
+        9
+      );
+    } catch (error) {
+      console.error("Erreur ajout signature au PDF:", error);
+    }
+  }
+
+  drawText(`Finalized: ${finalizedText}`, pageWidth - 58, footerY);
+}
+
+  drawPageHeader();
+
+  const maxYBeforeFooter = pageHeight - 18;
+
+  runs.forEach((run, index) => {
+    if (y + runBlockH > maxYBeforeFooter) {
+      drawSignatureFooter();
+      doc.addPage();
+      y = top;
+      drawPageHeader();
+    }
+
+    drawRunBlock(run);
+
+    if (index < runs.length - 1) {
+      y += 1.2;
+    }
+  });
+
+  drawSignatureFooter();
+
+  return doc;
+}

@@ -1,0 +1,109 @@
+import { getSupabaseClient } from "../cloud/supabaseClient";
+import {
+  deleteClassSetup,
+  getClassSetup,
+  normalizeClassSetup,
+  saveClassSetup,
+} from "./classSetupStorage";
+
+function toSetup(row) {
+  return normalizeClassSetup({
+    pattern: row.pattern || "",
+    runs: Array.isArray(row.runs) ? row.runs : [],
+    isDrawImported: Boolean(row.is_draw_imported),
+    lockedAt: row.locked_at || null,
+    lockedBy: row.locked_by || null,
+    finalized: Boolean(row.finalized),
+    finalizedAt: row.finalized_at || null,
+    judgeName: row.judge_name || "",
+    judgeSignature: row.judge_signature || null,
+    judgeSignedAt: row.judge_signed_at || null,
+    finalPdfFileName: row.final_pdf_file_name || null,
+  });
+}
+
+function toSetupRow(classId, setup) {
+  const normalized = normalizeClassSetup(setup);
+
+  return {
+    class_id: classId,
+    pattern: normalized.pattern || null,
+    runs: normalized.runs,
+    is_draw_imported: Boolean(normalized.isDrawImported),
+    locked_at: normalized.lockedAt || null,
+    locked_by: normalized.lockedBy || null,
+    finalized: Boolean(normalized.finalized),
+    finalized_at: normalized.finalizedAt || null,
+    judge_name: normalized.judgeName || null,
+    judge_signature: normalized.judgeSignature || null,
+    judge_signed_at: normalized.judgeSignedAt || null,
+    final_pdf_file_name: normalized.finalPdfFileName || null,
+  };
+}
+
+export async function getClassSetupRepository(classId) {
+  const localSetup = getClassSetup(classId);
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return localSetup;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("class_setups")
+      .select("*")
+      .eq("class_id", classId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return localSetup;
+
+    const setup = toSetup(data);
+    saveClassSetup(classId, setup);
+    return setup;
+  } catch (error) {
+    console.error("Erreur chargement setup Supabase:", error);
+    return localSetup;
+  }
+}
+
+export async function saveClassSetupRepository(classId, setup) {
+  const normalized = normalizeClassSetup(setup);
+  const supabase = getSupabaseClient();
+
+  saveClassSetup(classId, normalized);
+
+  if (supabase) {
+    try {
+      const { error } = await supabase
+        .from("class_setups")
+        .upsert(toSetupRow(classId, normalized));
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Erreur sauvegarde setup Supabase:", error);
+    }
+  }
+
+  return normalized;
+}
+
+export async function deleteClassSetupRepository(classId) {
+  const supabase = getSupabaseClient();
+
+  if (supabase) {
+    try {
+      const { error } = await supabase
+        .from("class_setups")
+        .delete()
+        .eq("class_id", classId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Erreur suppression setup Supabase:", error);
+    }
+  }
+
+  deleteClassSetup(classId);
+}

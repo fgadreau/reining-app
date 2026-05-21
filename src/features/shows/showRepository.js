@@ -1,0 +1,138 @@
+import { getSupabaseClient } from "../cloud/supabaseClient";
+import {
+  getAllShows,
+  getShowById,
+  getShowsByAssociationId,
+} from "./showSelectors";
+import {
+  createShow,
+  deleteShow,
+  saveShows,
+  updateShow,
+} from "./showStorage";
+
+function toShow(row) {
+  return {
+    id: row.id,
+    associationId: row.association_id,
+    name: row.name || "",
+    venue: row.venue || "",
+    location: row.location || "",
+    startDate: row.start_date || "",
+    endDate: row.end_date || "",
+    status: row.status || "draft",
+  };
+}
+
+function toShowRow(show) {
+  return {
+    id: show.id,
+    association_id: show.associationId,
+    name: show.name || "",
+    venue: show.venue || "",
+    location: show.location || "",
+    start_date: show.startDate || null,
+    end_date: show.endDate || null,
+    status: show.status || "draft",
+  };
+}
+
+function saveShowLocally(show) {
+  const current = getShowsByAssociationId(show.associationId);
+  const exists = current.some((item) => item.id === show.id);
+
+  if (exists) {
+    updateShow(show.id, show);
+  } else {
+    createShow(show);
+  }
+
+  return show;
+}
+
+export async function getShowsByAssociationRepository(associationId) {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return getShowsByAssociationId(associationId);
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("shows")
+      .select("*")
+      .eq("association_id", associationId)
+      .order("start_date", { ascending: true, nullsFirst: false })
+      .order("name", { ascending: true });
+
+    if (error) throw error;
+
+    const shows = Array.isArray(data) ? data.map(toShow) : [];
+
+    const otherLocalShows = getAllShows().filter(
+      (show) => show.associationId !== associationId
+    );
+    saveShows([...otherLocalShows, ...shows]);
+
+    return shows;
+  } catch (error) {
+    console.error("Erreur chargement shows Supabase:", error);
+    return getShowsByAssociationId(associationId);
+  }
+}
+
+export async function getShowRepository(showId) {
+  const localShow = getShowById(showId);
+
+  if (!getSupabaseClient()) {
+    return localShow;
+  }
+
+  try {
+    const { data, error } = await getSupabaseClient()
+      .from("shows")
+      .select("*")
+      .eq("id", showId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return localShow;
+
+    const show = toShow(data);
+    saveShowLocally(show);
+    return show;
+  } catch (error) {
+    console.error("Erreur chargement show Supabase:", error);
+    return localShow;
+  }
+}
+
+export async function saveShowRepository(show) {
+  const supabase = getSupabaseClient();
+
+  if (supabase) {
+    try {
+      const { error } = await supabase.from("shows").upsert(toShowRow(show));
+      if (error) throw error;
+    } catch (error) {
+      console.error("Erreur sauvegarde show Supabase:", error);
+    }
+  }
+
+  return saveShowLocally(show);
+}
+
+export async function deleteShowRepository(showId) {
+  const supabase = getSupabaseClient();
+
+  if (supabase) {
+    try {
+      const { error } = await supabase.from("shows").delete().eq("id", showId);
+      if (error) throw error;
+    } catch (error) {
+      console.error("Erreur suppression show Supabase:", error);
+    }
+  }
+
+  deleteShow(showId);
+}

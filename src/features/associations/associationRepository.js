@@ -1,0 +1,110 @@
+import {
+  createAssociationId,
+  loadAssociations,
+  saveAssociations,
+} from "./associationsData";
+import { getSupabaseClient } from "../cloud/supabaseClient";
+
+function toAssociation(row) {
+  return {
+    id: row.id,
+    name: row.name || "",
+    shortName: row.short_name || "",
+    timezone: row.timezone || "",
+    logoDataUrl: row.logo_data_url || null,
+  };
+}
+
+function toAssociationRow(association) {
+  return {
+    id: association.id,
+    name: association.name || "",
+    short_name: association.shortName || "",
+    timezone: association.timezone || "",
+    logo_data_url: association.logoDataUrl || null,
+  };
+}
+
+function saveAssociationLocally(association) {
+  const current = loadAssociations();
+  const exists = current.some((item) => item.id === association.id);
+  const next = exists
+    ? current.map((item) => (item.id === association.id ? association : item))
+    : [...current, association];
+
+  saveAssociations(next);
+  return association;
+}
+
+export async function loadAssociationsRepository() {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return loadAssociations();
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("associations")
+      .select("*")
+      .order("name", { ascending: true });
+
+    if (error) throw error;
+
+    const associations = Array.isArray(data) ? data.map(toAssociation) : [];
+    saveAssociations(associations);
+    return associations;
+  } catch (error) {
+    console.error("Erreur chargement associations Supabase:", error);
+    return loadAssociations();
+  }
+}
+
+export async function getAssociationRepository(associationId) {
+  const associations = await loadAssociationsRepository();
+  return associations.find((item) => item.id === associationId) || null;
+}
+
+export async function saveAssociationRepository(association) {
+  const normalized = {
+    ...association,
+    id: association.id || createAssociationId(),
+  };
+
+  const supabase = getSupabaseClient();
+
+  if (supabase) {
+    try {
+      const { error } = await supabase
+        .from("associations")
+        .upsert(toAssociationRow(normalized));
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Erreur sauvegarde association Supabase:", error);
+    }
+  }
+
+  return saveAssociationLocally(normalized);
+}
+
+export async function deleteAssociationRepository(associationId) {
+  const supabase = getSupabaseClient();
+
+  if (supabase) {
+    try {
+      const { error } = await supabase
+        .from("associations")
+        .delete()
+        .eq("id", associationId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Erreur suppression association Supabase:", error);
+    }
+  }
+
+  const next = loadAssociations().filter((item) => item.id !== associationId);
+  saveAssociations(next);
+}
+
