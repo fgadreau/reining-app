@@ -335,7 +335,10 @@ function parsePositionedPdfPages(pages) {
 }
 
 async function parsePdfFile(file) {
-  const pdfjsModule = await import("pdfjs-dist/legacy/build/pdf");
+  const [pdfjsModule] = await Promise.all([
+    import("pdfjs-dist/legacy/build/pdf"),
+    import("pdfjs-dist/legacy/build/pdf.worker.entry"),
+  ]);
   const pdfjs = pdfjsModule.getDocument ? pdfjsModule : pdfjsModule.default;
 
   if (!pdfjs?.getDocument) {
