@@ -33,6 +33,7 @@ function ScoreTable({
               </th>
             ))}
 
+            <th style={styles.th}>PEN TOTAL</th>
             <th style={styles.th}>SCORE</th>
           </tr>
         </thead>
