@@ -439,8 +439,9 @@ function ClassSetupPage() {
       applyImportedDraw(importedDraw);
     } catch (error) {
       console.error("Erreur import draw:", error);
+      const details = error?.message ? ` (${error.message})` : "";
       setImportMessage(
-        "Impossible de lire ce fichier. Essaie le CSV ou copie-colle le texte du draw."
+        `Impossible de lire ce fichier${details}. Essaie le CSV ou copie-colle le texte du draw.`
       );
     }
   };

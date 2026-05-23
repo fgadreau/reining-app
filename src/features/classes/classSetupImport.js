@@ -335,7 +335,13 @@ function parsePositionedPdfPages(pages) {
 }
 
 async function parsePdfFile(file) {
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf");
+  const pdfjsModule = await import("pdfjs-dist/legacy/build/pdf");
+  const pdfjs = pdfjsModule.getDocument ? pdfjsModule : pdfjsModule.default;
+
+  if (!pdfjs?.getDocument) {
+    throw new Error("Module PDF non disponible dans ce navigateur.");
+  }
+
   const data = await file.arrayBuffer();
   const pdf = await pdfjs.getDocument({
     data,
