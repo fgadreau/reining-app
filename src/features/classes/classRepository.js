@@ -38,6 +38,7 @@ import {
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import { buildPatternTimingStats } from "./classTimeAnalytics";
 import { MIN_MEASURED_RUN_SECONDS } from "./classTiming";
+import { getPatternDisplayName } from "../patterns/patternDefinitions";
 
 function toClass(row) {
   return {
@@ -155,7 +156,7 @@ export async function getAccessibleClassTimingDataRepository() {
 
 function toPatternTimingStat(row) {
   return {
-    pattern: row.pattern || "Sans pattern",
+    pattern: getPatternDisplayName(row.pattern) || row.pattern || "Sans pattern",
     classCount: Number(row.class_count) || 0,
     runCount: Number(row.run_count) || 0,
     timedRunCount: Number(row.timed_run_count) || 0,
@@ -164,6 +165,53 @@ function toPatternTimingStat(row) {
     medianRunSeconds:
       row.median_run_seconds == null ? null : Number(row.median_run_seconds),
   };
+}
+
+function mergePatternTimingStats(stats) {
+  const groups = new Map();
+
+  stats.forEach((stat) => {
+    if (!groups.has(stat.pattern)) {
+      groups.set(stat.pattern, {
+        ...stat,
+        averageWeight:
+          stat.averageRunSeconds == null
+            ? 0
+            : stat.averageRunSeconds * stat.timedRunCount,
+        medianWeight:
+          stat.medianRunSeconds == null
+            ? 0
+            : stat.medianRunSeconds * stat.timedRunCount,
+      });
+      return;
+    }
+
+    const group = groups.get(stat.pattern);
+    const currentTimedRunCount = group.timedRunCount;
+    const nextTimedRunCount = stat.timedRunCount;
+    const totalTimedRunCount = currentTimedRunCount + nextTimedRunCount;
+
+    group.classCount += stat.classCount;
+    group.runCount += stat.runCount;
+    group.timedRunCount = totalTimedRunCount;
+
+    if (stat.averageRunSeconds != null) {
+      group.averageWeight += stat.averageRunSeconds * nextTimedRunCount;
+    }
+
+    if (stat.medianRunSeconds != null) {
+      group.medianWeight += stat.medianRunSeconds * nextTimedRunCount;
+    }
+
+    group.averageRunSeconds =
+      totalTimedRunCount > 0 ? group.averageWeight / totalTimedRunCount : null;
+    group.medianRunSeconds =
+      totalTimedRunCount > 0 ? group.medianWeight / totalTimedRunCount : null;
+  });
+
+  return Array.from(groups.values())
+    .map(({ averageWeight, medianWeight, ...stat }) => stat)
+    .sort((a, b) => String(a.pattern).localeCompare(String(b.pattern)));
 }
 
 export async function getGlobalPatternTimingStatsRepository() {
@@ -180,7 +228,9 @@ export async function getGlobalPatternTimingStatsRepository() {
 
     if (error) throw error;
 
-    return Array.isArray(data) ? data.map(toPatternTimingStat) : [];
+    return Array.isArray(data)
+      ? mergePatternTimingStats(data.map(toPatternTimingStat))
+      : [];
   } catch (error) {
     console.error("Erreur chargement stats globales par pattern:", error);
     const accessibleClassRows = await getAccessibleClassTimingDataRepository();

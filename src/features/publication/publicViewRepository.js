@@ -6,6 +6,7 @@ import {
 } from "../classes/classRepository";
 import { getDaysByShowRepository } from "../days/dayRepository";
 import { getDaysByShowId } from "../days/daySelectors";
+import { getPatternDisplayName } from "../patterns/patternDefinitions";
 import { PUBLICATION_STATUSES } from "./publicationRepository";
 
 export function getPublicShowView(showId) {
@@ -82,7 +83,14 @@ export function buildPublicClassView(classData) {
     classId: classItem?.id,
     className: classItem?.name || "Classe",
     classCode: classItem?.classCode || "",
-    pattern: official.pattern || classData.setup?.pattern || classItem?.pattern || "",
+    pattern:
+      getPatternDisplayName(
+        official.pattern || classData.setup?.pattern || classItem?.pattern || ""
+      ) ||
+      official.pattern ||
+      classData.setup?.pattern ||
+      classItem?.pattern ||
+      "",
     publishedAt: publication.publishedAt,
     finalizedAt: official.finalizedAt,
     judgeName: official.judgeName,

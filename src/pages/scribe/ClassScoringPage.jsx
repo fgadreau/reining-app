@@ -21,6 +21,7 @@ import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import { getDayById } from "../../features/days/daySelectors";
 import { getShowById } from "../../features/shows/showSelectors";
 import { getPatternHeaders } from "../../features/patterns/patternDefinitions";
+import { getScoringOptionsForPattern } from "../../features/scoring/scoringOptions";
 import {
   isScoredRunComplete,
   recalculateRun,
@@ -44,10 +45,6 @@ import {
   generateScorePdf,
 } from "../../utils/generateScorePdf";
 import { appStyles as styles } from "../../styles/appStyles";
-
-const scoreOptions = ["-1.5", "-1", "-0.5", "0", "+0.5", "+1", "+1.5"];
-const penaltyOptions = ["½", "1", "2", "5", "Score 0"];
-const SPECIAL_TOKENS = ["Score 0", "No score", "Scratch", "Révision vidéo"];
 
 function normalizeRunArrays(run, targetLength) {
   const nextScores = Array.isArray(run.scores) ? [...run.scores] : [];
@@ -184,6 +181,14 @@ function ClassScoringPage() {
 
   const patternValue = classSetup?.pattern || classItem?.pattern || "";
   const headers = useMemo(() => getPatternHeaders(patternValue), [patternValue]);
+  const scoringOptions = useMemo(
+    () => getScoringOptionsForPattern(patternValue),
+    [patternValue]
+  );
+  const scoreOptions = scoringOptions.scoreOptions;
+  const penaltyOptions = scoringOptions.penaltyOptions;
+  const specialPenaltyTokens = scoringOptions.specialPenaltyTokens;
+  const statusPenaltyOptions = scoringOptions.statusPenaltyOptions;
   const maneuverCount = headers.length;
 
   const [runs, setRuns] = useState(() =>
@@ -354,7 +359,7 @@ function ClassScoringPage() {
 
   const removeSpecialTokens = (value) => {
     let cleaned = String(value || "");
-    SPECIAL_TOKENS.forEach((token) => {
+    specialPenaltyTokens.forEach((token) => {
       cleaned = cleaned.replaceAll(token, " ");
     });
     return normalizeSpaces(cleaned);
@@ -481,7 +486,7 @@ function ClassScoringPage() {
 
         const current = normalizeSpaces(nextPenalties[manoeuvreIndex] || "");
 
-        if (SPECIAL_TOKENS.includes(token)) {
+        if (specialPenaltyTokens.includes(token)) {
           const alreadySelected = current.includes(token);
           const cleaned = removeSpecialTokens(current);
 
@@ -913,6 +918,7 @@ function ClassScoringPage() {
         setActiveManoeuvre={setActiveManoeuvreWithRun}
         scoreOptions={scoreOptions}
         penaltyOptions={penaltyOptions}
+        statusPenaltyOptions={statusPenaltyOptions}
         updateScoreCell={updateScoreCell}
         clearScoreCell={clearScoreCell}
         addPenaltyToken={addPenaltyToken}

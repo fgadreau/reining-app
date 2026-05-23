@@ -6,7 +6,10 @@ import {
 } from "../classes/classRepository";
 import { getDaysByShowRepository } from "../days/dayRepository";
 import { getDaysByShowId } from "../days/daySelectors";
-import { getPatternHeaders } from "../patterns/patternDefinitions";
+import {
+  getPatternDisplayName,
+  getPatternHeaders,
+} from "../patterns/patternDefinitions";
 import { PUBLICATION_STATUSES } from "../publication/publicationRepository";
 import { loadActiveManoeuvre } from "../scoring/scoringRepository";
 
@@ -105,7 +108,7 @@ export function buildAnnouncerClassView(classData) {
     classId,
     className: classItem?.name || "Classe",
     classCode: classItem?.classCode || "",
-    pattern,
+    pattern: getPatternDisplayName(pattern) || pattern,
     headers,
     status: classData.status,
     publicationStatus,

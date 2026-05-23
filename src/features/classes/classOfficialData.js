@@ -2,6 +2,7 @@ import { getClassSetup } from "./classSetupStorage";
 import { getClassRecord } from "./classRecordStorage";
 import { getDayById } from "../days/daySelectors";
 import { getShowById } from "../shows/showSelectors";
+import { getPatternDisplayName } from "../patterns/patternDefinitions";
 
 export function getClassOfficialData(classId, classItem, officialResult = null) {
   const setup = getClassSetup(classId);
@@ -98,7 +99,7 @@ export function getClassOfficialData(classId, classItem, officialResult = null) 
     officialRuns,
     eventName,
     eventDate,
-    pattern,
+    pattern: getPatternDisplayName(pattern) || pattern,
   };
 }
 

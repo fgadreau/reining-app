@@ -10,7 +10,12 @@ import { getDayById } from "../../features/days/daySelectors";
 import { getShowById } from "../../features/shows/showSelectors";
 import { loadAssociations } from "../../features/associations/associationsData";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
-import { getPatternHeaders } from "../../features/patterns/patternDefinitions";
+import {
+  getPatternDisplayName,
+  getPatternHeaders,
+  getPatternSelectValue,
+  PATTERN_OPTION_GROUPS,
+} from "../../features/patterns/patternDefinitions";
 import { loadScoringRunsRepository } from "../../features/scoring/scoringRepository";
 import {
   buildScorePdfFileName,
@@ -280,7 +285,7 @@ function DayClassesPage() {
                         </div>
 
                         <div style={cardMetaStyle}>
-                          Pattern {item.pattern || "—"} • Juge{" "}
+                          Pattern {getPatternDisplayName(item.pattern) || "—"} • Juge{" "}
                           {officialData.judgeName || "—"}
                         </div>
                       </div>
@@ -388,9 +393,8 @@ function DayClassesPage() {
 
                       <div>
                         <label style={labelStyle}>Pattern</label>
-                        <input
-                          type="text"
-                          value={draft.pattern}
+                        <select
+                          value={getPatternSelectValue(draft.pattern)}
                           onChange={(e) =>
                             setDraft((prev) => ({
                               ...prev,
@@ -398,7 +402,18 @@ function DayClassesPage() {
                             }))
                           }
                           style={inputStyle}
-                        />
+                        >
+                          <option value="">Choisir un pattern</option>
+                          {PATTERN_OPTION_GROUPS.map((group) => (
+                            <optgroup key={group.label} label={group.label}>
+                              {group.options.map((option) => (
+                                <option key={option.id} value={option.id}>
+                                  {option.name}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
                       </div>
 
                       <div>

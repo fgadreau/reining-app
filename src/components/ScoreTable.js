@@ -8,12 +8,14 @@ function ScoreTable({
   setActiveManoeuvre,
   scoreOptions,
   penaltyOptions,
+  statusPenaltyOptions,
   updateScoreCell,
   clearScoreCell,
   addPenaltyToken,
   toggleSpecialPenalty,
   clearPenaltyCell,
   updateBackNumber,
+  isLocked,
   styles,
 }) {
   return (
@@ -45,12 +47,14 @@ function ScoreTable({
               setActiveManoeuvre={setActiveManoeuvre}
               scoreOptions={scoreOptions}
               penaltyOptions={penaltyOptions}
+              statusPenaltyOptions={statusPenaltyOptions}
               updateScoreCell={updateScoreCell}
               clearScoreCell={clearScoreCell}
               addPenaltyToken={addPenaltyToken}
               toggleSpecialPenalty={toggleSpecialPenalty}
               clearPenaltyCell={clearPenaltyCell}
               updateBackNumber={updateBackNumber}
+              isLocked={isLocked}
               styles={styles}
             />
           ))}

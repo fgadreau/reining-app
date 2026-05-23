@@ -17,7 +17,11 @@ import {
 } from "../../features/classes/classStatusSelectors";
 import { hasScoringStarted } from "../../features/scoring/scoringSelectors";
 import { appStyles as styles } from "../../styles/appStyles";
-import { getPatternHeaders } from "../../features/patterns/patternDefinitions";
+import {
+  getPatternHeaders,
+  getPatternSelectValue,
+  PATTERN_OPTION_GROUPS,
+} from "../../features/patterns/patternDefinitions";
 import { loadScoringRunsRepository } from "../../features/scoring/scoringRepository";
 import {
   DEFAULT_DRAG_DURATION_MINUTES,
@@ -516,9 +520,8 @@ function ClassSetupPage() {
         <div style={fieldGridStyle}>
           <div>
             <label style={labelStyle}>Pattern</label>
-            <input
-              type="text"
-              value={pattern}
+            <select
+              value={getPatternSelectValue(pattern)}
               onChange={(e) => {
                 if (isFinalized) {
                   showFinalizedMessage();
@@ -536,10 +539,20 @@ function ClassSetupPage() {
 
                 setPattern(e.target.value);
               }}
-              placeholder="Ex. 5"
               style={inputStyle}
               disabled={!canManageSetup || isFullyLocked}
-            />
+            >
+              <option value="">Choisir un pattern</option>
+              {PATTERN_OPTION_GROUPS.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.options.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
           </div>
 
           {canManageSetup && (

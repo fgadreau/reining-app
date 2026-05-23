@@ -7,6 +7,7 @@ function ManoeuvrePicker({
   activeManoeuvre,
   scoreOptions,
   penaltyOptions,
+  statusPenaltyOptions,
   updateScoreCell,
   clearScoreCell,
   addPenaltyToken,
@@ -29,10 +30,9 @@ function ManoeuvrePicker({
   const manoeuvreName = headers[manoeuvreIndex];
   const activePenaltyValue = run.penalties[manoeuvreIndex] || "";
   const activeScoreValue = run.scores[manoeuvreIndex] || "";
-
-  const hasNoScore = activePenaltyValue.includes("No score");
-  const hasScratch = activePenaltyValue.includes("Scratch");
-  const hasVideoReview = activePenaltyValue.includes("Révision vidéo");
+  const statusOptions = Array.isArray(statusPenaltyOptions)
+    ? statusPenaltyOptions
+    : [];
 
   if (position === "top") {
     return (
@@ -65,45 +65,22 @@ function ManoeuvrePicker({
             </div>
 
             <div style={styles.statusToggleWrap}>
-              <label style={styles.statusCheckboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={hasNoScore}
-                  onChange={() =>
-                    toggleSpecialPenalty(run.draw, manoeuvreIndex, "No score")
-                  }
-                  style={styles.statusCheckboxInput}
-                />
-                No score
-              </label>
-
-              <label style={styles.statusCheckboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={hasScratch}
-                  onChange={() =>
-                    toggleSpecialPenalty(run.draw, manoeuvreIndex, "Scratch")
-                  }
-                  style={styles.statusCheckboxInput}
-                />
-                Scratch
-              </label>
-
-              <label style={styles.statusCheckboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={hasVideoReview}
-                  onChange={() =>
-                    toggleSpecialPenalty(
-                      run.draw,
-                      manoeuvreIndex,
-                      "Révision vidéo"
-                    )
-                  }
-                  style={styles.statusCheckboxInput}
-                />
-                Révision vidéo
-              </label>
+              {statusOptions.map((option) => (
+                <label
+                  key={`status-${run.id || run.draw}-${manoeuvreIndex}-${option}`}
+                  style={styles.statusCheckboxLabel}
+                >
+                  <input
+                    type="checkbox"
+                    checked={activePenaltyValue.includes(option)}
+                    onChange={() =>
+                      toggleSpecialPenalty(run.draw, manoeuvreIndex, option)
+                    }
+                    style={styles.statusCheckboxInput}
+                  />
+                  {option}
+                </label>
+              ))}
             </div>
           </div>
         </td>

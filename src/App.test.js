@@ -33,6 +33,8 @@ import {
   buildPatternTimingStats,
   calculateClassTimeSimulation,
 } from "./features/classes/classTimeAnalytics";
+import { getPatternHeaders } from "./features/patterns/patternDefinitions";
+import { getScoringOptionsForPattern } from "./features/scoring/scoringOptions";
 
 beforeEach(() => {
   localStorage.clear();
@@ -93,6 +95,27 @@ test("blocks finalization while a run is under video review", () => {
   expect(run.scoreTotal).toBe("Review");
   expect(runHasVideoReview(run)).toBe(true);
   expect(isScoredRunComplete(run, 3)).toBe(false);
+});
+
+test("uses ranch riding patterns and penalties", () => {
+  expect(getPatternHeaders("RR1").slice(-2)).toEqual(["STBK", "RHA"]);
+  expect(getPatternHeaders("SFRR1").slice(-1)).toEqual(["RHA"]);
+  expect(getPatternHeaders("1")).toEqual(getPatternHeaders("R1"));
+
+  expect(getScoringOptionsForPattern("RR1")).toMatchObject({
+    penaltyOptions: ["1", "3", "5"],
+    statusPenaltyOptions: ["OP", "Score 0", "Révision vidéo"],
+  });
+
+  const offPatternRun = recalculateRun({
+    backNumber: "500",
+    scores: ["0", "0"],
+    penalties: ["OP", ""],
+  });
+
+  expect(offPatternRun.penTotal).toBe("OP");
+  expect(offPatternRun.scoreTotal).toBe("OP");
+  expect(isScoredRunComplete(offPatternRun, 2)).toBe(true);
 });
 
 test("parses imported draw rows in draw order", () => {
@@ -389,7 +412,7 @@ test("summarizes class timing by pattern", () => {
   });
 
   expect(stats[0]).toMatchObject({
-    pattern: "5",
+    pattern: "Reining #5",
     classCount: 2,
     timedRunCount: 1,
     averageRunSeconds: 180,

@@ -1,4 +1,7 @@
-import { getPatternHeaders } from "../patterns/patternDefinitions";
+import {
+  getPatternDisplayName,
+  getPatternHeaders,
+} from "../patterns/patternDefinitions";
 import {
   calculateClassTimingSummary,
   getRunDurationSeconds,
@@ -6,9 +9,10 @@ import {
 } from "./classTiming";
 
 export function getClassPatternValue(classData) {
-  return String(
+  const patternValue = String(
     classData?.setup?.pattern || classData?.classItem?.pattern || ""
   ).trim();
+  return getPatternDisplayName(patternValue) || patternValue;
 }
 
 export function getClassRunCount(classData) {

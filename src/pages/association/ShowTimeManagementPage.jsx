@@ -17,6 +17,7 @@ import {
   formatClockTime,
   formatDuration,
 } from "../../features/classes/classTiming";
+import { getPatternDisplayName } from "../../features/patterns/patternDefinitions";
 import { getDaysByShowRepository } from "../../features/days/dayRepository";
 import { getShowRepository } from "../../features/shows/showRepository";
 import { appStyles as styles } from "../../styles/appStyles";
@@ -125,9 +126,9 @@ function ShowTimeManagementPage() {
           now,
           patternAverageRunSeconds:
             patternAverageByValue.get(
-              String(
+              getPatternDisplayName(
                 classData?.setup?.pattern || classData?.classItem?.pattern || "—"
-              ).trim() || "—"
+              ) || "—"
             ) || null,
         })
       )

@@ -1,6 +1,13 @@
 const DEFAULT_HEADERS = ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"];
 
-const PATTERN_HEADERS = {
+export const PATTERN_DISCIPLINES = {
+  REINING: "reining",
+  RANCH_RIDING: "ranch_riding",
+};
+
+export const RANCH_APPEARANCE_HEADER = "RHA";
+
+const REINING_HEADERS = {
   "1": ["LR", "RR", "SB", "RS", "LS", "LLSL", "RLSL", "STOP"],
   "2": ["RSLL", "LSLL", "RR", "LR", "STOP", "RS", "LS"],
   "3": ["LR", "RR", "RLLS", "LLLS", "SB", "RS", "LS"],
@@ -23,9 +30,259 @@ const PATTERN_HEADERS = {
   B: ["RR", "LR", "LLS", "LS", "RLS", "RS", "SB"],
 };
 
+export const RANCH_ABBREVIATIONS = {
+  W: "Walk",
+  T: "Trot",
+  ET: "Extended trot",
+  CT: "Collect to a trot",
+  LL: "Lope left lead",
+  RL: "Lope right lead",
+  EL: "Extended lope",
+  ELL: "Extended lope left lead",
+  ERL: "Extended lope right lead",
+  CL: "Collect lope",
+  LC: "Lead change simple or flying",
+  ST: "Stop",
+  BK: "Back",
+  STBK: "Stop and back",
+  WL: "Walk over logs",
+  TL: "Trot over logs",
+  LOL: "Lope over logs",
+  SP_L: "Side pass left",
+  SP_R: "Side pass right",
+  SP_L_LOG: "Side pass left over log",
+  SP_R_LOG: "Side pass right over log",
+  T360L: "360 turn left",
+  T360R: "360 turn right",
+  T360E: "360 turn either direction",
+  T360B: "360 turn each direction",
+  T180E: "180 / 1/2 turn either direction",
+  T180R: "180 / 1/2 turn right",
+  T90R: "1/4 turn right",
+  T540R: "1 1/2 turn right",
+  T540E: "1 1/2 turn either direction",
+  RB_R: "Rollback right",
+  TSERP: "Trot serpentine",
+  ETSERP: "Extended trot serpentine",
+  TCIRCLE: "Trot circle",
+  LCIRCLE: "Lope circle",
+  TSQUARE: "Trot square",
+  TF8: "Trot figure 8",
+  GATE_L_IN: "Left hand push gate into pen",
+  GATE_R: "Right hand push gate",
+  GATE_R_OUT: "Right hand push gate out",
+  GATE_TO: "Side pass to gate",
+  CATTLE: "Walk through cattle",
+};
+
+const RANCH_RIDING_PATTERNS = [
+  {
+    id: "RR1",
+    name: "Ranch Riding #1",
+    maneuvers: ["W", "T", "ET/ST", "T360L", "LL_1/2_CIRCLE", "LC", "RL_1/2_CIRCLE", "ERL", "CL", "ET", "WL", "STBK"],
+  },
+  {
+    id: "RR2",
+    name: "Ranch Riding #2",
+    maneuvers: ["W", "T", "ET", "LL", "ST/T540R", "EL", "CL_RL", "LC/LL", "W", "WL", "T", "ET", "STBK"],
+  },
+  {
+    id: "RR3",
+    name: "Ranch Riding #3",
+    maneuvers: ["W", "TSERP", "LL", "LC", "RL", "EL", "ET", "CT", "TL", "ST/T360B", "W/STBK"],
+  },
+  {
+    id: "RR4",
+    name: "Ranch Riding #4",
+    maneuvers: ["W", "T", "ERL", "RL", "LC", "LL", "ET", "ST/SP_L/SP_R", "WL", "W", "TSQUARE", "ST/T360L/BK"],
+  },
+  {
+    id: "RR5",
+    name: "Ranch Riding #5",
+    maneuvers: ["W", "WL", "T", "RL", "ET", "T", "LL", "LC", "ERL", "CL", "T", "W", "STBK", "T360B"],
+  },
+  {
+    id: "RR6",
+    name: "Ranch Riding #6",
+    maneuvers: ["W", "WL", "RL", "ERL", "T", "ST/T540R", "W", "T", "ET", "LL", "STBK", "SP_R"],
+  },
+  {
+    id: "RR7",
+    name: "Ranch Riding #7",
+    maneuvers: ["W", "T", "ET", "STBK", "SP_R_LOG", "T90R/WL", "W", "LL", "ELL", "CL/LC", "RL", "T", "ST/T360E"],
+  },
+  {
+    id: "RR8",
+    name: "Ranch Riding #8",
+    maneuvers: ["W", "SP_L_LOG/SP_R_HALF", "WL", "ET", "T", "ST/T360B", "RL", "ERL", "CL/LC/LL", "W", "LL", "ET", "T", "STBK"],
+  },
+  {
+    id: "RR9",
+    name: "Ranch Riding #9",
+    maneuvers: ["T", "TL_2SETS", "TCIRCLE/ST/SP_L_LOG", "W", "RL", "LC", "LL", "ELL", "ET", "T", "W", "STBK", "T360B"],
+  },
+  {
+    id: "RR10",
+    name: "Ranch Riding #10",
+    maneuvers: ["W", "ET", "W", "ST/SP_L_LOG", "T", "RL", "ERL", "CL/LC", "LL", "STBK", "T180R", "T"],
+  },
+  {
+    id: "RR11",
+    name: "Ranch Riding #11",
+    maneuvers: ["W", "TSERP", "W", "ET", "T", "LL", "LOL", "ELL", "CL/LC", "RL", "LCIRCLE", "STBK", "GATE_TO/GATE_L_IN", "CATTLE/GATE_R_OUT"],
+  },
+  {
+    id: "RR12",
+    name: "Ranch Riding #12",
+    maneuvers: ["W", "T", "TL/ST", "SP_R_LOG", "T540R", "ERL", "RL", "ET", "LL", "W", "T", "STBK"],
+  },
+  {
+    id: "RR13",
+    name: "Ranch Riding #13",
+    maneuvers: ["W", "WL", "T", "ETSERP", "RL", "LC", "ELL/CL", "ST/T540E", "T", "W_TO_GATE", "GATE_R", "W/LL", "STBK"],
+  },
+  {
+    id: "RR14",
+    name: "Ranch Riding #14",
+    maneuvers: ["T", "ET", "LL", "ET", "W", "RL", "T", "ELL", "CL/LC/ERL/CL", "T", "GATE_L_IN", "WL", "GATE_R_OUT", "W", "ST/T360B", "BK"],
+  },
+  {
+    id: "RR15",
+    name: "Ranch Riding #15",
+    maneuvers: ["ET", "ST/RB_R", "RL", "ERL", "T", "W", "WL", "W", "T", "ST/T360L", "LL", "STBK"],
+  },
+];
+
+const SMALL_FRY_RANCH_RIDING_PATTERNS = [
+  {
+    id: "SFRR1",
+    name: "Small Fry Ranch Riding #1",
+    maneuvers: ["WL", "TSQUARE", "ET", "W", "STBK_2HL", "T180E", "W", "T", "ET", "CT", "W"],
+  },
+  {
+    id: "SFRR2",
+    name: "Small Fry Ranch Riding #2",
+    maneuvers: ["W", "T_BETWEEN_LOGS", "ET", "W/STBK", "T360E", "WL", "T", "ET", "CT", "W"],
+  },
+  {
+    id: "SFRR3",
+    name: "Small Fry Ranch Riding #3",
+    maneuvers: ["W", "ST/T360E", "WL", "TF8", "ET/ST", "T180R", "ET", "CT", "W"],
+  },
+  {
+    id: "SFRR4",
+    name: "Small Fry Ranch Riding #4",
+    maneuvers: ["WL", "T", "ET", "CT", "ST", "T180E", "ET", "CT", "W", "STBK"],
+  },
+  {
+    id: "SFRR5",
+    name: "Small Fry Ranch Riding #5",
+    maneuvers: ["W", "T", "ET", "TL", "W", "ST", "BK", "T180E", "W"],
+  },
+];
+
+const REINING_PATTERNS = Object.entries(REINING_HEADERS).map(
+  ([number, headers]) => ({
+    id: `R${number}`,
+    legacyId: number,
+    name: `Reining #${number}`,
+    discipline: PATTERN_DISCIPLINES.REINING,
+    maneuvers: headers,
+  })
+);
+
+const PATTERN_DEFINITIONS = [
+  ...REINING_PATTERNS,
+  ...RANCH_RIDING_PATTERNS.map((pattern) => ({
+    ...pattern,
+    discipline: PATTERN_DISCIPLINES.RANCH_RIDING,
+    maneuvers: [...pattern.maneuvers, RANCH_APPEARANCE_HEADER],
+  })),
+  ...SMALL_FRY_RANCH_RIDING_PATTERNS.map((pattern) => ({
+    ...pattern,
+    discipline: PATTERN_DISCIPLINES.RANCH_RIDING,
+    maneuvers: [...pattern.maneuvers, RANCH_APPEARANCE_HEADER],
+  })),
+];
+
+export const PATTERN_OPTION_GROUPS = [
+  {
+    label: "Reining",
+    options: REINING_PATTERNS.map(({ id, name }) => ({ id, name })),
+  },
+  {
+    label: "Ranch Riding",
+    options: RANCH_RIDING_PATTERNS.map(({ id, name }) => ({ id, name })),
+  },
+  {
+    label: "Small Fry Ranch Riding",
+    options: SMALL_FRY_RANCH_RIDING_PATTERNS.map(({ id, name }) => ({
+      id,
+      name,
+    })),
+  },
+];
+
+function simplifyPatternValue(patternValue) {
+  return String(patternValue || "")
+    .trim()
+    .replace(/[–—-]/g, " ")
+    .replace(/\s+/g, " ")
+    .toUpperCase();
+}
+
+export function getPatternKey(patternValue) {
+  const key = simplifyPatternValue(patternValue);
+  if (!key) return "";
+
+  if (/^([1-9]|1[0-8]|A|B)$/.test(key)) {
+    return `R${key}`;
+  }
+
+  const reiningMatch = key.match(/^R(?:EINING)?\s*#?\s*([1-9]|1[0-8]|A|B)$/);
+  if (reiningMatch) {
+    return `R${reiningMatch[1]}`;
+  }
+
+  const ranchMatch = key.match(/^RANCH RIDING\s*#?\s*([1-9]|1[0-5])$/);
+  if (ranchMatch) {
+    return `RR${ranchMatch[1]}`;
+  }
+
+  const smallFryMatch = key.match(
+    /^SMALL FRY RANCH RIDING\s*(?:#|PATTERN)?\s*([1-5])$/
+  );
+  if (smallFryMatch) {
+    return `SFRR${smallFryMatch[1]}`;
+  }
+
+  return key;
+}
+
+export function getPatternDefinition(patternValue) {
+  const key = getPatternKey(patternValue);
+  return PATTERN_DEFINITIONS.find((pattern) => pattern.id === key) || null;
+}
+
+export function getPatternSelectValue(patternValue) {
+  return getPatternDefinition(patternValue)?.id || String(patternValue || "");
+}
+
+export function getPatternDisplayName(patternValue) {
+  const definition = getPatternDefinition(patternValue);
+  return definition?.name || String(patternValue || "").trim();
+}
+
+export function getPatternDiscipline(patternValue) {
+  return getPatternDefinition(patternValue)?.discipline || PATTERN_DISCIPLINES.REINING;
+}
+
+export function isRanchRidingPattern(patternValue) {
+  return getPatternDiscipline(patternValue) === PATTERN_DISCIPLINES.RANCH_RIDING;
+}
+
 export function getPatternHeaders(patternValue) {
-  const key = String(patternValue || "").trim().toUpperCase();
-  return PATTERN_HEADERS[key] || DEFAULT_HEADERS;
+  return getPatternDefinition(patternValue)?.maneuvers || DEFAULT_HEADERS;
 }
 
 export function getPatternMoveCount(patternValue) {

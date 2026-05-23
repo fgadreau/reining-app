@@ -12,11 +12,13 @@ export function parsePenaltyValue(value) {
   const halfMatches = text.match(/½/g);
   const oneMatches = text.match(/\b1\b/g);
   const twoMatches = text.match(/\b2\b/g);
+  const threeMatches = text.match(/\b3\b/g);
   const fiveMatches = text.match(/\b5\b/g);
 
   if (halfMatches) total += halfMatches.length * 0.5;
   if (oneMatches) total += oneMatches.length * 1;
   if (twoMatches) total += twoMatches.length * 2;
+  if (threeMatches) total += threeMatches.length * 3;
   if (fiveMatches) total += fiveMatches.length * 5;
 
   return total;
@@ -25,6 +27,11 @@ export function parsePenaltyValue(value) {
 export function penaltyCellHasScoreZero(value) {
   if (!value) return false;
   return String(value).includes("Score 0");
+}
+
+export function penaltyCellHasOffPattern(value) {
+  if (!value) return false;
+  return String(value).includes("OP");
 }
 
 export function penaltyCellHasNoScore(value) {
@@ -59,11 +66,15 @@ export function getRunStatus(run) {
     return "S0";
   }
 
+  if (run.penalties.some((cell) => penaltyCellHasOffPattern(cell))) {
+    return "OP";
+  }
+
   return null;
 }
 
 export function runHasSpecialResult(run) {
-  return ["SCR", "NS", "S0"].includes(getRunStatus(run));
+  return ["SCR", "NS", "S0", "OP"].includes(getRunStatus(run));
 }
 
 export function runHasVideoReview(run) {
@@ -139,6 +150,11 @@ export function recalculateRun(run) {
   if (status === "S0") {
     penTotalText = penTotalText ? `${penTotalText} + Score 0` : "Score 0";
     scoreTotalText = runHasAnyData(run) ? "0.0" : "";
+  }
+
+  if (status === "OP") {
+    penTotalText = penTotalText ? `${penTotalText} + OP` : "OP";
+    scoreTotalText = runHasAnyData(run) ? "OP" : "";
   }
 
   return {

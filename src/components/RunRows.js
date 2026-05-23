@@ -8,6 +8,7 @@ function RunRows({
   setActiveManoeuvre,
   scoreOptions,
   penaltyOptions,
+  statusPenaltyOptions,
   updateScoreCell,
   clearScoreCell,
   addPenaltyToken,
@@ -83,6 +84,7 @@ function RunRows({
           activeManoeuvre={activeManoeuvre}
           scoreOptions={scoreOptions}
           penaltyOptions={penaltyOptions}
+          statusPenaltyOptions={statusPenaltyOptions}
           updateScoreCell={updateScoreCell}
           clearScoreCell={clearScoreCell}
           addPenaltyToken={addPenaltyToken}
@@ -229,6 +231,7 @@ function RunRows({
           activeManoeuvre={activeManoeuvre}
           scoreOptions={scoreOptions}
           penaltyOptions={penaltyOptions}
+          statusPenaltyOptions={statusPenaltyOptions}
           updateScoreCell={updateScoreCell}
           clearScoreCell={clearScoreCell}
           addPenaltyToken={addPenaltyToken}
