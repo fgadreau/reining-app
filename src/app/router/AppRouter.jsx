@@ -10,6 +10,7 @@ import ShowDetailPage from "../../pages/association/ShowDetailPage";
 import SecretariatDashboardPage from "../../pages/association/SecretariatDashboardPage";
 import AnnouncerDashboardPage from "../../pages/association/AnnouncerDashboardPage";
 import PublicResultsPage from "../../pages/association/PublicResultsPage";
+import ShowTimeManagementPage from "../../pages/association/ShowTimeManagementPage";
 import DayClassesPage from "../../pages/association/DayClassesPage";
 import ClassSetupPage from "../../pages/association/ClassSetupPage";
 import ClassScoringPage from "../../pages/scribe/ClassScoringPage";
@@ -40,6 +41,10 @@ function AppRouter() {
         <Route
           path="/associations/:associationId/shows/:showId/secretariat"
           element={<SecretariatDashboardPage />}
+        />
+        <Route
+          path="/associations/:associationId/shows/:showId/time"
+          element={<ShowTimeManagementPage />}
         />
         <Route
           path="/associations/:associationId/shows/:showId/announcer"

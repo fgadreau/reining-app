@@ -146,12 +146,20 @@ function SecretariatDashboardPage() {
             {show.venue || show.location || "Lieu à confirmer"}
           </div>
         </div>
-        <Link
-          to={`/associations/${associationId}/shows/${showId}`}
-          style={linkButtonStyle}
-        >
-          Gérer les journées
-        </Link>
+        <div style={heroActionsStyle}>
+          <Link
+            to={`/associations/${associationId}/shows/${showId}/time`}
+            style={linkButtonStyle}
+          >
+            Gestion du temps
+          </Link>
+          <Link
+            to={`/associations/${associationId}/shows/${showId}`}
+            style={linkButtonStyle}
+          >
+            Gérer les journées
+          </Link>
+        </div>
       </section>
 
       <section style={summaryGridStyle}>
@@ -466,6 +474,12 @@ const titleStyle = {
 
 const subtitleStyle = {
   color: "#64748b",
+};
+
+const heroActionsStyle = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
 };
 
 const summaryGridStyle = {

@@ -194,6 +194,15 @@ function ShowDetailPage() {
             </Link>
           )}
 
+          {access.canManageAssociation && (
+            <Link
+              to={`/associations/${associationId}/shows/${showId}/time`}
+              style={linkButtonStyle}
+            >
+              Gestion du temps
+            </Link>
+          )}
+
           {access.canAnnounceAssociation && (
             <Link
               to={`/associations/${associationId}/shows/${showId}/announcer`}

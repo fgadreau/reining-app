@@ -28,6 +28,10 @@ import {
   calculateClassTimingSummary,
   stampRunTiming,
 } from "./features/classes/classTiming";
+import {
+  buildClassTimingRow,
+  buildPatternTimingStats,
+} from "./features/classes/classTimeAnalytics";
 
 beforeEach(() => {
   localStorage.clear();
@@ -328,4 +332,69 @@ test("tracks run timing and estimates remaining class time with drags", () => {
   expect(summary.remainingRuns).toBe(2);
   expect(summary.remainingDragBreaks).toBe(1);
   expect(summary.remainingSeconds).toBe(720);
+});
+
+test("summarizes class timing by pattern", () => {
+  const classRows = [
+    {
+      classItem: {
+        id: "class-a",
+        name: "Open A",
+        pattern: "5",
+      },
+      setup: {
+        pattern: "5",
+        runs: [{ id: "a-1" }, { id: "a-2" }, { id: "a-3" }],
+        dragInterval: 2,
+        dragDurationMinutes: 8,
+      },
+      scoringRuns: [
+        {
+          id: "a-1",
+          backNumber: "101",
+          scores: Array(8).fill("0"),
+          penalties: Array(8).fill(""),
+          durationSeconds: 120,
+        },
+      ],
+    },
+    {
+      classItem: {
+        id: "class-b",
+        name: "Open B",
+        pattern: "5",
+      },
+      setup: {
+        pattern: "5",
+        runs: [{ id: "b-1" }],
+      },
+      scoringRuns: [
+        {
+          id: "b-1",
+          backNumber: "102",
+          scores: Array(8).fill("0"),
+          penalties: Array(8).fill(""),
+          durationSeconds: 180,
+        },
+      ],
+    },
+  ];
+
+  const stats = buildPatternTimingStats(classRows);
+  const timingRow = buildClassTimingRow({
+    classData: classRows[0],
+    now: new Date("2026-05-22T14:05:00.000Z"),
+    patternAverageRunSeconds: stats[0].averageRunSeconds,
+  });
+
+  expect(stats[0]).toMatchObject({
+    pattern: "5",
+    classCount: 2,
+    timedRunCount: 2,
+    averageRunSeconds: 150,
+    medianRunSeconds: 150,
+  });
+  expect(timingRow.remainingRuns).toBe(2);
+  expect(timingRow.remainingDragBreaks).toBe(1);
+  expect(timingRow.remainingSeconds).toBe(720);
 });
