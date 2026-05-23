@@ -19,23 +19,6 @@ export function normalizeDragDurationMinutes(value) {
     : DEFAULT_DRAG_DURATION_MINUTES;
 }
 
-export function toDateTimeLocalValue(isoValue) {
-  if (!isoValue) return "";
-
-  const date = new Date(isoValue);
-  if (Number.isNaN(date.getTime())) return "";
-
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
-}
-
-export function fromDateTimeLocalValue(value) {
-  if (!value) return null;
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
-}
-
 export function formatClockTime(isoValue) {
   if (!isoValue) return "—";
 

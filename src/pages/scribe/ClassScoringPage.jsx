@@ -866,15 +866,6 @@ function ClassScoringPage() {
       <section style={timingCardStyle}>
         <div style={timingHeaderStyle}>
           <h2 style={sectionTitleStyle}>Gestion du temps</h2>
-          {!isCompleted && !classSetup?.startedAt && (
-            <button
-              type="button"
-              onClick={() => ensureClassStartedAt(new Date().toISOString())}
-              style={secondaryButtonStyle}
-            >
-              Démarrer la classe
-            </button>
-          )}
         </div>
 
         <div style={timingGridStyle}>
@@ -908,8 +899,9 @@ function ClassScoringPage() {
 
         {timingSummary.averageRunSeconds == null && (
           <div style={timingHintStyle}>
-            L’estimation s’activera après le premier run complété avec un temps
-            mesuré.
+            Le début réel sera enregistré au premier score ou à la première
+            pénalité. L’estimation s’activera après le premier run complété avec
+            un temps mesuré.
           </div>
         )}
       </section>

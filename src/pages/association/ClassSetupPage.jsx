@@ -22,8 +22,6 @@ import { loadScoringRunsRepository } from "../../features/scoring/scoringReposit
 import {
   DEFAULT_DRAG_DURATION_MINUTES,
   DRAG_INTERVAL_OPTIONS,
-  fromDateTimeLocalValue,
-  toDateTimeLocalValue,
 } from "../../features/classes/classTiming";
 import {
   buildScorePdfFileName,
@@ -69,7 +67,6 @@ function ClassSetupPage() {
   const [isDrawImported, setIsDrawImported] = useState(
     Boolean(classSetup?.isDrawImported)
   );
-  const [startedAt, setStartedAt] = useState(classSetup?.startedAt || null);
   const [dragInterval, setDragInterval] = useState(
     String(classSetup?.dragInterval || "")
   );
@@ -136,7 +133,6 @@ function ClassSetupPage() {
       setPattern(nextPattern);
       setRuns(nextRuns);
       setIsDrawImported(Boolean(nextSetup.isDrawImported));
-      setStartedAt(nextSetup.startedAt || null);
       setDragInterval(String(nextSetup.dragInterval || ""));
       setDragDurationMinutes(
         String(nextSetup.dragDurationMinutes || DEFAULT_DRAG_DURATION_MINUTES)
@@ -172,7 +168,6 @@ function ClassSetupPage() {
         pattern,
         runs,
         isDrawImported,
-        startedAt,
         dragInterval: dragInterval || null,
         dragDurationMinutes,
       });
@@ -200,7 +195,6 @@ function ClassSetupPage() {
     pattern,
     runs,
     isDrawImported,
-    startedAt,
     dragInterval,
     dragDurationMinutes,
     hasLoadedSetup,
@@ -566,31 +560,6 @@ function ClassSetupPage() {
                   disabled={isFinalized}
                 >
                   Appliquer
-                </button>
-              </div>
-            </div>
-          )}
-
-          {canManageSetup && (
-            <div>
-              <label style={labelStyle}>Début de classe</label>
-              <div style={inlineFieldStyle}>
-                <input
-                  type="datetime-local"
-                  value={toDateTimeLocalValue(startedAt)}
-                  onChange={(e) =>
-                    setStartedAt(fromDateTimeLocalValue(e.target.value))
-                  }
-                  style={inputStyle}
-                  disabled={isFinalized}
-                />
-                <button
-                  type="button"
-                  onClick={() => setStartedAt(new Date().toISOString())}
-                  style={buttonStyle}
-                  disabled={isFinalized}
-                >
-                  Maintenant
                 </button>
               </div>
             </div>

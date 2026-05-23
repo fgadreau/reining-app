@@ -85,6 +85,9 @@ Fields:
 - `pattern`
 - `runs`
 - `isDrawImported`
+- `startedAt` actual scoring start, captured from the first score or penalty entry
+- `dragInterval`
+- `dragDurationMinutes`
 - `lockedAt`
 - `lockedBy`
 
@@ -119,6 +122,9 @@ Each scoring run:
 - `penTotal`
 - `scoreTotal`
 - `isActive`
+- `startedAt`
+- `completedAt`
+- `durationSeconds`
 
 ### Official Result
 
