@@ -4,7 +4,7 @@ import {
   runHasVideoReview,
 } from "../../utils/scoring";
 
-export const DRAG_INTERVAL_OPTIONS = [5, 6, 8, 10];
+export const DRAG_INTERVAL_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
 export const DEFAULT_DRAG_DURATION_MINUTES = 8;
 
 export function normalizeDragInterval(value) {

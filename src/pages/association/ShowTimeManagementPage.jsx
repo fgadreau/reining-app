@@ -4,12 +4,16 @@ import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import {
   buildClassTimingRow,
   buildPatternTimingStats,
+  calculateClassTimeSimulation,
 } from "../../features/classes/classTimeAnalytics";
 import {
+  getAccessibleClassTimingDataRepository,
   getClassFullDataRepository,
   getClassesForDayRepository,
 } from "../../features/classes/classRepository";
 import {
+  DEFAULT_DRAG_DURATION_MINUTES,
+  DRAG_INTERVAL_OPTIONS,
   formatClockTime,
   formatDuration,
 } from "../../features/classes/classTiming";
@@ -23,8 +27,15 @@ function ShowTimeManagementPage() {
   const access = useAssociationAccess(associationId);
   const [show, setShow] = useState(null);
   const [daySections, setDaySections] = useState([]);
+  const [globalClassRows, setGlobalClassRows] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
+  const [simulator, setSimulator] = useState({
+    pattern: "",
+    participantCount: "20",
+    dragInterval: "",
+    dragDurationMinutes: String(DEFAULT_DRAG_DURATION_MINUTES),
+  });
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30000);
@@ -36,9 +47,10 @@ function ShowTimeManagementPage() {
 
     async function load() {
       setIsLoading(true);
-      const [nextShow, days] = await Promise.all([
+      const [nextShow, days, nextGlobalClassRows] = await Promise.all([
         getShowRepository(showId),
         getDaysByShowRepository(showId),
+        getAccessibleClassTimingDataRepository(),
       ]);
       const nextSections = await Promise.all(
         days.map(async (day) => {
@@ -57,6 +69,7 @@ function ShowTimeManagementPage() {
       if (!isMounted) return;
       setShow(nextShow);
       setDaySections(nextSections);
+      setGlobalClassRows(nextGlobalClassRows);
       setIsLoading(false);
     }
 
@@ -72,6 +85,10 @@ function ShowTimeManagementPage() {
     [daySections]
   );
   const patternStats = useMemo(
+    () => buildPatternTimingStats(globalClassRows),
+    [globalClassRows]
+  );
+  const showPatternStats = useMemo(
     () => buildPatternTimingStats(allClassRows),
     [allClassRows]
   );
@@ -80,6 +97,25 @@ function ShowTimeManagementPage() {
       patternStats.map((stat) => [stat.pattern, stat.averageRunSeconds])
     );
   }, [patternStats]);
+  const selectedPatternStats = useMemo(
+    () => patternStats.find((stat) => stat.pattern === simulator.pattern) || null,
+    [patternStats, simulator.pattern]
+  );
+  const simulation = useMemo(
+    () =>
+      calculateClassTimeSimulation({
+        participantCount: simulator.participantCount,
+        averageRunSeconds: selectedPatternStats?.averageRunSeconds,
+        dragInterval: simulator.dragInterval,
+        dragDurationMinutes: simulator.dragDurationMinutes,
+      }),
+    [
+      simulator.participantCount,
+      simulator.dragInterval,
+      simulator.dragDurationMinutes,
+      selectedPatternStats?.averageRunSeconds,
+    ]
+  );
   const classTimingRows = useMemo(() => {
     return daySections.flatMap(({ day, classRows }) =>
       classRows.map((classData) =>
@@ -101,6 +137,18 @@ function ShowTimeManagementPage() {
     () => buildShowTimeSummary(classTimingRows, now),
     [classTimingRows, now]
   );
+
+  useEffect(() => {
+    if (simulator.pattern || patternStats.length === 0) return;
+
+    const firstMeasuredPattern =
+      patternStats.find((stat) => stat.averageRunSeconds != null) ||
+      patternStats[0];
+    setSimulator((current) => ({
+      ...current,
+      pattern: firstMeasuredPattern.pattern,
+    }));
+  }, [patternStats, simulator.pattern]);
 
   if (!access.isLoadingAccess && !access.canManageAssociation) {
     return (
@@ -167,7 +215,8 @@ function ShowTimeManagementPage() {
               <div>
                 <h2 style={sectionTitleStyle}>Par pattern</h2>
                 <div style={metaStyle}>
-                  Basé sur les runs complétés avec un temps mesuré.
+                  Moyennes globales basées sur toutes les classes accessibles à
+                  ton compte.
                 </div>
               </div>
             </div>
@@ -213,10 +262,121 @@ function ShowTimeManagementPage() {
           <section style={cardStyle}>
             <div style={sectionHeaderStyle}>
               <div>
+                <h2 style={sectionTitleStyle}>Simulateur</h2>
+                <div style={metaStyle}>
+                  Estime une classe avec la moyenne globale du pattern choisi.
+                </div>
+              </div>
+            </div>
+
+            <div style={simulatorGridStyle}>
+              <label style={labelStyle}>
+                <span>Pattern</span>
+                <select
+                  value={simulator.pattern}
+                  onChange={(event) =>
+                    setSimulator((current) => ({
+                      ...current,
+                      pattern: event.target.value,
+                    }))
+                  }
+                  style={inputStyle}
+                >
+                  <option value="">Choisir un pattern</option>
+                  {patternStats.map((stat) => (
+                    <option key={stat.pattern} value={stat.pattern}>
+                      {stat.pattern}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label style={labelStyle}>
+                <span>Participants</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={simulator.participantCount}
+                  onChange={(event) =>
+                    setSimulator((current) => ({
+                      ...current,
+                      participantCount: event.target.value,
+                    }))
+                  }
+                  style={inputStyle}
+                />
+              </label>
+
+              <label style={labelStyle}>
+                <span>Drag</span>
+                <select
+                  value={simulator.dragInterval}
+                  onChange={(event) =>
+                    setSimulator((current) => ({
+                      ...current,
+                      dragInterval: event.target.value,
+                    }))
+                  }
+                  style={inputStyle}
+                >
+                  <option value="">Aucun drag</option>
+                  {DRAG_INTERVAL_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      Après chaque {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label style={labelStyle}>
+                <span>Durée drag</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={simulator.dragDurationMinutes}
+                  onChange={(event) =>
+                    setSimulator((current) => ({
+                      ...current,
+                      dragDurationMinutes: event.target.value,
+                    }))
+                  }
+                  style={inputStyle}
+                />
+              </label>
+            </div>
+
+            <div style={simulationResultStyle}>
+              <div style={simulationMetricStyle}>
+                <span style={summaryLabelStyle}>Moyenne/run</span>
+                <strong>
+                  {formatDuration(selectedPatternStats?.averageRunSeconds)}
+                </strong>
+              </div>
+              <div style={simulationMetricStyle}>
+                <span style={summaryLabelStyle}>Drags</span>
+                <strong>{simulation?.dragBreaks ?? "—"}</strong>
+              </div>
+              <div style={simulationMetricStyle}>
+                <span style={summaryLabelStyle}>Temps total</span>
+                <strong>{formatDuration(simulation?.totalSeconds)}</strong>
+              </div>
+            </div>
+
+            {!selectedPatternStats?.averageRunSeconds && (
+              <div style={softEmptyStyle}>
+                Ce pattern n’a pas encore assez de runs mesurés pour simuler une
+                durée fiable.
+              </div>
+            )}
+          </section>
+
+          <section style={cardStyle}>
+            <div style={sectionHeaderStyle}>
+              <div>
                 <h2 style={sectionTitleStyle}>Classes du show</h2>
                 <div style={metaStyle}>
                   Les classes sans moyenne propre utilisent la moyenne du pattern
-                  lorsque disponible.
+                  globale lorsque disponible.
                 </div>
               </div>
             </div>
@@ -288,6 +448,44 @@ function ShowTimeManagementPage() {
               </div>
             )}
           </section>
+
+          {showPatternStats.length > 0 && (
+            <section style={cardStyle}>
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <h2 style={sectionTitleStyle}>Patterns dans ce show</h2>
+                  <div style={metaStyle}>
+                    Lecture locale du show ouvert, utile pour comparer avec les
+                    moyennes globales.
+                  </div>
+                </div>
+              </div>
+              <div style={tableWrapStyle}>
+                <table style={tableStyle}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>Pattern</th>
+                      <th style={thStyle}>Moyenne/show</th>
+                      <th style={thStyle}>Runs mesurés</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {showPatternStats.map((stat) => (
+                      <tr key={stat.pattern}>
+                        <td style={tdStyle}>{stat.pattern}</td>
+                        <td style={tdStyle}>
+                          {formatDuration(stat.averageRunSeconds)}
+                        </td>
+                        <td style={tdStyle}>
+                          {stat.timedRunCount}/{stat.runCount}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
         </>
       )}
     </div>
@@ -440,6 +638,45 @@ const metaStyle = {
   color: "#64748b",
   fontSize: 13,
   marginTop: 4,
+};
+
+const simulatorGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gap: 12,
+  marginBottom: 12,
+};
+
+const labelStyle = {
+  display: "grid",
+  gap: 6,
+  color: "#334155",
+  fontWeight: 700,
+};
+
+const inputStyle = {
+  width: "100%",
+  padding: "10px 12px",
+  borderRadius: 8,
+  border: "1px solid #cbd5e1",
+  boxSizing: "border-box",
+  background: "#fff",
+};
+
+const simulationResultStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+  gap: 10,
+  marginBottom: 12,
+};
+
+const simulationMetricStyle = {
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  padding: 12,
+  background: "#f8fafc",
+  display: "grid",
+  gap: 4,
 };
 
 const actionRowStyle = {

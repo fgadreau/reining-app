@@ -31,6 +31,7 @@ import {
 import {
   buildClassTimingRow,
   buildPatternTimingStats,
+  calculateClassTimeSimulation,
 } from "./features/classes/classTimeAnalytics";
 
 beforeEach(() => {
@@ -397,4 +398,16 @@ test("summarizes class timing by pattern", () => {
   expect(timingRow.remainingRuns).toBe(2);
   expect(timingRow.remainingDragBreaks).toBe(1);
   expect(timingRow.remainingSeconds).toBe(720);
+
+  expect(
+    calculateClassTimeSimulation({
+      participantCount: 10,
+      averageRunSeconds: stats[0].averageRunSeconds,
+      dragInterval: 4,
+      dragDurationMinutes: 8,
+    })
+  ).toMatchObject({
+    dragBreaks: 2,
+    totalSeconds: 2460,
+  });
 });

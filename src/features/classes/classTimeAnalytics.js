@@ -150,3 +150,44 @@ export function buildClassTimingRow({
     status: classData?.status || "draft",
   };
 }
+
+export function calculateClassTimeSimulation({
+  participantCount,
+  averageRunSeconds,
+  dragInterval,
+  dragDurationMinutes,
+}) {
+  const normalizedParticipantCount = Number.parseInt(participantCount, 10);
+  const normalizedAverageRunSeconds = Number(averageRunSeconds);
+  const normalizedDragInterval = Number.parseInt(dragInterval, 10);
+  const normalizedDragDurationMinutes = Number.parseInt(dragDurationMinutes, 10);
+
+  if (
+    !Number.isFinite(normalizedParticipantCount) ||
+    normalizedParticipantCount <= 0 ||
+    !Number.isFinite(normalizedAverageRunSeconds) ||
+    normalizedAverageRunSeconds <= 0
+  ) {
+    return null;
+  }
+
+  const dragBreaks =
+    Number.isFinite(normalizedDragInterval) && normalizedDragInterval > 0
+      ? Math.floor(Math.max(normalizedParticipantCount - 1, 0) / normalizedDragInterval)
+      : 0;
+  const dragSeconds =
+    dragBreaks *
+    (Number.isFinite(normalizedDragDurationMinutes)
+      ? Math.max(normalizedDragDurationMinutes, 0)
+      : 0) *
+    60;
+  const runSeconds = normalizedParticipantCount * normalizedAverageRunSeconds;
+
+  return {
+    participantCount: normalizedParticipantCount,
+    dragBreaks,
+    runSeconds,
+    dragSeconds,
+    totalSeconds: runSeconds + dragSeconds,
+  };
+}

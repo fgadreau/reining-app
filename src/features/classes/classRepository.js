@@ -77,6 +77,31 @@ function saveClassLocally(classItem) {
   return classItem;
 }
 
+function mergeClassesById(currentClasses, nextClasses) {
+  const merged = new Map();
+  currentClasses.forEach((classItem) => merged.set(classItem.id, classItem));
+  nextClasses.forEach((classItem) => merged.set(classItem.id, classItem));
+  return Array.from(merged.values());
+}
+
+async function buildTimingDataForClasses(classes) {
+  return Promise.all(
+    classes.map(async (classItem) => {
+      const [setup, scoringSession] = await Promise.all([
+        getClassSetupRepository(classItem.id),
+        loadScoringSessionRepository(classItem.id),
+      ]);
+
+      return {
+        classItem,
+        setup,
+        scoringRuns: scoringSession.runs,
+        status: getClassStatus(classItem),
+      };
+    })
+  );
+}
+
 export function getClassFullData(classId) {
   const classItem = getClassById(classId);
   const setup = getClassSetup(classId);
@@ -98,6 +123,32 @@ export function getClassFullData(classId) {
 
 export function getClassesForDay(dayId) {
   return getClassesByDayId(dayId);
+}
+
+export async function getAccessibleClassTimingDataRepository() {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return buildTimingDataForClasses(getAllClasses());
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("classes")
+      .select("*")
+      .order("pattern", { ascending: true, nullsFirst: false })
+      .order("name", { ascending: true });
+
+    if (error) throw error;
+
+    const classes = Array.isArray(data) ? data.map(toClass) : [];
+    saveClasses(mergeClassesById(getAllClasses(), classes));
+
+    return buildTimingDataForClasses(classes);
+  } catch (error) {
+    console.error("Erreur chargement analytics classes Supabase:", error);
+    return buildTimingDataForClasses(getAllClasses());
+  }
 }
 
 export async function getClassFullDataRepository(classId) {

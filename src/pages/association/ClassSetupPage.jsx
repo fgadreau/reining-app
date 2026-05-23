@@ -578,7 +578,7 @@ function ClassSetupPage() {
                   <option value="">Aucun drag planifié</option>
                   {DRAG_INTERVAL_OPTIONS.map((option) => (
                     <option key={option} value={option}>
-                      Après chaque {option} participants
+                      Après chaque {option} participant(s)
                     </option>
                   ))}
                 </select>
