@@ -15,6 +15,7 @@ function toScoringSession(row, classId) {
       row?.active_manoeuvre && typeof row.active_manoeuvre === "object"
         ? row.active_manoeuvre
         : null,
+    startedAt: row?.started_at || null,
   };
 }
 
@@ -42,6 +43,10 @@ async function upsertScoringSession(classId, updates = {}) {
 
     if (updates.activeManoeuvre !== undefined) {
       row.active_manoeuvre = updates.activeManoeuvre;
+    }
+
+    if (updates.startedAt !== undefined) {
+      row.started_at = updates.startedAt;
     }
 
     const { error } = await supabase.from("scoring_sessions").upsert(row);
@@ -115,6 +120,10 @@ export async function saveScoringRunsRepository(classId, runs) {
   saveScoringRunsLocal(classId, normalizedRuns);
   await upsertScoringSession(classId, { runs: normalizedRuns });
   return normalizedRuns;
+}
+
+export async function saveScoringStartedAtRepository(classId, startedAt) {
+  await upsertScoringSession(classId, { startedAt: startedAt || null });
 }
 
 export async function saveActiveManoeuvreRepository(classId, activeManoeuvre) {

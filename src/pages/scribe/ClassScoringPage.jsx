@@ -5,6 +5,7 @@ import SignaturePad from "../../components/SignaturePad";
 import {
   getClassFullData,
   getClassFullDataRepository,
+  saveSetupForClassRepository,
 } from "../../features/classes/classRepository";
 import { getClassSetup } from "../../features/classes/classSetupStorage";
 import {
@@ -29,8 +30,15 @@ import {
   loadActiveManoeuvre,
   loadScoringRuns,
   saveActiveManoeuvreRepository,
+  saveScoringStartedAtRepository,
   saveScoringRunsRepository,
 } from "../../features/scoring/scoringRepository";
+import {
+  calculateClassTimingSummary,
+  formatClockTime,
+  formatDuration,
+  stampRunTiming,
+} from "../../features/classes/classTiming";
 import {
   buildScorePdfFileName,
   generateScorePdf,
@@ -113,6 +121,9 @@ function mergeScoringRuns(baseRuns, savedRuns, maneuverCount) {
           penTotal: saved.penTotal ?? baseRun.penTotal,
           scoreTotal: saved.scoreTotal ?? baseRun.scoreTotal,
           isActive: saved.isActive ?? baseRun.isActive,
+          startedAt: saved.startedAt ?? null,
+          completedAt: saved.completedAt ?? null,
+          durationSeconds: saved.durationSeconds ?? null,
         },
         maneuverCount
       )
@@ -182,6 +193,7 @@ function ClassScoringPage() {
     isCompleted ? null : loadActiveManoeuvre(classId)
   );
   const [hasLoadedSession, setHasLoadedSession] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
 
   const [showFinalizeBox, setShowFinalizeBox] = useState(false);
   const [judgeName, setJudgeName] = useState(assignedJudgeName);
@@ -301,6 +313,14 @@ function ClassScoringPage() {
     setJudgeSignature(classSetup?.judgeSignature || null);
   }, [assignedJudgeName, classSetup?.judgeSignature]);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 30000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   const activeRunDraw = useMemo(() => {
     if (activeManoeuvre?.draw != null) return activeManoeuvre.draw;
     return runs.find((run) => run.isActive)?.draw ?? null;
@@ -309,6 +329,25 @@ function ClassScoringPage() {
   const runCount = runs.length;
   const canFinalize = canFinalizeClass(runs, maneuverCount);
   const hasPendingVideoReview = runs.some(runHasVideoReview);
+  const timingSummary = useMemo(
+    () =>
+      calculateClassTimingSummary({
+        runs,
+        maneuverCount,
+        startedAt: classSetup?.startedAt,
+        dragInterval: classSetup?.dragInterval,
+        dragDurationMinutes: classSetup?.dragDurationMinutes,
+        now: currentTime,
+      }),
+    [
+      runs,
+      maneuverCount,
+      classSetup?.startedAt,
+      classSetup?.dragInterval,
+      classSetup?.dragDurationMinutes,
+      currentTime,
+    ]
+  );
 
   const normalizeSpaces = (value) =>
     String(value || "").replace(/\s+/g, " ").trim();
@@ -319,6 +358,42 @@ function ClassScoringPage() {
       cleaned = cleaned.replaceAll(token, " ");
     });
     return normalizeSpaces(cleaned);
+  };
+
+  const ensureClassStartedAt = (timestamp = new Date().toISOString()) => {
+    const localSetup = getClassSetup(classId);
+    const existingStartedAt = classSetup?.startedAt || localSetup.startedAt;
+
+    if (existingStartedAt) {
+      return existingStartedAt;
+    }
+
+    const nextSetup = {
+      ...localSetup,
+      ...(classSetup || {}),
+      startedAt: timestamp,
+    };
+
+    setClassData((currentData) =>
+      currentData
+        ? {
+            ...currentData,
+            setup: {
+              ...(currentData.setup || {}),
+              startedAt: timestamp,
+            },
+          }
+        : currentData
+    );
+
+    saveSetupForClassRepository(classId, nextSetup).catch((error) => {
+      console.error("Erreur démarrage classe:", error);
+    });
+    saveScoringStartedAtRepository(classId, timestamp).catch((error) => {
+      console.error("Erreur démarrage scoring:", error);
+    });
+
+    return timestamp;
   };
 
   const updateBackNumber = (draw, newValue) => {
@@ -339,6 +414,11 @@ function ClassScoringPage() {
   const updateScoreCell = (draw, manoeuvreIndex, newValue) => {
     if (isCompleted) return;
 
+    const changedAt = new Date().toISOString();
+    if (String(newValue || "").trim()) {
+      ensureClassStartedAt(changedAt);
+    }
+
     setRuns((prevRuns) =>
       prevRuns.map((run) => {
         if (run.draw !== draw) {
@@ -355,11 +435,15 @@ function ClassScoringPage() {
         while (nextScores.length < maneuverCount) nextScores.push("");
         nextScores[manoeuvreIndex] = newValue;
 
-        return recalculateRun({
-          ...run,
-          isActive: true,
-          scores: nextScores.slice(0, maneuverCount),
-        });
+        return stampRunTiming(
+          recalculateRun({
+            ...run,
+            isActive: true,
+            scores: nextScores.slice(0, maneuverCount),
+          }),
+          maneuverCount,
+          changedAt
+        );
       })
     );
 
@@ -376,6 +460,9 @@ function ClassScoringPage() {
 
   const addPenaltyToken = (draw, manoeuvreIndex, token) => {
     if (isCompleted) return;
+
+    const changedAt = new Date().toISOString();
+    ensureClassStartedAt(changedAt);
 
     setRuns((prevRuns) =>
       prevRuns.map((run) => {
@@ -411,11 +498,15 @@ function ClassScoringPage() {
             : token;
         }
 
-        return recalculateRun({
-          ...run,
-          isActive: true,
-          penalties: nextPenalties.slice(0, maneuverCount),
-        });
+        return stampRunTiming(
+          recalculateRun({
+            ...run,
+            isActive: true,
+            penalties: nextPenalties.slice(0, maneuverCount),
+          }),
+          maneuverCount,
+          changedAt
+        );
       })
     );
 
@@ -427,6 +518,9 @@ function ClassScoringPage() {
 
   const toggleSpecialPenalty = (draw, manoeuvreIndex, token) => {
     if (isCompleted) return;
+
+    const changedAt = new Date().toISOString();
+    ensureClassStartedAt(changedAt);
 
     setRuns((prevRuns) =>
       prevRuns.map((run) => {
@@ -455,11 +549,15 @@ function ClassScoringPage() {
             : token;
         }
 
-        return recalculateRun({
-          ...run,
-          isActive: true,
-          penalties: nextPenalties.slice(0, maneuverCount),
-        });
+        return stampRunTiming(
+          recalculateRun({
+            ...run,
+            isActive: true,
+            penalties: nextPenalties.slice(0, maneuverCount),
+          }),
+          maneuverCount,
+          changedAt
+        );
       })
     );
 
@@ -471,6 +569,8 @@ function ClassScoringPage() {
 
   const clearPenaltyCell = (draw, manoeuvreIndex) => {
     if (isCompleted) return;
+
+    const changedAt = new Date().toISOString();
 
     setRuns((prevRuns) =>
       prevRuns.map((run) => {
@@ -488,11 +588,15 @@ function ClassScoringPage() {
         while (nextPenalties.length < maneuverCount) nextPenalties.push("");
         nextPenalties[manoeuvreIndex] = "";
 
-        return recalculateRun({
-          ...run,
-          isActive: true,
-          penalties: nextPenalties.slice(0, maneuverCount),
-        });
+        return stampRunTiming(
+          recalculateRun({
+            ...run,
+            isActive: true,
+            penalties: nextPenalties.slice(0, maneuverCount),
+          }),
+          maneuverCount,
+          changedAt
+        );
       })
     );
 
@@ -759,6 +863,57 @@ function ClassScoringPage() {
         </section>
       )}
 
+      <section style={timingCardStyle}>
+        <div style={timingHeaderStyle}>
+          <h2 style={sectionTitleStyle}>Gestion du temps</h2>
+          {!isCompleted && !classSetup?.startedAt && (
+            <button
+              type="button"
+              onClick={() => ensureClassStartedAt(new Date().toISOString())}
+              style={secondaryButtonStyle}
+            >
+              Démarrer la classe
+            </button>
+          )}
+        </div>
+
+        <div style={timingGridStyle}>
+          <div style={timingMetricStyle}>
+            <span style={timingLabelStyle}>Début</span>
+            <strong>{formatClockTime(classSetup?.startedAt)}</strong>
+          </div>
+          <div style={timingMetricStyle}>
+            <span style={timingLabelStyle}>Complétés</span>
+            <strong>
+              {timingSummary.completedRuns}/{runCount}
+            </strong>
+          </div>
+          <div style={timingMetricStyle}>
+            <span style={timingLabelStyle}>Moyenne/run</span>
+            <strong>{formatDuration(timingSummary.averageRunSeconds)}</strong>
+          </div>
+          <div style={timingMetricStyle}>
+            <span style={timingLabelStyle}>Drags restants</span>
+            <strong>{timingSummary.remainingDragBreaks}</strong>
+          </div>
+          <div style={timingMetricStyle}>
+            <span style={timingLabelStyle}>Temps restant</span>
+            <strong>{formatDuration(timingSummary.remainingSeconds)}</strong>
+          </div>
+          <div style={timingMetricStyle}>
+            <span style={timingLabelStyle}>Fin estimée</span>
+            <strong>{formatClockTime(timingSummary.estimatedEndAt)}</strong>
+          </div>
+        </div>
+
+        {timingSummary.averageRunSeconds == null && (
+          <div style={timingHintStyle}>
+            L’estimation s’activera après le premier run complété avec un temps
+            mesuré.
+          </div>
+        )}
+      </section>
+
       <ScoreTable
         headers={headers}
         runs={runs}
@@ -836,6 +991,52 @@ const finalizeCardStyle = {
   padding: "16px",
   background: "#fff",
   marginBottom: "20px",
+};
+
+const timingCardStyle = {
+  border: "1px solid #ddd",
+  borderRadius: "10px",
+  padding: "16px",
+  background: "#fff",
+  marginBottom: "20px",
+};
+
+const timingHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "12px",
+  marginBottom: "14px",
+  flexWrap: "wrap",
+};
+
+const timingGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+  gap: "10px",
+};
+
+const timingMetricStyle = {
+  border: "1px solid #e2e8f0",
+  borderRadius: "8px",
+  padding: "10px 12px",
+  background: "#f8fafc",
+  display: "grid",
+  gap: "4px",
+};
+
+const timingLabelStyle = {
+  color: "#64748b",
+  fontSize: "12px",
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: 0,
+};
+
+const timingHintStyle = {
+  marginTop: "10px",
+  color: "#64748b",
+  fontSize: "14px",
 };
 
 const sectionHeaderStyle = {

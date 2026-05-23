@@ -11,6 +11,9 @@ function toSetup(row) {
     pattern: row.pattern || "",
     runs: Array.isArray(row.runs) ? row.runs : [],
     isDrawImported: Boolean(row.is_draw_imported),
+    startedAt: row.started_at || null,
+    dragInterval: row.drag_interval || null,
+    dragDurationMinutes: row.drag_duration_minutes,
     lockedAt: row.locked_at || null,
     lockedBy: row.locked_by || null,
     finalized: Boolean(row.finalized),
@@ -22,10 +25,10 @@ function toSetup(row) {
   });
 }
 
-function toSetupRow(classId, setup) {
+function toSetupRow(classId, setup, options = {}) {
   const normalized = normalizeClassSetup(setup);
-
-  return {
+  const includePlanning = options.includePlanning !== false;
+  const row = {
     class_id: classId,
     pattern: normalized.pattern || null,
     runs: normalized.runs,
@@ -39,6 +42,23 @@ function toSetupRow(classId, setup) {
     judge_signed_at: normalized.judgeSignedAt || null,
     final_pdf_file_name: normalized.finalPdfFileName || null,
   };
+
+  if (includePlanning) {
+    row.started_at = normalized.startedAt || null;
+    row.drag_interval = normalized.dragInterval || null;
+    row.drag_duration_minutes = normalized.dragDurationMinutes;
+  }
+
+  return row;
+}
+
+function isPlanningColumnMissingError(error) {
+  const message = String(error?.message || "");
+  return (
+    message.includes("started_at") ||
+    message.includes("drag_interval") ||
+    message.includes("drag_duration_minutes")
+  );
 }
 
 export async function getClassSetupRepository(classId) {
@@ -82,6 +102,20 @@ export async function saveClassSetupRepository(classId, setup) {
 
       if (error) throw error;
     } catch (error) {
+      if (isPlanningColumnMissingError(error)) {
+        try {
+          const { error: legacyError } = await supabase
+            .from("class_setups")
+            .upsert(toSetupRow(classId, normalized, { includePlanning: false }));
+
+          if (legacyError) throw legacyError;
+          return normalized;
+        } catch (legacyError) {
+          console.error("Erreur sauvegarde setup Supabase:", legacyError);
+          return normalized;
+        }
+      }
+
       console.error("Erreur sauvegarde setup Supabase:", error);
     }
   }

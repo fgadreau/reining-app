@@ -109,6 +109,9 @@ create table if not exists public.class_setups (
   pattern text,
   runs jsonb not null default '[]'::jsonb,
   is_draw_imported boolean not null default false,
+  started_at timestamptz,
+  drag_interval integer,
+  drag_duration_minutes integer not null default 8,
   locked_at timestamptz,
   locked_by text,
   finalized boolean not null default false,
@@ -119,6 +122,15 @@ create table if not exists public.class_setups (
   final_pdf_file_name text,
   updated_at timestamptz not null default now()
 );
+
+alter table public.class_setups
+add column if not exists started_at timestamptz;
+
+alter table public.class_setups
+add column if not exists drag_interval integer;
+
+alter table public.class_setups
+add column if not exists drag_duration_minutes integer not null default 8;
 
 create table if not exists public.scoring_sessions (
   class_id text primary key references public.classes(id) on delete cascade,

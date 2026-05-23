@@ -20,6 +20,12 @@ import { appStyles as styles } from "../../styles/appStyles";
 import { getPatternHeaders } from "../../features/patterns/patternDefinitions";
 import { loadScoringRunsRepository } from "../../features/scoring/scoringRepository";
 import {
+  DEFAULT_DRAG_DURATION_MINUTES,
+  DRAG_INTERVAL_OPTIONS,
+  fromDateTimeLocalValue,
+  toDateTimeLocalValue,
+} from "../../features/classes/classTiming";
+import {
   buildScorePdfFileName,
   generateScorePdf,
 } from "../../utils/generateScorePdf";
@@ -62,6 +68,13 @@ function ClassSetupPage() {
   const [runs, setRuns] = useState(classSetup?.runs || []);
   const [isDrawImported, setIsDrawImported] = useState(
     Boolean(classSetup?.isDrawImported)
+  );
+  const [startedAt, setStartedAt] = useState(classSetup?.startedAt || null);
+  const [dragInterval, setDragInterval] = useState(
+    String(classSetup?.dragInterval || "")
+  );
+  const [dragDurationMinutes, setDragDurationMinutes] = useState(
+    String(classSetup?.dragDurationMinutes || DEFAULT_DRAG_DURATION_MINUTES)
   );
   const [isFinalized, setIsFinalized] = useState(
     isOfficiallyFinalized(classRecord)
@@ -123,6 +136,11 @@ function ClassSetupPage() {
       setPattern(nextPattern);
       setRuns(nextRuns);
       setIsDrawImported(Boolean(nextSetup.isDrawImported));
+      setStartedAt(nextSetup.startedAt || null);
+      setDragInterval(String(nextSetup.dragInterval || ""));
+      setDragDurationMinutes(
+        String(nextSetup.dragDurationMinutes || DEFAULT_DRAG_DURATION_MINUTES)
+      );
       setIsFinalized(isOfficiallyFinalized(nextRecord));
       setRunCountInput(String(nextRuns.length));
       setShowImportBox(false);
@@ -154,6 +172,9 @@ function ClassSetupPage() {
         pattern,
         runs,
         isDrawImported,
+        startedAt,
+        dragInterval: dragInterval || null,
+        dragDurationMinutes,
       });
 
       if (isCancelled) return;
@@ -174,7 +195,16 @@ function ClassSetupPage() {
     return () => {
       isCancelled = true;
     };
-  }, [classId, pattern, runs, isDrawImported, hasLoadedSetup]);
+  }, [
+    classId,
+    pattern,
+    runs,
+    isDrawImported,
+    startedAt,
+    dragInterval,
+    dragDurationMinutes,
+    hasLoadedSetup,
+  ]);
 
   const addRun = () => {
     if (!canManageSetup) return;
@@ -540,6 +570,64 @@ function ClassSetupPage() {
               </div>
             </div>
           )}
+
+          {canManageSetup && (
+            <div>
+              <label style={labelStyle}>Début de classe</label>
+              <div style={inlineFieldStyle}>
+                <input
+                  type="datetime-local"
+                  value={toDateTimeLocalValue(startedAt)}
+                  onChange={(e) =>
+                    setStartedAt(fromDateTimeLocalValue(e.target.value))
+                  }
+                  style={inputStyle}
+                  disabled={isFinalized}
+                />
+                <button
+                  type="button"
+                  onClick={() => setStartedAt(new Date().toISOString())}
+                  style={buttonStyle}
+                  disabled={isFinalized}
+                >
+                  Maintenant
+                </button>
+              </div>
+            </div>
+          )}
+
+          {canManageSetup && (
+            <div>
+              <label style={labelStyle}>Drag de surface</label>
+              <div style={inlineFieldStyle}>
+                <select
+                  value={dragInterval}
+                  onChange={(e) => setDragInterval(e.target.value)}
+                  style={inputStyle}
+                  disabled={isFinalized}
+                >
+                  <option value="">Aucun drag planifié</option>
+                  {DRAG_INTERVAL_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      Après chaque {option} participants
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min="0"
+                  value={dragDurationMinutes}
+                  onChange={(e) => setDragDurationMinutes(e.target.value)}
+                  style={smallNumberInputStyle}
+                  disabled={isFinalized || !dragInterval}
+                  aria-label="Durée du drag en minutes"
+                />
+              </div>
+              <div style={helperTextStyle}>
+                Durée estimée d’un drag en minutes.
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -841,6 +929,12 @@ const inputStyle = {
   borderRadius: "8px",
   border: "1px solid #ccc",
   boxSizing: "border-box",
+};
+
+const smallNumberInputStyle = {
+  ...inputStyle,
+  width: "96px",
+  flex: "0 0 96px",
 };
 
 const cellInputStyle = {

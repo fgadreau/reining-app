@@ -1,4 +1,9 @@
 import { createId } from "../../utils/createId";
+import {
+  DEFAULT_DRAG_DURATION_MINUTES,
+  normalizeDragDurationMinutes,
+  normalizeDragInterval,
+} from "./classTiming";
 
 const STORAGE_KEY = "reining_class_setup_v1";
 
@@ -87,6 +92,11 @@ function normalizeSetup(setup = {}) {
     pattern: setup.pattern ?? "",
     runs: Array.isArray(setup.runs) ? setup.runs.map(normalizeRun) : [],
     isDrawImported: Boolean(setup.isDrawImported),
+    startedAt: setup.startedAt ?? null,
+    dragInterval: normalizeDragInterval(setup.dragInterval),
+    dragDurationMinutes: normalizeDragDurationMinutes(
+      setup.dragDurationMinutes ?? DEFAULT_DRAG_DURATION_MINUTES
+    ),
     finalized: Boolean(setup.finalized),
     finalizedAt: setup.finalizedAt ?? null,
     judgeName: setup.judgeName ?? "",

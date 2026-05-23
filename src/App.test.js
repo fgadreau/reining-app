@@ -24,6 +24,10 @@ import {
   canScoreAssociation,
 } from "./features/auth/accessRoles";
 import { buildAssociationInvitationUrl } from "./features/auth/invitationLinks";
+import {
+  calculateClassTimingSummary,
+  stampRunTiming,
+} from "./features/classes/classTiming";
 
 beforeEach(() => {
   localStorage.clear();
@@ -286,4 +290,42 @@ test("builds invitation links for invited users", () => {
   expect(url).toBe(
     "http://localhost:3001/login?invite=invite-token&email=scribe%40example.com"
   );
+});
+
+test("tracks run timing and estimates remaining class time with drags", () => {
+  const started = stampRunTiming(
+    recalculateRun({
+      backNumber: "101",
+      scores: ["0", ""],
+      penalties: ["", ""],
+    }),
+    2,
+    "2026-05-22T14:00:00.000Z"
+  );
+  const completed = stampRunTiming(
+    recalculateRun({
+      ...started,
+      scores: ["0", "+0.5"],
+    }),
+    2,
+    "2026-05-22T14:02:00.000Z"
+  );
+
+  const summary = calculateClassTimingSummary({
+    runs: [
+      completed,
+      { backNumber: "102", scores: ["", ""], penalties: ["", ""] },
+      { backNumber: "103", scores: ["", ""], penalties: ["", ""] },
+    ],
+    maneuverCount: 2,
+    dragInterval: 2,
+    dragDurationMinutes: 8,
+    now: new Date("2026-05-22T14:03:00.000Z"),
+  });
+
+  expect(completed.durationSeconds).toBe(120);
+  expect(summary.averageRunSeconds).toBe(120);
+  expect(summary.remainingRuns).toBe(2);
+  expect(summary.remainingDragBreaks).toBe(1);
+  expect(summary.remainingSeconds).toBe(720);
 });
