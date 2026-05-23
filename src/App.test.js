@@ -313,7 +313,7 @@ test("tracks run timing and estimates remaining class time with drags", () => {
       scores: ["0", "+0.5"],
     }),
     2,
-    "2026-05-22T14:02:00.000Z"
+    "2026-05-22T14:03:00.000Z"
   );
 
   const summary = calculateClassTimingSummary({
@@ -328,11 +328,11 @@ test("tracks run timing and estimates remaining class time with drags", () => {
     now: new Date("2026-05-22T14:03:00.000Z"),
   });
 
-  expect(completed.durationSeconds).toBe(120);
-  expect(summary.averageRunSeconds).toBe(120);
+  expect(completed.durationSeconds).toBe(180);
+  expect(summary.averageRunSeconds).toBe(180);
   expect(summary.remainingRuns).toBe(2);
   expect(summary.remainingDragBreaks).toBe(1);
-  expect(summary.remainingSeconds).toBe(720);
+  expect(summary.remainingSeconds).toBe(840);
 });
 
 test("summarizes class timing by pattern", () => {
@@ -391,13 +391,13 @@ test("summarizes class timing by pattern", () => {
   expect(stats[0]).toMatchObject({
     pattern: "5",
     classCount: 2,
-    timedRunCount: 2,
-    averageRunSeconds: 150,
-    medianRunSeconds: 150,
+    timedRunCount: 1,
+    averageRunSeconds: 180,
+    medianRunSeconds: 180,
   });
   expect(timingRow.remainingRuns).toBe(2);
   expect(timingRow.remainingDragBreaks).toBe(1);
-  expect(timingRow.remainingSeconds).toBe(720);
+  expect(timingRow.remainingSeconds).toBe(840);
 
   expect(
     calculateClassTimeSimulation({
@@ -408,6 +408,6 @@ test("summarizes class timing by pattern", () => {
     })
   ).toMatchObject({
     dragBreaks: 2,
-    totalSeconds: 2460,
+    totalSeconds: 2760,
   });
 });

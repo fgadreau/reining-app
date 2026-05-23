@@ -2,6 +2,7 @@ import { getPatternHeaders } from "../patterns/patternDefinitions";
 import {
   calculateClassTimingSummary,
   getRunDurationSeconds,
+  MIN_MEASURED_RUN_SECONDS,
 } from "./classTiming";
 
 export function getClassPatternValue(classData) {
@@ -58,7 +59,9 @@ export function buildPatternTimingStats(classRows) {
     const runs = getClassScoringRuns(classData);
     const durations = runs
       .map(getRunDurationSeconds)
-      .filter((value) => Number.isFinite(value) && value > 0);
+      .filter(
+        (value) => Number.isFinite(value) && value >= MIN_MEASURED_RUN_SECONDS
+      );
 
     if (!groups.has(pattern)) {
       groups.set(pattern, {

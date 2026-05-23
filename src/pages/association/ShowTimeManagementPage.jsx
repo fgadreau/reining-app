@@ -7,9 +7,9 @@ import {
   calculateClassTimeSimulation,
 } from "../../features/classes/classTimeAnalytics";
 import {
-  getAccessibleClassTimingDataRepository,
   getClassFullDataRepository,
   getClassesForDayRepository,
+  getGlobalPatternTimingStatsRepository,
 } from "../../features/classes/classRepository";
 import {
   DEFAULT_DRAG_DURATION_MINUTES,
@@ -27,7 +27,7 @@ function ShowTimeManagementPage() {
   const access = useAssociationAccess(associationId);
   const [show, setShow] = useState(null);
   const [daySections, setDaySections] = useState([]);
-  const [globalClassRows, setGlobalClassRows] = useState([]);
+  const [globalPatternStats, setGlobalPatternStats] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
   const [simulator, setSimulator] = useState({
@@ -47,10 +47,10 @@ function ShowTimeManagementPage() {
 
     async function load() {
       setIsLoading(true);
-      const [nextShow, days, nextGlobalClassRows] = await Promise.all([
+      const [nextShow, days, nextGlobalPatternStats] = await Promise.all([
         getShowRepository(showId),
         getDaysByShowRepository(showId),
-        getAccessibleClassTimingDataRepository(),
+        getGlobalPatternTimingStatsRepository(),
       ]);
       const nextSections = await Promise.all(
         days.map(async (day) => {
@@ -69,7 +69,7 @@ function ShowTimeManagementPage() {
       if (!isMounted) return;
       setShow(nextShow);
       setDaySections(nextSections);
-      setGlobalClassRows(nextGlobalClassRows);
+      setGlobalPatternStats(nextGlobalPatternStats);
       setIsLoading(false);
     }
 
@@ -85,8 +85,8 @@ function ShowTimeManagementPage() {
     [daySections]
   );
   const patternStats = useMemo(
-    () => buildPatternTimingStats(globalClassRows),
-    [globalClassRows]
+    () => globalPatternStats,
+    [globalPatternStats]
   );
   const showPatternStats = useMemo(
     () => buildPatternTimingStats(allClassRows),
@@ -215,8 +215,8 @@ function ShowTimeManagementPage() {
               <div>
                 <h2 style={sectionTitleStyle}>Par pattern</h2>
                 <div style={metaStyle}>
-                  Moyennes globales basées sur toutes les classes accessibles à
-                  ton compte.
+                  Moyennes globales anonymisées de l’app. Les runs de moins de
+                  2 min 30 sont ignorés.
                 </div>
               </div>
             </div>

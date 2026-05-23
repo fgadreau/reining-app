@@ -6,6 +6,7 @@ import {
 
 export const DRAG_INTERVAL_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
 export const DEFAULT_DRAG_DURATION_MINUTES = 8;
+export const MIN_MEASURED_RUN_SECONDS = 150;
 
 export function normalizeDragInterval(value) {
   const parsed = Number.parseInt(value, 10);
@@ -107,7 +108,9 @@ export function calculateClassTimingSummary({
   const remainingRuns = Math.max(sourceRuns.length - completedRuns, 0);
   const timedDurations = sourceRuns
     .map(getRunDurationSeconds)
-    .filter((value) => Number.isFinite(value) && value > 0);
+    .filter(
+      (value) => Number.isFinite(value) && value >= MIN_MEASURED_RUN_SECONDS
+    );
   const averageRunSeconds = timedDurations.length
     ? timedDurations.reduce((sum, value) => sum + value, 0) /
       timedDurations.length

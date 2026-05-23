@@ -36,6 +36,8 @@ import {
   getPublicationStatesForClassesRepository,
 } from "../publication/publicationCloudRepository";
 import { getSupabaseClient } from "../cloud/supabaseClient";
+import { buildPatternTimingStats } from "./classTimeAnalytics";
+import { MIN_MEASURED_RUN_SECONDS } from "./classTiming";
 
 function toClass(row) {
   return {
@@ -148,6 +150,41 @@ export async function getAccessibleClassTimingDataRepository() {
   } catch (error) {
     console.error("Erreur chargement analytics classes Supabase:", error);
     return buildTimingDataForClasses(getAllClasses());
+  }
+}
+
+function toPatternTimingStat(row) {
+  return {
+    pattern: row.pattern || "Sans pattern",
+    classCount: Number(row.class_count) || 0,
+    runCount: Number(row.run_count) || 0,
+    timedRunCount: Number(row.timed_run_count) || 0,
+    averageRunSeconds:
+      row.average_run_seconds == null ? null : Number(row.average_run_seconds),
+    medianRunSeconds:
+      row.median_run_seconds == null ? null : Number(row.median_run_seconds),
+  };
+}
+
+export async function getGlobalPatternTimingStatsRepository() {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return buildPatternTimingStats(await buildTimingDataForClasses(getAllClasses()));
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("global_pattern_timing_stats", {
+      min_duration_seconds: MIN_MEASURED_RUN_SECONDS,
+    });
+
+    if (error) throw error;
+
+    return Array.isArray(data) ? data.map(toPatternTimingStat) : [];
+  } catch (error) {
+    console.error("Erreur chargement stats globales par pattern:", error);
+    const accessibleClassRows = await getAccessibleClassTimingDataRepository();
+    return buildPatternTimingStats(accessibleClassRows);
   }
 }
 
