@@ -3,7 +3,10 @@ import {
   recalculateRun,
   runHasVideoReview,
 } from "./utils/scoring";
-import { parseImportedRuns } from "./features/classes/classSetupImport";
+import {
+  parseImportedDraw,
+  parseImportedRuns,
+} from "./features/classes/classSetupImport";
 import {
   getPublicationState,
   publishClass,
@@ -140,6 +143,36 @@ test("parses imported draw rows in draw order", () => {
       owner: "Luc Roy",
     },
   ]);
+});
+
+test("parses show-management CSV draws and detects tractor drags", () => {
+  const importedDraw = parseImportedDraw(`Position,#Dossard Équipe,#Dossard Rider1,#Dossard Rider2,#Dossard Horse1,#Dossard Horse2,Rider1,Cheval1,Rider2,Cheval2,Mère Cheval1,Père Cheval1,Origine Cheval1,Résultats
+1,8841,,,8805,,Michel Sandijck,HR Gunna Trash Ya,,,,,,,
+2,8183,,,2595,,Marie-Laurence Perreault,Sweet August Gun,,,,,,,
+Tractor,,,,,,,,,,,,,
+3,8088,,,2648,,Alice Fauret-Blanquart,AKD SmartLittleAngel,,,,,,Scratched
+4,3619,,,2597,,Matthew Hudson,HR Turn Up the Heat,,,,,,,`);
+
+  expect(importedDraw.dragInterval).toBe(2);
+  expect(importedDraw.dragBreaks).toBe(1);
+  expect(importedDraw.runs).toHaveLength(4);
+  expect(importedDraw.runs[0]).toMatchObject(
+    {
+      order: 1,
+      backNumber: "8805",
+      rider: "Michel Sandijck",
+      horse: "HR Gunna Trash Ya",
+    }
+  );
+  expect(
+    importedDraw.runs.find((run) => run.rider === "Alice Fauret-Blanquart")
+  ).toMatchObject(
+    {
+      order: 3,
+      backNumber: "2648",
+      owner: "Scratched",
+    }
+  );
 });
 
 test("publishes and unpublishes a class publication state", () => {

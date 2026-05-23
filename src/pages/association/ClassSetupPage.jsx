@@ -9,7 +9,10 @@ import {
   createEmptyRun,
   resequenceRuns,
 } from "../../features/classes/classSetupStorage";
-import { parseImportedRuns } from "../../features/classes/classSetupImport";
+import {
+  parseImportedDraw,
+  parseImportedDrawFile,
+} from "../../features/classes/classSetupImport";
 import { getClassRecord } from "../../features/classes/classRecordStorage";
 import {
   getClassStatus,
@@ -84,6 +87,7 @@ function ClassSetupPage() {
     String((classSetup?.runs || []).length)
   );
   const [importText, setImportText] = useState("");
+  const [importMessage, setImportMessage] = useState("");
   const [showImportBox, setShowImportBox] = useState(false);
 
   const scoringStarted = hasScoringStarted(classId);
@@ -145,6 +149,7 @@ function ClassSetupPage() {
       setRunCountInput(String(nextRuns.length));
       setShowImportBox(false);
       setImportText("");
+      setImportMessage("");
       setHasLoadedSetup(true);
     }
 
@@ -376,6 +381,28 @@ function ClassSetupPage() {
     });
   };
 
+  const applyImportedDraw = (importedDraw) => {
+    const resequencedRuns = importedDraw?.runs || [];
+
+    if (!resequencedRuns.length) {
+      setImportMessage("Aucun participant détecté dans cet import.");
+      return;
+    }
+
+    setRuns(resequencedRuns);
+    setRunCountInput(String(resequencedRuns.length));
+    setIsDrawImported(true);
+
+    if (importedDraw.dragInterval) {
+      setDragInterval(String(importedDraw.dragInterval));
+      setImportMessage(
+        `${resequencedRuns.length} participant(s) importés. Drag détecté après chaque ${importedDraw.dragInterval} participant(s).`
+      );
+    } else {
+      setImportMessage(`${resequencedRuns.length} participant(s) importés.`);
+    }
+  };
+
   const importRunsFromText = () => {
     if (!canManageSetup) return;
 
@@ -389,15 +416,33 @@ function ClassSetupPage() {
       return;
     }
 
-    const resequencedRuns = parseImportedRuns(importText);
+    applyImportedDraw(parseImportedDraw(importText));
+  };
 
-    if (!resequencedRuns.length) return;
+  const importRunsFromFile = async (file) => {
+    if (!file || !canManageSetup) return;
 
-    setRuns(resequencedRuns);
-    setRunCountInput(String(resequencedRuns.length));
-    setIsDrawImported(true);
-    setShowImportBox(false);
-    setImportText("");
+    if (isFinalized) {
+      showFinalizedMessage();
+      return;
+    }
+
+    if (isStructureLocked) {
+      showLockedMessage("L’import du draw");
+      return;
+    }
+
+    setImportMessage("Lecture du fichier en cours...");
+
+    try {
+      const importedDraw = await parseImportedDrawFile(file);
+      applyImportedDraw(importedDraw);
+    } catch (error) {
+      console.error("Erreur import draw:", error);
+      setImportMessage(
+        "Impossible de lire ce fichier. Essaie le CSV ou copie-colle le texte du draw."
+      );
+    }
   };
 
   const handleDownloadOfficialPdf = async () => {
@@ -649,7 +694,25 @@ function ClassSetupPage() {
         {showImportBox && (
           <div style={importBoxStyle}>
             <p style={helperTextStyle}>
-              Format d’import :
+              Import CSV/PDF :
+              <br />
+              les lignes <code>Tractor</code> sont utilisées pour détecter
+              automatiquement l’intervalle de drag.
+            </p>
+
+            <input
+              type="file"
+              accept=".csv,.txt,.pdf,text/csv,text/plain,application/pdf"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                importRunsFromFile(file);
+                event.target.value = "";
+              }}
+              style={fileInputStyle}
+            />
+
+            <p style={helperTextStyle}>
+              Copier-coller manuel :
               <br />
               <code>draw, backNumber, rider, horse, owner</code>
               <br />
@@ -674,6 +737,10 @@ function ClassSetupPage() {
                 Remplacer les runs avec cet import
               </button>
             </div>
+
+            {importMessage && (
+              <div style={importMessageStyle}>{importMessage}</div>
+            )}
           </div>
         )}
 
@@ -1033,6 +1100,22 @@ const textareaStyle = {
   boxSizing: "border-box",
   marginBottom: "12px",
   fontFamily: "inherit",
+};
+
+const fileInputStyle = {
+  display: "block",
+  marginBottom: "12px",
+};
+
+const importMessageStyle = {
+  marginTop: "10px",
+  padding: "10px 12px",
+  borderRadius: "8px",
+  background: "#ecfeff",
+  border: "1px solid #67e8f9",
+  color: "#155e75",
+  fontSize: "14px",
+  fontWeight: 600,
 };
 
 const helperTextStyle = {
