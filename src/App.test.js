@@ -15,6 +15,7 @@ import {
 } from "./features/publication/publicationRepository";
 import {
   buildPublicClassView,
+  buildPublicLiveClassView,
   sortPublicResults,
 } from "./features/publication/publicViewRepository";
 import { buildAnnouncerClassView } from "./features/live/liveViewRepository";
@@ -231,6 +232,75 @@ test("keeps public results hidden until secretariat validation", () => {
       },
     })?.runs
   ).toHaveLength(1);
+});
+
+test("public live view exposes active, next, and last passed runs", () => {
+  const classView = buildPublicLiveClassView({
+    classItem: {
+      id: "class-live",
+      name: "Novice Horse",
+      pattern: "2",
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE,
+    },
+    scoringSession: {
+      activeManoeuvre: {
+        draw: 4,
+      },
+      runs: [
+        {
+          id: "run-1",
+          draw: 1,
+          backNumber: "101",
+          rider: "Rider 1",
+          scoreTotal: "71.0",
+          scores: ["0", "+0.5"],
+          penalties: ["", ""],
+        },
+        {
+          id: "run-2",
+          draw: 2,
+          backNumber: "202",
+          rider: "Rider 2",
+          scoreTotal: "72.0",
+          scores: ["+0.5", "0"],
+          penalties: ["1", ""],
+        },
+        {
+          id: "run-3",
+          draw: 3,
+          backNumber: "303",
+          rider: "Rider 3",
+          scoreTotal: "70.5",
+          scores: ["0", "+0.5"],
+          penalties: ["", "2"],
+        },
+        {
+          id: "run-4",
+          draw: 4,
+          backNumber: "404",
+          rider: "Rider 4",
+          scoreTotal: "",
+        },
+        {
+          id: "run-5",
+          draw: 5,
+          backNumber: "505",
+          rider: "Rider 5",
+          scoreTotal: "",
+        },
+      ],
+    },
+  });
+
+  expect(classView.activeRun.draw).toBe(4);
+  expect(classView.nextRun.draw).toBe(5);
+  expect(classView.lastPassedRuns.map((run) => run.draw)).toEqual([3, 2]);
+  expect(classView.lastPassedRuns[0].manoeuvres[1]).toMatchObject({
+    score: "+0.5",
+    penalty: "2",
+  });
 });
 
 test("scopes secretary access to attached associations", () => {

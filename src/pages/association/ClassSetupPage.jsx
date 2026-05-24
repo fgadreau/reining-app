@@ -30,6 +30,8 @@ import {
   DEFAULT_DRAG_DURATION_MINUTES,
   DRAG_INTERVAL_OPTIONS,
 } from "../../features/classes/classTiming";
+import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
+import { savePublicationStateRepository } from "../../features/publication/publicationCloudRepository";
 import {
   buildScorePdfFileName,
   generateScorePdf,
@@ -80,6 +82,12 @@ function ClassSetupPage() {
   const [dragDurationMinutes, setDragDurationMinutes] = useState(
     String(classSetup?.dragDurationMinutes || DEFAULT_DRAG_DURATION_MINUTES)
   );
+  const [publicationStatus, setPublicationStatus] = useState(
+    classData?.publication?.status || PUBLICATION_STATUSES.HIDDEN
+  );
+  const [isPublicLiveEnabled, setIsPublicLiveEnabled] = useState(
+    classData?.publication?.status === PUBLICATION_STATUSES.LIVE
+  );
   const [isFinalized, setIsFinalized] = useState(
     isOfficiallyFinalized(classRecord)
   );
@@ -94,6 +102,10 @@ function ClassSetupPage() {
   const isStructureLocked = scoringStarted;
   const isFullyLocked = isStructureLocked || isFinalized;
   const isOrderLocked = isFullyLocked || isDrawImported;
+  const isPublicationLocked = [
+    PUBLICATION_STATUSES.OFFICIAL,
+    PUBLICATION_STATUSES.PUBLISHED,
+  ].includes(publicationStatus);
   const canManageSetup = access.canManageAssociation;
   const canEditRunIdentity =
     !isFinalized &&
@@ -144,6 +156,12 @@ function ClassSetupPage() {
       setDragInterval(String(nextSetup.dragInterval || ""));
       setDragDurationMinutes(
         String(nextSetup.dragDurationMinutes || DEFAULT_DRAG_DURATION_MINUTES)
+      );
+      setPublicationStatus(
+        resolvedData.publication?.status || PUBLICATION_STATUSES.HIDDEN
+      );
+      setIsPublicLiveEnabled(
+        resolvedData.publication?.status === PUBLICATION_STATUSES.LIVE
       );
       setIsFinalized(isOfficiallyFinalized(nextRecord));
       setRunCountInput(String(nextRuns.length));
@@ -207,6 +225,56 @@ function ClassSetupPage() {
     dragInterval,
     dragDurationMinutes,
     hasLoadedSetup,
+  ]);
+
+  useEffect(() => {
+    if (!hasLoadedSetup || !canManageSetup) return undefined;
+    if (isFinalized) return undefined;
+
+    const nextStatus = isPublicLiveEnabled
+      ? PUBLICATION_STATUSES.LIVE
+      : publicationStatus === PUBLICATION_STATUSES.LIVE
+        ? PUBLICATION_STATUSES.HIDDEN
+        : publicationStatus;
+
+    if (nextStatus === publicationStatus) {
+      return undefined;
+    }
+
+    let isCancelled = false;
+
+    async function persistPublicationState() {
+      const savedPublication = await savePublicationStateRepository(classId, {
+        status: nextStatus,
+        publishedAt: null,
+        publishedBy: null,
+      });
+
+      if (isCancelled) return;
+
+      setPublicationStatus(savedPublication.status);
+      setClassData((currentData) =>
+        currentData
+          ? {
+              ...currentData,
+              publication: savedPublication,
+            }
+          : currentData
+      );
+    }
+
+    persistPublicationState();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    canManageSetup,
+    classId,
+    hasLoadedSetup,
+    isFinalized,
+    isPublicLiveEnabled,
+    publicationStatus,
   ]);
 
   const addRun = () => {
@@ -656,6 +724,33 @@ function ClassSetupPage() {
               </div>
             </div>
           )}
+
+          {canManageSetup && (
+            <div>
+              <label style={labelStyle}>Vitrine publique</label>
+              <label style={checkboxRowStyle}>
+                <input
+                  type="checkbox"
+                  checked={isPublicLiveEnabled}
+                  onChange={(event) => {
+                    if (isFinalized) {
+                      showFinalizedMessage();
+                      return;
+                    }
+
+                    setIsPublicLiveEnabled(event.target.checked);
+                  }}
+                  disabled={isFinalized || isPublicationLocked}
+                />
+                <span>Autoriser le live public pour cette classe</span>
+              </label>
+              <div style={helperTextStyle}>
+                {isPublicationLocked
+                  ? "La publication finale se gère au secrétariat."
+                  : "Affiche la run en cours, la prochaine et les deux derniers passés dans la vitrine publique."}
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -965,6 +1060,13 @@ const inlineFieldStyle = {
   display: "flex",
   gap: "8px",
   alignItems: "center",
+};
+
+const checkboxRowStyle = {
+  display: "flex",
+  gap: "8px",
+  alignItems: "center",
+  minHeight: 40,
 };
 
 const labelStyle = {

@@ -10,6 +10,8 @@ import ShowDetailPage from "../../pages/association/ShowDetailPage";
 import SecretariatDashboardPage from "../../pages/association/SecretariatDashboardPage";
 import AnnouncerDashboardPage from "../../pages/association/AnnouncerDashboardPage";
 import PublicResultsPage from "../../pages/association/PublicResultsPage";
+import PublicAssociationsPage from "../../pages/public/PublicAssociationsPage";
+import PublicAssociationShowsPage from "../../pages/public/PublicAssociationShowsPage";
 import ShowTimeManagementPage from "../../pages/association/ShowTimeManagementPage";
 import DayClassesPage from "../../pages/association/DayClassesPage";
 import ClassSetupPage from "../../pages/association/ClassSetupPage";
@@ -25,6 +27,15 @@ function AppRouter() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/public" element={<PublicAssociationsPage />} />
+        <Route
+          path="/public/associations/:associationId"
+          element={<PublicAssociationShowsPage />}
+        />
+        <Route
+          path="/public/associations/:associationId/shows/:showId"
+          element={<PublicResultsPage />}
+        />
         <Route path="/associations" element={<AssociationsPage />} />
         <Route
           path="/associations/:associationId/shows"

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
+  getPublicShowRepository,
   getPublicShowView,
   getPublicShowViewRepository,
+  subscribePublicShowViewRepository,
 } from "../../features/publication/publicViewRepository";
 import { getShowById } from "../../features/shows/showSelectors";
 import { appStyles as styles } from "../../styles/appStyles";
@@ -10,17 +12,24 @@ import { appStyles as styles } from "../../styles/appStyles";
 function PublicResultsPage() {
   const { associationId, showId } = useParams();
   const navigate = useNavigate();
-  const show = getShowById(showId);
+  const location = useLocation();
+  const isPublicRoute = location.pathname.startsWith("/public");
+  const [show, setShow] = useState(() => getShowById(showId));
   const [publicView, setPublicView] = useState(() => getPublicShowView(showId));
   const [isLoading, setIsLoading] = useState(true);
+  const publicClassIdsKey = (publicView.classIds || []).join("|");
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadPublicView() {
       setIsLoading(true);
-      const nextPublicView = await getPublicShowViewRepository(showId);
+      const [nextShow, nextPublicView] = await Promise.all([
+        getPublicShowRepository(showId),
+        getPublicShowViewRepository(showId),
+      ]);
       if (!isMounted) return;
+      setShow(nextShow);
       setPublicView(nextPublicView);
       setIsLoading(false);
     }
@@ -32,7 +41,39 @@ function PublicResultsPage() {
     };
   }, [showId]);
 
-  if (!show) {
+  useEffect(() => {
+    let isMounted = true;
+    let refreshTimeout = null;
+
+    const refreshPublicView = () => {
+      window.clearTimeout(refreshTimeout);
+      refreshTimeout = window.setTimeout(async () => {
+        const [nextShow, nextPublicView] = await Promise.all([
+          getPublicShowRepository(showId),
+          getPublicShowViewRepository(showId),
+        ]);
+
+        if (!isMounted) return;
+        setShow(nextShow);
+        setPublicView(nextPublicView);
+        setIsLoading(false);
+      }, 200);
+    };
+
+    const unsubscribe = subscribePublicShowViewRepository(
+      showId,
+      publicClassIdsKey ? publicClassIdsKey.split("|") : [],
+      refreshPublicView
+    );
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(refreshTimeout);
+      unsubscribe();
+    };
+  }, [showId, publicClassIdsKey]);
+
+  if (!show && !isLoading) {
     return (
       <div style={styles.app}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
@@ -59,13 +100,21 @@ function PublicResultsPage() {
             {show.venue || show.location || "Lieu à confirmer"}
           </div>
         </div>
-        <Link
-          to={`/associations/${associationId}/shows/${showId}`}
-          style={linkButtonStyle}
-        >
-          Show
-        </Link>
+        {isPublicRoute ? (
+          <Link to={`/public/associations/${associationId}`} style={linkButtonStyle}>
+            Shows
+          </Link>
+        ) : (
+          <Link
+            to={`/associations/${associationId}/shows/${showId}`}
+            style={linkButtonStyle}
+          >
+            Show
+          </Link>
+        )}
       </section>
+
+      {publicView.liveClass && <PublicLivePanel classView={publicView.liveClass} />}
 
       <section style={summaryStyle}>
         <div style={summaryValueStyle}>{publicView.publishedClassCount}</div>
@@ -160,6 +209,88 @@ function PublicClassResults({ classView }) {
   );
 }
 
+function PublicLivePanel({ classView }) {
+  return (
+    <section style={livePanelStyle}>
+      <div style={classHeaderStyle}>
+        <div>
+          <div style={eyebrowStyle}>Live</div>
+          <h2 style={sectionTitleStyle}>
+            {classView.className}
+            {classView.classCode ? ` (${classView.classCode})` : ""}
+          </h2>
+          <div style={mutedTextStyle}>Pattern {classView.pattern || "—"}</div>
+        </div>
+        <Badge>En cours</Badge>
+      </div>
+
+      <div style={liveGridStyle}>
+        <LiveRunBlock label="En piste" run={classView.activeRun} showScore />
+        <LiveRunBlock label="Prochain participant" run={classView.nextRun} />
+        <div style={liveBlockStyle}>
+          <div style={runLabelStyle}>Deux derniers passés</div>
+          {classView.lastPassedRuns?.length ? (
+            <div style={{ display: "grid", gap: 8 }}>
+              {classView.lastPassedRuns.map((run) => (
+                <LiveRunCard key={run.id || run.draw} run={run} />
+              ))}
+            </div>
+          ) : (
+            <div style={mutedTextStyle}>—</div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LiveRunBlock({ label, run, showScore = false }) {
+  return (
+    <div style={liveBlockStyle}>
+      <div style={runLabelStyle}>{label}</div>
+      {run ? (
+        <LiveRunCard run={run} showScore={showScore} />
+      ) : (
+        <div style={mutedTextStyle}>—</div>
+      )}
+    </div>
+  );
+}
+
+function LiveRunCard({ run, showScore = true }) {
+  return (
+    <div>
+      <div style={runTitleStyle}>
+        #{run.draw} · Back {run.backNumber || "—"}
+      </div>
+      <div style={runNameStyle}>{run.rider || "Rider —"}</div>
+      <div style={mutedTextStyle}>{run.horse || "Horse —"}</div>
+      {showScore && <div style={liveScoreStyle}>{run.scoreTotal || "—"}</div>}
+      <ManoeuvreDetails run={run} />
+    </div>
+  );
+}
+
+function ManoeuvreDetails({ run }) {
+  const manoeuvres = Array.isArray(run?.manoeuvres) ? run.manoeuvres : [];
+
+  if (!manoeuvres.length) {
+    return null;
+  }
+
+  return (
+    <div style={detailsGridStyle}>
+      {manoeuvres.map((item) => (
+        <div key={item.name} style={detailCellStyle}>
+          <div style={detailNameStyle}>{item.name}</div>
+          <div style={detailScoreStyle}>{item.score || "—"}</div>
+          {item.penalty && <div style={detailPenaltyStyle}>P {item.penalty}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Badge({ children }) {
   return <span style={badgeStyle}>{children}</span>;
 }
@@ -211,6 +342,85 @@ const summaryValueStyle = {
 const summaryLabelStyle = {
   color: "#166534",
   marginTop: 4,
+};
+
+const livePanelStyle = {
+  background: "#fff",
+  borderRadius: 12,
+  padding: 16,
+  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+  marginBottom: 16,
+  border: "1px solid #bbf7d0",
+};
+
+const liveGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+  gap: 12,
+};
+
+const liveBlockStyle = {
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  padding: 12,
+  minHeight: 112,
+};
+
+const runLabelStyle = {
+  color: "#64748b",
+  fontWeight: 800,
+  textTransform: "uppercase",
+  fontSize: 12,
+  letterSpacing: 0,
+  marginBottom: 8,
+};
+
+const runTitleStyle = {
+  fontWeight: 900,
+  color: "#111827",
+};
+
+const runNameStyle = {
+  fontWeight: 800,
+  marginTop: 4,
+};
+
+const liveScoreStyle = {
+  fontSize: 28,
+  fontWeight: 900,
+  marginTop: 8,
+};
+
+const detailsGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(64px, 1fr))",
+  gap: 6,
+  marginTop: 10,
+};
+
+const detailCellStyle = {
+  border: "1px solid #e2e8f0",
+  borderRadius: 6,
+  padding: 8,
+  minHeight: 48,
+};
+
+const detailNameStyle = {
+  color: "#64748b",
+  fontSize: 12,
+  fontWeight: 800,
+};
+
+const detailScoreStyle = {
+  fontWeight: 900,
+  marginTop: 4,
+};
+
+const detailPenaltyStyle = {
+  color: "#b91c1c",
+  fontSize: 12,
+  fontWeight: 800,
+  marginTop: 2,
 };
 
 const cardStyle = {

@@ -30,8 +30,11 @@ function AppMenu() {
         Accueil
       </Link>
       <Link
-        to="/associations"
-        style={linkStyle(location.pathname.startsWith("/associations"))}
+        to={auth.isConfigured && !auth.isAuthenticated ? "/public" : "/associations"}
+        style={linkStyle(
+          location.pathname.startsWith("/associations") ||
+            location.pathname.startsWith("/public")
+        )}
       >
         Associations
       </Link>

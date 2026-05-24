@@ -13,6 +13,7 @@ import {
 } from "../../features/auth/accessRoles";
 import { useAuthUser } from "../../features/auth/useAuthUser";
 import { getCloudSyncStatus } from "../../features/cloud/supabaseStatus";
+import { getPublicAssociationsRepository } from "../../features/publication/publicViewRepository";
 import { appStyles as styles } from "../../styles/appStyles";
 
 const BACK_OFFICE_ROLES = [
@@ -30,6 +31,7 @@ function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const cloudStatus = getCloudSyncStatus(auth.user);
   const isLocalMode = !auth.isConfigured;
+  const isPublicVisitor = auth.isConfigured && !auth.isAuthenticated;
 
   useEffect(() => {
     let isMounted = true;
@@ -38,7 +40,9 @@ function HomePage() {
       setIsLoading(true);
       const [nextAssociations, nextMemberships, nextIsPlatformAdmin] =
         await Promise.all([
-          loadAssociationsRepository(),
+          isPublicVisitor
+            ? getPublicAssociationsRepository()
+            : loadAssociationsRepository(),
           auth.isConfigured && auth.user?.id
             ? loadUserMembershipsRepository(auth.user.id)
             : Promise.resolve([]),
@@ -59,17 +63,19 @@ function HomePage() {
     return () => {
       isMounted = false;
     };
-  }, [auth.isConfigured, auth.user?.id]);
+  }, [auth.isConfigured, auth.user?.id, isPublicVisitor]);
 
   const visibleAssociations = useMemo(() => {
-    const source = isLocalMode || isPlatformAdmin
+    const source = isPublicVisitor
+      ? associations
+      : isLocalMode || isPlatformAdmin
       ? associations
       : associations.filter((association) =>
           hasAssociationRole(memberships, association.id, BACK_OFFICE_ROLES)
         );
 
     return [...source].sort((a, b) => a.name.localeCompare(b.name));
-  }, [associations, isLocalMode, isPlatformAdmin, memberships]);
+  }, [associations, isLocalMode, isPlatformAdmin, isPublicVisitor, memberships]);
 
   return (
     <div style={styles.app}>
@@ -87,7 +93,10 @@ function HomePage() {
         </div>
 
         <div style={actionRowStyle}>
-          <Link to="/associations" style={primaryLinkStyle}>
+          <Link
+            to={isPublicVisitor ? "/public" : "/associations"}
+            style={primaryLinkStyle}
+          >
             Associations
           </Link>
           {auth.isConfigured && !auth.isAuthenticated && (
@@ -100,23 +109,31 @@ function HomePage() {
 
       <section style={cardStyle}>
         <div style={sectionHeaderStyle}>
-          <h2 style={sectionTitleStyle}>Mes associations</h2>
+          <h2 style={sectionTitleStyle}>
+            {isPublicVisitor ? "Associations publiques" : "Mes associations"}
+          </h2>
         </div>
 
         {isLoading ? (
           <div style={emptyStateStyle}>Chargement…</div>
         ) : visibleAssociations.length === 0 ? (
-          <div style={emptyStateStyle}>Aucune association disponible.</div>
+          <div style={emptyStateStyle}>
+            {isPublicVisitor
+              ? "Aucun résultat public disponible pour l’instant."
+              : "Aucune association disponible."}
+          </div>
         ) : (
           <div style={associationGridStyle}>
             {visibleAssociations.map((association) => {
-              const roles = isLocalMode
-                ? ["Local"]
-                : isPlatformAdmin
-                  ? ["Admin général"]
-                  : getRolesForAssociation(memberships, association.id).map(
-                      getRoleLabel
-                    );
+              const roles = isPublicVisitor
+                ? ["Résultats publics"]
+                : isLocalMode
+                  ? ["Local"]
+                  : isPlatformAdmin
+                    ? ["Admin général"]
+                    : getRolesForAssociation(memberships, association.id).map(
+                        getRoleLabel
+                      );
 
               return (
                 <article key={association.id} style={associationCardStyle}>
@@ -128,10 +145,14 @@ function HomePage() {
                     </div>
                   </div>
                   <Link
-                    to={`/associations/${association.id}/shows`}
+                    to={
+                      isPublicVisitor
+                        ? `/public/associations/${association.id}`
+                        : `/associations/${association.id}/shows`
+                    }
                     style={secondaryLinkStyle}
                   >
-                    Ouvrir
+                    {isPublicVisitor ? "Voir les shows" : "Ouvrir"}
                   </Link>
                 </article>
               );
