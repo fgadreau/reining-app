@@ -212,11 +212,11 @@ function ClassLiveCard({ classView }) {
         <RunBlock label="Prochain" run={classView.nextRun} />
         <RunBlock label="Dernier score" run={classView.latestScore} showScore />
       </div>
-      {classView.lastCompletedRuns?.length > 0 && (
+      {classView.lastPassedRuns?.length > 0 && (
         <div style={completedWrapStyle}>
           <div style={runLabelStyle}>Deux derniers passés</div>
           <RecentResults
-            results={classView.lastCompletedRuns.map((run) => ({
+            results={classView.lastPassedRuns.map((run) => ({
               classId: classView.classId,
               className: classView.className,
               run,

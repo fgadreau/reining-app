@@ -335,11 +335,51 @@ test("announcer live view exposes active, next, and recent completed runs", () =
   expect(classView.activeRun.draw).toBe(2);
   expect(classView.nextRun.draw).toBe(3);
   expect(classView.latestScore.draw).toBe(1);
-  expect(classView.lastCompletedRuns.map((run) => run.draw)).toEqual([1]);
-  expect(classView.lastCompletedRuns[0].manoeuvres[0]).toMatchObject({
+  expect(classView.lastPassedRuns.map((run) => run.draw)).toEqual([1]);
+  expect(classView.lastPassedRuns[0].manoeuvres[0]).toMatchObject({
     name: "RSLL",
     score: "0",
   });
+
+  const fourthRunActiveView = buildAnnouncerClassView({
+    ...classData,
+    scoringRuns: [
+      {
+        id: "run-1",
+        draw: 1,
+        backNumber: "101",
+        rider: "Rider 1",
+        scoreTotal: "71.0",
+      },
+      {
+        id: "run-2",
+        draw: 2,
+        backNumber: "202",
+        rider: "Rider 2",
+        scoreTotal: "72.0",
+      },
+      {
+        id: "run-3",
+        draw: 3,
+        backNumber: "303",
+        rider: "Rider 3",
+        scoreTotal: "",
+      },
+      {
+        id: "run-4",
+        draw: 4,
+        backNumber: "404",
+        rider: "Rider 4",
+        isActive: true,
+        scoreTotal: "",
+      },
+    ],
+  });
+
+  expect(fourthRunActiveView.lastPassedRuns.map((run) => run.draw)).toEqual([
+    3,
+    2,
+  ]);
 });
 
 test("builds invitation links for invited users", () => {
