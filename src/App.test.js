@@ -343,6 +343,9 @@ test("announcer live view exposes active, next, and recent completed runs", () =
 
   const fourthRunActiveView = buildAnnouncerClassView({
     ...classData,
+    publication: {
+      status: PUBLICATION_STATUSES.HIDDEN,
+    },
     scoringRuns: [
       {
         id: "run-1",
@@ -357,13 +360,17 @@ test("announcer live view exposes active, next, and recent completed runs", () =
         backNumber: "202",
         rider: "Rider 2",
         scoreTotal: "72.0",
+        scores: ["+0.5", "0"],
+        penalties: ["1", ""],
       },
       {
         id: "run-3",
         draw: 3,
         backNumber: "303",
         rider: "Rider 3",
-        scoreTotal: "",
+        scoreTotal: "70.5",
+        scores: ["0", "+0.5"],
+        penalties: ["", "2"],
       },
       {
         id: "run-4",
@@ -380,6 +387,12 @@ test("announcer live view exposes active, next, and recent completed runs", () =
     3,
     2,
   ]);
+  expect(fourthRunActiveView.latestScore).toBeNull();
+  expect(fourthRunActiveView.lastPassedRuns[0].scoreTotal).toBe("70.5");
+  expect(fourthRunActiveView.lastPassedRuns[0].manoeuvres[1]).toMatchObject({
+    score: "+0.5",
+    penalty: "2",
+  });
 });
 
 test("builds invitation links for invited users", () => {

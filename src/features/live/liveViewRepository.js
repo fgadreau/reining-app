@@ -188,9 +188,7 @@ export function buildAnnouncerClassView(classData) {
   const publicationStatus = classData.publication?.status || "hidden";
   const canShowScores = canShowLatestScore(publicationStatus);
   const latestScore = canShowScores ? findLatestRunWithScore(runs) : null;
-  const lastPassedRuns = findLastPassedRuns(runs, activeRun, 2).map((run) =>
-    canShowScores ? run : hideScoreDetails(run)
-  );
+  const lastPassedRuns = findLastPassedRuns(runs, activeRun, 2);
 
   return {
     classId,
@@ -285,19 +283,6 @@ function findLastPassedRuns(runs, activeRun, count) {
   }
 
   return runs.slice(0, activeIndex).slice(-count).reverse();
-}
-
-function hideScoreDetails(run) {
-  return {
-    ...run,
-    scoreTotal: "",
-    penTotal: "",
-    manoeuvres: run.manoeuvres.map((manoeuvre) => ({
-      ...manoeuvre,
-      score: "",
-      penalty: "",
-    })),
-  };
 }
 
 function findLatestScoredRun(classes) {
