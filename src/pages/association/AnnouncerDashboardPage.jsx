@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   getAnnouncerShowView,
   getAnnouncerShowViewRepository,
+  subscribeAnnouncerShowViewRepository,
 } from "../../features/live/liveViewRepository";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import { getShowById } from "../../features/shows/showSelectors";
@@ -15,6 +16,10 @@ function AnnouncerDashboardPage() {
   const show = getShowById(showId);
   const [liveView, setLiveView] = useState(() => getAnnouncerShowView(showId));
   const [isLoading, setIsLoading] = useState(true);
+  const liveClassIdsKey = useMemo(
+    () => getLiveViewClassIds(liveView).join("|"),
+    [liveView]
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -33,6 +38,33 @@ function AnnouncerDashboardPage() {
       isMounted = false;
     };
   }, [showId]);
+
+  useEffect(() => {
+    let isMounted = true;
+    let refreshTimeout = null;
+
+    const refreshLiveView = () => {
+      window.clearTimeout(refreshTimeout);
+      refreshTimeout = window.setTimeout(async () => {
+        const nextLiveView = await getAnnouncerShowViewRepository(showId);
+        if (!isMounted) return;
+        setLiveView(nextLiveView);
+        setIsLoading(false);
+      }, 200);
+    };
+
+    const unsubscribe = subscribeAnnouncerShowViewRepository(
+      showId,
+      liveClassIdsKey ? liveClassIdsKey.split("|") : [],
+      refreshLiveView
+    );
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(refreshTimeout);
+      unsubscribe();
+    };
+  }, [showId, liveClassIdsKey]);
 
   if (!show) {
     return (
@@ -148,6 +180,13 @@ function AnnouncerDashboardPage() {
       </div>
     </div>
   );
+}
+
+function getLiveViewClassIds(liveView) {
+  return (liveView?.sections || [])
+    .flatMap((section) => section.classes || [])
+    .map((classView) => classView.classId)
+    .filter(Boolean);
 }
 
 function FocusPanel({ title, children }) {

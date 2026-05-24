@@ -10,8 +10,16 @@ import {
   getPatternDisplayName,
   getPatternHeaders,
 } from "../patterns/patternDefinitions";
+import { getSupabaseClient } from "../cloud/supabaseClient";
 import { PUBLICATION_STATUSES } from "../publication/publicationRepository";
 import { loadActiveManoeuvre } from "../scoring/scoringRepository";
+
+const ANNOUNCER_CLASS_REALTIME_TABLES = [
+  "scoring_sessions",
+  "class_setups",
+  "publication_states",
+  "official_results",
+];
 
 export function getAnnouncerShowView(showId) {
   const days = getDaysByShowId(showId);
@@ -77,6 +85,82 @@ export async function getAnnouncerShowViewRepository(showId) {
     activeClass,
     latestScore: findLatestScoredRun(allClasses),
     recentResults: findRecentPassedRuns(allClasses, 2, activeClass),
+  };
+}
+
+export function subscribeAnnouncerShowViewRepository(
+  showId,
+  classIds,
+  onChange
+) {
+  const supabase = getSupabaseClient();
+
+  if (!supabase || typeof onChange !== "function") {
+    return () => {};
+  }
+
+  const uniqueClassIds = Array.from(
+    new Set((Array.isArray(classIds) ? classIds : []).filter(Boolean))
+  );
+  const channelName = `announcer-show:${showId}`;
+  const channel = supabase.channel(channelName);
+
+  channel.on(
+    "postgres_changes",
+    {
+      event: "*",
+      schema: "public",
+      table: "shows",
+      filter: `id=eq.${showId}`,
+    },
+    onChange
+  );
+
+  channel.on(
+    "postgres_changes",
+    {
+      event: "*",
+      schema: "public",
+      table: "days",
+      filter: `show_id=eq.${showId}`,
+    },
+    onChange
+  );
+
+  channel.on(
+    "postgres_changes",
+    {
+      event: "*",
+      schema: "public",
+      table: "classes",
+      filter: `show_id=eq.${showId}`,
+    },
+    onChange
+  );
+
+  uniqueClassIds.forEach((classId) => {
+    ANNOUNCER_CLASS_REALTIME_TABLES.forEach((table) => {
+      channel.on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table,
+          filter: `class_id=eq.${classId}`,
+        },
+        onChange
+      );
+    });
+  });
+
+  channel.subscribe((status) => {
+    if (status === "CHANNEL_ERROR") {
+      console.error("Erreur abonnement temps réel annonceur Supabase.");
+    }
+  });
+
+  return () => {
+    supabase.removeChannel(channel);
   };
 }
 
