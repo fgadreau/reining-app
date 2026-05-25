@@ -33,6 +33,10 @@ const ASSOCIATION_WORKFLOW = [
     text: "Ajoutez les ordres de passage par CSV, PDF ou saisie manuelle.",
   },
   {
+    title: "Enregistrer les pointages",
+    text: "Entrez les scores en direct avec une protection prévue pour les connexions instables en concours.",
+  },
+  {
     title: "Publier les pointages",
     text: "Suivez le live, validez les résultats et partagez la vitrine publique.",
   },
@@ -105,8 +109,10 @@ function HomePage() {
             Pointage en direct pour compétitions équestres jugées
           </h1>
           <div style={subtitleStyle}>
-            Préparez les classes, importez les draws, suivez le rythme d’une
-            journée et publiez les résultats officiels.
+            ShowScore aide les associations de compétitions équestres jugées à
+            préparer les classes, enregistrer les pointages, suivre le
+            déroulement d’une journée et publier les feuilles de pointage au
+            public.
           </div>
           <div style={actionRowStyle}>
             <Link to="/public" style={primaryLinkStyle}>
