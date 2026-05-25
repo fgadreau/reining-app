@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ScoreTable from "../../components/ScoreTable";
 import SignaturePad from "../../components/SignaturePad";
@@ -30,9 +30,12 @@ import {
 import {
   loadActiveManoeuvre,
   loadScoringRuns,
+  flushScoringSyncQueue,
+  getScoringRunsSyncStatus,
   saveActiveManoeuvreRepository,
   saveScoringStartedAtRepository,
   saveScoringRunsRepository,
+  SCORING_SYNC_STATUS,
 } from "../../features/scoring/scoringRepository";
 import {
   calculateClassTimingSummary,
@@ -147,6 +150,26 @@ function canFinalizeClass(runs, maneuverCount) {
   return runs.every((run) => isRunComplete(run, maneuverCount));
 }
 
+const SCORING_SYNC_DEBOUNCE_MS = 800;
+
+function isScoringSyncBlockingStatus(status) {
+  return (
+    status === SCORING_SYNC_STATUS.PENDING ||
+    status === SCORING_SYNC_STATUS.SYNCING
+  );
+}
+
+function sanitizeFilePart(value, fallback = "export") {
+  const cleaned = String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
+
+  return cleaned || fallback;
+}
+
 function ClassScoringPage() {
   const { associationId, classId } = useParams();
   const navigate = useNavigate();
@@ -194,11 +217,15 @@ function ClassScoringPage() {
   const [runs, setRuns] = useState(() =>
     loadRunsForClass(classId, maneuverCount)
   );
+  const lastPersistedRunsRef = useRef(JSON.stringify(runs));
   const [activeManoeuvre, setActiveManoeuvre] = useState(() =>
     isCompleted ? null : loadActiveManoeuvre(classId)
   );
   const [hasLoadedSession, setHasLoadedSession] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => new Date());
+  const [scoringSyncStatus, setScoringSyncStatus] = useState(() =>
+    getScoringRunsSyncStatus(classId)
+  );
 
   const [showFinalizeBox, setShowFinalizeBox] = useState(false);
   const [judgeName, setJudgeName] = useState(assignedJudgeName);
@@ -234,7 +261,9 @@ function ClassScoringPage() {
 
       setClassData(nextData);
       setRuns(nextRuns);
+      lastPersistedRunsRef.current = JSON.stringify(nextRuns);
       setActiveManoeuvre(nextIsCompleted ? null : nextActiveManoeuvre);
+      setScoringSyncStatus(getScoringRunsSyncStatus(classId));
       setHasLoadedSession(true);
     }
 
@@ -305,8 +334,53 @@ function ClassScoringPage() {
 
   useEffect(() => {
     if (!hasLoadedSession) return;
-    saveScoringRunsRepository(classId, runs);
+    const serializedRuns = JSON.stringify(runs);
+
+    if (lastPersistedRunsRef.current === serializedRuns) {
+      setScoringSyncStatus(getScoringRunsSyncStatus(classId));
+      return;
+    }
+
+    lastPersistedRunsRef.current = serializedRuns;
+
+    saveScoringRunsRepository(classId, runs, {
+      debounceMs: SCORING_SYNC_DEBOUNCE_MS,
+      onStatusChange: setScoringSyncStatus,
+    })
+      .catch(() => {
+        setScoringSyncStatus(SCORING_SYNC_STATUS.PENDING);
+      });
   }, [classId, runs, hasLoadedSession]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const updateSyncStatus = (status) => {
+      if (isMounted) setScoringSyncStatus(status);
+    };
+
+    const retryPendingSync = () => {
+      updateSyncStatus(getScoringRunsSyncStatus(classId));
+      flushScoringSyncQueue({
+        classId,
+        onStatusChange: updateSyncStatus,
+      })
+        .then(() => {
+          updateSyncStatus(getScoringRunsSyncStatus(classId));
+        })
+        .catch(() => {
+          updateSyncStatus(SCORING_SYNC_STATUS.PENDING);
+        });
+    };
+
+    retryPendingSync();
+    window.addEventListener("online", retryPendingSync);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("online", retryPendingSync);
+    };
+  }, [classId]);
 
   useEffect(() => {
     if (!hasLoadedSession) return;
@@ -353,6 +427,8 @@ function ClassScoringPage() {
       currentTime,
     ]
   );
+  const hasBlockingScoringSync = isScoringSyncBlockingStatus(scoringSyncStatus);
+  const canSignClass = canFinalize && !hasBlockingScoringSync;
 
   const normalizeSpaces = (value) =>
     String(value || "").replace(/\s+/g, " ").trim();
@@ -664,6 +740,87 @@ function ClassScoringPage() {
     pdf.save(fileName);
   };
 
+  const handleRetryScoringSync = () => {
+    setScoringSyncStatus(SCORING_SYNC_STATUS.SYNCING);
+
+    flushScoringSyncQueue({
+      classId,
+      onStatusChange: setScoringSyncStatus,
+    })
+      .then(() => {
+        setScoringSyncStatus(getScoringRunsSyncStatus(classId));
+      })
+      .catch(() => {
+        setScoringSyncStatus(SCORING_SYNC_STATUS.PENDING);
+      });
+  };
+
+  const handleExportLocalScoringBackup = () => {
+    const exportedAt = new Date().toISOString();
+    const payload = {
+      type: "reining-app-scoring-backup",
+      version: 1,
+      exportedAt,
+      classId,
+      scoringSyncStatus: getScoringRunsSyncStatus(classId),
+      association,
+      show,
+      day,
+      classItem,
+      classSetup: getClassSetup(classId),
+      activeManoeuvre,
+      runs,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const fileName = [
+      "scoring-backup",
+      sanitizeFilePart(classItem?.name, "classe"),
+      sanitizeFilePart(exportedAt.slice(0, 19), "date"),
+    ].join("-");
+
+    link.href = url;
+    link.download = `${fileName}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  const ensureScoringSyncedBeforeFinalize = async () => {
+    const currentStatus = getScoringRunsSyncStatus(classId);
+
+    if (!isScoringSyncBlockingStatus(currentStatus)) {
+      return true;
+    }
+
+    setScoringSyncStatus(SCORING_SYNC_STATUS.SYNCING);
+
+    try {
+      await flushScoringSyncQueue({
+        classId,
+        onStatusChange: setScoringSyncStatus,
+      });
+    } catch (error) {
+      setScoringSyncStatus(SCORING_SYNC_STATUS.PENDING);
+    }
+
+    const nextStatus = getScoringRunsSyncStatus(classId);
+    setScoringSyncStatus(nextStatus);
+
+    if (isScoringSyncBlockingStatus(nextStatus)) {
+      alert(
+        "Impossible de finaliser : les scores sont sauvegardés localement, mais pas encore synchronisés. Réessaie la sync ou exporte une sauvegarde locale avant de continuer."
+      );
+      return false;
+    }
+
+    return true;
+  };
+
   const handleFinalizeScoring = async () => {
     if (isCompleted) return;
 
@@ -674,6 +831,12 @@ function ClassScoringPage() {
 
     if (!canFinalize) {
       alert("Impossible de finaliser : certains runs ne sont pas complets.");
+      return;
+    }
+
+    const isScoringSynced = await ensureScoringSyncedBeforeFinalize();
+
+    if (!isScoringSynced) {
       return;
     }
 
@@ -768,12 +931,34 @@ function ClassScoringPage() {
             Statut : {classStatusLabel}
           </div>
 
+          <div style={scoringSyncBadgeStyle(scoringSyncStatus)}>
+            {getScoringSyncLabel(scoringSyncStatus)}
+          </div>
+
+          {scoringSyncStatus === SCORING_SYNC_STATUS.PENDING && (
+            <button
+              type="button"
+              onClick={handleRetryScoringSync}
+              style={secondaryButtonStyle}
+            >
+              Réessayer sync
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={handleExportLocalScoringBackup}
+            style={secondaryButtonStyle}
+          >
+            Exporter sauvegarde
+          </button>
+
           {!isCompleted && (
             <button
               type="button"
               onClick={() => setShowFinalizeBox(true)}
               style={primaryButtonStyle}
-              disabled={!canFinalize}
+              disabled={!canSignClass}
             >
               Signer la classe
             </button>
@@ -801,6 +986,12 @@ function ClassScoringPage() {
         <div style={warningBannerStyle}>
           Une révision vidéo est en attente. Le score du run concerné reste caché
           et la classe ne peut pas être finalisée.
+        </div>
+      )}
+
+      {!isCompleted && getScoringSyncNotice(scoringSyncStatus) && (
+        <div style={scoringSyncNoticeStyle(scoringSyncStatus)}>
+          {getScoringSyncNotice(scoringSyncStatus)}
         </div>
       )}
 
@@ -853,6 +1044,7 @@ function ClassScoringPage() {
               type="button"
               onClick={handleFinalizeScoring}
               style={primaryButtonStyle}
+              disabled={hasBlockingScoringSync}
             >
               Confirmer la signature et finaliser
             </button>
@@ -914,6 +1106,8 @@ function ClassScoringPage() {
       <ScoreTable
         headers={headers}
         runs={runs}
+        dragInterval={timingSummary.dragInterval}
+        dragDurationMinutes={timingSummary.dragDurationMinutes}
         activeManoeuvre={activeManoeuvre}
         setActiveManoeuvre={setActiveManoeuvreWithRun}
         scoreOptions={scoreOptions}
@@ -964,6 +1158,99 @@ const headerButtonsStyle = {
   alignItems: "center",
   flexWrap: "wrap",
 };
+
+function getScoringSyncLabel(status) {
+  if (status === SCORING_SYNC_STATUS.SYNCING) return "Synchronisation";
+  if (status === SCORING_SYNC_STATUS.SYNCED) return "Synchronisé";
+  if (status === SCORING_SYNC_STATUS.PENDING) return "Sync en attente";
+  return "Sauvé localement";
+}
+
+function getScoringSyncNotice(status) {
+  if (status === SCORING_SYNC_STATUS.SYNCING) {
+    return "Synchronisation des scores en cours. La signature sera disponible dès que Supabase aura confirmé la sauvegarde.";
+  }
+
+  if (status === SCORING_SYNC_STATUS.PENDING) {
+    return "Les scores sont sauvegardés localement sur cet appareil, mais ils ne sont pas encore synchronisés. Garde cette page ouverte, réessaie la sync au besoin, ou exporte une sauvegarde locale.";
+  }
+
+  if (status === SCORING_SYNC_STATUS.LOCAL) {
+    return "Les derniers changements sont sauvegardés localement sur cet appareil.";
+  }
+
+  return "";
+}
+
+function scoringSyncBadgeStyle(status) {
+  if (status === SCORING_SYNC_STATUS.SYNCING) {
+    return {
+      padding: "8px 12px",
+      borderRadius: "999px",
+      background: "#eff6ff",
+      border: "1px solid #93c5fd",
+      color: "#1d4ed8",
+      fontWeight: 600,
+      whiteSpace: "nowrap",
+    };
+  }
+
+  if (status === SCORING_SYNC_STATUS.SYNCED) {
+    return {
+      padding: "8px 12px",
+      borderRadius: "999px",
+      background: "#ecfdf5",
+      border: "1px solid #86efac",
+      color: "#166534",
+      fontWeight: 600,
+      whiteSpace: "nowrap",
+    };
+  }
+
+  if (status === SCORING_SYNC_STATUS.PENDING) {
+    return {
+      padding: "8px 12px",
+      borderRadius: "999px",
+      background: "#fff7ed",
+      border: "1px solid #fdba74",
+      color: "#9a3412",
+      fontWeight: 600,
+      whiteSpace: "nowrap",
+    };
+  }
+
+  return {
+    padding: "8px 12px",
+    borderRadius: "999px",
+    background: "#f8fafc",
+    border: "1px solid #cbd5e1",
+    color: "#475569",
+    fontWeight: 600,
+    whiteSpace: "nowrap",
+  };
+}
+
+function scoringSyncNoticeStyle(status) {
+  if (status === SCORING_SYNC_STATUS.PENDING) {
+    return {
+      ...warningBannerStyle,
+      background: "#fff7ed",
+      border: "1px solid #fdba74",
+      color: "#9a3412",
+    };
+  }
+
+  if (status === SCORING_SYNC_STATUS.SYNCING) {
+    return warningBannerStyle;
+  }
+
+  return {
+    ...warningBannerStyle,
+    background: "#f8fafc",
+    border: "1px solid #cbd5e1",
+    color: "#475569",
+  };
+}
 
 const lockBannerStyle = {
   marginBottom: "16px",

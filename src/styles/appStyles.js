@@ -135,7 +135,9 @@ export const appStyles = {
     borderRadius: "14px",
     padding: "12px",
     boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-    overflowX: "auto",
+    maxHeight: "calc(100vh - 96px)",
+    overflow: "auto",
+    position: "relative",
   },
 
   table: {
@@ -150,6 +152,10 @@ export const appStyles = {
     backgroundColor: "#e5e7eb",
     textAlign: "center",
     fontWeight: "700",
+    position: "sticky",
+    top: 0,
+    zIndex: 3,
+    boxShadow: "0 2px 0 rgba(148, 163, 184, 0.35)",
   },
 
   td: {
@@ -239,6 +245,17 @@ export const appStyles = {
     fontWeight: "700",
     verticalAlign: "middle",
     minWidth: "110px",
+  },
+
+  dragBreakRow: {
+    border: "1px solid #f59e0b",
+    padding: "12px 16px",
+    textAlign: "center",
+    backgroundColor: "#fffbeb",
+    color: "#92400e",
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0,
   },
 
   activeRow: {

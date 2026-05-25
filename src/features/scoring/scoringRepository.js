@@ -6,6 +6,19 @@ import {
   saveActiveManoeuvre as saveActiveManoeuvreLocal,
   saveScoringRuns as saveScoringRunsLocal,
 } from "./scoringStorage";
+import {
+  getLocalScoringRunsSyncStatus,
+  getPendingScoringRunsMutation,
+  getQueuedScoringRunsMutations,
+  hasPendingScoringRunsMutation,
+  markScoringRunsMutationAttempt,
+  queueScoringRunsMutation,
+  removeScoringRunsMutation,
+  SCORING_SYNC_STATUS,
+} from "./scoringSyncQueue";
+
+let activeScoringQueueFlush = null;
+const scheduledScoringQueueFlushes = new Map();
 
 function toScoringSession(row, classId) {
   return {
@@ -30,7 +43,9 @@ function getLocalScoringSession(classId) {
 async function upsertScoringSession(classId, updates = {}) {
   const supabase = getSupabaseClient();
 
-  if (!supabase) return;
+  if (!supabase) {
+    return { ok: false, error: "Supabase is not configured" };
+  }
 
   try {
     const row = {
@@ -52,9 +67,172 @@ async function upsertScoringSession(classId, updates = {}) {
     const { error } = await supabase.from("scoring_sessions").upsert(row);
 
     if (error) throw error;
+    return { ok: true, error: null };
   } catch (error) {
     console.error("Erreur sauvegarde scoring Supabase:", error);
+    return {
+      ok: false,
+      error: error?.message || "Erreur sauvegarde scoring Supabase",
+    };
   }
+}
+
+function notifyScoringSyncStatus(options, classId, status) {
+  if (options?.classId && options.classId !== classId) return;
+  if (typeof options?.onStatusChange === "function") {
+    options.onStatusChange(status);
+  }
+}
+
+function getScheduledFlushKey(classId = null) {
+  return classId || "__all__";
+}
+
+function cancelScheduledScoringSyncQueue(classId = null) {
+  const key = getScheduledFlushKey(classId);
+  const scheduled = scheduledScoringQueueFlushes.get(key);
+
+  if (!scheduled) return;
+
+  clearTimeout(scheduled.timer);
+  scheduledScoringQueueFlushes.delete(key);
+
+  if (typeof scheduled.resolve === "function") {
+    scheduled.resolve({
+      syncedCount: 0,
+      failedCount: 0,
+      status: classId
+        ? getScoringRunsSyncStatus(classId)
+        : SCORING_SYNC_STATUS.PENDING,
+      cancelled: true,
+    });
+  }
+}
+
+async function flushScoringSyncQueueNow(options = {}) {
+  const targetClassId = options.classId || null;
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    if (targetClassId) {
+      notifyScoringSyncStatus(
+        options,
+        targetClassId,
+        SCORING_SYNC_STATUS.LOCAL
+      );
+    }
+
+    return {
+      syncedCount: 0,
+      failedCount: 0,
+      status: SCORING_SYNC_STATUS.LOCAL,
+    };
+  }
+
+  let syncedCount = 0;
+  let failedCount = 0;
+
+  while (true) {
+    const [mutation] = getQueuedScoringRunsMutations(targetClassId);
+
+    if (!mutation) break;
+
+    notifyScoringSyncStatus(
+      options,
+      mutation.classId,
+      SCORING_SYNC_STATUS.SYNCING
+    );
+
+    const result = await upsertScoringSession(mutation.classId, {
+      runs: mutation.runs,
+    });
+
+    if (!result.ok) {
+      failedCount += 1;
+      markScoringRunsMutationAttempt(
+        mutation.classId,
+        mutation.revision,
+        result.error
+      );
+      notifyScoringSyncStatus(
+        options,
+        mutation.classId,
+        SCORING_SYNC_STATUS.PENDING
+      );
+      break;
+    }
+
+    const currentMutation = getPendingScoringRunsMutation(mutation.classId);
+    if (currentMutation?.revision === mutation.revision) {
+      removeScoringRunsMutation(mutation.classId, mutation.revision);
+      syncedCount += 1;
+    }
+  }
+
+  const status = targetClassId
+    ? getScoringRunsSyncStatus(targetClassId)
+    : failedCount > 0
+      ? SCORING_SYNC_STATUS.PENDING
+      : SCORING_SYNC_STATUS.SYNCED;
+
+  if (targetClassId) {
+    notifyScoringSyncStatus(options, targetClassId, status);
+  }
+
+  return {
+    syncedCount,
+    failedCount,
+    status,
+  };
+}
+
+export function getScoringRunsSyncStatus(classId) {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return SCORING_SYNC_STATUS.LOCAL;
+  }
+
+  return getLocalScoringRunsSyncStatus(classId);
+}
+
+export function flushScoringSyncQueue(options = {}) {
+  cancelScheduledScoringSyncQueue(options.classId || null);
+
+  if (activeScoringQueueFlush) {
+    return activeScoringQueueFlush.then(() => flushScoringSyncQueue(options));
+  }
+
+  activeScoringQueueFlush = flushScoringSyncQueueNow(options).finally(() => {
+    activeScoringQueueFlush = null;
+  });
+
+  return activeScoringQueueFlush;
+}
+
+export function scheduleScoringSyncQueue(options = {}) {
+  const classId = options.classId || null;
+  const delayMs = Math.max(Number(options.delayMs) || 0, 0);
+
+  if (delayMs <= 0) {
+    return flushScoringSyncQueue(options);
+  }
+
+  cancelScheduledScoringSyncQueue(classId);
+
+  return new Promise((resolve, reject) => {
+    const key = getScheduledFlushKey(classId);
+    const timer = setTimeout(() => {
+      scheduledScoringQueueFlushes.delete(key);
+      flushScoringSyncQueue(options).then(resolve).catch(reject);
+    }, delayMs);
+
+    scheduledScoringQueueFlushes.set(key, {
+      timer,
+      resolve,
+      reject,
+    });
+  });
 }
 
 export function loadScoringRuns(classId) {
@@ -75,6 +253,7 @@ export function saveActiveManoeuvre(classId, activeManoeuvre) {
 
 export function clearScoringData(classId) {
   clearScoringDataLocal(classId);
+  removeScoringRunsMutation(classId);
 }
 
 export async function loadScoringSessionRepository(classId) {
@@ -83,6 +262,14 @@ export async function loadScoringSessionRepository(classId) {
 
   if (!supabase) {
     return localSession;
+  }
+
+  if (hasPendingScoringRunsMutation(classId)) {
+    await flushScoringSyncQueue({ classId });
+
+    if (hasPendingScoringRunsMutation(classId)) {
+      return localSession;
+    }
   }
 
   try {
@@ -94,6 +281,10 @@ export async function loadScoringSessionRepository(classId) {
 
     if (error) throw error;
     if (!data) return localSession;
+
+    if (hasPendingScoringRunsMutation(classId)) {
+      return localSession;
+    }
 
     const session = toScoringSession(data, classId);
     saveScoringRunsLocal(classId, session.runs);
@@ -115,10 +306,28 @@ export async function loadActiveManoeuvreRepository(classId) {
   return session.activeManoeuvre;
 }
 
-export async function saveScoringRunsRepository(classId, runs) {
+export async function saveScoringRunsRepository(classId, runs, options = {}) {
   const normalizedRuns = Array.isArray(runs) ? runs : [];
+  const debounceMs = Math.max(Number(options.debounceMs) || 0, 0);
+
   saveScoringRunsLocal(classId, normalizedRuns);
-  await upsertScoringSession(classId, { runs: normalizedRuns });
+  queueScoringRunsMutation(classId, normalizedRuns);
+  notifyScoringSyncStatus(options, classId, SCORING_SYNC_STATUS.LOCAL);
+
+  const syncOptions = {
+    ...options,
+    classId,
+  };
+
+  if (debounceMs > 0) {
+    await scheduleScoringSyncQueue({
+      ...syncOptions,
+      delayMs: debounceMs,
+    });
+  } else {
+    await flushScoringSyncQueue(syncOptions);
+  }
+
   return normalizedRuns;
 }
 
@@ -152,4 +361,7 @@ export async function clearScoringDataRepository(classId) {
   }
 
   clearScoringDataLocal(classId);
+  removeScoringRunsMutation(classId);
 }
+
+export { SCORING_SYNC_STATUS };
