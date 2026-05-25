@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   getPublicShowRepository,
@@ -115,7 +115,7 @@ function PublicResultsPage() {
 
       <section style={heroStyle}>
         <div>
-          <div style={eyebrowStyle}>Résultats publics</div>
+          <div style={eyebrowStyle}>Feuilles de pointage publiques</div>
           <h1 style={titleStyle}>{show.name || "Show"}</h1>
           <div style={subtitleStyle}>
             {show.venue || show.location || "Lieu à confirmer"}
@@ -139,15 +139,18 @@ function PublicResultsPage() {
 
       <section style={summaryStyle}>
         <div style={summaryValueStyle}>{publicView.publishedClassCount}</div>
-        <div style={summaryLabelStyle}>classe(s) publiée(s)</div>
+        <div style={summaryLabelStyle}>classe(s) avec feuilles publiées</div>
       </section>
 
       {isLoading ? (
-        <div style={emptyStateStyle}>Chargement des résultats publics…</div>
+        <div style={emptyStateStyle}>
+          Chargement des feuilles de pointage publiques…
+        </div>
       ) : publicView.sections.length === 0 ? (
         <div style={emptyStateStyle}>
-          Aucun résultat officiel publié pour l’instant. Le live public apparaît
-          ici seulement si une classe du show est autorisée dans le setup.
+          Aucune feuille de pointage officielle publiée pour l’instant. Le live
+          public apparaît ici seulement si une classe du show est autorisée dans
+          le setup.
         </div>
       ) : (
         <div style={{ display: "grid", gap: 16 }}>
@@ -179,6 +182,12 @@ function PublicResultsPage() {
 }
 
 function PublicClassResults({ classView }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const filteredRuns = useMemo(
+    () => filterRunsBySearch(classView.runs, searchQuery),
+    [classView.runs, searchQuery]
+  );
+
   return (
     <section style={classCardStyle}>
       <div style={classHeaderStyle}>
@@ -192,42 +201,68 @@ function PublicClassResults({ classView }) {
             {classView.judgeName ? ` · Juge ${classView.judgeName}` : ""}
           </div>
         </div>
-        <Badge>Officiel</Badge>
+        <Badge>Scoresheet officielle</Badge>
       </div>
 
       {classView.runs.length === 0 ? (
         <div style={softEmptyStyle}>Aucun run publié pour cette classe.</div>
       ) : (
-        <div style={tableWrapStyle}>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={thStyle}>Rang</th>
-                <th style={thStyle}>Draw</th>
-                <th style={thStyle}>Back #</th>
-                <th style={thStyle}>Rider</th>
-                <th style={thStyle}>Horse</th>
-                <th style={thStyle}>Owner</th>
-                <th style={thStyle}>Score</th>
-              </tr>
-            </thead>
-            <tbody>
-              {classView.runs.map((run) => (
-                <tr key={run.id || `${run.draw}-${run.backNumber}`}>
-                  <td style={tdStyle}>{run.rank}</td>
-                  <td style={tdStyle}>{run.draw}</td>
-                  <td style={tdStyle}>{run.backNumber || "—"}</td>
-                  <td style={tdStyle}>{run.rider || "—"}</td>
-                  <td style={tdStyle}>{run.horse || "—"}</td>
-                  <td style={tdStyle}>{run.owner || "—"}</td>
-                  <td style={scoreCellStyle}>{run.scoreTotal || "—"}</td>
-                </tr>
+        <div>
+          <label style={searchLabelStyle}>
+            <span>Rechercher une run</span>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Cavalier, cheval ou back number"
+              style={searchInputStyle}
+            />
+          </label>
+
+          {filteredRuns.length === 0 ? (
+            <div style={softEmptyStyle}>Aucune run ne correspond à la recherche.</div>
+          ) : (
+            <div style={scoresheetListStyle}>
+              {filteredRuns.map((run) => (
+                <PublicScoresheetRun
+                  key={run.id || `${run.draw}-${run.backNumber}`}
+                  run={run}
+                />
               ))}
-            </tbody>
-          </table>
+            </div>
+          )}
         </div>
       )}
     </section>
+  );
+}
+
+function PublicScoresheetRun({ run }) {
+  return (
+    <article style={scoresheetRunStyle}>
+      <div style={scoresheetRunHeaderStyle}>
+        <div>
+          <div style={runTitleStyle}>
+            Ordre #{run.draw || "—"} · Back {run.backNumber || "—"}
+          </div>
+          <div style={runNameStyle}>{run.rider || "Rider —"}</div>
+          <div style={mutedTextStyle}>{run.horse || "Horse —"}</div>
+          {run.owner && <div style={mutedTextStyle}>Owner: {run.owner}</div>}
+        </div>
+        <div style={runTotalsStyle}>
+          <div>
+            <div style={runLabelStyle}>Score</div>
+            <div style={scoreValueStyle}>{run.scoreTotal || "—"}</div>
+          </div>
+          <div>
+            <div style={runLabelStyle}>Pén. totales</div>
+            <div style={penaltyValueStyle}>{run.penTotal || "—"}</div>
+          </div>
+        </div>
+      </div>
+
+      <ManoeuvreDetails run={run} showDescriptions />
+    </article>
   );
 }
 
@@ -324,7 +359,7 @@ function LiveRunCard({ run, showScore = true }) {
   );
 }
 
-function ManoeuvreDetails({ run }) {
+function ManoeuvreDetails({ run, showDescriptions = false }) {
   const manoeuvres = Array.isArray(run?.manoeuvres) ? run.manoeuvres : [];
 
   if (!manoeuvres.length) {
@@ -333,15 +368,40 @@ function ManoeuvreDetails({ run }) {
 
   return (
     <div style={detailsGridStyle}>
-      {manoeuvres.map((item) => (
-        <div key={item.name} style={detailCellStyle}>
+      {manoeuvres.map((item, index) => (
+        <div key={`${item.name}-${index}`} style={detailCellStyle}>
           <div style={detailNameStyle}>{item.name}</div>
+          {showDescriptions && item.description && item.description !== item.name && (
+            <div style={detailDescriptionStyle}>{item.description}</div>
+          )}
           <div style={detailScoreStyle}>{item.score || "—"}</div>
           {item.penalty && <div style={detailPenaltyStyle}>P {item.penalty}</div>}
         </div>
       ))}
     </div>
   );
+}
+
+function filterRunsBySearch(runs, query) {
+  const normalizedQuery = normalizeSearchText(query);
+
+  if (!normalizedQuery) {
+    return runs;
+  }
+
+  return runs.filter((run) =>
+    [run.backNumber, run.rider, run.horse]
+      .map(normalizeSearchText)
+      .some((value) => value.includes(normalizedQuery))
+  );
+}
+
+function normalizeSearchText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 function Badge({ children }) {
@@ -497,6 +557,13 @@ const detailNameStyle = {
   fontWeight: 800,
 };
 
+const detailDescriptionStyle = {
+  color: "#475569",
+  fontSize: 12,
+  marginTop: 3,
+  lineHeight: 1.3,
+};
+
 const detailScoreStyle = {
   fontWeight: 900,
   marginTop: 4,
@@ -545,35 +612,72 @@ const classTitleStyle = {
   fontSize: 18,
 };
 
-const tableWrapStyle = {
-  overflowX: "auto",
-};
-
-const tableStyle = {
-  width: "100%",
-  minWidth: 760,
-  borderCollapse: "collapse",
-};
-
-const thStyle = {
-  textAlign: "left",
-  padding: "10px",
-  borderBottom: "1px solid #e2e8f0",
-  background: "#f8fafc",
+const searchLabelStyle = {
+  display: "grid",
+  gap: 6,
   color: "#334155",
-  whiteSpace: "nowrap",
+  fontWeight: 800,
+  marginBottom: 12,
 };
 
-const tdStyle = {
-  padding: "10px",
-  borderBottom: "1px solid #e2e8f0",
-  verticalAlign: "top",
+const searchInputStyle = {
+  width: "100%",
+  maxWidth: 520,
+  padding: "10px 12px",
+  borderRadius: 8,
+  border: "1px solid #cbd5e1",
+  boxSizing: "border-box",
 };
 
-const scoreCellStyle = {
-  ...tdStyle,
+const scoresheetListStyle = {
+  display: "grid",
+  gap: 12,
+};
+
+const scoresheetRunStyle = {
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  padding: 12,
+  background: "#fff",
+};
+
+const scoresheetRunHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  alignItems: "flex-start",
+  flexWrap: "wrap",
+  marginBottom: 10,
+};
+
+const runTotalsStyle = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
+const scoreValueStyle = {
+  minWidth: 76,
+  border: "1px solid #dbeafe",
+  borderRadius: 8,
+  padding: "8px 10px",
+  background: "#eff6ff",
+  color: "#1e3a8a",
   fontWeight: 900,
-  color: "#111827",
+  fontSize: 18,
+  textAlign: "center",
+};
+
+const penaltyValueStyle = {
+  minWidth: 76,
+  border: "1px solid #fee2e2",
+  borderRadius: 8,
+  padding: "8px 10px",
+  background: "#fff5f5",
+  color: "#991b1b",
+  fontWeight: 900,
+  fontSize: 18,
+  textAlign: "center",
 };
 
 const badgeStyle = {

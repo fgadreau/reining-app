@@ -17,6 +17,7 @@ import { MIN_MEASURED_RUN_SECONDS } from "../classes/classTiming";
 import {
   getPatternDisplayName,
   getPatternHeaders,
+  getPatternManeuverDescription,
 } from "../patterns/patternDefinitions";
 import { PUBLICATION_STATUSES } from "./publicationRepository";
 
@@ -690,8 +691,11 @@ export function buildPublicClassView(classData) {
   const officialRuns = Array.isArray(official.officialRuns)
     ? official.officialRuns
     : [];
-  const runs = sortPublicResults(
-    officialRuns.length > 0 ? officialRuns : classData.scoringRuns || []
+  const patternValue =
+    official.pattern || classData.setup?.pattern || classItem?.pattern || "";
+  const runs = buildPublicScoresheetRuns(
+    officialRuns.length > 0 ? officialRuns : classData.scoringRuns || [],
+    patternValue
   );
 
   return {
@@ -699,9 +703,7 @@ export function buildPublicClassView(classData) {
     className: classItem?.name || "Classe",
     classCode: classItem?.classCode || "",
     pattern:
-      getPatternDisplayName(
-        official.pattern || classData.setup?.pattern || classItem?.pattern || ""
-      ) ||
+      getPatternDisplayName(patternValue) ||
       official.pattern ||
       classData.setup?.pattern ||
       classItem?.pattern ||
@@ -764,6 +766,7 @@ function normalizePublicLiveRun(run, index, pattern) {
     isReview: String(run.scoreTotal ?? "").trim() === "Review",
     manoeuvres: headers.map((name, manoeuvreIndex) => ({
       name,
+      description: getPatternManeuverDescription(name, pattern),
       score: scores[manoeuvreIndex] || "",
       penalty: penalties[manoeuvreIndex] || "",
     })),
@@ -821,7 +824,7 @@ function runHasScore(run) {
 
 export function sortPublicResults(runs) {
   return [...runs]
-    .map(normalizePublicRun)
+    .map((run, index) => normalizePublicRun(run, index))
     .sort((a, b) => {
       const aScore = parsePublicScore(a.scoreTotal);
       const bScore = parsePublicScore(b.scoreTotal);
@@ -841,7 +844,17 @@ export function sortPublicResults(runs) {
     }));
 }
 
-function normalizePublicRun(run, index) {
+export function buildPublicScoresheetRuns(runs, pattern = "") {
+  return [...runs]
+    .map((run, index) => normalizePublicRun(run, index, pattern))
+    .sort(compareRunsByDraw);
+}
+
+function normalizePublicRun(run, index, pattern = "") {
+  const scores = Array.isArray(run.scores) ? run.scores : [];
+  const penalties = Array.isArray(run.penalties) ? run.penalties : [];
+  const headers = getPatternHeaders(pattern);
+
   return {
     id: run.id,
     draw: run.draw ?? run.order ?? index + 1,
@@ -851,7 +864,24 @@ function normalizePublicRun(run, index) {
     owner: run.owner || "",
     scoreTotal: run.scoreTotal ?? "",
     penTotal: run.penTotal ?? "",
+    manoeuvres: headers.map((name, manoeuvreIndex) => ({
+      name,
+      description: getPatternManeuverDescription(name, pattern),
+      score: scores[manoeuvreIndex] || "",
+      penalty: penalties[manoeuvreIndex] || "",
+    })),
   };
+}
+
+function compareRunsByDraw(a, b) {
+  const aDraw = Number.parseFloat(a.draw);
+  const bDraw = Number.parseFloat(b.draw);
+
+  if (Number.isFinite(aDraw) && Number.isFinite(bDraw) && aDraw !== bDraw) {
+    return aDraw - bDraw;
+  }
+
+  return String(a.draw || "").localeCompare(String(b.draw || ""));
 }
 
 function parsePublicScore(value) {

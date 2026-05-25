@@ -75,6 +75,26 @@ export const RANCH_ABBREVIATIONS = {
   CATTLE: "Walk through cattle",
 };
 
+const REINING_ABBREVIATIONS = {
+  LR: "Left rollback",
+  RR: "Right rollback",
+  SB: "Stop and back",
+  RS: "Right spins",
+  LS: "Left spins",
+  F8: "Figure 8",
+  STOP: "Stop",
+  LLS: "Left lead circles",
+  RLS: "Right lead circles",
+  LLL: "Left lead large circle",
+  RLL: "Right lead large circle",
+  LLLS: "Left lead circle sequence",
+  RLLS: "Right lead circle sequence",
+  LLSL: "Left lead circle sequence",
+  RLSL: "Right lead circle sequence",
+  LSLL: "Lead circle sequence",
+  RSLL: "Lead circle sequence",
+};
+
 const RANCH_RIDING_PATTERNS = [
   {
     id: "RR1",
@@ -285,6 +305,87 @@ export function getPatternHeaders(patternValue) {
   return getPatternDefinition(patternValue)?.maneuvers || DEFAULT_HEADERS;
 }
 
+export function getPatternManeuverDescription(maneuver, patternValue = "") {
+  const token = String(maneuver || "").trim();
+
+  if (!token) {
+    return "";
+  }
+
+  if (token === RANCH_APPEARANCE_HEADER) {
+    return "Natural ranch horse appearance";
+  }
+
+  const discipline = getPatternDiscipline(patternValue);
+  const parts = splitManeuverParts(token);
+
+  if (parts.length > 1) {
+    return parts
+      .map((part) => getPatternManeuverDescription(part, patternValue))
+      .filter(Boolean)
+      .join(" / ");
+  }
+
+  if (discipline === PATTERN_DISCIPLINES.RANCH_RIDING) {
+    return describeRanchManeuver(token);
+  }
+
+  return REINING_ABBREVIATIONS[token] || token;
+}
+
 export function getPatternMoveCount(patternValue) {
   return getPatternHeaders(patternValue).length;
+}
+
+function splitManeuverParts(token) {
+  const parts = [];
+  let current = "";
+
+  for (let index = 0; index < token.length; index += 1) {
+    const character = token[index];
+
+    if (
+      character === "/" &&
+      !isDigit(token[index - 1]) &&
+      !isDigit(token[index + 1])
+    ) {
+      if (current) {
+        parts.push(current);
+      }
+      current = "";
+    } else {
+      current += character;
+    }
+  }
+
+  if (current) {
+    parts.push(current);
+  }
+
+  return parts;
+}
+
+function isDigit(character) {
+  return Boolean(character && character >= "0" && character <= "9");
+}
+
+function describeRanchManeuver(token) {
+  if (RANCH_ABBREVIATIONS[token]) {
+    return RANCH_ABBREVIATIONS[token];
+  }
+
+  const matchingKey = Object.keys(RANCH_ABBREVIATIONS)
+    .sort((a, b) => b.length - a.length)
+    .find((key) => token.startsWith(`${key}_`));
+
+  if (!matchingKey) {
+    return token.replace(/_/g, " ");
+  }
+
+  const suffix = token
+    .slice(matchingKey.length + 1)
+    .replace(/_/g, " ")
+    .toLowerCase();
+
+  return `${RANCH_ABBREVIATIONS[matchingKey]} ${suffix}`;
 }

@@ -207,6 +207,60 @@ test("sorts public results by numeric score before special results", () => {
   expect(runs.map((run) => run.rank)).toEqual([1, 2, 3]);
 });
 
+test("publishes scoresheets in draw order with manoeuvre details", () => {
+  const classView = buildPublicClassView({
+    classItem: {
+      id: "class-1",
+      name: "Novice Horse",
+      pattern: "RR1",
+    },
+    setup: {
+      pattern: "RR1",
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.PUBLISHED,
+      publishedAt: "2026-05-24T14:00:00.000Z",
+    },
+    official: {
+      isSecretariatValidated: true,
+      officialRuns: [
+        {
+          id: "run-2",
+          draw: 2,
+          backNumber: "202",
+          rider: "Marie Roy",
+          horse: "Custom Whiz",
+          scores: ["0"],
+          penalties: ["1"],
+          scoreTotal: "69.0",
+          penTotal: "1.0",
+        },
+        {
+          id: "run-1",
+          draw: 1,
+          backNumber: "101",
+          rider: "Felix Gadreau",
+          horse: "Smart Spook",
+          scores: ["+0.5"],
+          penalties: [""],
+          scoreTotal: "70.5",
+          penTotal: "0.0",
+        },
+      ],
+    },
+    scoringRuns: [],
+  });
+
+  expect(classView.runs.map((run) => run.draw)).toEqual([1, 2]);
+  expect(classView.runs[0].rank).toBeUndefined();
+  expect(classView.runs[0].manoeuvres[0]).toMatchObject({
+    name: "W",
+    description: "Walk",
+    score: "+0.5",
+    penalty: "",
+  });
+});
+
 test("keeps public results hidden until secretariat validation", () => {
   const classData = {
     classItem: {
