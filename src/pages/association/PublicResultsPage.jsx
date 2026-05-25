@@ -10,6 +10,7 @@ import {
 import { formatClockTime } from "../../features/classes/classTiming";
 import {
   formatPaidWarmupTimer,
+  getPaidWarmupDragRemainingSeconds,
   getPaidWarmupRemainingSeconds,
 } from "../../features/paidWarmups/paidWarmupLive";
 import { PAID_WARMUP_STATUS_LABELS } from "../../features/paidWarmups/paidWarmupStorage";
@@ -176,7 +177,9 @@ function PublicResultsPage() {
         <PublicPaidWarmupLivePanel warmup={publicView.livePaidWarmup} now={now} />
       )}
 
-      {publicView.liveClass && <PublicLivePanel classView={publicView.liveClass} />}
+      {publicView.liveClass && (
+        <PublicLivePanel classView={publicView.liveClass} now={now} />
+      )}
 
       <section style={summaryStyle}>
         <div style={summaryValueStyle}>{publicView.publishedClassCount}</div>
@@ -387,7 +390,11 @@ function PublicScoresheetRun({ run }) {
   );
 }
 
-function PublicLivePanel({ classView }) {
+function PublicLivePanel({ classView, now }) {
+  const dragBreak = classView.dragBreak?.isActive ? classView.dragBreak : null;
+  const dragRemainingSeconds = getDragRemainingSeconds(dragBreak, now);
+  const nextRun = dragBreak?.nextRun || classView.nextRun;
+
   return (
     <section style={livePanelStyle}>
       <div style={classHeaderStyle}>
@@ -399,14 +406,29 @@ function PublicLivePanel({ classView }) {
           </h2>
           <div style={mutedTextStyle}>Pattern {classView.pattern || "—"}</div>
         </div>
-        <Badge>En cours</Badge>
+        <Badge>{dragBreak ? "Drag" : "En cours"}</Badge>
       </div>
 
       <PublicTimingSummary timing={classView.timing} />
 
+      {dragBreak && (
+        <div style={paidWarmupNoticeStyle}>
+          Drag de surface en cours · {dragBreak.durationMinutes ?? "—"} min
+        </div>
+      )}
+
       <div style={liveGridStyle}>
-        <LiveRunBlock label="En piste" run={classView.activeRun} showScore />
-        <LiveRunBlock label="Prochain participant" run={classView.nextRun} />
+        <div style={liveBlockStyle}>
+          <div style={runLabelStyle}>En piste</div>
+          {dragBreak ? (
+            <PublicDragCard remainingSeconds={dragRemainingSeconds} />
+          ) : classView.activeRun ? (
+            <LiveRunCard run={classView.activeRun} showScore />
+          ) : (
+            <div style={mutedTextStyle}>—</div>
+          )}
+        </div>
+        <LiveRunBlock label="Prochain participant" run={nextRun} />
         <div style={liveBlockStyle}>
           <div style={runLabelStyle}>Deux derniers passés</div>
           {classView.lastPassedRuns?.length ? (
@@ -426,6 +448,10 @@ function PublicLivePanel({ classView }) {
 
 function PublicPaidWarmupLivePanel({ warmup, now }) {
   const remainingSeconds = getPaidWarmupRemainingSeconds(warmup, now);
+  const isDragDue = warmup.isDragDue && !warmup.activeEntry;
+  const dragRemainingSeconds = isDragDue
+    ? getPaidWarmupDragRemainingSeconds(warmup, now)
+    : null;
 
   return (
     <section style={livePanelStyle}>
@@ -437,19 +463,21 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
             Paid warm up · {warmup.durationMinutesPerRider} min/cavalier
           </div>
         </div>
-        <Badge>En cours</Badge>
+        <Badge>{isDragDue ? "Drag" : "En cours"}</Badge>
       </div>
 
-      {warmup.isDragDue && (
+      {isDragDue && (
         <div style={paidWarmupNoticeStyle}>
-          Drag de surface prévu · {warmup.dragDurationMinutes} min
+          Drag de surface en cours · {warmup.dragDurationMinutes} min
         </div>
       )}
 
       <div style={liveGridStyle}>
         <div style={liveBlockStyle}>
           <div style={runLabelStyle}>En piste</div>
-          {warmup.activeEntry ? (
+          {isDragDue ? (
+            <PublicDragCard remainingSeconds={dragRemainingSeconds} />
+          ) : warmup.activeEntry ? (
             <PublicPaidWarmupEntry
               entry={warmup.activeEntry}
               remainingSeconds={remainingSeconds}
@@ -483,6 +511,30 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
         </div>
       </div>
     </section>
+  );
+}
+
+function PublicDragCard({ remainingSeconds }) {
+  const displaySeconds =
+    remainingSeconds == null ? null : Math.max(Math.round(remainingSeconds), 0);
+
+  return (
+    <div>
+      <div style={runTitleStyle}>Drag de surface</div>
+      <div style={mutedTextStyle}>Préparation de la piste</div>
+      {displaySeconds != null && (
+        <>
+          <div style={paidWarmupTimerStyle}>
+            {formatPaidWarmupTimer(displaySeconds)}
+          </div>
+          {remainingSeconds <= 0 ? (
+            <div style={paidWarmupCueStyle("warn")}>Drag terminé</div>
+          ) : (
+            <div style={paidWarmupCueStyle("warn")}>Retour en piste bientôt</div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
@@ -605,6 +657,22 @@ function filterRunsBySearch(runs, query) {
       .map(normalizeSearchText)
       .some((value) => value.includes(normalizedQuery))
   );
+}
+
+function getDragRemainingSeconds(dragBreak, now = new Date()) {
+  if (!dragBreak) return null;
+
+  const durationSeconds = Number(dragBreak.durationSeconds);
+  const startedAt = Date.parse(dragBreak.startedAt);
+
+  if (Number.isFinite(durationSeconds) && Number.isFinite(startedAt)) {
+    return Math.round(durationSeconds - (now.getTime() - startedAt) / 1000);
+  }
+
+  const fallbackRemaining = Number(dragBreak.remainingSeconds);
+  if (Number.isFinite(fallbackRemaining)) return fallbackRemaining;
+
+  return Number.isFinite(durationSeconds) ? durationSeconds : null;
 }
 
 function normalizeSearchText(value) {

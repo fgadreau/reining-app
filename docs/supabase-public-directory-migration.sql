@@ -113,6 +113,8 @@ using (
   )
 );
 
+drop function if exists public.public_show_timing_summary(text, integer);
+
 create or replace function public.public_show_timing_summary(
   target_show_id text,
   min_duration_seconds integer default 150
@@ -126,6 +128,10 @@ returns table (
   day_remaining_seconds numeric,
   class_remaining_runs integer,
   day_remaining_runs integer,
+  is_drag_due boolean,
+  drag_started_at timestamptz,
+  drag_duration_minutes integer,
+  drag_remaining_seconds numeric,
   estimated_at timestamptz
 ) as $$
   with run_durations as (
@@ -188,9 +194,17 @@ returns table (
         jsonb_array_length(coalesce(setup.runs, '[]'::jsonb))
       ) as run_count,
       completed.completed_runs,
+      completed.last_completed_at,
       class_average.average_run_seconds as class_average_run_seconds,
       pattern_averages.average_run_seconds as pattern_average_run_seconds,
-      scoring.active_manoeuvre is not null as has_active_manoeuvre
+      (
+        scoring.active_manoeuvre is not null
+        or exists (
+          select 1
+          from jsonb_array_elements(coalesce(scoring.runs, '[]'::jsonb)) as active_run(value)
+          where active_run.value->>'isActive' = 'true'
+        )
+      ) as has_active_manoeuvre
     from public.classes
     left join public.class_setups setup on setup.class_id = classes.id
     left join public.scoring_sessions scoring on scoring.class_id = classes.id
@@ -200,7 +214,15 @@ returns table (
       'Sans pattern'
     )
     cross join lateral (
-      select count(*)::integer as completed_runs
+      select
+        count(*)::integer as completed_runs,
+        max(
+          case
+            when nullif(run.value->>'completedAt', '') is not null
+              then (run.value->>'completedAt')::timestamptz
+            else null
+          end
+        ) as last_completed_at
       from jsonb_array_elements(coalesce(scoring.runs, '[]'::jsonb)) as run(value)
       where nullif(btrim(run.value->>'scoreTotal'), '') is not null
         and btrim(run.value->>'scoreTotal') <> 'Review'
@@ -311,6 +333,37 @@ returns table (
     day_remaining.day_remaining_seconds,
     live_classes.remaining_runs as class_remaining_runs,
     day_remaining.day_remaining_runs,
+    (
+      live_classes.drag_interval is not null
+      and live_classes.completed_runs > 0
+      and live_classes.completed_runs < live_classes.run_count
+      and live_classes.completed_runs % live_classes.drag_interval = 0
+      and live_classes.has_active_manoeuvre is false
+    ) as is_drag_due,
+    case
+      when live_classes.drag_interval is not null
+        and live_classes.completed_runs > 0
+        and live_classes.completed_runs < live_classes.run_count
+        and live_classes.completed_runs % live_classes.drag_interval = 0
+        and live_classes.has_active_manoeuvre is false
+        then live_classes.last_completed_at
+      else null
+    end as drag_started_at,
+    live_classes.drag_duration_minutes,
+    case
+      when live_classes.drag_interval is not null
+        and live_classes.completed_runs > 0
+        and live_classes.completed_runs < live_classes.run_count
+        and live_classes.completed_runs % live_classes.drag_interval = 0
+        and live_classes.has_active_manoeuvre is false
+        and live_classes.last_completed_at is not null
+        then greatest(
+          live_classes.drag_duration_minutes * 60
+          - extract(epoch from (now() - live_classes.last_completed_at)),
+          0
+        )
+      else null
+    end as drag_remaining_seconds,
     now() as estimated_at
   from live_classes
   join day_remaining on day_remaining.live_class_id = live_classes.id

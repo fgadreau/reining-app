@@ -268,6 +268,13 @@ function ClassRow({
       penalties.some((value) => String(value || "").trim())
     );
   });
+  const scoringComplete =
+    classData.status === "completed" || isSigned || isValidated;
+  const scoringBadge = scoringComplete
+    ? { label: "Terminée", tone: "success" }
+    : scoringStarted
+      ? { label: "En cours", tone: "warn" }
+      : { label: "Pas commencé", tone: "muted" };
 
   return (
     <tr>
@@ -284,9 +291,7 @@ function ClassRow({
         </Badge>
       </td>
       <td style={tdStyle}>
-        <Badge tone={scoringStarted ? "warn" : "muted"}>
-          {scoringStarted ? "En cours" : "Pas commencé"}
-        </Badge>
+        <Badge tone={scoringBadge.tone}>{scoringBadge.label}</Badge>
       </td>
       <td style={tdStyle}>
         <Badge tone={isValidated ? "success" : isSigned ? "warn" : "muted"}>

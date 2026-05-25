@@ -360,6 +360,55 @@ test("public live view exposes active, next, and last passed runs", () => {
   });
 });
 
+test("public live view exposes a drag break before the next run", () => {
+  const classView = buildPublicLiveClassView({
+    classItem: {
+      id: "class-live",
+      name: "Novice Horse",
+      pattern: "2",
+    },
+    setup: {
+      dragInterval: 2,
+      dragDurationMinutes: 8,
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE,
+    },
+    scoringSession: {
+      activeManoeuvre: null,
+      runs: [
+        {
+          id: "run-1",
+          draw: 1,
+          scoreTotal: "71.0",
+          completedAt: "2026-05-25T14:00:00.000Z",
+        },
+        {
+          id: "run-2",
+          draw: 2,
+          scoreTotal: "72.0",
+          completedAt: "2026-05-25T14:03:00.000Z",
+        },
+        {
+          id: "run-3",
+          draw: 3,
+          scoreTotal: "",
+        },
+      ],
+    },
+  });
+
+  expect(classView.activeRun).toBeNull();
+  expect(classView.nextRun.draw).toBe(3);
+  expect(classView.dragBreak).toMatchObject({
+    isActive: true,
+    startedAt: "2026-05-25T14:03:00.000Z",
+    durationMinutes: 8,
+    durationSeconds: 480,
+  });
+  expect(classView.dragBreak.nextRun.draw).toBe(3);
+});
+
 test("scopes secretary access to attached associations", () => {
   const memberships = [
     {

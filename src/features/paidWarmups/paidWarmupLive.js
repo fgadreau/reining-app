@@ -23,12 +23,20 @@ export function buildPaidWarmupLiveView(warmup, now = new Date()) {
   const completedBeforeNext = entries.filter((entry) =>
     ["done", "no_show", "scratch"].includes(entry.status)
   ).length;
+  const lastCompletedEntry = [...entries]
+    .reverse()
+    .find((entry) => ["done", "no_show", "scratch"].includes(entry.status));
   const isDragDue =
     !activeEntry &&
     Boolean(nextEntry) &&
     Boolean(normalized.dragInterval) &&
     completedBeforeNext > 0 &&
     completedBeforeNext % normalized.dragInterval === 0;
+  const dragDurationSeconds = normalized.dragDurationMinutes * 60;
+  const dragStartedAt = isDragDue ? lastCompletedEntry?.completedAt || null : null;
+  const dragRemainingSeconds = isDragDue
+    ? calculateRemainingSeconds(dragStartedAt, dragDurationSeconds, now)
+    : null;
 
   return {
     ...normalized,
@@ -45,6 +53,9 @@ export function buildPaidWarmupLiveView(warmup, now = new Date()) {
       remainingSeconds != null && remainingSeconds <= 60,
     isExpired: remainingSeconds != null && remainingSeconds <= 0,
     isDragDue,
+    dragStartedAt,
+    dragDurationSeconds,
+    dragRemainingSeconds,
   };
 }
 
@@ -78,10 +89,14 @@ export function resetPaidWarmupTimer(warmup, now = new Date()) {
   };
 }
 
-export function setPaidWarmupEntryStatus(warmup, entryId, status) {
+export function setPaidWarmupEntryStatus(warmup, entryId, status, now = new Date()) {
   const normalized = normalizePaidWarmup(warmup);
+  const completedAt = now.toISOString();
+  const isFinishedStatus = ["done", "no_show", "scratch"].includes(status);
   const nextEntries = normalized.entries.map((entry) =>
-    entry.id === entryId ? { ...entry, status } : entry
+    entry.id === entryId
+      ? { ...entry, status, completedAt: isFinishedStatus ? completedAt : null }
+      : entry
   );
 
   return {
@@ -94,12 +109,13 @@ export function setPaidWarmupEntryStatus(warmup, entryId, status) {
   };
 }
 
-export function stopPaidWarmupTimer(warmup) {
+export function stopPaidWarmupTimer(warmup, now = new Date()) {
   const normalized = normalizePaidWarmup(warmup);
+  const completedAt = now.toISOString();
   const nextEntries = normalized.activeEntryId
     ? normalized.entries.map((entry) =>
         entry.id === normalized.activeEntryId
-          ? { ...entry, status: "done" }
+          ? { ...entry, status: "done", completedAt }
           : entry
       )
     : normalized.entries;
@@ -122,6 +138,20 @@ export function getPaidWarmupRemainingSeconds(warmup, now = new Date()) {
   return calculateRemainingSeconds(
     normalized.activeStartedAt,
     normalized.durationMinutesPerRider * 60,
+    now
+  );
+}
+
+export function getPaidWarmupDragRemainingSeconds(warmup, now = new Date()) {
+  const normalized = normalizePaidWarmup(warmup);
+
+  if (!normalized.dragInterval || !normalized.dragDurationMinutes) {
+    return null;
+  }
+
+  return calculateRemainingSeconds(
+    warmup?.dragStartedAt,
+    normalized.dragDurationMinutes * 60,
     now
   );
 }

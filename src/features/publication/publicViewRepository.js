@@ -145,6 +145,7 @@ export function getPublicShowView(showId) {
       classRows.push(classData);
       const liveClass = buildPublicLiveClassView({
         classItem: classData.classItem,
+        setup: classData.setup,
         publication: classData.publication,
         scoringSession: {
           runs: classData.scoringRuns,
@@ -218,6 +219,7 @@ export async function getPublicShowViewRepository(showId) {
           classRows.push(classData);
           const liveClass = buildPublicLiveClassView({
             classItem: classData.classItem,
+            setup: classData.setup,
             publication: classData.publication,
             scoringSession: {
               runs: classData.scoringRuns,
@@ -456,6 +458,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
           const publication = publicationsByClassId.get(classItem.id);
           const liveClass = buildPublicLiveClassView({
             classItem,
+            setup: null,
             publication,
             scoringSession: scoringByClassId.get(classItem.id),
           });
@@ -727,9 +730,12 @@ function buildPublicRemainingSummary(rows, now) {
 function attachPublicTiming(classView, timingByClassId) {
   if (!classView) return null;
 
+  const timing = timingByClassId.get(classView.classId) || null;
+
   return {
     ...classView,
-    timing: timingByClassId.get(classView.classId) || null,
+    timing,
+    dragBreak: classView.dragBreak || timing?.dragBreak || null,
   };
 }
 
@@ -748,6 +754,24 @@ function normalizePublicTiming(row) {
     dayRemainingRuns:
       row.day_remaining_runs == null ? null : Number(row.day_remaining_runs),
     estimatedAt: row.estimated_at || null,
+    dragBreak: row.is_drag_due
+      ? {
+          isActive: true,
+          startedAt: row.drag_started_at || null,
+          durationMinutes:
+            row.drag_duration_minutes == null
+              ? null
+              : Number(row.drag_duration_minutes),
+          durationSeconds:
+            row.drag_duration_minutes == null
+              ? null
+              : Number(row.drag_duration_minutes) * 60,
+          remainingSeconds:
+            row.drag_remaining_seconds == null
+              ? null
+              : Number(row.drag_remaining_seconds),
+        }
+      : null,
   };
 }
 
@@ -790,7 +814,12 @@ export function buildPublicClassView(classData) {
   };
 }
 
-export function buildPublicLiveClassView({ classItem, publication, scoringSession }) {
+export function buildPublicLiveClassView({
+  classItem,
+  setup,
+  publication,
+  scoringSession,
+}) {
   if (publication?.status !== PUBLICATION_STATUSES.LIVE) {
     return null;
   }
@@ -810,6 +839,14 @@ export function buildPublicLiveClassView({ classItem, publication, scoringSessio
     runs.find((run) => run.isActive) ||
     null;
   const lastPassedRuns = findLastPassedRuns(runs, activeRun, 2);
+  const nextRun = findNextRun(runs, activeRun);
+  const dragBreak = buildPublicClassDragBreak({
+    runs,
+    activeRun,
+    nextRun,
+    dragInterval: setup?.dragInterval,
+    dragDurationMinutes: setup?.dragDurationMinutes,
+  });
 
   return {
     classId: classItem?.id,
@@ -817,9 +854,10 @@ export function buildPublicLiveClassView({ classItem, publication, scoringSessio
     classCode: classItem?.classCode || "",
     pattern: getPatternDisplayName(classItem?.pattern || "") || classItem?.pattern || "",
     activeRun,
-    nextRun: findNextRun(runs, activeRun),
+    nextRun,
     lastPassedRuns,
     latestScore: [...runs].reverse().find(runHasScore) || null,
+    dragBreak,
   };
 }
 
@@ -837,6 +875,9 @@ function normalizePublicLiveRun(run, index, pattern) {
     owner: run.owner || "",
     scoreTotal: run.scoreTotal ?? "",
     penTotal: run.penTotal ?? "",
+    startedAt: run.startedAt || null,
+    completedAt: run.completedAt || null,
+    durationSeconds: run.durationSeconds || null,
     isActive: Boolean(run.isActive),
     isReview: String(run.scoreTotal ?? "").trim() === "Review",
     manoeuvres: headers.map((name, manoeuvreIndex) => ({
@@ -858,11 +899,55 @@ function findPrimaryLiveClass(liveClasses) {
 }
 
 function findPrimaryLivePaidWarmup(livePaidWarmups) {
-  return livePaidWarmups.find((warmup) => warmup.activeEntry) || null;
+  return (
+    livePaidWarmups.find((warmup) => warmup.activeEntry) ||
+    livePaidWarmups.find((warmup) => warmup.isDragDue) ||
+    null
+  );
 }
 
 function countActivePaidWarmups(livePaidWarmups) {
-  return livePaidWarmups.filter((warmup) => warmup.activeEntry).length;
+  return livePaidWarmups.filter(
+    (warmup) => warmup.activeEntry || warmup.isDragDue
+  ).length;
+}
+
+function buildPublicClassDragBreak({
+  runs,
+  activeRun,
+  nextRun,
+  dragInterval,
+  dragDurationMinutes,
+}) {
+  const normalizedDragInterval = Number.parseInt(dragInterval, 10);
+  const normalizedDragDurationMinutes = Number.parseInt(dragDurationMinutes, 10);
+  const completedRuns = runs.filter(runHasScore);
+
+  if (
+    activeRun ||
+    !nextRun ||
+    !Number.isFinite(normalizedDragInterval) ||
+    normalizedDragInterval <= 0 ||
+    completedRuns.length === 0 ||
+    completedRuns.length % normalizedDragInterval !== 0
+  ) {
+    return null;
+  }
+
+  const durationMinutes =
+    Number.isFinite(normalizedDragDurationMinutes) &&
+    normalizedDragDurationMinutes >= 0
+      ? normalizedDragDurationMinutes
+      : 8;
+  const lastCompletedRun = completedRuns[completedRuns.length - 1];
+
+  return {
+    isActive: true,
+    startedAt: lastCompletedRun?.completedAt || null,
+    durationMinutes,
+    durationSeconds: durationMinutes * 60,
+    nextRun,
+  };
 }
 
 function findNextRun(runs, activeRun) {

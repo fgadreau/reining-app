@@ -58,6 +58,7 @@ export function normalizePaidWarmupEntry(entry, index = 0) {
     order: normalizePositiveInteger(entry?.order, index + 1),
     rider: entry?.rider || entry?.name || "",
     status,
+    completedAt: entry?.completedAt || null,
   };
 }
 
