@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
+  getPublicAssociationRepository,
   getPublicShowRepository,
   getPublicShowView,
   getPublicShowViewRepository,
@@ -8,6 +9,10 @@ import {
 } from "../../features/publication/publicViewRepository";
 import { formatClockTime } from "../../features/classes/classTiming";
 import { getShowById } from "../../features/shows/showSelectors";
+import {
+  buildScorePdfFileName,
+  generateScorePdf,
+} from "../../utils/generateScorePdf";
 import { appStyles as styles } from "../../styles/appStyles";
 
 function PublicResultsPage() {
@@ -15,9 +20,11 @@ function PublicResultsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const isPublicRoute = location.pathname.startsWith("/public");
+  const [association, setAssociation] = useState(null);
   const [show, setShow] = useState(() => getShowById(showId));
   const [publicView, setPublicView] = useState(() => getPublicShowView(showId));
   const [isLoading, setIsLoading] = useState(true);
+  const [openClassId, setOpenClassId] = useState(null);
   const publicClassIdsKey = (publicView.classIds || []).join("|");
   const hasLiveClass = Boolean(publicView.liveClass);
 
@@ -26,11 +33,13 @@ function PublicResultsPage() {
 
     async function loadPublicView() {
       setIsLoading(true);
-      const [nextShow, nextPublicView] = await Promise.all([
+      const [nextAssociation, nextShow, nextPublicView] = await Promise.all([
+        getPublicAssociationRepository(associationId),
         getPublicShowRepository(showId),
         getPublicShowViewRepository(showId),
       ]);
       if (!isMounted) return;
+      setAssociation(nextAssociation);
       setShow(nextShow);
       setPublicView(nextPublicView);
       setIsLoading(false);
@@ -41,7 +50,19 @@ function PublicResultsPage() {
     return () => {
       isMounted = false;
     };
-  }, [showId]);
+  }, [associationId, showId]);
+
+  useEffect(() => {
+    const publishedClassIds = new Set(
+      publicView.sections.flatMap((section) =>
+        section.classes.map((classView) => classView.classId)
+      )
+    );
+
+    if (openClassId && !publishedClassIds.has(openClassId)) {
+      setOpenClassId(null);
+    }
+  }, [publicView.sections, openClassId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -169,7 +190,17 @@ function PublicResultsPage() {
                 {section.classes.map((classView) => (
                   <PublicClassResults
                     key={classView.classId}
+                    association={association}
+                    show={show}
                     classView={classView}
+                    isOpen={openClassId === classView.classId}
+                    onToggle={() =>
+                      setOpenClassId((currentClassId) =>
+                        currentClassId === classView.classId
+                          ? null
+                          : classView.classId
+                      )
+                    }
                   />
                 ))}
               </div>
@@ -181,16 +212,65 @@ function PublicResultsPage() {
   );
 }
 
-function PublicClassResults({ classView }) {
+function PublicClassResults({ association, show, classView, isOpen, onToggle }) {
   const [searchQuery, setSearchQuery] = useState("");
   const filteredRuns = useMemo(
     () => filterRunsBySearch(classView.runs, searchQuery),
     [classView.runs, searchQuery]
   );
 
+  const downloadClassPdf = (event) => {
+    event.stopPropagation();
+
+    const headers = getHeadersForPublicClass(classView);
+    const pdfRuns = classView.runs.map((run) => ({
+      ...run,
+      scores: run.manoeuvres.map((manoeuvre) => manoeuvre.score || ""),
+      penalties: run.manoeuvres.map((manoeuvre) => manoeuvre.penalty || ""),
+    }));
+    const pdf = generateScorePdf({
+      associationName: association?.name || "Association",
+      associationLogoDataUrl: association?.logoDataUrl || null,
+      eventName: show?.name || "",
+      eventDate: show?.startDate || "",
+      classItem: {
+        name: classView.className,
+        classCode: classView.classCode,
+      },
+      classSetup: {
+        pattern: classView.pattern,
+        judgeName: classView.judgeName,
+        finalizedAt: classView.finalizedAt || classView.publishedAt,
+      },
+      runs: pdfRuns,
+      headers,
+    });
+    const fileName = buildScorePdfFileName({
+      associationAbbreviation: association?.shortName || "ASSOC",
+      showName: show?.name || "show",
+      className: classView.className || "classe",
+      finalizedAt: classView.finalizedAt || classView.publishedAt,
+    });
+
+    pdf.save(fileName);
+  };
+
   return (
     <section style={classCardStyle}>
-      <div style={classHeaderStyle}>
+      <div
+        onClick={onToggle}
+        onKeyDown={(event) => {
+          if (event.target !== event.currentTarget) return;
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onToggle();
+          }
+        }}
+        style={classToggleStyle}
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+      >
         <div>
           <h3 style={classTitleStyle}>
             {classView.className}
@@ -201,10 +281,21 @@ function PublicClassResults({ classView }) {
             {classView.judgeName ? ` · Juge ${classView.judgeName}` : ""}
           </div>
         </div>
-        <Badge>Scoresheet officielle</Badge>
+        <div style={classActionsStyle}>
+          <Badge>Scoresheet officielle</Badge>
+          <button
+            type="button"
+            onClick={downloadClassPdf}
+            onKeyDown={(event) => event.stopPropagation()}
+            style={smallButtonStyle}
+          >
+            Télécharger PDF
+          </button>
+          <span style={toggleIconStyle}>{isOpen ? "Masquer" : "Voir"}</span>
+        </div>
       </div>
 
-      {classView.runs.length === 0 ? (
+      {!isOpen ? null : classView.runs.length === 0 ? (
         <div style={softEmptyStyle}>Aucun run publié pour cette classe.</div>
       ) : (
         <div>
@@ -235,6 +326,16 @@ function PublicClassResults({ classView }) {
       )}
     </section>
   );
+}
+
+function getHeadersForPublicClass(classView) {
+  const firstRun = classView.runs.find((run) => run.manoeuvres?.length);
+
+  if (!firstRun) {
+    return [];
+  }
+
+  return firstRun.manoeuvres.map((manoeuvre) => manoeuvre.name);
 }
 
 function PublicScoresheetRun({ run }) {
@@ -598,6 +699,21 @@ const classCardStyle = {
   padding: 12,
 };
 
+const classToggleStyle = {
+  width: "100%",
+  border: "none",
+  background: "transparent",
+  padding: 0,
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  alignItems: "flex-start",
+  flexWrap: "wrap",
+  marginBottom: 12,
+  textAlign: "left",
+  cursor: "pointer",
+};
+
 const classHeaderStyle = {
   display: "flex",
   justifyContent: "space-between",
@@ -610,6 +726,41 @@ const classHeaderStyle = {
 const classTitleStyle = {
   margin: 0,
   fontSize: 18,
+};
+
+const classActionsStyle = {
+  display: "flex",
+  gap: 8,
+  alignItems: "center",
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
+};
+
+const smallButtonStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "8px 10px",
+  borderRadius: 8,
+  border: "1px solid #cbd5e1",
+  background: "#fff",
+  color: "#111827",
+  cursor: "pointer",
+  fontWeight: 800,
+};
+
+const toggleIconStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: 28,
+  padding: "4px 9px",
+  borderRadius: 999,
+  border: "1px solid #cbd5e1",
+  background: "#f8fafc",
+  color: "#334155",
+  fontWeight: 800,
+  fontSize: 13,
 };
 
 const searchLabelStyle = {
