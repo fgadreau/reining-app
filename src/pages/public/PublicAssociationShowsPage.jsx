@@ -57,7 +57,9 @@ function PublicAssociationShowsPage() {
         <div style={emptyStateStyle}>Chargement des shows…</div>
       ) : shows.length === 0 ? (
         <div style={emptyStateStyle}>
-          Aucun show public disponible pour cette association.
+          Aucun show public disponible pour cette association. Il faut au moins
+          une classe avec le live public autorisé ou des résultats officiels
+          publiés.
         </div>
       ) : (
         <div style={showListStyle}>

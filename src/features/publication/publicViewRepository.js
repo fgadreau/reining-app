@@ -404,7 +404,7 @@ export async function getPublicAssociationsRepository() {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
-    return loadAssociations();
+    return filterAssociationsWithPublicShows(loadAssociations());
   }
 
   try {
@@ -415,11 +415,24 @@ export async function getPublicAssociationsRepository() {
 
     if (error) throw error;
 
-    return Array.isArray(data) ? data.map(toAssociation) : [];
+    return filterAssociationsWithPublicShows(
+      Array.isArray(data) ? data.map(toAssociation) : []
+    );
   } catch (error) {
     console.error("Erreur chargement associations publiques Supabase:", error);
     return [];
   }
+}
+
+async function filterAssociationsWithPublicShows(associations) {
+  const associationsWithShows = await Promise.all(
+    associations.map(async (association) => {
+      const shows = await getPublicShowsByAssociationRepository(association.id);
+      return shows.length > 0 ? association : null;
+    })
+  );
+
+  return associationsWithShows.filter(Boolean);
 }
 
 export async function getPublicAssociationRepository(associationId) {

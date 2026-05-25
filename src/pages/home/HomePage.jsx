@@ -119,7 +119,7 @@ function HomePage() {
         ) : visibleAssociations.length === 0 ? (
           <div style={emptyStateStyle}>
             {isPublicVisitor
-              ? "Aucun résultat public disponible pour l’instant."
+              ? "Aucun contenu public disponible pour l’instant. Le live public doit être autorisé dans le setup d’une classe, ou des résultats officiels doivent être publiés."
               : "Aucune association disponible."}
           </div>
         ) : (

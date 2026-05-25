@@ -125,7 +125,8 @@ function PublicResultsPage() {
         <div style={emptyStateStyle}>Chargement des résultats publics…</div>
       ) : publicView.sections.length === 0 ? (
         <div style={emptyStateStyle}>
-          Aucun résultat officiel publié pour l’instant.
+          Aucun résultat officiel publié pour l’instant. Le live public apparaît
+          ici seulement si une classe du show est autorisée dans le setup.
         </div>
       ) : (
         <div style={{ display: "grid", gap: 16 }}>

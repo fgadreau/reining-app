@@ -42,7 +42,9 @@ function PublicAssociationsPage() {
         <div style={emptyStateStyle}>Chargement des associations…</div>
       ) : associations.length === 0 ? (
         <div style={emptyStateStyle}>
-          Aucun résultat public disponible pour l’instant.
+          Aucun contenu public disponible pour l’instant. Lance la migration
+          publique dans Supabase, puis autorise le live public dans le setup
+          d’une classe ou publie des résultats officiels.
         </div>
       ) : (
         <div style={gridStyle}>

@@ -213,10 +213,10 @@ function ShowDetailPage() {
           )}
 
           <Link
-            to={`/associations/${associationId}/shows/${showId}/public`}
+            to={`/public/associations/${associationId}/shows/${showId}`}
             style={linkButtonStyle}
           >
-            Public
+            Vitrine publique
           </Link>
 
           {access.canManageAssociation && (
