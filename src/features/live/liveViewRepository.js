@@ -47,13 +47,10 @@ export function getAnnouncerShowView(showId) {
 
   const activeClass =
     allClasses.find((item) => item.activeRun) ||
-    allClasses.find((item) => item.status === "in_progress") ||
-    allClasses.find((item) => item.scoringStarted) ||
+    allClasses.find((item) => item.scoringStarted && item.nextRun) ||
     null;
   const activePaidWarmup =
-    allPaidWarmups.find((item) => item.activeEntry) ||
-    allPaidWarmups.find((item) => item.nextEntry) ||
-    null;
+    allPaidWarmups.find((item) => item.activeEntry) || null;
 
   return {
     sections,
@@ -94,13 +91,10 @@ export async function getAnnouncerShowViewRepository(showId) {
 
   const activeClass =
     allClasses.find((item) => item.activeRun) ||
-    allClasses.find((item) => item.status === "in_progress") ||
-    allClasses.find((item) => item.scoringStarted) ||
+    allClasses.find((item) => item.scoringStarted && item.nextRun) ||
     null;
   const activePaidWarmup =
-    allPaidWarmups.find((item) => item.activeEntry) ||
-    allPaidWarmups.find((item) => item.nextEntry) ||
-    null;
+    allPaidWarmups.find((item) => item.activeEntry) || null;
 
   return {
     sections,
@@ -222,7 +216,11 @@ export function buildAnnouncerClassView(classData) {
   const publicationStatus = classData.publication?.status || "hidden";
   const canShowScores = canShowLatestScore(publicationStatus);
   const latestScore = canShowScores ? findLatestRunWithScore(runs) : null;
+  const nextRun = findNextRun(runs, activeRun);
   const lastPassedRuns = findLastPassedRuns(runs, activeRun, 2);
+  const scoringStarted = runs.some(runHasData);
+  const isComplete =
+    runs.length > 0 && scoringStarted && !activeRun && !nextRun;
 
   return {
     classId,
@@ -233,9 +231,10 @@ export function buildAnnouncerClassView(classData) {
     status: classData.status,
     publicationStatus,
     runCount: runs.length,
-    scoringStarted: runs.some(runHasData),
+    scoringStarted,
+    isComplete,
     activeRun,
-    nextRun: findNextRun(runs, activeRun),
+    nextRun,
     latestScore,
     lastPassedRuns,
     lastCompletedRuns: lastPassedRuns,

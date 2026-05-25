@@ -276,7 +276,7 @@ function AssociationsPage() {
               Connexion gestionnaire
             </Link>
             <Link to="/public" style={linkButtonStyle}>
-              Résultats publics
+              Vitrine publique
             </Link>
           </div>
         </div>

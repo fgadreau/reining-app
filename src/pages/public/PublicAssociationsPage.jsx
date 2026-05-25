@@ -29,9 +29,11 @@ function PublicAssociationsPage() {
     <div style={styles.app}>
       <section style={heroStyle}>
         <div>
-          <div style={eyebrowStyle}>Résultats publics</div>
+          <div style={eyebrowStyle}>Vitrine publique</div>
           <h1 style={titleStyle}>Associations</h1>
-          <div style={subtitleStyle}>Shows en cours et résultats officiels publiés</div>
+          <div style={subtitleStyle}>
+            Shows en cours et feuilles de pointage publiées
+          </div>
         </div>
         <Link to="/login" style={secondaryLinkStyle}>
           Connexion
@@ -44,7 +46,7 @@ function PublicAssociationsPage() {
         <div style={emptyStateStyle}>
           Aucun contenu public disponible pour l’instant. Lance la migration
           publique dans Supabase, puis autorise le live public dans le setup
-          d’une classe ou publie des résultats officiels.
+          d’une classe ou publie des feuilles de pointage.
         </div>
       ) : (
         <div style={gridStyle}>

@@ -111,10 +111,20 @@ export async function savePaidWarmupRepository(item) {
 
   if (supabase) {
     try {
-      const { error } = await supabase
+      const row = toPaidWarmupRow(savedLocal);
+      const { data, error } = await supabase
         .from("paid_warmups")
-        .upsert(toPaidWarmupRow(savedLocal));
+        .update(row)
+        .eq("id", savedLocal.id)
+        .select("id");
       if (error) throw error;
+
+      if (!Array.isArray(data) || data.length === 0) {
+        const { error: insertError } = await supabase
+          .from("paid_warmups")
+          .insert(row);
+        if (insertError) throw insertError;
+      }
     } catch (error) {
       console.error("Erreur sauvegarde paid warmup Supabase:", error);
     }

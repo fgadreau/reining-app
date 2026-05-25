@@ -201,7 +201,7 @@ function AnnouncerDashboardPage() {
           ) : liveView.recentResults?.length ? (
             <RecentResults results={liveView.recentResults} />
           ) : (
-            <div style={mutedTextStyle}>Aucun résultat affichable.</div>
+            <div style={mutedTextStyle}>Aucun passage affichable.</div>
           )}
         </FocusPanel>
       </section>
@@ -446,7 +446,7 @@ function PaidWarmupLiveCard({
               onClick={() => onStopTimer(warmup)}
               style={secondaryButtonStyle}
             >
-              Arrêter timer
+              Arrêter et marquer passé
             </button>
           </>
         )}
@@ -502,6 +502,8 @@ function PaidWarmupTimerCue({ warmup, remainingSeconds }) {
 }
 
 function ClassLiveCard({ classView }) {
+  const liveState = getClassLiveState(classView);
+
   return (
     <div style={classCardStyle}>
       <div style={classCardHeaderStyle}>
@@ -514,9 +516,7 @@ function ClassLiveCard({ classView }) {
             Pattern {classView.pattern || "—"} · {classView.runCount} run(s)
           </div>
         </div>
-        <Badge tone={classView.scoringStarted ? "warn" : "muted"}>
-          {classView.scoringStarted ? "Live" : "À venir"}
-        </Badge>
+        <Badge tone={liveState.tone}>{liveState.label}</Badge>
       </div>
       <div style={runGridStyle}>
         <RunBlock label="Actif" run={classView.activeRun} />
@@ -537,6 +537,22 @@ function ClassLiveCard({ classView }) {
       )}
     </div>
   );
+}
+
+function getClassLiveState(classView) {
+  if (classView.activeRun) {
+    return { label: "Live", tone: "warn" };
+  }
+
+  if (classView.isComplete || classView.status === "completed") {
+    return { label: "Terminée", tone: "success" };
+  }
+
+  if (classView.scoringStarted && classView.nextRun) {
+    return { label: "En cours", tone: "warn" };
+  }
+
+  return { label: "À venir", tone: "muted" };
 }
 
 function RunBlock({ label, run, showScore = false }) {
@@ -855,13 +871,37 @@ const badgeStyle = (tone) => ({
   minHeight: 28,
   padding: "4px 9px",
   borderRadius: 999,
-  border: `1px solid ${tone === "warn" ? "#fdba74" : "#cbd5e1"}`,
-  background: tone === "warn" ? "#fff7ed" : "#f8fafc",
-  color: tone === "warn" ? "#9a3412" : "#475569",
+  border: `1px solid ${getBadgeColors(tone).border}`,
+  background: getBadgeColors(tone).background,
+  color: getBadgeColors(tone).color,
   fontWeight: 700,
   fontSize: 13,
   whiteSpace: "nowrap",
 });
+
+function getBadgeColors(tone) {
+  if (tone === "warn") {
+    return {
+      border: "#fdba74",
+      background: "#fff7ed",
+      color: "#9a3412",
+    };
+  }
+
+  if (tone === "success") {
+    return {
+      border: "#86efac",
+      background: "#ecfdf5",
+      color: "#166534",
+    };
+  }
+
+  return {
+    border: "#cbd5e1",
+    background: "#f8fafc",
+    color: "#475569",
+  };
+}
 
 const linkButtonStyle = {
   display: "inline-flex",

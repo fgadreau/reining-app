@@ -171,6 +171,7 @@ export function getPublicShowView(showId) {
     0
   );
   const primaryLiveClass = findPrimaryLiveClass(liveClasses);
+  const activePaidWarmupCount = countActivePaidWarmups(livePaidWarmups);
   const primaryLivePaidWarmup = findPrimaryLivePaidWarmup(livePaidWarmups);
   const timingByClassId = buildLocalPublicTimingByClassId(
     timingSections,
@@ -182,7 +183,7 @@ export function getPublicShowView(showId) {
     publishedClassCount,
     liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
     livePaidWarmup: primaryLivePaidWarmup,
-    liveClassCount: liveClasses.length + livePaidWarmups.length,
+    liveClassCount: liveClasses.length + activePaidWarmupCount,
     classIds,
   };
 }
@@ -245,6 +246,7 @@ export async function getPublicShowViewRepository(showId) {
     0
   );
   const primaryLiveClass = findPrimaryLiveClass(liveClasses);
+  const activePaidWarmupCount = countActivePaidWarmups(livePaidWarmups);
   const primaryLivePaidWarmup = findPrimaryLivePaidWarmup(livePaidWarmups);
   const timingByClassId = buildLocalPublicTimingByClassId(
     timingSections,
@@ -256,7 +258,7 @@ export async function getPublicShowViewRepository(showId) {
     publishedClassCount,
     liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
     livePaidWarmup: primaryLivePaidWarmup,
-    liveClassCount: liveClasses.length + livePaidWarmups.length,
+    liveClassCount: liveClasses.length + activePaidWarmupCount,
     classIds,
   };
 }
@@ -483,6 +485,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
       0
     );
     const primaryLiveClass = findPrimaryLiveClass(liveClasses);
+    const activePaidWarmupCount = countActivePaidWarmups(livePaidWarmups);
     const primaryLivePaidWarmup = findPrimaryLivePaidWarmup(livePaidWarmups);
 
     return {
@@ -490,7 +493,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
       publishedClassCount,
       liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
       livePaidWarmup: primaryLivePaidWarmup,
-      liveClassCount: liveClasses.length + livePaidWarmups.length,
+      liveClassCount: liveClasses.length + activePaidWarmupCount,
       classIds: allClassIds,
     };
   } catch (error) {
@@ -855,12 +858,11 @@ function findPrimaryLiveClass(liveClasses) {
 }
 
 function findPrimaryLivePaidWarmup(livePaidWarmups) {
-  return (
-    livePaidWarmups.find((warmup) => warmup.activeEntry) ||
-    livePaidWarmups.find((warmup) => warmup.nextEntry) ||
-    livePaidWarmups[0] ||
-    null
-  );
+  return livePaidWarmups.find((warmup) => warmup.activeEntry) || null;
+}
+
+function countActivePaidWarmups(livePaidWarmups) {
+  return livePaidWarmups.filter((warmup) => warmup.activeEntry).length;
 }
 
 function findNextRun(runs, activeRun) {

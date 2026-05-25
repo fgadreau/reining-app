@@ -45,10 +45,10 @@ function PublicAssociationShowsPage() {
 
       <section style={heroStyle}>
         <div>
-          <div style={eyebrowStyle}>Résultats publics</div>
+          <div style={eyebrowStyle}>Vitrine publique</div>
           <h1 style={titleStyle}>{association?.name || "Association"}</h1>
           <div style={subtitleStyle}>
-            Shows avec live public ou résultats officiels publiés
+            Shows avec live public ou feuilles de pointage publiées
           </div>
         </div>
       </section>
@@ -58,8 +58,8 @@ function PublicAssociationShowsPage() {
       ) : shows.length === 0 ? (
         <div style={emptyStateStyle}>
           Aucun show public disponible pour cette association. Il faut au moins
-          une classe avec le live public autorisé ou des résultats officiels
-          publiés.
+          une classe avec le live public autorisé ou des feuilles de pointage
+          publiées.
         </div>
       ) : (
         <div style={showListStyle}>

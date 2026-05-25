@@ -21,18 +21,21 @@ function AppMenu() {
   const access = useAssociationAccess(associationId);
   const isPublicPath = location.pathname.startsWith("/public");
   const canOpenManagement = !auth.isConfigured || auth.isAuthenticated;
+  const shouldShowGlobalPublicLink = isPublicPath || !showId;
 
   return (
     <nav style={navStyle} aria-label="Navigation principale">
       <Link to="/" style={linkStyle(location.pathname === "/")}>
         Accueil
       </Link>
-      <Link
-        to="/public"
-        style={linkStyle(isPublicPath)}
-      >
-        Résultats publics
-      </Link>
+      {shouldShowGlobalPublicLink && (
+        <Link
+          to="/public"
+          style={linkStyle(isPublicPath)}
+        >
+          Vitrine publique
+        </Link>
+      )}
 
       {canOpenManagement && (
         <Link

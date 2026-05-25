@@ -96,9 +96,17 @@ export function setPaidWarmupEntryStatus(warmup, entryId, status) {
 
 export function stopPaidWarmupTimer(warmup) {
   const normalized = normalizePaidWarmup(warmup);
+  const nextEntries = normalized.activeEntryId
+    ? normalized.entries.map((entry) =>
+        entry.id === normalized.activeEntryId
+          ? { ...entry, status: "done" }
+          : entry
+      )
+    : normalized.entries;
 
   return {
     ...normalized,
+    entries: nextEntries,
     activeEntryId: null,
     activeStartedAt: null,
   };

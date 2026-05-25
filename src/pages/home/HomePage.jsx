@@ -38,7 +38,7 @@ const ASSOCIATION_WORKFLOW = [
   },
   {
     title: "Publier les pointages",
-    text: "Suivez le live, validez les résultats et partagez la vitrine publique.",
+    text: "Suivez le live, validez les feuilles de pointage et partagez la vitrine publique.",
   },
 ];
 
@@ -116,7 +116,7 @@ function HomePage() {
           </div>
           <div style={actionRowStyle}>
             <Link to="/public" style={primaryLinkStyle}>
-              Voir les résultats publics
+              Voir la vitrine publique
             </Link>
             {canLoadManagement ? (
               <Link to="/associations" style={secondaryLinkStyle}>
@@ -139,8 +139,8 @@ function HomePage() {
               : "Mode local"}
           </div>
           <div style={statusTextStyle}>
-            Résultats publics, publication des pointages et outils de gestion
-            du temps pour les associations.
+            Feuilles de pointage publiques, live et outils de gestion du temps
+            pour les associations.
           </div>
         </div>
       </section>
@@ -158,10 +158,10 @@ function HomePage() {
       <section style={cardStyle}>
         <div style={sectionHeaderStyle}>
           <div>
-            <h2 style={sectionTitleStyle}>Résultats publics disponibles</h2>
+            <h2 style={sectionTitleStyle}>Vitrine publique disponible</h2>
             <div style={mutedTextStyle}>
-              Associations avec un live autorisé ou des résultats officiels
-              publiés.
+              Associations avec un live autorisé ou des feuilles de pointage
+              publiées.
             </div>
           </div>
           <Link to="/public" style={smallLinkStyle}>
@@ -181,7 +181,7 @@ function HomePage() {
               <AssociationCard
                 key={association.id}
                 association={association}
-                label="Résultats publics"
+                label="Vitrine publique"
                 to={`/public/associations/${association.id}`}
                 action="Voir les shows"
               />
