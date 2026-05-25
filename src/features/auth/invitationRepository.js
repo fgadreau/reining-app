@@ -143,7 +143,7 @@ async function acceptAssociationInvitation(invitation, user) {
   });
 
   if (!membership) {
-    throw new Error("Impossible d'ajouter l'acces a l'association.");
+    throw new Error("Impossible d'ajouter l'accès à l'association.");
   }
 
   const { data: updated, error: updateError } = await supabase
@@ -188,7 +188,7 @@ export async function redeemAssociationInvitationRepository({ token, user }) {
 
   if (!data) {
     throw new Error(
-      "Invitation introuvable ou deja acceptee. Verifie le lien d'invitation."
+      "Invitation introuvable ou déjà acceptée. Vérifie le lien d'invitation."
     );
   }
 
@@ -196,7 +196,7 @@ export async function redeemAssociationInvitationRepository({ token, user }) {
 
   if (normalizeEmail(invitation.email) !== normalizedEmail) {
     throw new Error(
-      "Cette invitation est liee a un autre courriel. Connecte-toi avec le courriel invite."
+      "Cette invitation est liée à un autre courriel. Connecte-toi avec le courriel invité."
     );
   }
 

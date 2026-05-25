@@ -13,21 +13,40 @@ export function buildAssociationInvitationUrl(origin, invitation) {
   return `${baseUrl}/login?${params.toString()}`;
 }
 
-export function buildAssociationInvitationMailto({
+export function buildAssociationInvitationEmail({
   invitation,
   origin,
   associationName,
 }) {
   const invitationUrl = buildAssociationInvitationUrl(origin, invitation);
-  const subject = "Invitation Reining Score";
+  const subject = "Invitation ShowScore";
   const body = [
-    `Tu as ete invite a rejoindre ${associationName || "une association"} sur Reining Score.`,
+    `Tu as été invité à rejoindre ${associationName || "une association"} sur ShowScore.`,
     "",
-    "Cree ton compte avec ce lien, puis connecte-toi:",
+    "Crée ton compte avec ce lien, puis connecte-toi:",
     invitationUrl,
   ].join("\n");
 
+  return {
+    to: invitation?.email || "",
+    subject,
+    body,
+    invitationUrl,
+  };
+}
+
+export function buildAssociationInvitationMailto({
+  invitation,
+  origin,
+  associationName,
+}) {
+  const email = buildAssociationInvitationEmail({
+    invitation,
+    origin,
+    associationName,
+  });
+
   return `mailto:${encodeURIComponent(invitation?.email || "")}?subject=${encodeURIComponent(
-    subject
-  )}&body=${encodeURIComponent(body)}`;
+    email.subject
+  )}&body=${encodeURIComponent(email.body)}`;
 }

@@ -27,7 +27,10 @@ import {
   canManageAssociation,
   canScoreAssociation,
 } from "./features/auth/accessRoles";
-import { buildAssociationInvitationUrl } from "./features/auth/invitationLinks";
+import {
+  buildAssociationInvitationEmail,
+  buildAssociationInvitationUrl,
+} from "./features/auth/invitationLinks";
 import {
   calculateClassTimingSummary,
   stampRunTiming,
@@ -474,6 +477,26 @@ test("builds invitation links for invited users", () => {
   expect(url).toBe(
     "http://localhost:3001/login?invite=invite-token&email=scribe%40example.com"
   );
+});
+
+test("builds invitation email content without leaving the app", () => {
+  const email = buildAssociationInvitationEmail({
+    origin: "https://showscore.app",
+    associationName: "AQR",
+    invitation: {
+      token: "invite-token",
+      email: "scribe@example.com",
+    },
+  });
+
+  expect(email).toMatchObject({
+    to: "scribe@example.com",
+    subject: "Invitation ShowScore",
+    invitationUrl:
+      "https://showscore.app/login?invite=invite-token&email=scribe%40example.com",
+  });
+  expect(email.body).toContain("AQR");
+  expect(email.body).toContain(email.invitationUrl);
 });
 
 test("tracks run timing and estimates remaining class time with drags", () => {

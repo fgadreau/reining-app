@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   isAuthAvailable,
@@ -9,18 +9,22 @@ import {
   redeemAssociationInvitationRepository,
   redeemPendingAssociationInvitationsRepository,
 } from "../../features/auth/invitationRepository";
+import { useAuthUser } from "../../features/auth/useAuthUser";
 import { appStyles as styles } from "../../styles/appStyles";
 
 function LoginPage() {
   const navigate = useNavigate();
+  const auth = useAuthUser();
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get("invite") || "";
   const inviteEmail = searchParams.get("email") || "";
+  const hasLockedInviteEmail = Boolean(inviteToken && inviteEmail);
   const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const hasTriedAutoRedeemRef = useRef(false);
 
   useEffect(() => {
     if (inviteEmail) {
@@ -32,7 +36,7 @@ function LoginPage() {
     }
   }, [inviteEmail, inviteToken]);
 
-  async function redeemInvitations(user) {
+  const redeemInvitations = useCallback(async (user) => {
     if (!user) {
       return null;
     }
@@ -46,16 +50,55 @@ function LoginPage() {
 
     const redeemed = await redeemPendingAssociationInvitationsRepository(user);
     return redeemed[0] || null;
-  }
+  }, [inviteToken]);
 
-  function navigateAfterAuth(redeemed) {
+  const navigateAfterAuth = useCallback((redeemed) => {
     if (redeemed?.membership?.associationId) {
       navigate(`/associations/${redeemed.membership.associationId}/shows`);
       return;
     }
 
     navigate("/associations");
-  }
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!inviteToken || !auth.user || hasTriedAutoRedeemRef.current) {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function autoRedeemInvitation() {
+      hasTriedAutoRedeemRef.current = true;
+      setIsSubmitting(true);
+      setMessage("Acceptation de l'invitation en cours...");
+
+      try {
+        const redeemed = await redeemInvitations(auth.user);
+
+        if (!isMounted) return;
+        navigateAfterAuth(redeemed);
+      } catch (error) {
+        if (!isMounted) return;
+        setMessage(error.message || "Invitation impossible à accepter.");
+      } finally {
+        if (isMounted) {
+          setIsSubmitting(false);
+        }
+      }
+    }
+
+    autoRedeemInvitation();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    auth.user,
+    inviteToken,
+    navigateAfterAuth,
+    redeemInvitations,
+  ]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -73,6 +116,12 @@ function LoginPage() {
         const data = await signUpWithEmail({
           email: email.trim(),
           password,
+          emailRedirectTo:
+            typeof window === "undefined"
+              ? undefined
+              : inviteToken
+                ? window.location.href
+                : `${window.location.origin}/login`,
         });
 
         if (data?.session && data?.user) {
@@ -83,8 +132,8 @@ function LoginPage() {
 
         setMessage(
           inviteToken
-            ? "Compte créé. Si Supabase demande une confirmation, vérifie ton courriel, puis reviens avec ce lien pour te connecter."
-            : "Compte créé. Si Supabase demande une confirmation, vérifie ton courriel avant de te connecter."
+            ? "Compte créé. Vérifie ton courriel. Le lien de confirmation devrait te ramener ici pour accepter l'invitation."
+            : "Compte créé. Vérifie ton courriel, puis reviens te connecter."
         );
       } else {
         const data = await signInWithEmail({
@@ -104,8 +153,8 @@ function LoginPage() {
   return (
     <div style={styles.app}>
       <div style={{ marginBottom: 16 }}>
-        <Link to="/associations" style={secondaryLinkStyle}>
-          ← Associations
+        <Link to="/" style={secondaryLinkStyle}>
+          ← Accueil
         </Link>
       </div>
 
@@ -116,7 +165,7 @@ function LoginPage() {
         </h1>
         <p style={subtitleStyle}>
           {inviteToken
-            ? "Cree ton compte ou connecte-toi avec le courriel invite pour rejoindre l'association."
+            ? "Crée ton compte ou connecte-toi avec le courriel invité pour rejoindre l'association."
             : "Connecte le poste du secrétariat ou du scribe pour écrire dans le cloud."}
         </p>
 
@@ -139,11 +188,24 @@ function LoginPage() {
               <input
                 type="email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => {
+                  if (!hasLockedInviteEmail) {
+                    setEmail(event.target.value);
+                  }
+                }}
                 placeholder="secretariat@example.com"
-                style={inputStyle}
+                style={{
+                  ...inputStyle,
+                  background: hasLockedInviteEmail ? "#f8fafc" : "#fff",
+                }}
                 autoComplete="email"
+                readOnly={hasLockedInviteEmail}
               />
+              {hasLockedInviteEmail && (
+                <span style={helperTextStyle}>
+                  Ce courriel vient du lien d'invitation.
+                </span>
+              )}
             </label>
 
             <label style={labelStyle}>
@@ -236,6 +298,12 @@ const inputStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   boxSizing: "border-box",
+};
+
+const helperTextStyle = {
+  color: "#64748b",
+  fontSize: 13,
+  fontWeight: 500,
 };
 
 const buttonRowStyle = {

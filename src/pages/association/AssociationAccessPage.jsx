@@ -10,6 +10,7 @@ import {
 } from "../../features/auth/accessRepository";
 import { ASSOCIATION_ROLES, getRoleLabel } from "../../features/auth/accessRoles";
 import {
+  buildAssociationInvitationEmail,
   buildAssociationInvitationMailto,
   buildAssociationInvitationUrl,
 } from "../../features/auth/invitationLinks";
@@ -104,13 +105,13 @@ function AssociationAccessPage() {
       setInvitations(nextInvitations);
       setIsSaving(false);
       if (!invitation) {
-        setNotice("Impossible de creer l'invitation pour ce courriel.");
+        setNotice("Impossible de créer l'invitation pour ce courriel.");
         return;
       }
 
       setLastInvitation(invitation);
       setNotice(
-        "Utilisateur introuvable pour l'instant. Une invitation a ete creee."
+        "Utilisateur introuvable pour l'instant. Une invitation a été créée."
       );
       setEmail("");
       setRole(ASSOCIATION_ROLES.SECRETARY);
@@ -136,7 +137,7 @@ function AssociationAccessPage() {
     if (saved) {
       setEmail("");
       setRole(ASSOCIATION_ROLES.SECRETARY);
-      setNotice("Acces ajoute.");
+      setNotice("Accès ajouté.");
     }
   }
 
@@ -179,6 +180,27 @@ function AssociationAccessPage() {
     });
   }
 
+  function getInvitationEmail(invitation) {
+    const origin = typeof window === "undefined" ? "" : window.location.origin;
+
+    return buildAssociationInvitationEmail({
+      invitation,
+      origin,
+      associationName: association?.name,
+    });
+  }
+
+  function getInvitationMessage(invitation) {
+    const invitationEmail = getInvitationEmail(invitation);
+
+    return [
+      `À: ${invitationEmail.to}`,
+      `Sujet: ${invitationEmail.subject}`,
+      "",
+      invitationEmail.body,
+    ].join("\n");
+  }
+
   async function copyInvitationLink(invitation) {
     const invitationUrl = getInvitationUrl(invitation);
 
@@ -189,6 +211,42 @@ function AssociationAccessPage() {
     }
 
     window.prompt("Copie ce lien d'invitation:", invitationUrl);
+  }
+
+  async function copyInvitationMessage(invitation) {
+    const message = getInvitationMessage(invitation);
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(message);
+        setNotice("Message d'invitation copié.");
+        return;
+      }
+    } catch (error) {
+      console.error("Erreur copie invitation:", error);
+    }
+
+    window.prompt("Copie ce message d'invitation:", message);
+  }
+
+  function openInvitationEmail(invitation) {
+    try {
+      window.open(
+        getInvitationMailto(invitation),
+        "_blank",
+        "noopener,noreferrer"
+      );
+      setNotice(
+        "Le courriel s'est ouvert dans un nouvel onglet. ShowScore reste ouvert ici."
+      );
+      return;
+    } catch (error) {
+      console.error("Erreur ouverture invitation:", error);
+    }
+
+    setNotice(
+      "Le navigateur a bloqué l'ouverture du courriel. Copie le message d'invitation."
+    );
   }
 
   if (!access.isConfigured) {
@@ -293,12 +351,20 @@ function AssociationAccessPage() {
               >
                 Copier le lien
               </button>
-              <a
-                href={getInvitationMailto(lastInvitation)}
-                style={linkButtonStyle}
+              <button
+                type="button"
+                onClick={() => copyInvitationMessage(lastInvitation)}
+                style={secondaryButtonStyle}
               >
-                Préparer le courriel
-              </a>
+                Copier le message
+              </button>
+              <button
+                type="button"
+                onClick={() => openInvitationEmail(lastInvitation)}
+                style={secondaryButtonStyle}
+              >
+                Ouvrir le courriel
+              </button>
             </div>
           </div>
         )}
@@ -380,12 +446,20 @@ function AssociationAccessPage() {
                         >
                           Copier
                         </button>
-                        <a
-                          href={getInvitationMailto(invitation)}
-                          style={linkButtonStyle}
+                        <button
+                          type="button"
+                          onClick={() => copyInvitationMessage(invitation)}
+                          style={secondaryButtonStyle}
+                        >
+                          Message
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openInvitationEmail(invitation)}
+                          style={secondaryButtonStyle}
                         >
                           Courriel
-                        </a>
+                        </button>
                       </div>
                     </td>
                     <td style={tdStyle}>

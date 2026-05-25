@@ -91,17 +91,25 @@ export async function signInWithEmail({ email, password }) {
   return data;
 }
 
-export async function signUpWithEmail({ email, password }) {
+export async function signUpWithEmail({ email, password, emailRedirectTo }) {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
     throw new Error("Supabase n'est pas configuré.");
   }
 
-  const { data, error } = await supabase.auth.signUp({
+  const signUpPayload = {
     email,
     password,
-  });
+  };
+
+  if (emailRedirectTo) {
+    signUpPayload.options = {
+      emailRedirectTo,
+    };
+  }
+
+  const { data, error } = await supabase.auth.signUp(signUpPayload);
 
   if (error) {
     throw error;

@@ -41,20 +41,31 @@ function AssociationsPage() {
 
   const cloudStatus = getCloudSyncStatus(auth.user);
   const isLocalMode = !auth.isConfigured;
-  const isFirstCloudAssociation =
-    auth.isConfigured &&
-    auth.isAuthenticated &&
-    !isLoading &&
-    associations.length === 0;
-  const canCreateAssociation =
-    isLocalMode || isPlatformAdmin || isFirstCloudAssociation;
+  const canCreateAssociation = isLocalMode || auth.isAuthenticated;
   const canShowAssociationForm = canCreateAssociation || Boolean(editingId);
+  const shouldShowLoginPrompt =
+    auth.isConfigured && !auth.isLoading && !auth.isAuthenticated;
+  const shouldHideAssociationList =
+    auth.isConfigured && !auth.isAuthenticated;
 
   useEffect(() => {
     let isMounted = true;
 
     async function load() {
       setIsLoading(true);
+
+      if (auth.isConfigured && auth.isLoading) {
+        return;
+      }
+
+      if (auth.isConfigured && !authUserId) {
+        if (!isMounted) return;
+        setAssociations([]);
+        setMemberships([]);
+        setIsPlatformAdmin(false);
+        setIsLoading(false);
+        return;
+      }
 
       if (auth.isConfigured && authUserId) {
         await redeemPendingAssociationInvitationsRepository({
@@ -85,7 +96,7 @@ function AssociationsPage() {
     return () => {
       isMounted = false;
     };
-  }, [auth.isConfigured, authUserEmail, authUserId]);
+  }, [auth.isConfigured, auth.isLoading, authUserEmail, authUserId]);
 
   const sortedAssociations = useMemo(() => {
     const visibleAssociations = isLocalMode || isPlatformAdmin
@@ -219,7 +230,27 @@ function AssociationsPage() {
         </span>
       </div>
 
-      {canShowAssociationForm && (
+      {shouldShowLoginPrompt && (
+        <div style={emptyStateStyle}>
+          <h2 style={{ marginTop: 0, color: "#111827" }}>
+            Connexion gestionnaire requise
+          </h2>
+          <p style={{ marginTop: 0 }}>
+            Connecte-toi pour créer une association, gérer tes événements et
+            accepter tes invitations d'accès.
+          </p>
+          <div style={actionRowStyle}>
+            <Link to="/login" style={linkButtonStyle}>
+              Connexion gestionnaire
+            </Link>
+            <Link to="/public" style={linkButtonStyle}>
+              Résultats publics
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {canShowAssociationForm && !auth.isLoading && (
         <div style={cardStyle}>
           <h2 style={{ marginTop: 0 }}>
             {editingId ? "Modifier une association" : "Ajouter une association"}
@@ -273,8 +304,11 @@ function AssociationsPage() {
 
       {isLoading ? (
         <div style={emptyStateStyle}>Chargement des associations…</div>
-      ) : sortedAssociations.length === 0 ? (
-        <div style={emptyStateStyle}>Aucune association disponible.</div>
+      ) : shouldHideAssociationList ? null : sortedAssociations.length === 0 ? (
+        <div style={emptyStateStyle}>
+          Aucune association de gestion pour ce compte. Crée ta première
+          association pour commencer.
+        </div>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
           {sortedAssociations.map((association) => {
@@ -356,6 +390,18 @@ const actionRowStyle = {
   display: "flex",
   gap: 10,
   flexWrap: "wrap",
+};
+
+const linkButtonStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "10px 14px",
+  borderRadius: 8,
+  border: "1px solid #cbd5e1",
+  background: "#fff",
+  color: "#111827",
+  textDecoration: "none",
 };
 
 const emptyStateStyle = {
