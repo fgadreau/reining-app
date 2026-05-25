@@ -199,7 +199,7 @@ function ShowDetailPage() {
               to={`/associations/${associationId}/shows/${showId}/time`}
               style={linkButtonStyle}
             >
-              Gestion du temps
+              Temps des journées
             </Link>
           )}
 

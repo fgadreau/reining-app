@@ -19,10 +19,8 @@ function AppMenu() {
   const auth = useAuthUser();
   const { associationId, showId } = parseContext(location.pathname);
   const access = useAssociationAccess(associationId);
-
-  if (location.pathname.includes("/public")) {
-    return null;
-  }
+  const isPublicPath = location.pathname.startsWith("/public");
+  const canOpenManagement = !auth.isConfigured || auth.isAuthenticated;
 
   return (
     <nav style={navStyle} aria-label="Navigation principale">
@@ -30,16 +28,22 @@ function AppMenu() {
         Accueil
       </Link>
       <Link
-        to={auth.isConfigured && !auth.isAuthenticated ? "/public" : "/associations"}
-        style={linkStyle(
-          location.pathname.startsWith("/associations") ||
-            location.pathname.startsWith("/public")
-        )}
+        to="/public"
+        style={linkStyle(isPublicPath)}
       >
-        Associations
+        Résultats publics
       </Link>
 
-      {associationId && (
+      {canOpenManagement && (
+        <Link
+          to="/associations"
+          style={linkStyle(location.pathname.startsWith("/associations"))}
+        >
+          Gestion
+        </Link>
+      )}
+
+      {associationId && !isPublicPath && (
         <Link
           to={`/associations/${associationId}/shows`}
           style={linkStyle(location.pathname.endsWith("/shows"))}
@@ -48,7 +52,7 @@ function AppMenu() {
         </Link>
       )}
 
-      {associationId && showId && (
+      {associationId && showId && !isPublicPath && (
         <Link
           to={`/associations/${associationId}/shows/${showId}`}
           style={linkStyle(
@@ -59,7 +63,16 @@ function AppMenu() {
         </Link>
       )}
 
-      {associationId && showId && access.canManageAssociation && (
+      {associationId && showId && !isPublicPath && access.canManageAssociation && (
+        <Link
+          to={`/associations/${associationId}/shows/${showId}/time`}
+          style={linkStyle(location.pathname.includes("/time"))}
+        >
+          Temps des journées
+        </Link>
+      )}
+
+      {associationId && showId && !isPublicPath && access.canManageAssociation && (
         <Link
           to={`/associations/${associationId}/shows/${showId}/secretariat`}
           style={linkStyle(location.pathname.includes("/secretariat"))}
@@ -68,7 +81,7 @@ function AppMenu() {
         </Link>
       )}
 
-      {associationId && showId && access.canAnnounceAssociation && (
+      {associationId && showId && !isPublicPath && access.canAnnounceAssociation && (
         <Link
           to={`/associations/${associationId}/shows/${showId}/announcer`}
           style={linkStyle(location.pathname.includes("/announcer"))}
@@ -77,7 +90,16 @@ function AppMenu() {
         </Link>
       )}
 
-      {associationId && access.canAdminAssociation && (
+      {associationId && showId && !isPublicPath && (
+        <Link
+          to={`/public/associations/${associationId}/shows/${showId}`}
+          style={linkStyle(false)}
+        >
+          Vitrine publique
+        </Link>
+      )}
+
+      {associationId && !isPublicPath && access.canAdminAssociation && (
         <Link
           to={`/associations/${associationId}/access`}
           style={linkStyle(location.pathname.includes("/access"))}

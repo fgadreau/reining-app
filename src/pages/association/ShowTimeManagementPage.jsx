@@ -117,9 +117,9 @@ function ShowTimeManagementPage() {
       selectedPatternStats?.averageRunSeconds,
     ]
   );
-  const classTimingRows = useMemo(() => {
-    return daySections.flatMap(({ day, classRows }) =>
-      classRows.map((classData) =>
+  const dayTimingSections = useMemo(() => {
+    return daySections.map(({ day, classRows }) => {
+      const rows = classRows.map((classData) =>
         buildClassTimingRow({
           classData,
           day,
@@ -131,12 +131,22 @@ function ShowTimeManagementPage() {
               ) || "—"
             ) || null,
         })
-      )
-    );
+      );
+
+      return {
+        day,
+        rows,
+        summary: buildDayTimeSummary(rows, now),
+      };
+    });
   }, [daySections, now, patternAverageByValue]);
-  const totalSummary = useMemo(
-    () => buildShowTimeSummary(classTimingRows, now),
-    [classTimingRows, now]
+  const classTimingRows = useMemo(
+    () => dayTimingSections.flatMap((section) => section.rows),
+    [dayTimingSections]
+  );
+  const remainingRuns = classTimingRows.reduce(
+    (total, row) => total + Math.max(row.remainingRuns || 0, 0),
+    0
   );
 
   useEffect(() => {
@@ -174,10 +184,10 @@ function ShowTimeManagementPage() {
 
       <section style={heroStyle}>
         <div>
-          <div style={eyebrowStyle}>Gestion du temps</div>
+          <div style={eyebrowStyle}>Temps des journées</div>
           <h1 style={titleStyle}>{show?.name || "Show"}</h1>
           <div style={subtitleStyle}>
-            Moyennes par pattern, drags et projections de fin de classes.
+            Moyennes par pattern, drags et projections de fin par journée.
           </div>
         </div>
         <Link
@@ -189,21 +199,17 @@ function ShowTimeManagementPage() {
       </section>
 
       <section style={summaryGridStyle}>
+        <SummaryTile label="Journées" value={dayTimingSections.length} />
         <SummaryTile label="Classes" value={classTimingRows.length} />
         <SummaryTile
           label="Runs restants"
-          value={totalSummary.remainingRuns}
+          value={remainingRuns}
           tone="warn"
         />
         <SummaryTile
-          label="Temps restant"
-          value={formatDuration(totalSummary.remainingSeconds)}
+          label="Patterns mesurés"
+          value={patternStats.length}
           tone="info"
-        />
-        <SummaryTile
-          label="Fin estimée show"
-          value={formatClockTime(totalSummary.estimatedEndAt)}
-          tone="success"
         />
       </section>
 
@@ -374,7 +380,7 @@ function ShowTimeManagementPage() {
           <section style={cardStyle}>
             <div style={sectionHeaderStyle}>
               <div>
-                <h2 style={sectionTitleStyle}>Classes du show</h2>
+                <h2 style={sectionTitleStyle}>Journées du show</h2>
                 <div style={metaStyle}>
                   Les classes sans moyenne propre utilisent la moyenne du pattern
                   globale lorsque disponible.
@@ -382,70 +388,93 @@ function ShowTimeManagementPage() {
               </div>
             </div>
 
-            {classTimingRows.length === 0 ? (
+            {dayTimingSections.length === 0 ? (
               <div style={softEmptyStyle}>Aucune classe pour ce show.</div>
             ) : (
-              <div style={tableWrapStyle}>
-                <table style={tableStyle}>
-                  <thead>
-                    <tr>
-                      <th style={thStyle}>Classe</th>
-                      <th style={thStyle}>Pattern</th>
-                      <th style={thStyle}>Progression</th>
-                      <th style={thStyle}>Moyenne/run</th>
-                      <th style={thStyle}>Drags restants</th>
-                      <th style={thStyle}>Temps restant</th>
-                      <th style={thStyle}>Fin estimée</th>
-                      <th style={thStyle}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {classTimingRows.map((row) => (
-                      <tr key={row.classId}>
-                        <td style={tdStyle}>
-                          <div style={classNameStyle}>{row.className}</div>
-                          <div style={metaStyle}>
-                            {row.dayLabel}
-                            {row.dayDate ? ` · ${row.dayDate}` : ""}
-                          </div>
-                        </td>
-                        <td style={tdStyle}>{row.pattern}</td>
-                        <td style={tdStyle}>
-                          {row.completedRuns}/{row.runCount}
-                        </td>
-                        <td style={tdStyle}>
-                          {formatDuration(row.averageRunSeconds)}
-                          {row.usedPatternAverage && (
-                            <div style={metaStyle}>moyenne pattern</div>
-                          )}
-                        </td>
-                        <td style={tdStyle}>{row.remainingDragBreaks}</td>
-                        <td style={tdStyle}>
-                          {formatDuration(row.remainingSeconds)}
-                        </td>
-                        <td style={tdStyle}>
-                          {formatClockTime(row.estimatedEndAt)}
-                        </td>
-                        <td style={tdStyle}>
-                          <div style={actionRowStyle}>
-                            <Link
-                              to={`/associations/${associationId}/classes/${row.classId}/setup`}
-                              style={smallLinkButtonStyle}
-                            >
-                              Setup
-                            </Link>
-                            <Link
-                              to={`/associations/${associationId}/scribe/classes/${row.classId}`}
-                              style={smallLinkButtonStyle}
-                            >
-                              Scoring
-                            </Link>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div style={dayListStyle}>
+                {dayTimingSections.map((section) => (
+                  <section key={section.day.id} style={dayBlockStyle}>
+                    <div style={dayHeaderStyle}>
+                      <div>
+                        <h3 style={dayTitleStyle}>
+                          {section.day.label || "Journée"}
+                        </h3>
+                        <div style={metaStyle}>
+                          {section.day.date || "Date non définie"}
+                        </div>
+                      </div>
+                      <div style={daySummaryStyle}>
+                        <span>{section.summary.remainingRuns} run(s) restant(s)</span>
+                        <strong>
+                          Fin estimée: {formatClockTime(section.summary.estimatedEndAt)}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {section.rows.length === 0 ? (
+                      <div style={softEmptyStyle}>Aucune classe pour cette journée.</div>
+                    ) : (
+                      <div style={tableWrapStyle}>
+                        <table style={tableStyle}>
+                          <thead>
+                            <tr>
+                              <th style={thStyle}>Classe</th>
+                              <th style={thStyle}>Pattern</th>
+                              <th style={thStyle}>Progression</th>
+                              <th style={thStyle}>Moyenne/run</th>
+                              <th style={thStyle}>Drags restants</th>
+                              <th style={thStyle}>Temps restant</th>
+                              <th style={thStyle}>Fin estimée</th>
+                              <th style={thStyle}>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {section.rows.map((row) => (
+                              <tr key={row.classId}>
+                                <td style={tdStyle}>
+                                  <div style={classNameStyle}>{row.className}</div>
+                                </td>
+                                <td style={tdStyle}>{row.pattern}</td>
+                                <td style={tdStyle}>
+                                  {row.completedRuns}/{row.runCount}
+                                </td>
+                                <td style={tdStyle}>
+                                  {formatDuration(row.averageRunSeconds)}
+                                  {row.usedPatternAverage && (
+                                    <div style={metaStyle}>moyenne pattern</div>
+                                  )}
+                                </td>
+                                <td style={tdStyle}>{row.remainingDragBreaks}</td>
+                                <td style={tdStyle}>
+                                  {formatDuration(row.remainingSeconds)}
+                                </td>
+                                <td style={tdStyle}>
+                                  {formatClockTime(row.estimatedEndAt)}
+                                </td>
+                                <td style={tdStyle}>
+                                  <div style={actionRowStyle}>
+                                    <Link
+                                      to={`/associations/${associationId}/classes/${row.classId}/setup`}
+                                      style={smallLinkButtonStyle}
+                                    >
+                                      Setup
+                                    </Link>
+                                    <Link
+                                      to={`/associations/${associationId}/scribe/classes/${row.classId}`}
+                                      style={smallLinkButtonStyle}
+                                    >
+                                      Scoring
+                                    </Link>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </section>
+                ))}
               </div>
             )}
           </section>
@@ -502,7 +531,7 @@ function SummaryTile({ label, value, tone = "default" }) {
   );
 }
 
-function buildShowTimeSummary(rows, now) {
+function buildDayTimeSummary(rows, now) {
   const remainingRuns = rows.reduce(
     (total, row) => total + Math.max(row.remainingRuns || 0, 0),
     0
@@ -592,6 +621,37 @@ const cardStyle = {
   padding: 16,
   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
   marginBottom: 16,
+};
+
+const dayListStyle = {
+  display: "grid",
+  gap: 18,
+};
+
+const dayBlockStyle = {
+  borderTop: "1px solid #e2e8f0",
+  paddingTop: 14,
+};
+
+const dayHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 12,
+  flexWrap: "wrap",
+  marginBottom: 10,
+};
+
+const dayTitleStyle = {
+  margin: 0,
+  fontSize: 18,
+};
+
+const daySummaryStyle = {
+  display: "grid",
+  gap: 4,
+  justifyItems: "end",
+  color: "#475569",
 };
 
 const sectionHeaderStyle = {
