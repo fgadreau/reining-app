@@ -8,6 +8,11 @@ import {
   subscribePublicShowViewRepository,
 } from "../../features/publication/publicViewRepository";
 import { formatClockTime } from "../../features/classes/classTiming";
+import {
+  formatPaidWarmupTimer,
+  getPaidWarmupRemainingSeconds,
+} from "../../features/paidWarmups/paidWarmupLive";
+import { PAID_WARMUP_STATUS_LABELS } from "../../features/paidWarmups/paidWarmupStorage";
 import { getShowById } from "../../features/shows/showSelectors";
 import {
   buildScorePdfFileName,
@@ -25,8 +30,19 @@ function PublicResultsPage() {
   const [publicView, setPublicView] = useState(() => getPublicShowView(showId));
   const [isLoading, setIsLoading] = useState(true);
   const [openClassId, setOpenClassId] = useState(null);
+  const [now, setNow] = useState(() => new Date());
   const publicClassIdsKey = (publicView.classIds || []).join("|");
-  const hasLiveClass = Boolean(publicView.liveClass);
+  const hasLiveClass = Boolean(publicView.liveClass || publicView.livePaidWarmup);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -155,6 +171,10 @@ function PublicResultsPage() {
           </Link>
         )}
       </section>
+
+      {publicView.livePaidWarmup && (
+        <PublicPaidWarmupLivePanel warmup={publicView.livePaidWarmup} now={now} />
+      )}
 
       {publicView.liveClass && <PublicLivePanel classView={publicView.liveClass} />}
 
@@ -404,6 +424,96 @@ function PublicLivePanel({ classView }) {
   );
 }
 
+function PublicPaidWarmupLivePanel({ warmup, now }) {
+  const remainingSeconds = getPaidWarmupRemainingSeconds(warmup, now);
+
+  return (
+    <section style={livePanelStyle}>
+      <div style={classHeaderStyle}>
+        <div>
+          <div style={eyebrowStyle}>Live</div>
+          <h2 style={sectionTitleStyle}>{warmup.name || "Paid warm up"}</h2>
+          <div style={mutedTextStyle}>
+            Paid warm up · {warmup.durationMinutesPerRider} min/cavalier
+          </div>
+        </div>
+        <Badge>En cours</Badge>
+      </div>
+
+      {warmup.isDragDue && (
+        <div style={paidWarmupNoticeStyle}>
+          Drag de surface prévu · {warmup.dragDurationMinutes} min
+        </div>
+      )}
+
+      <div style={liveGridStyle}>
+        <div style={liveBlockStyle}>
+          <div style={runLabelStyle}>En piste</div>
+          {warmup.activeEntry ? (
+            <PublicPaidWarmupEntry
+              entry={warmup.activeEntry}
+              remainingSeconds={remainingSeconds}
+              warmup={warmup}
+            />
+          ) : (
+            <div style={mutedTextStyle}>—</div>
+          )}
+        </div>
+
+        <div style={liveBlockStyle}>
+          <div style={runLabelStyle}>Prochain participant</div>
+          {warmup.nextEntry ? (
+            <PublicPaidWarmupEntry entry={warmup.nextEntry} />
+          ) : (
+            <div style={mutedTextStyle}>—</div>
+          )}
+        </div>
+
+        <div style={liveBlockStyle}>
+          <div style={runLabelStyle}>Deux derniers passés</div>
+          {warmup.lastPassedEntries?.length ? (
+            <div style={{ display: "grid", gap: 8 }}>
+              {warmup.lastPassedEntries.map((entry) => (
+                <PublicPaidWarmupEntry key={entry.id} entry={entry} />
+              ))}
+            </div>
+          ) : (
+            <div style={mutedTextStyle}>—</div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PublicPaidWarmupEntry({ entry, remainingSeconds, warmup }) {
+  return (
+    <div>
+      <div style={runTitleStyle}>#{entry?.order || "—"}</div>
+      <div style={runNameStyle}>{entry?.rider || "Cavalier —"}</div>
+      {entry?.status && entry.status !== "pending" && (
+        <div style={mutedTextStyle}>
+          {PAID_WARMUP_STATUS_LABELS[entry.status] || entry.status}
+        </div>
+      )}
+      {remainingSeconds != null && (
+        <>
+          <div style={paidWarmupTimerStyle}>
+            {formatPaidWarmupTimer(remainingSeconds)}
+          </div>
+          {remainingSeconds <= 0 ? (
+            <div style={paidWarmupCueStyle("danger")}>Temps terminé</div>
+          ) : remainingSeconds <= 60 ? (
+            <div style={paidWarmupCueStyle("danger")}>Il reste 1 minute</div>
+          ) : remainingSeconds <= warmup.durationSeconds / 2 ? (
+            <div style={paidWarmupCueStyle("warn")}>Moitié du temps</div>
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}
+
 function PublicTimingSummary({ timing }) {
   return (
     <div style={timingPanelStyle}>
@@ -637,6 +747,34 @@ const liveScoreStyle = {
   fontWeight: 900,
   marginTop: 8,
 };
+
+const paidWarmupTimerStyle = {
+  fontSize: 30,
+  fontWeight: 900,
+  marginTop: 8,
+};
+
+const paidWarmupNoticeStyle = {
+  border: "1px solid #fde68a",
+  borderRadius: 8,
+  padding: 10,
+  background: "#fefce8",
+  color: "#854d0e",
+  fontWeight: 800,
+  marginBottom: 12,
+};
+
+const paidWarmupCueStyle = (tone) => ({
+  display: "inline-flex",
+  marginTop: 8,
+  padding: "6px 9px",
+  borderRadius: 999,
+  border: `1px solid ${tone === "danger" ? "#fecaca" : "#fdba74"}`,
+  background: tone === "danger" ? "#fff5f5" : "#fff7ed",
+  color: tone === "danger" ? "#991b1b" : "#9a3412",
+  fontWeight: 800,
+  fontSize: 13,
+});
 
 const detailsGridStyle = {
   display: "grid",

@@ -15,6 +15,7 @@ import PublicAssociationShowsPage from "../../pages/public/PublicAssociationShow
 import ShowTimeManagementPage from "../../pages/association/ShowTimeManagementPage";
 import DayClassesPage from "../../pages/association/DayClassesPage";
 import ClassSetupPage from "../../pages/association/ClassSetupPage";
+import PaidWarmupSetupPage from "../../pages/association/PaidWarmupSetupPage";
 import ClassScoringPage from "../../pages/scribe/ClassScoringPage";
 import LoginPage from "../../pages/auth/LoginPage";
 import HomePage from "../../pages/home/HomePage";
@@ -72,6 +73,10 @@ function AppRouter() {
         <Route
           path="/associations/:associationId/classes/:classId/setup"
           element={<ClassSetupPage />}
+        />
+        <Route
+          path="/associations/:associationId/shows/:showId/days/:dayId/paid-warmups/:paidWarmupId/setup"
+          element={<PaidWarmupSetupPage />}
         />
         <Route
           path="/associations/:associationId/scribe/classes/:classId"

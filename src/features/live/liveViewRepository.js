@@ -6,6 +6,9 @@ import {
 } from "../classes/classRepository";
 import { getDaysByShowRepository } from "../days/dayRepository";
 import { getDaysByShowId } from "../days/daySelectors";
+import { getPaidWarmupsByDayId } from "../paidWarmups/paidWarmupStorage";
+import { getPaidWarmupsForDayRepository } from "../paidWarmups/paidWarmupRepository";
+import { buildPaidWarmupLiveView } from "../paidWarmups/paidWarmupLive";
 import {
   getPatternDisplayName,
   getPatternHeaders,
@@ -28,24 +31,34 @@ export function getAnnouncerShowView(showId) {
     const classes = getClassesForDay(day.id).map((classItem) =>
       buildAnnouncerClassView(getClassFullData(classItem.id))
     );
+    const paidWarmups = getPaidWarmupsByDayId(day.id).map((warmup) =>
+      buildPaidWarmupLiveView(warmup)
+    );
 
     return {
       day,
       classes,
+      paidWarmups,
     };
   });
 
   const allClasses = sections.flatMap((section) => section.classes);
+  const allPaidWarmups = sections.flatMap((section) => section.paidWarmups);
 
   const activeClass =
     allClasses.find((item) => item.activeRun) ||
     allClasses.find((item) => item.status === "in_progress") ||
     allClasses.find((item) => item.scoringStarted) ||
     null;
+  const activePaidWarmup =
+    allPaidWarmups.find((item) => item.activeEntry) ||
+    allPaidWarmups.find((item) => item.nextEntry) ||
+    null;
 
   return {
     sections,
     activeClass,
+    activePaidWarmup,
     latestScore: findLatestScoredRun(allClasses),
     recentResults: findRecentPassedRuns(allClasses, 2, activeClass),
   };
@@ -56,7 +69,10 @@ export async function getAnnouncerShowViewRepository(showId) {
 
   const sections = await Promise.all(
     days.map(async (day) => {
-      const classes = await getClassesForDayRepository(day.id);
+      const [classes, paidWarmups] = await Promise.all([
+        getClassesForDayRepository(day.id),
+        getPaidWarmupsForDayRepository(day.id),
+      ]);
       const classViews = await Promise.all(
         classes.map(async (classItem) =>
           buildAnnouncerClassView(
@@ -68,21 +84,28 @@ export async function getAnnouncerShowViewRepository(showId) {
       return {
         day,
         classes: classViews,
+        paidWarmups: paidWarmups.map((warmup) => buildPaidWarmupLiveView(warmup)),
       };
     })
   );
 
   const allClasses = sections.flatMap((section) => section.classes);
+  const allPaidWarmups = sections.flatMap((section) => section.paidWarmups);
 
   const activeClass =
     allClasses.find((item) => item.activeRun) ||
     allClasses.find((item) => item.status === "in_progress") ||
     allClasses.find((item) => item.scoringStarted) ||
     null;
+  const activePaidWarmup =
+    allPaidWarmups.find((item) => item.activeEntry) ||
+    allPaidWarmups.find((item) => item.nextEntry) ||
+    null;
 
   return {
     sections,
     activeClass,
+    activePaidWarmup,
     latestScore: findLatestScoredRun(allClasses),
     recentResults: findRecentPassedRuns(allClasses, 2, activeClass),
   };
@@ -133,6 +156,17 @@ export function subscribeAnnouncerShowViewRepository(
       event: "*",
       schema: "public",
       table: "classes",
+      filter: `show_id=eq.${showId}`,
+    },
+    onChange
+  );
+
+  channel.on(
+    "postgres_changes",
+    {
+      event: "*",
+      schema: "public",
+      table: "paid_warmups",
       filter: `show_id=eq.${showId}`,
     },
     onChange

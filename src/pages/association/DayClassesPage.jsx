@@ -5,6 +5,15 @@ import {
   getClassesForDayRepository,
   saveClassItemRepository,
 } from "../../features/classes/classRepository";
+import {
+  deletePaidWarmupRepository,
+  getPaidWarmupsForDayRepository,
+  savePaidWarmupRepository,
+} from "../../features/paidWarmups/paidWarmupRepository";
+import {
+  DEFAULT_PAID_WARMUP_DURATION_MINUTES,
+  getPaidWarmupStats,
+} from "../../features/paidWarmups/paidWarmupStorage";
 import { getClassStatus, getClassStatusLabel } from "../../features/classes/classStatusSelectors";
 import { getDayById } from "../../features/days/daySelectors";
 import { getShowById } from "../../features/shows/showSelectors";
@@ -39,6 +48,7 @@ function DayClassesPage() {
   }, [associationId]);
 
   const [classes, setClasses] = useState([]);
+  const [paidWarmups, setPaidWarmups] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -54,9 +64,13 @@ function DayClassesPage() {
 
     async function load() {
       setIsLoading(true);
-      const nextClasses = await getClassesForDayRepository(dayId);
+      const [nextClasses, nextPaidWarmups] = await Promise.all([
+        getClassesForDayRepository(dayId),
+        getPaidWarmupsForDayRepository(dayId),
+      ]);
       if (!isMounted) return;
       setClasses(nextClasses);
+      setPaidWarmups(nextPaidWarmups);
       setIsLoading(false);
     }
 
@@ -80,6 +94,7 @@ function DayClassesPage() {
       showName: show?.name || "",
       date: day?.date || "",
       dayLabel: day?.label || "",
+      sortOrder: classes.length + paidWarmups.length + 1,
     };
 
     setIsSaving(true);
@@ -94,6 +109,30 @@ function DayClassesPage() {
       pattern: newClass.pattern,
       judgeName: newClass.judgeName,
     });
+  };
+
+  const startCreatePaidWarmup = async () => {
+    const newWarmup = {
+      id: createId("paid_warmup"),
+      dayId,
+      showId,
+      associationId,
+      name: "Nouveau paid warm up",
+      durationMinutesPerRider: DEFAULT_PAID_WARMUP_DURATION_MINUTES,
+      dragInterval: null,
+      dragDurationMinutes: 8,
+      entries: [],
+      sortOrder: classes.length + paidWarmups.length + 1,
+    };
+
+    setIsSaving(true);
+    const saved = await savePaidWarmupRepository(newWarmup);
+    setPaidWarmups((current) => [...current, saved]);
+    setIsSaving(false);
+
+    navigate(
+      `/associations/${associationId}/shows/${showId}/days/${dayId}/paid-warmups/${saved.id}/setup`
+    );
   };
 
   const startEditClass = (item) => {
@@ -156,6 +195,37 @@ function DayClassesPage() {
       cancelEdit();
     }
   };
+
+  const handleDeletePaidWarmup = async (id) => {
+    const confirmed = window.confirm("Supprimer ce paid warm up ?");
+    if (!confirmed) return;
+
+    setIsSaving(true);
+    await deletePaidWarmupRepository(id);
+    setPaidWarmups((current) => current.filter((item) => item.id !== id));
+    setIsSaving(false);
+  };
+
+  const scheduleItems = useMemo(() => {
+    return [
+      ...classes.map((item) => ({
+        id: item.id,
+        type: "class",
+        sortOrder: item.sortOrder || 1,
+        item,
+      })),
+      ...paidWarmups.map((item) => ({
+        id: item.id,
+        type: "paid_warmup",
+        sortOrder: item.sortOrder || 1,
+        item,
+      })),
+    ].sort((a, b) => {
+      const sortOrder = a.sortOrder - b.sortOrder;
+      if (sortOrder !== 0) return sortOrder;
+      return String(a.item.name || "").localeCompare(String(b.item.name || ""));
+    });
+  }, [classes, paidWarmups]);
 
   const handleOpenScoring = (event, item) => {
     const officialData = getClassOfficialData(item.id, item);
@@ -245,23 +315,85 @@ function DayClassesPage() {
         </div>
 
         {access.canManageAssociation && (
-          <button
-            onClick={startCreateClass}
-            style={primaryButtonStyle}
-            disabled={isSaving}
-          >
-            + Ajouter une classe
-          </button>
+          <div style={headerActionsStyle}>
+            <button
+              onClick={startCreateClass}
+              style={primaryButtonStyle}
+              disabled={isSaving}
+            >
+              + Ajouter une classe
+            </button>
+            <button
+              onClick={startCreatePaidWarmup}
+              style={secondaryButtonStyle}
+              disabled={isSaving}
+            >
+              + Ajouter un paid warm up
+            </button>
+          </div>
         )}
       </div>
 
       {isLoading ? (
-        <div style={emptyStateStyle}>Chargement des classes…</div>
-      ) : classes.length === 0 ? (
-        <div style={emptyStateStyle}>Aucune classe pour cette journée.</div>
+        <div style={emptyStateStyle}>Chargement de la journée…</div>
+      ) : scheduleItems.length === 0 ? (
+        <div style={emptyStateStyle}>
+          Aucune classe ou paid warm up pour cette journée.
+        </div>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
-          {classes.map((item) => {
+          {scheduleItems.map((scheduleItem) => {
+            if (scheduleItem.type === "paid_warmup") {
+              const warmup = scheduleItem.item;
+              const stats = getPaidWarmupStats(warmup.entries);
+
+              return (
+                <div key={warmup.id} style={cardStyle}>
+                  <div style={cardHeaderStyle}>
+                    <div>
+                      <div style={cardTitleStyle}>
+                        {warmup.name || "Paid warm up"}
+                      </div>
+                      <div style={cardMetaStyle}>
+                        {warmup.durationMinutesPerRider} min/cavalier •{" "}
+                        {formatPaidWarmupDrag(warmup)} • {stats.total} cavalier
+                        {stats.total > 1 ? "s" : ""}
+                      </div>
+                      <div style={warmupStatsStyle}>
+                        {stats.pending} à venir • {stats.done} passés •{" "}
+                        {stats.noShow} no show • {stats.scratch} scratch
+                      </div>
+                    </div>
+
+                    <div style={warmupBadgeStyle}>Paid warm up</div>
+                  </div>
+
+                  <div style={actionRowStyle}>
+                    {access.canManageAssociation && (
+                      <Link
+                        to={`/associations/${associationId}/shows/${showId}/days/${dayId}/paid-warmups/${warmup.id}/setup`}
+                        style={linkButtonStyle}
+                      >
+                        Gérer l’ordre de passage
+                      </Link>
+                    )}
+
+                    {access.canManageAssociation && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePaidWarmup(warmup.id)}
+                        style={dangerButtonStyle}
+                        disabled={isSaving}
+                      >
+                        Supprimer
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            }
+
+            const item = scheduleItem.item;
             const isEditing = editingId === item.id;
             const officialData = getClassOfficialData(item.id, item);
 
@@ -471,6 +603,12 @@ const headerWrapStyle = {
   flexWrap: "wrap",
 };
 
+const headerActionsStyle = {
+  display: "flex",
+  gap: 10,
+  flexWrap: "wrap",
+};
+
 const cardStyle = {
   background: "#fff",
   borderRadius: 12,
@@ -494,6 +632,22 @@ const cardTitleStyle = {
 const cardMetaStyle = {
   color: "#64748b",
   marginTop: 6,
+};
+
+const warmupStatsStyle = {
+  color: "#475569",
+  marginTop: 8,
+  fontSize: 14,
+};
+
+const warmupBadgeStyle = {
+  padding: "8px 12px",
+  borderRadius: "999px",
+  background: "#fefce8",
+  border: "1px solid #fde68a",
+  color: "#854d0e",
+  fontWeight: 600,
+  whiteSpace: "nowrap",
 };
 
 const actionRowStyle = {
@@ -582,6 +736,14 @@ const emptyStateStyle = {
   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
   color: "#64748b",
 };
+
+function formatPaidWarmupDrag(warmup) {
+  if (!warmup?.dragInterval) return "Aucun drag planifié";
+
+  return `Drag après ${warmup.dragInterval} cavalier${
+    warmup.dragInterval > 1 ? "s" : ""
+  }`;
+}
 
 function statusBadgeStyle(status) {
   if (status === "completed") {

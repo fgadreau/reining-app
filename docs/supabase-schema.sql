@@ -104,6 +104,24 @@ create table if not exists public.classes (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.paid_warmups (
+  id text primary key,
+  association_id text not null references public.associations(id) on delete cascade,
+  show_id text not null references public.shows(id) on delete cascade,
+  day_id text not null references public.days(id) on delete cascade,
+  name text not null,
+  duration_minutes_per_rider integer not null default 5,
+  drag_interval integer,
+  drag_duration_minutes integer not null default 8,
+  is_public_live boolean not null default false,
+  active_entry_id text,
+  active_started_at timestamptz,
+  entries jsonb not null default '[]'::jsonb,
+  sort_order integer not null default 1,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.class_setups (
   class_id text primary key references public.classes(id) on delete cascade,
   pattern text,
@@ -211,6 +229,11 @@ create trigger classes_set_updated_at
 before update on public.classes
 for each row execute function public.set_updated_at();
 
+drop trigger if exists paid_warmups_set_updated_at on public.paid_warmups;
+create trigger paid_warmups_set_updated_at
+before update on public.paid_warmups
+for each row execute function public.set_updated_at();
+
 drop trigger if exists class_setups_set_updated_at on public.class_setups;
 create trigger class_setups_set_updated_at
 before update on public.class_setups
@@ -239,6 +262,7 @@ alter table public.association_invitations enable row level security;
 alter table public.shows enable row level security;
 alter table public.days enable row level security;
 alter table public.classes enable row level security;
+alter table public.paid_warmups enable row level security;
 alter table public.class_setups enable row level security;
 alter table public.scoring_sessions enable row level security;
 alter table public.official_results enable row level security;
@@ -809,6 +833,49 @@ create policy "Anyone can read published classes"
 on public.classes for select to anon
 using (public.class_has_published_official_result(id));
 
+-- Paid warmup policies.
+drop policy if exists "Members can read paid warmups" on public.paid_warmups;
+create policy "Members can read paid warmups"
+on public.paid_warmups for select to authenticated
+using (public.current_user_is_association_member(association_id));
+
+drop policy if exists "Anyone can read live paid warmups" on public.paid_warmups;
+create policy "Anyone can read live paid warmups"
+on public.paid_warmups for select to anon, authenticated
+using (is_public_live is true);
+
+drop policy if exists "Managers can insert paid warmups" on public.paid_warmups;
+create policy "Managers can insert paid warmups"
+on public.paid_warmups for insert to authenticated
+with check (public.current_user_can_manage_association(association_id));
+
+drop policy if exists "Managers can update paid warmups" on public.paid_warmups;
+create policy "Managers can update paid warmups"
+on public.paid_warmups for update to authenticated
+using (public.current_user_can_manage_association(association_id))
+with check (public.current_user_can_manage_association(association_id));
+
+drop policy if exists "Announcers can update paid warmup live state" on public.paid_warmups;
+create policy "Announcers can update paid warmup live state"
+on public.paid_warmups for update to authenticated
+using (
+  public.current_user_has_association_role(
+    association_id,
+    array['admin', 'secretary', 'announcer']
+  )
+)
+with check (
+  public.current_user_has_association_role(
+    association_id,
+    array['admin', 'secretary', 'announcer']
+  )
+);
+
+drop policy if exists "Managers can delete paid warmups" on public.paid_warmups;
+create policy "Managers can delete paid warmups"
+on public.paid_warmups for delete to authenticated
+using (public.current_user_can_manage_association(association_id));
+
 -- Class setup policies.
 drop policy if exists "Authenticated users can manage class setups" on public.class_setups;
 drop policy if exists "Members can read class setups" on public.class_setups;
@@ -1007,6 +1074,18 @@ returns boolean as $$
   );
 $$ language sql stable security definer set search_path = public;
 
+create or replace function public.show_has_public_paid_warmup(
+  target_show_id text
+)
+returns boolean as $$
+  select exists (
+    select 1
+    from public.paid_warmups p
+    where p.show_id = target_show_id
+      and p.is_public_live is true
+  );
+$$ language sql stable security definer set search_path = public;
+
 create or replace function public.day_has_public_class(
   target_day_id text
 )
@@ -1016,6 +1095,18 @@ returns boolean as $$
     from public.classes c
     where c.day_id = target_day_id
       and public.class_is_publicly_visible(c.id)
+  );
+$$ language sql stable security definer set search_path = public;
+
+create or replace function public.day_has_public_paid_warmup(
+  target_day_id text
+)
+returns boolean as $$
+  select exists (
+    select 1
+    from public.paid_warmups p
+    where p.day_id = target_day_id
+      and p.is_public_live is true
   );
 $$ language sql stable security definer set search_path = public;
 
@@ -1031,22 +1122,43 @@ returns boolean as $$
   );
 $$ language sql stable security definer set search_path = public;
 
+create or replace function public.association_has_public_paid_warmup(
+  target_association_id text
+)
+returns boolean as $$
+  select exists (
+    select 1
+    from public.paid_warmups p
+    where p.association_id = target_association_id
+      and p.is_public_live is true
+  );
+$$ language sql stable security definer set search_path = public;
+
 drop policy if exists "Anyone can read associations with public classes" on public.associations;
 create policy "Anyone can read associations with public classes"
 on public.associations for select to anon, authenticated
-using (public.association_has_public_class(id));
+using (
+  public.association_has_public_class(id)
+  or public.association_has_public_paid_warmup(id)
+);
 
 drop policy if exists "Anyone can read shows with published official results" on public.shows;
 drop policy if exists "Anyone can read shows with public classes" on public.shows;
 create policy "Anyone can read shows with public classes"
 on public.shows for select to anon, authenticated
-using (public.show_has_public_class(id));
+using (
+  public.show_has_public_class(id)
+  or public.show_has_public_paid_warmup(id)
+);
 
 drop policy if exists "Anyone can read days with published official results" on public.days;
 drop policy if exists "Anyone can read days with public classes" on public.days;
 create policy "Anyone can read days with public classes"
 on public.days for select to anon, authenticated
-using (public.day_has_public_class(id));
+using (
+  public.day_has_public_class(id)
+  or public.day_has_public_paid_warmup(id)
+);
 
 drop policy if exists "Anyone can read published classes" on public.classes;
 drop policy if exists "Anyone can read public classes" on public.classes;

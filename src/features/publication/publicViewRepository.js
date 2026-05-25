@@ -8,6 +8,8 @@ import { getShowsByAssociationId, getShowById } from "../shows/showSelectors";
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import { getDaysByShowRepository } from "../days/dayRepository";
 import { getDaysByShowId } from "../days/daySelectors";
+import { getPaidWarmupsByDayId } from "../paidWarmups/paidWarmupStorage";
+import { buildPaidWarmupLiveView } from "../paidWarmups/paidWarmupLive";
 import {
   buildClassTimingRow,
   buildPatternTimingStats,
@@ -104,12 +106,36 @@ function toScoringSession(row) {
   };
 }
 
+function toPaidWarmup(row) {
+  return {
+    id: row.id,
+    associationId: row.association_id,
+    showId: row.show_id,
+    dayId: row.day_id,
+    name: row.name || "",
+    durationMinutesPerRider: row.duration_minutes_per_rider,
+    dragInterval: row.drag_interval,
+    dragDurationMinutes: row.drag_duration_minutes,
+    isPublicLive: Boolean(row.is_public_live),
+    activeEntryId: row.active_entry_id || null,
+    activeStartedAt: row.active_started_at || null,
+    entries: Array.isArray(row.entries) ? row.entries : [],
+    sortOrder: row.sort_order || 1,
+  };
+}
+
 export function getPublicShowView(showId) {
   const liveClasses = [];
+  const livePaidWarmups = [];
   const classIds = [];
   const timingSections = [];
   const sections = getDaysByShowId(showId).map((day) => {
     const classRows = [];
+    getPaidWarmupsByDayId(day.id)
+      .filter((warmup) => warmup.isPublicLive)
+      .forEach((warmup) => {
+        livePaidWarmups.push(buildPaidWarmupLiveView(warmup));
+      });
     const classViews = getClassesForDay(day.id).map((classItem) => {
       if (classItem.id) {
         classIds.push(classItem.id);
@@ -145,6 +171,7 @@ export function getPublicShowView(showId) {
     0
   );
   const primaryLiveClass = findPrimaryLiveClass(liveClasses);
+  const primaryLivePaidWarmup = findPrimaryLivePaidWarmup(livePaidWarmups);
   const timingByClassId = buildLocalPublicTimingByClassId(
     timingSections,
     primaryLiveClass
@@ -154,7 +181,8 @@ export function getPublicShowView(showId) {
     sections: sections.filter((section) => section.classes.length > 0),
     publishedClassCount,
     liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
-    liveClassCount: liveClasses.length,
+    livePaidWarmup: primaryLivePaidWarmup,
+    liveClassCount: liveClasses.length + livePaidWarmups.length,
     classIds,
   };
 }
@@ -167,10 +195,16 @@ export async function getPublicShowViewRepository(showId) {
   }
 
   const liveClasses = [];
+  const livePaidWarmups = [];
   const classIds = [];
   const timingSections = [];
   const sections = await Promise.all(
     (await getDaysByShowRepository(showId)).map(async (day) => {
+      getPaidWarmupsByDayId(day.id)
+        .filter((warmup) => warmup.isPublicLive)
+        .forEach((warmup) => {
+          livePaidWarmups.push(buildPaidWarmupLiveView(warmup));
+        });
       const classes = getClassesForDay(day.id);
       const classRows = [];
       const classViews = await Promise.all(
@@ -211,6 +245,7 @@ export async function getPublicShowViewRepository(showId) {
     0
   );
   const primaryLiveClass = findPrimaryLiveClass(liveClasses);
+  const primaryLivePaidWarmup = findPrimaryLivePaidWarmup(livePaidWarmups);
   const timingByClassId = buildLocalPublicTimingByClassId(
     timingSections,
     primaryLiveClass
@@ -220,7 +255,8 @@ export async function getPublicShowViewRepository(showId) {
     sections: sections.filter((section) => section.classes.length > 0),
     publishedClassCount,
     liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
-    liveClassCount: liveClasses.length,
+    livePaidWarmup: primaryLivePaidWarmup,
+    liveClassCount: liveClasses.length + livePaidWarmups.length,
     classIds,
   };
 }
@@ -265,6 +301,17 @@ export function subscribePublicShowViewRepository(showId, classIds, onChange) {
       event: "*",
       schema: "public",
       table: "classes",
+      filter: `show_id=eq.${showId}`,
+    },
+    onChange
+  );
+
+  channel.on(
+    "postgres_changes",
+    {
+      event: "*",
+      schema: "public",
+      table: "paid_warmups",
       filter: `show_id=eq.${showId}`,
     },
     onChange
@@ -320,19 +367,42 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
     const days = Array.isArray(dayRows) ? dayRows.map(toDay) : [];
     const timingByClassId = await getPublicShowTimingByClassId(showId, supabase);
     const liveClasses = [];
+    const livePaidWarmups = [];
     const allClassIds = [];
     const sections = await Promise.all(
       days.map(async (day) => {
-        const { data: classRows, error: classesError } = await supabase
-          .from("classes")
-          .select("*")
-          .eq("day_id", day.id)
-          .order("sort_order", { ascending: true })
-          .order("name", { ascending: true });
+        const [classResult, paidWarmupResult] = await Promise.all([
+          supabase
+            .from("classes")
+            .select("*")
+            .eq("day_id", day.id)
+            .order("sort_order", { ascending: true })
+            .order("name", { ascending: true }),
+          supabase
+            .from("paid_warmups")
+            .select("*")
+            .eq("day_id", day.id)
+            .order("sort_order", { ascending: true })
+            .order("name", { ascending: true }),
+        ]);
 
-        if (classesError) throw classesError;
+        if (classResult.error) throw classResult.error;
+        if (paidWarmupResult.error) {
+          console.error(
+            "Erreur chargement paid warmups publics Supabase:",
+            paidWarmupResult.error
+          );
+        }
 
-        const classes = Array.isArray(classRows) ? classRows.map(toClass) : [];
+        (paidWarmupResult.data || []).map(toPaidWarmup).forEach((warmup) => {
+          if (warmup.isPublicLive) {
+            livePaidWarmups.push(buildPaidWarmupLiveView(warmup));
+          }
+        });
+
+        const classes = Array.isArray(classResult.data)
+          ? classResult.data.map(toClass)
+          : [];
         const classIds = classes.map((classItem) => classItem.id).filter(Boolean);
         allClassIds.push(...classIds);
 
@@ -413,12 +483,14 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
       0
     );
     const primaryLiveClass = findPrimaryLiveClass(liveClasses);
+    const primaryLivePaidWarmup = findPrimaryLivePaidWarmup(livePaidWarmups);
 
     return {
       sections: sections.filter((section) => section.classes.length > 0),
       publishedClassCount,
       liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
-      liveClassCount: liveClasses.length,
+      livePaidWarmup: primaryLivePaidWarmup,
+      liveClassCount: liveClasses.length + livePaidWarmups.length,
       classIds: allClassIds,
     };
   } catch (error) {
@@ -778,6 +850,15 @@ function findPrimaryLiveClass(liveClasses) {
     liveClasses.find((classView) => classView.activeRun) ||
     liveClasses.find((classView) => classView.latestScore) ||
     liveClasses[0] ||
+    null
+  );
+}
+
+function findPrimaryLivePaidWarmup(livePaidWarmups) {
+  return (
+    livePaidWarmups.find((warmup) => warmup.activeEntry) ||
+    livePaidWarmups.find((warmup) => warmup.nextEntry) ||
+    livePaidWarmups[0] ||
     null
   );
 }

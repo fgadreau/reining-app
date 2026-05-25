@@ -5,6 +5,16 @@ import {
   getAnnouncerShowViewRepository,
   subscribeAnnouncerShowViewRepository,
 } from "../../features/live/liveViewRepository";
+import { savePaidWarmupRepository } from "../../features/paidWarmups/paidWarmupRepository";
+import {
+  formatPaidWarmupTimer,
+  getPaidWarmupRemainingSeconds,
+  resetPaidWarmupTimer,
+  setPaidWarmupEntryStatus,
+  startPaidWarmupEntry,
+  stopPaidWarmupTimer,
+} from "../../features/paidWarmups/paidWarmupLive";
+import { PAID_WARMUP_STATUS_LABELS } from "../../features/paidWarmups/paidWarmupStorage";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import { getShowById } from "../../features/shows/showSelectors";
 import { appStyles as styles } from "../../styles/appStyles";
@@ -16,10 +26,48 @@ function AnnouncerDashboardPage() {
   const show = getShowById(showId);
   const [liveView, setLiveView] = useState(() => getAnnouncerShowView(showId));
   const [isLoading, setIsLoading] = useState(true);
+  const [now, setNow] = useState(() => new Date());
   const liveClassIdsKey = useMemo(
     () => getLiveViewClassIds(liveView).join("|"),
     [liveView]
   );
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const refreshLiveViewNow = async () => {
+    const nextLiveView = await getAnnouncerShowViewRepository(showId);
+    setLiveView(nextLiveView);
+    setIsLoading(false);
+  };
+
+  const savePaidWarmupUpdate = async (nextWarmup) => {
+    await savePaidWarmupRepository(nextWarmup);
+    await refreshLiveViewNow();
+  };
+
+  const handleStartPaidWarmupEntry = (warmup, entryId) => {
+    return savePaidWarmupUpdate(startPaidWarmupEntry(warmup, entryId, new Date()));
+  };
+
+  const handleResetPaidWarmupTimer = (warmup) => {
+    return savePaidWarmupUpdate(resetPaidWarmupTimer(warmup, new Date()));
+  };
+
+  const handleStopPaidWarmupTimer = (warmup) => {
+    return savePaidWarmupUpdate(stopPaidWarmupTimer(warmup));
+  };
+
+  const handleSetPaidWarmupEntryStatus = (warmup, entryId, status) => {
+    return savePaidWarmupUpdate(setPaidWarmupEntryStatus(warmup, entryId, status));
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -118,7 +166,9 @@ function AnnouncerDashboardPage() {
 
       <section style={focusGridStyle}>
         <FocusPanel title="En piste">
-          {liveView.activeClass?.activeRun ? (
+          {liveView.activePaidWarmup?.activeEntry ? (
+            <PaidWarmupFocus warmup={liveView.activePaidWarmup} now={now} />
+          ) : liveView.activeClass?.activeRun ? (
             <RunFocus
               className={liveView.activeClass.className}
               run={liveView.activeClass.activeRun}
@@ -129,7 +179,12 @@ function AnnouncerDashboardPage() {
         </FocusPanel>
 
         <FocusPanel title="Prochain participant">
-          {liveView.activeClass?.nextRun ? (
+          {liveView.activePaidWarmup?.nextEntry ? (
+            <PaidWarmupEntryFocus
+              warmupName={liveView.activePaidWarmup.name}
+              entry={liveView.activePaidWarmup.nextEntry}
+            />
+          ) : liveView.activeClass?.nextRun ? (
             <RunFocus
               className={liveView.activeClass.className}
               run={liveView.activeClass.nextRun}
@@ -141,7 +196,9 @@ function AnnouncerDashboardPage() {
         </FocusPanel>
 
         <FocusPanel title="Deux derniers passés">
-          {liveView.recentResults?.length ? (
+          {liveView.activePaidWarmup?.lastPassedEntries?.length ? (
+            <PaidWarmupRecentEntries warmup={liveView.activePaidWarmup} />
+          ) : liveView.recentResults?.length ? (
             <RecentResults results={liveView.recentResults} />
           ) : (
             <div style={mutedTextStyle}>Aucun résultat affichable.</div>
@@ -161,17 +218,32 @@ function AnnouncerDashboardPage() {
                 <h2 style={sectionTitleStyle}>{section.day.label || "Journée"}</h2>
                 <div style={mutedTextStyle}>
                   {section.day.date || "Date non définie"} ·{" "}
-                  {section.classes.length} classe(s)
+                  {section.classes.length} classe(s) ·{" "}
+                  {(section.paidWarmups || []).length} paid warm up(s)
                 </div>
               </div>
             </div>
 
-            {section.classes.length === 0 ? (
-              <div style={softEmptyStyle}>Aucune classe pour cette journée.</div>
+            {section.classes.length === 0 &&
+            (section.paidWarmups || []).length === 0 ? (
+              <div style={softEmptyStyle}>
+                Aucune classe ou paid warm up pour cette journée.
+              </div>
             ) : (
               <div style={classListStyle}>
                 {section.classes.map((classView) => (
                   <ClassLiveCard key={classView.classId} classView={classView} />
+                ))}
+                {(section.paidWarmups || []).map((warmup) => (
+                  <PaidWarmupLiveCard
+                    key={warmup.id}
+                    warmup={warmup}
+                    now={now}
+                    onStartEntry={handleStartPaidWarmupEntry}
+                    onResetTimer={handleResetPaidWarmupTimer}
+                    onStopTimer={handleStopPaidWarmupTimer}
+                    onSetEntryStatus={handleSetPaidWarmupEntryStatus}
+                  />
                 ))}
               </div>
             )}
@@ -210,6 +282,45 @@ function RunFocus({ className, run, compact = false }) {
   );
 }
 
+function PaidWarmupFocus({ warmup, now }) {
+  const remainingSeconds = getPaidWarmupRemainingSeconds(warmup, now);
+
+  return (
+    <div>
+      <div style={focusClassNameStyle}>{warmup.name}</div>
+      <div style={timerFocusStyle}>
+        {formatPaidWarmupTimer(remainingSeconds)}
+      </div>
+      <PaidWarmupEntryIdentity entry={warmup.activeEntry} />
+      <PaidWarmupTimerCue warmup={warmup} remainingSeconds={remainingSeconds} />
+    </div>
+  );
+}
+
+function PaidWarmupEntryFocus({ warmupName, entry }) {
+  return (
+    <div>
+      <div style={focusClassNameStyle}>{warmupName}</div>
+      <PaidWarmupEntryIdentity entry={entry} />
+    </div>
+  );
+}
+
+function PaidWarmupRecentEntries({ warmup }) {
+  return (
+    <div style={recentListStyle}>
+      {warmup.lastPassedEntries.map((entry) => (
+        <div key={entry.id} style={recentResultStyle}>
+          <PaidWarmupEntryIdentity entry={entry} />
+          <div style={mutedTextStyle}>
+            {PAID_WARMUP_STATUS_LABELS[entry.status] || "Passé"}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function RecentResults({ results }) {
   return (
     <div style={recentListStyle}>
@@ -227,6 +338,167 @@ function RecentResults({ results }) {
       ))}
     </div>
   );
+}
+
+function PaidWarmupLiveCard({
+  warmup,
+  now,
+  onStartEntry,
+  onResetTimer,
+  onStopTimer,
+  onSetEntryStatus,
+}) {
+  const remainingSeconds = getPaidWarmupRemainingSeconds(warmup, now);
+  const activeEntry = warmup.activeEntry;
+  const nextEntry = warmup.nextEntry;
+
+  return (
+    <div style={classCardStyle}>
+      <div style={classCardHeaderStyle}>
+        <div>
+          <div style={classNameStyle}>{warmup.name}</div>
+          <div style={mutedTextStyle}>
+            {warmup.durationMinutesPerRider} min/cavalier ·{" "}
+            {warmup.dragInterval
+              ? `Drag après ${warmup.dragInterval}`
+              : "Aucun drag planifié"}
+          </div>
+        </div>
+        <Badge tone={activeEntry ? "warn" : "muted"}>
+          {activeEntry ? "Timer actif" : "Paid warm up"}
+        </Badge>
+      </div>
+
+      {warmup.isDragDue && (
+        <div style={dragNoticeStyle}>
+          Drag de surface prévu · {warmup.dragDurationMinutes} min
+        </div>
+      )}
+
+      <div style={runGridStyle}>
+        <div style={runBlockStyle}>
+          <div style={runLabelStyle}>En piste</div>
+          {activeEntry ? (
+            <>
+              <PaidWarmupEntryIdentity entry={activeEntry} />
+              <div style={timerInlineStyle}>
+                {formatPaidWarmupTimer(remainingSeconds)}
+              </div>
+              <PaidWarmupTimerCue
+                warmup={warmup}
+                remainingSeconds={remainingSeconds}
+              />
+            </>
+          ) : (
+            <div style={mutedTextStyle}>—</div>
+          )}
+        </div>
+
+        <div style={runBlockStyle}>
+          <div style={runLabelStyle}>Prochain</div>
+          {nextEntry ? (
+            <PaidWarmupEntryIdentity entry={nextEntry} />
+          ) : (
+            <div style={mutedTextStyle}>Aucun cavalier en attente.</div>
+          )}
+        </div>
+
+        <div style={runBlockStyle}>
+          <div style={runLabelStyle}>Stats</div>
+          <div style={mutedTextStyle}>
+            {warmup.stats.total} total · {warmup.stats.done} passés ·{" "}
+            {warmup.stats.noShow} no show · {warmup.stats.scratch} scratch
+          </div>
+        </div>
+      </div>
+
+      <div style={actionRowStyle}>
+        {!activeEntry && nextEntry && (
+          <button
+            type="button"
+            onClick={() => onStartEntry(warmup, nextEntry.id)}
+            style={primaryButtonStyle}
+          >
+            Démarrer prochain
+          </button>
+        )}
+
+        {activeEntry && (
+          <>
+            <button
+              type="button"
+              onClick={() =>
+                onSetEntryStatus(warmup, activeEntry.id, "done")
+              }
+              style={primaryButtonStyle}
+            >
+              Marquer passé
+            </button>
+            <button
+              type="button"
+              onClick={() => onResetTimer(warmup)}
+              style={secondaryButtonStyle}
+            >
+              Repartir timer
+            </button>
+            <button
+              type="button"
+              onClick={() => onStopTimer(warmup)}
+              style={secondaryButtonStyle}
+            >
+              Arrêter timer
+            </button>
+          </>
+        )}
+
+        {nextEntry && (
+          <>
+            <button
+              type="button"
+              onClick={() => onSetEntryStatus(warmup, nextEntry.id, "no_show")}
+              style={secondaryButtonStyle}
+            >
+              No show prochain
+            </button>
+            <button
+              type="button"
+              onClick={() => onSetEntryStatus(warmup, nextEntry.id, "scratch")}
+              style={secondaryButtonStyle}
+            >
+              Scratch prochain
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PaidWarmupEntryIdentity({ entry }) {
+  return (
+    <div>
+      <div style={runTitleStyle}>#{entry?.order || "—"}</div>
+      <div style={runNameStyle}>{entry?.rider || "Cavalier —"}</div>
+    </div>
+  );
+}
+
+function PaidWarmupTimerCue({ warmup, remainingSeconds }) {
+  if (remainingSeconds == null) return null;
+
+  if (remainingSeconds <= 0) {
+    return <div style={timerCueStyle("danger")}>Temps terminé</div>;
+  }
+
+  if (remainingSeconds <= 60) {
+    return <div style={timerCueStyle("danger")}>Annonce: il reste 1 minute</div>;
+  }
+
+  if (remainingSeconds <= warmup.durationSeconds / 2) {
+    return <div style={timerCueStyle("warn")}>Annonce: moitié du temps</div>;
+  }
+
+  return null;
 }
 
 function ClassLiveCard({ classView }) {
@@ -382,6 +654,20 @@ const scoreStyle = {
   margin: "8px 0",
 };
 
+const timerFocusStyle = {
+  fontSize: 48,
+  fontWeight: 900,
+  color: "#111827",
+  margin: "8px 0",
+};
+
+const timerInlineStyle = {
+  fontSize: 28,
+  fontWeight: 900,
+  color: "#111827",
+  marginTop: 8,
+};
+
 const compactScoreStyle = {
   fontSize: 24,
   fontWeight: 900,
@@ -462,12 +748,29 @@ const runGridStyle = {
   marginTop: 12,
 };
 
+const actionRowStyle = {
+  marginTop: 12,
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
 const runBlockStyle = {
   background: "#f8fafc",
   border: "1px solid #e2e8f0",
   borderRadius: 8,
   padding: 10,
   minHeight: 92,
+};
+
+const dragNoticeStyle = {
+  border: "1px solid #fde68a",
+  borderRadius: 8,
+  padding: 10,
+  background: "#fefce8",
+  color: "#854d0e",
+  fontWeight: 800,
+  marginBottom: 12,
 };
 
 const completedWrapStyle = {
@@ -534,6 +837,18 @@ const detailPenaltyStyle = {
   marginTop: 2,
 };
 
+const timerCueStyle = (tone) => ({
+  marginTop: 8,
+  display: "inline-flex",
+  padding: "6px 9px",
+  borderRadius: 999,
+  border: `1px solid ${tone === "danger" ? "#fecaca" : "#fdba74"}`,
+  background: tone === "danger" ? "#fff5f5" : "#fff7ed",
+  color: tone === "danger" ? "#991b1b" : "#9a3412",
+  fontWeight: 800,
+  fontSize: 13,
+});
+
 const badgeStyle = (tone) => ({
   display: "inline-flex",
   alignItems: "center",
@@ -558,6 +873,15 @@ const linkButtonStyle = {
   background: "#fff",
   color: "#111827",
   textDecoration: "none",
+};
+
+const primaryButtonStyle = {
+  padding: "10px 14px",
+  borderRadius: 8,
+  border: "1px solid #111827",
+  background: "#111827",
+  color: "#fff",
+  cursor: "pointer",
 };
 
 const secondaryButtonStyle = {
