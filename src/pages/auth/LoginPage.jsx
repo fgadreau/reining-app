@@ -25,6 +25,14 @@ function LoginPage() {
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const hasTriedAutoRedeemRef = useRef(false);
+  const inviteEmailNormalized = normalizeEmail(inviteEmail);
+  const authEmailNormalized = normalizeEmail(auth.user?.email);
+  const hasInviteSessionMismatch = Boolean(
+    inviteToken &&
+      inviteEmailNormalized &&
+      authEmailNormalized &&
+      inviteEmailNormalized !== authEmailNormalized
+  );
 
   useEffect(() => {
     if (inviteEmail) {
@@ -42,13 +50,19 @@ function LoginPage() {
     }
 
     if (inviteToken) {
-      return redeemAssociationInvitationRepository({
-        token: inviteToken,
-        user,
-      });
+      return withTimeout(
+        redeemAssociationInvitationRepository({
+          token: inviteToken,
+          user,
+        }),
+        "L'acceptation de l'invitation prend trop de temps. Réessaie dans quelques secondes."
+      );
     }
 
-    const redeemed = await redeemPendingAssociationInvitationsRepository(user);
+    const redeemed = await withTimeout(
+      redeemPendingAssociationInvitationsRepository(user),
+      "La vérification des invitations prend trop de temps. Réessaie dans quelques secondes."
+    );
     return redeemed[0] || null;
   }, [inviteToken]);
 
@@ -63,6 +77,13 @@ function LoginPage() {
 
   useEffect(() => {
     if (!inviteToken || !auth.user || hasTriedAutoRedeemRef.current) {
+      return;
+    }
+
+    if (hasInviteSessionMismatch) {
+      setMessage(
+        `Tu es connecté avec ${auth.user.email}, mais cette invitation est pour ${inviteEmail}. Déconnecte-toi, puis ouvre le lien avec le bon compte.`
+      );
       return;
     }
 
@@ -95,6 +116,8 @@ function LoginPage() {
     };
   }, [
     auth.user,
+    hasInviteSessionMismatch,
+    inviteEmail,
     inviteToken,
     navigateAfterAuth,
     redeemInvitations,
@@ -112,6 +135,19 @@ function LoginPage() {
     setIsSubmitting(true);
 
     try {
+      if (hasInviteSessionMismatch) {
+        setMessage(
+          `Tu es connecté avec ${auth.user.email}, mais cette invitation est pour ${inviteEmail}. Déconnecte-toi avant de créer ou accepter ce compte.`
+        );
+        return;
+      }
+
+      if (inviteToken && auth.user && !hasInviteSessionMismatch) {
+        const redeemed = await redeemInvitations(auth.user);
+        navigateAfterAuth(redeemed);
+        return;
+      }
+
       if (mode === "signup") {
         const data = await signUpWithEmail({
           email: email.trim(),
@@ -361,5 +397,22 @@ const inviteNoticeStyle = {
   padding: 12,
   marginTop: 16,
 };
+
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function withTimeout(promise, timeoutMessage, timeoutMs = 15000) {
+  let timeoutId;
+
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+    }),
+  ]).finally(() => {
+    clearTimeout(timeoutId);
+  });
+}
 
 export default LoginPage;

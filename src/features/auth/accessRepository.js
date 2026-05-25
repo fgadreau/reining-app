@@ -82,8 +82,12 @@ export async function loadUserMembershipsRepository(userId) {
   }
 }
 
-export async function saveAssociationMembershipRepository(membership) {
+export async function saveAssociationMembershipRepository(
+  membership,
+  options = {}
+) {
   const supabase = getSupabaseClient();
+  const shouldThrow = Boolean(options.throwOnError);
 
   if (!supabase) {
     return null;
@@ -105,6 +109,9 @@ export async function saveAssociationMembershipRepository(membership) {
     return data ? toMembership(data) : null;
   } catch (error) {
     console.error("Erreur sauvegarde rôle Supabase:", error);
+    if (shouldThrow) {
+      throw error;
+    }
     return null;
   }
 }

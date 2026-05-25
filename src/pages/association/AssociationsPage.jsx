@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  createAssociationWithOwnerRepository,
   deleteAssociationRepository,
+  isCreateAssociationWithOwnerMissing,
   loadAssociationsRepository,
   saveAssociationRepository,
 } from "../../features/associations/associationRepository";
@@ -35,6 +37,7 @@ function AssociationsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [memberships, setMemberships] = useState([]);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+  const [notice, setNotice] = useState("");
   const auth = useAuthUser();
   const authUserId = auth.user?.id;
   const authUserEmail = auth.user?.email;
@@ -127,6 +130,7 @@ function AssociationsPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    setNotice("");
 
     const name = form.name.trim();
     const shortName = form.shortName.trim();
@@ -149,48 +153,76 @@ function AssociationsPage() {
 
     setIsSaving(true);
 
-    if (editingId) {
-      const nextAssociation = {
-        id: editingId,
-        name,
-        shortName,
-        timezone,
-      };
+    try {
+      if (editingId) {
+        const nextAssociation = {
+          id: editingId,
+          name,
+          shortName,
+          timezone,
+        };
 
-      await saveAssociationRepository(nextAssociation);
+        await saveAssociationRepository(nextAssociation);
 
-      setAssociations((current) =>
-        current.map((association) =>
-          association.id === editingId ? nextAssociation : association
-        )
-      );
-    } else {
-      const nextAssociation = {
-        id: createAssociationId(),
-        name,
-        shortName,
-        timezone,
-      };
+        setAssociations((current) =>
+          current.map((association) =>
+            association.id === editingId ? nextAssociation : association
+          )
+        );
+        setNotice("Association enregistrée.");
+      } else {
+        const nextAssociation = {
+          id: createAssociationId(),
+          name,
+          shortName,
+          timezone,
+        };
 
-      await saveAssociationRepository(nextAssociation);
+        let savedAssociation = null;
 
-      if (auth.isConfigured && auth.user?.id) {
-        const membership = await saveAssociationMembershipRepository({
-          userId: auth.user.id,
-          associationId: nextAssociation.id,
-          role: ASSOCIATION_ROLES.ADMIN,
-        });
+        if (auth.isConfigured && auth.user?.id) {
+          try {
+            savedAssociation =
+              await createAssociationWithOwnerRepository(nextAssociation);
+          } catch (error) {
+            if (!isCreateAssociationWithOwnerMissing(error)) {
+              throw error;
+            }
 
-        if (membership) {
-          setMemberships((current) => [...current, membership]);
+            savedAssociation = await saveAssociationRepository(nextAssociation);
+            await saveAssociationMembershipRepository(
+              {
+                userId: auth.user.id,
+                associationId: savedAssociation.id,
+                role: ASSOCIATION_ROLES.ADMIN,
+              },
+              {
+                throwOnError: true,
+              }
+            );
+          }
+
+          const nextMemberships = await loadUserMembershipsRepository(
+            auth.user.id
+          );
+          setMemberships(nextMemberships);
+        } else {
+          savedAssociation = await saveAssociationRepository(nextAssociation);
         }
+
+        setAssociations((current) => [...current, savedAssociation]);
+        setNotice("Association créée. Tu es admin de cette association.");
       }
 
-      setAssociations((current) => [...current, nextAssociation]);
+      resetForm();
+    } catch (error) {
+      const message = error?.message || "Création impossible.";
+      setNotice(
+        `Impossible d'enregistrer l'association. ${message} Si Supabase refuse l'accès, exécute la migration docs/supabase-onboarding-access-migration.sql.`
+      );
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsSaving(false);
-    resetForm();
   }
 
   function handleEdit(association) {
@@ -299,6 +331,8 @@ function AssociationsPage() {
               ) : null}
             </div>
           </form>
+
+          {notice && <div style={noticeStyle}>{notice}</div>}
         </div>
       )}
 
@@ -390,6 +424,15 @@ const actionRowStyle = {
   display: "flex",
   gap: 10,
   flexWrap: "wrap",
+};
+
+const noticeStyle = {
+  border: "1px solid #bfdbfe",
+  background: "#eff6ff",
+  color: "#1d4ed8",
+  borderRadius: 8,
+  padding: 10,
+  marginTop: 12,
 };
 
 const linkButtonStyle = {

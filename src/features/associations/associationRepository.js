@@ -82,10 +82,52 @@ export async function saveAssociationRepository(association) {
       if (error) throw error;
     } catch (error) {
       console.error("Erreur sauvegarde association Supabase:", error);
+      throw error;
     }
   }
 
   return saveAssociationLocally(normalized);
+}
+
+export async function createAssociationWithOwnerRepository(association) {
+  const normalized = {
+    ...association,
+    id: association.id || createAssociationId(),
+  };
+
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return saveAssociationLocally(normalized);
+  }
+
+  const { data, error } = await supabase
+    .rpc("create_association_with_owner", {
+      target_id: normalized.id,
+      target_name: normalized.name || "",
+      target_short_name: normalized.shortName || "",
+      target_timezone: normalized.timezone || "",
+      target_logo_data_url: normalized.logoDataUrl || null,
+    })
+    .maybeSingle();
+
+  if (error) {
+    console.error("Erreur création association propriétaire Supabase:", error);
+    throw error;
+  }
+
+  const created = data ? toAssociation(data) : normalized;
+  saveAssociationLocally(created);
+  return created;
+}
+
+export function isCreateAssociationWithOwnerMissing(error) {
+  const message = String(error?.message || "");
+
+  return (
+    error?.code === "PGRST202" ||
+    /create_association_with_owner/i.test(message)
+  );
 }
 
 export async function deleteAssociationRepository(associationId) {
@@ -107,4 +149,3 @@ export async function deleteAssociationRepository(associationId) {
   const next = loadAssociations().filter((item) => item.id !== associationId);
   saveAssociations(next);
 }
-

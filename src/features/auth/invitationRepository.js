@@ -136,11 +136,16 @@ async function acceptAssociationInvitation(invitation, user) {
     return null;
   }
 
-  const membership = await saveAssociationMembershipRepository({
-    userId: user.id,
-    associationId: invitation.associationId,
-    role: invitation.role,
-  });
+  const membership = await saveAssociationMembershipRepository(
+    {
+      userId: user.id,
+      associationId: invitation.associationId,
+      role: invitation.role,
+    },
+    {
+      throwOnError: true,
+    }
+  );
 
   if (!membership) {
     throw new Error("Impossible d'ajouter l'accès à l'association.");
