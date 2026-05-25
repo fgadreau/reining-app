@@ -153,9 +153,9 @@ function PublicResultsPage() {
       <section style={heroStyle}>
         <div>
           <div style={eyebrowStyle}>Feuilles de pointage publiques</div>
-          <h1 style={titleStyle}>{show.name || "Show"}</h1>
+          <h1 style={titleStyle}>{show?.name || "Show"}</h1>
           <div style={subtitleStyle}>
-            {show.venue || show.location || "Lieu à confirmer"}
+            {show?.venue || show?.location || "Lieu à confirmer"}
           </div>
         </div>
         {isPublicRoute ? (
