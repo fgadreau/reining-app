@@ -6,6 +6,7 @@ import {
   getPublicShowViewRepository,
   subscribePublicShowViewRepository,
 } from "../../features/publication/publicViewRepository";
+import { formatClockTime } from "../../features/classes/classTiming";
 import { getShowById } from "../../features/shows/showSelectors";
 import { appStyles as styles } from "../../styles/appStyles";
 
@@ -18,6 +19,7 @@ function PublicResultsPage() {
   const [publicView, setPublicView] = useState(() => getPublicShowView(showId));
   const [isLoading, setIsLoading] = useState(true);
   const publicClassIdsKey = (publicView.classIds || []).join("|");
+  const hasLiveClass = Boolean(publicView.liveClass);
 
   useEffect(() => {
     let isMounted = true;
@@ -72,6 +74,25 @@ function PublicResultsPage() {
       unsubscribe();
     };
   }, [showId, publicClassIdsKey]);
+
+  useEffect(() => {
+    if (!hasLiveClass) {
+      return undefined;
+    }
+
+    let isMounted = true;
+    const refreshTimer = window.setInterval(async () => {
+      const nextPublicView = await getPublicShowViewRepository(showId);
+
+      if (!isMounted) return;
+      setPublicView(nextPublicView);
+    }, 60000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(refreshTimer);
+    };
+  }, [showId, hasLiveClass]);
 
   if (!show && !isLoading) {
     return (
@@ -225,6 +246,8 @@ function PublicLivePanel({ classView }) {
         <Badge>En cours</Badge>
       </div>
 
+      <PublicTimingSummary timing={classView.timing} />
+
       <div style={liveGridStyle}>
         <LiveRunBlock label="En piste" run={classView.activeRun} showScore />
         <LiveRunBlock label="Prochain participant" run={classView.nextRun} />
@@ -242,6 +265,35 @@ function PublicLivePanel({ classView }) {
         </div>
       </div>
     </section>
+  );
+}
+
+function PublicTimingSummary({ timing }) {
+  return (
+    <div style={timingPanelStyle}>
+      <div style={timingGridStyle}>
+        <TimingMetric
+          label="Fin estimée de la classe"
+          value={formatClockTime(timing?.classEstimatedEndAt)}
+        />
+        <TimingMetric
+          label="Fin estimée de la journée"
+          value={formatClockTime(timing?.dayEstimatedEndAt)}
+        />
+      </div>
+      <div style={timingNoteStyle}>
+        Estimation ajustée selon les temps réels enregistrés et les drags prévus.
+      </div>
+    </div>
+  );
+}
+
+function TimingMetric({ label, value }) {
+  return (
+    <div style={timingMetricStyle}>
+      <div style={runLabelStyle}>{label}</div>
+      <div style={timingValueStyle}>{value}</div>
+    </div>
   );
 }
 
@@ -358,6 +410,39 @@ const liveGridStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
   gap: 12,
+};
+
+const timingPanelStyle = {
+  border: "1px solid #dbeafe",
+  background: "#eff6ff",
+  borderRadius: 8,
+  padding: 12,
+  marginBottom: 12,
+};
+
+const timingGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: 10,
+};
+
+const timingMetricStyle = {
+  background: "#fff",
+  border: "1px solid #bfdbfe",
+  borderRadius: 8,
+  padding: 12,
+};
+
+const timingValueStyle = {
+  fontSize: 24,
+  fontWeight: 900,
+  color: "#1e3a8a",
+};
+
+const timingNoteStyle = {
+  color: "#475569",
+  fontSize: 13,
+  marginTop: 10,
 };
 
 const liveBlockStyle = {

@@ -9,6 +9,12 @@ import { getSupabaseClient } from "../cloud/supabaseClient";
 import { getDaysByShowRepository } from "../days/dayRepository";
 import { getDaysByShowId } from "../days/daySelectors";
 import {
+  buildClassTimingRow,
+  buildPatternTimingStats,
+  getClassPatternValue,
+} from "../classes/classTimeAnalytics";
+import { MIN_MEASURED_RUN_SECONDS } from "../classes/classTiming";
+import {
   getPatternDisplayName,
   getPatternHeaders,
 } from "../patterns/patternDefinitions";
@@ -100,13 +106,16 @@ function toScoringSession(row) {
 export function getPublicShowView(showId) {
   const liveClasses = [];
   const classIds = [];
+  const timingSections = [];
   const sections = getDaysByShowId(showId).map((day) => {
+    const classRows = [];
     const classViews = getClassesForDay(day.id).map((classItem) => {
       if (classItem.id) {
         classIds.push(classItem.id);
       }
 
       const classData = getClassFullData(classItem.id);
+      classRows.push(classData);
       const liveClass = buildPublicLiveClassView({
         classItem: classData.classItem,
         publication: classData.publication,
@@ -122,6 +131,7 @@ export function getPublicShowView(showId) {
 
       return buildPublicClassView(classData);
     });
+    timingSections.push({ day, classRows });
 
     return {
       day,
@@ -133,11 +143,16 @@ export function getPublicShowView(showId) {
     (total, section) => total + section.classes.length,
     0
   );
+  const primaryLiveClass = findPrimaryLiveClass(liveClasses);
+  const timingByClassId = buildLocalPublicTimingByClassId(
+    timingSections,
+    primaryLiveClass
+  );
 
   return {
     sections: sections.filter((section) => section.classes.length > 0),
     publishedClassCount,
-    liveClass: findPrimaryLiveClass(liveClasses),
+    liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
     liveClassCount: liveClasses.length,
     classIds,
   };
@@ -152,9 +167,11 @@ export async function getPublicShowViewRepository(showId) {
 
   const liveClasses = [];
   const classIds = [];
+  const timingSections = [];
   const sections = await Promise.all(
     (await getDaysByShowRepository(showId)).map(async (day) => {
       const classes = getClassesForDay(day.id);
+      const classRows = [];
       const classViews = await Promise.all(
         classes.map(async (classItem) => {
           if (classItem.id) {
@@ -162,6 +179,7 @@ export async function getPublicShowViewRepository(showId) {
           }
 
           const classData = await getClassFullDataRepository(classItem.id);
+          classRows.push(classData);
           const liveClass = buildPublicLiveClassView({
             classItem: classData.classItem,
             publication: classData.publication,
@@ -178,6 +196,7 @@ export async function getPublicShowViewRepository(showId) {
           return buildPublicClassView(classData);
         })
       );
+      timingSections.push({ day, classRows });
 
       return {
         day,
@@ -190,11 +209,16 @@ export async function getPublicShowViewRepository(showId) {
     (total, section) => total + section.classes.length,
     0
   );
+  const primaryLiveClass = findPrimaryLiveClass(liveClasses);
+  const timingByClassId = buildLocalPublicTimingByClassId(
+    timingSections,
+    primaryLiveClass
+  );
 
   return {
     sections: sections.filter((section) => section.classes.length > 0),
     publishedClassCount,
-    liveClass: findPrimaryLiveClass(liveClasses),
+    liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
     liveClassCount: liveClasses.length,
     classIds,
   };
@@ -293,6 +317,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
     if (daysError) throw daysError;
 
     const days = Array.isArray(dayRows) ? dayRows.map(toDay) : [];
+    const timingByClassId = await getPublicShowTimingByClassId(showId, supabase);
     const liveClasses = [];
     const allClassIds = [];
     const sections = await Promise.all(
@@ -386,17 +411,39 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
       (total, section) => total + section.classes.length,
       0
     );
+    const primaryLiveClass = findPrimaryLiveClass(liveClasses);
 
     return {
       sections: sections.filter((section) => section.classes.length > 0),
       publishedClassCount,
-      liveClass: findPrimaryLiveClass(liveClasses),
+      liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
       liveClassCount: liveClasses.length,
       classIds: allClassIds,
     };
   } catch (error) {
     console.error("Erreur chargement résultats publics Supabase:", error);
     return getPublicShowView(showId);
+  }
+}
+
+async function getPublicShowTimingByClassId(showId, supabase) {
+  try {
+    const { data, error } = await supabase.rpc("public_show_timing_summary", {
+      target_show_id: showId,
+      min_duration_seconds: MIN_MEASURED_RUN_SECONDS,
+    });
+
+    if (error) throw error;
+
+    return new Map(
+      (Array.isArray(data) ? data : []).map((row) => [
+        row.class_id,
+        normalizePublicTiming(row),
+      ])
+    );
+  } catch (error) {
+    console.error("Erreur chargement estimations publiques Supabase:", error);
+    return new Map();
   }
 }
 
@@ -520,6 +567,112 @@ async function getPublicShowsByAssociationFromSupabase(associationId, supabase) 
   if (error) throw error;
 
   return Array.isArray(data) ? data.map(toShow) : [];
+}
+
+function buildLocalPublicTimingByClassId(timingSections, primaryLiveClass) {
+  if (!primaryLiveClass) {
+    return new Map();
+  }
+
+  const now = new Date();
+  const allClassRows = timingSections.flatMap((section) => section.classRows);
+  const patternAverageByValue = new Map(
+    buildPatternTimingStats(allClassRows).map((stat) => [
+      stat.pattern,
+      stat.averageRunSeconds,
+    ])
+  );
+  const timingByClassId = new Map();
+
+  timingSections.forEach((section) => {
+    const rows = section.classRows.map((classData) =>
+      buildClassTimingRow({
+        classData,
+        day: section.day,
+        now,
+        patternAverageRunSeconds:
+          patternAverageByValue.get(getClassPatternValue(classData)) || null,
+      })
+    );
+    const liveIndex = rows.findIndex(
+      (row) => row.classId === primaryLiveClass.classId
+    );
+
+    if (liveIndex < 0) {
+      return;
+    }
+
+    const liveRow = rows[liveIndex];
+    const daySummary = buildPublicRemainingSummary(rows.slice(liveIndex), now);
+    timingByClassId.set(primaryLiveClass.classId, {
+      classEstimatedEndAt: liveRow.estimatedEndAt,
+      dayEstimatedEndAt: daySummary.estimatedEndAt,
+      classRemainingSeconds: liveRow.remainingSeconds,
+      dayRemainingSeconds: daySummary.remainingSeconds,
+      classRemainingRuns: liveRow.remainingRuns,
+      dayRemainingRuns: daySummary.remainingRuns,
+      estimatedAt: now.toISOString(),
+    });
+  });
+
+  return timingByClassId;
+}
+
+function buildPublicRemainingSummary(rows, now) {
+  const remainingRuns = rows.reduce(
+    (total, row) => total + Math.max(row.remainingRuns || 0, 0),
+    0
+  );
+  const hasUnknownRemaining = rows.some(
+    (row) => row.remainingRuns > 0 && row.remainingSeconds == null
+  );
+
+  if (hasUnknownRemaining) {
+    return {
+      remainingRuns,
+      remainingSeconds: null,
+      estimatedEndAt: null,
+    };
+  }
+
+  const remainingSeconds = rows.reduce(
+    (total, row) =>
+      total + (Number.isFinite(row.remainingSeconds) ? row.remainingSeconds : 0),
+    0
+  );
+
+  return {
+    remainingRuns,
+    remainingSeconds,
+    estimatedEndAt: new Date(now.getTime() + remainingSeconds * 1000).toISOString(),
+  };
+}
+
+function attachPublicTiming(classView, timingByClassId) {
+  if (!classView) return null;
+
+  return {
+    ...classView,
+    timing: timingByClassId.get(classView.classId) || null,
+  };
+}
+
+function normalizePublicTiming(row) {
+  return {
+    classEstimatedEndAt: row.class_estimated_end_at || null,
+    dayEstimatedEndAt: row.day_estimated_end_at || null,
+    classRemainingSeconds:
+      row.class_remaining_seconds == null
+        ? null
+        : Number(row.class_remaining_seconds),
+    dayRemainingSeconds:
+      row.day_remaining_seconds == null ? null : Number(row.day_remaining_seconds),
+    classRemainingRuns:
+      row.class_remaining_runs == null ? null : Number(row.class_remaining_runs),
+    dayRemainingRuns:
+      row.day_remaining_runs == null ? null : Number(row.day_remaining_runs),
+    estimatedAt: row.estimated_at || null,
+  };
 }
 
 export function buildPublicClassView(classData) {
