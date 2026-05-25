@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   getAnnouncerShowView,
@@ -27,6 +27,7 @@ function AnnouncerDashboardPage() {
   const [liveView, setLiveView] = useState(() => getAnnouncerShowView(showId));
   const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
+  const autoCompletedPaidWarmupKeyRef = useRef(null);
   const liveClassIdsKey = useMemo(
     () => getLiveViewClassIds(liveView).join("|"),
     [liveView]
@@ -42,16 +43,16 @@ function AnnouncerDashboardPage() {
     };
   }, []);
 
-  const refreshLiveViewNow = async () => {
+  const refreshLiveViewNow = useCallback(async () => {
     const nextLiveView = await getAnnouncerShowViewRepository(showId);
     setLiveView(nextLiveView);
     setIsLoading(false);
-  };
+  }, [showId]);
 
-  const savePaidWarmupUpdate = async (nextWarmup) => {
+  const savePaidWarmupUpdate = useCallback(async (nextWarmup) => {
     await savePaidWarmupRepository(nextWarmup);
     await refreshLiveViewNow();
-  };
+  }, [refreshLiveViewNow]);
 
   const handleStartPaidWarmupEntry = (warmup, entryId) => {
     return savePaidWarmupUpdate(startPaidWarmupEntry(warmup, entryId, new Date()));
@@ -68,6 +69,33 @@ function AnnouncerDashboardPage() {
   const handleSetPaidWarmupEntryStatus = (warmup, entryId, status) => {
     return savePaidWarmupUpdate(setPaidWarmupEntryStatus(warmup, entryId, status));
   };
+
+  useEffect(() => {
+    const warmup = liveView.activePaidWarmup;
+
+    if (!warmup?.activeEntry) {
+      return;
+    }
+
+    const remainingSeconds = getPaidWarmupRemainingSeconds(warmup, now);
+
+    if (remainingSeconds == null || remainingSeconds > 0) {
+      return;
+    }
+
+    const completionKey = [
+      warmup.id,
+      warmup.activeEntry.id,
+      warmup.activeStartedAt,
+    ].join(":");
+
+    if (autoCompletedPaidWarmupKeyRef.current === completionKey) {
+      return;
+    }
+
+    autoCompletedPaidWarmupKeyRef.current = completionKey;
+    savePaidWarmupUpdate(stopPaidWarmupTimer(warmup));
+  }, [liveView.activePaidWarmup, now, savePaidWarmupUpdate]);
 
   useEffect(() => {
     let isMounted = true;
