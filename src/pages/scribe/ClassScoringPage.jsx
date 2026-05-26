@@ -1204,16 +1204,8 @@ function getScoringSyncLabel(status) {
 }
 
 function getScoringSyncNotice(status) {
-  if (status === SCORING_SYNC_STATUS.SYNCING) {
-    return "Synchronisation des scores en cours. La signature sera disponible dès que Supabase aura confirmé la sauvegarde.";
-  }
-
   if (status === SCORING_SYNC_STATUS.PENDING) {
     return "Les scores sont sauvegardés localement sur cet appareil, mais ils ne sont pas encore synchronisés. Garde cette page ouverte, réessaie la sync au besoin, ou exporte une sauvegarde locale.";
-  }
-
-  if (status === SCORING_SYNC_STATUS.LOCAL) {
-    return "Les derniers changements sont sauvegardés localement sur cet appareil.";
   }
 
   return "";
