@@ -91,7 +91,12 @@ export async function signInWithEmail({ email, password }) {
   return data;
 }
 
-export async function signUpWithEmail({ email, password, emailRedirectTo }) {
+export async function signUpWithEmail({
+  email,
+  password,
+  emailRedirectTo,
+  metadata = {},
+}) {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
@@ -103,10 +108,18 @@ export async function signUpWithEmail({ email, password, emailRedirectTo }) {
     password,
   };
 
+  const options = {};
+
   if (emailRedirectTo) {
-    signUpPayload.options = {
-      emailRedirectTo,
-    };
+    options.emailRedirectTo = emailRedirectTo;
+  }
+
+  if (metadata && Object.keys(metadata).length > 0) {
+    options.data = metadata;
+  }
+
+  if (Object.keys(options).length > 0) {
+    signUpPayload.options = options;
   }
 
   const { data, error } = await supabase.auth.signUp(signUpPayload);

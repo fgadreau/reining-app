@@ -12,6 +12,8 @@ import {
 import { useAuthUser } from "../../features/auth/useAuthUser";
 import { appStyles as styles } from "../../styles/appStyles";
 
+const LEGAL_VERSION = "2026-05-26";
+
 function LoginPage() {
   const navigate = useNavigate();
   const auth = useAuthUser();
@@ -24,6 +26,7 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasAcceptedLegal, setHasAcceptedLegal] = useState(false);
   const hasTriedAutoRedeemRef = useRef(false);
   const inviteEmailNormalized = normalizeEmail(inviteEmail);
   const authEmailNormalized = normalizeEmail(auth.user?.email);
@@ -132,6 +135,13 @@ function LoginPage() {
       return;
     }
 
+    if (mode === "signup" && !hasAcceptedLegal) {
+      setMessage(
+        "Tu dois accepter les conditions d'utilisation et la politique de confidentialité pour créer un compte."
+      );
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -152,6 +162,10 @@ function LoginPage() {
         const data = await signUpWithEmail({
           email: email.trim(),
           password,
+          metadata: {
+            accepted_legal_at: new Date().toISOString(),
+            accepted_legal_version: LEGAL_VERSION,
+          },
           emailRedirectTo:
             typeof window === "undefined"
               ? undefined
@@ -258,6 +272,33 @@ function LoginPage() {
               />
             </label>
 
+            {mode === "signup" && (
+              <label style={checkboxLabelStyle}>
+                <input
+                  type="checkbox"
+                  checked={hasAcceptedLegal}
+                  onChange={(event) =>
+                    setHasAcceptedLegal(event.target.checked)
+                  }
+                />
+                <span>
+                  J'accepte les{" "}
+                  <Link to="/terms" style={inlineLinkStyle}>
+                    conditions d'utilisation
+                  </Link>
+                  , la{" "}
+                  <Link to="/privacy" style={inlineLinkStyle}>
+                    politique de confidentialité
+                  </Link>{" "}
+                  et l'
+                  <Link to="/results-notice" style={inlineLinkStyle}>
+                    avis sur les résultats
+                  </Link>
+                  .
+                </span>
+              </label>
+            )}
+
             {message && <div style={messageStyle}>{message}</div>}
 
             <div style={buttonRowStyle}>
@@ -285,6 +326,20 @@ function LoginPage() {
           </form>
         )}
       </section>
+
+      <div style={legalLinksStyle}>
+        <Link to="/terms" style={inlineLinkStyle}>
+          Conditions d'utilisation
+        </Link>
+        <span>·</span>
+        <Link to="/privacy" style={inlineLinkStyle}>
+          Confidentialité
+        </Link>
+        <span>·</span>
+        <Link to="/results-notice" style={inlineLinkStyle}>
+          Avis sur les résultats
+        </Link>
+      </div>
     </div>
   );
 }
@@ -346,6 +401,33 @@ const buttonRowStyle = {
   display: "flex",
   gap: 8,
   flexWrap: "wrap",
+};
+
+const checkboxLabelStyle = {
+  display: "flex",
+  gap: 8,
+  alignItems: "flex-start",
+  color: "#334155",
+  fontSize: 14,
+  fontWeight: 500,
+  lineHeight: 1.4,
+};
+
+const inlineLinkStyle = {
+  color: "#1d4ed8",
+  fontWeight: 700,
+  textDecoration: "none",
+};
+
+const legalLinksStyle = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+  alignItems: "center",
+  maxWidth: 560,
+  marginTop: 14,
+  color: "#64748b",
+  fontSize: 13,
 };
 
 const primaryButtonStyle = {

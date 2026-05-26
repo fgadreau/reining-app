@@ -53,6 +53,12 @@ const SUPPORTED_DISCIPLINES = [
   "Showmanship",
 ];
 
+const LEGAL_LINKS = [
+  { to: "/terms", label: "Conditions d'utilisation" },
+  { to: "/privacy", label: "Confidentialité" },
+  { to: "/results-notice", label: "Avis sur les résultats" },
+];
+
 function HomePage() {
   const auth = useAuthUser();
   const [publicAssociations, setPublicAssociations] = useState([]);
@@ -256,6 +262,22 @@ function HomePage() {
           )}
         </section>
       )}
+
+      <section style={legalPanelStyle}>
+        <div>
+          <h2 style={sectionTitleStyle}>Cadre d'utilisation</h2>
+          <div style={mutedTextStyle}>
+            Conditions, confidentialité et avis sur les résultats publics.
+          </div>
+        </div>
+        <div style={legalLinkRowStyle}>
+          {LEGAL_LINKS.map((link) => (
+            <Link key={link.to} to={link.to} style={smallLinkStyle}>
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
@@ -489,6 +511,21 @@ const emptyStateStyle = {
   borderRadius: 8,
   padding: 14,
   color: "#64748b",
+};
+
+const legalPanelStyle = {
+  ...cardStyle,
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  alignItems: "center",
+  flexWrap: "wrap",
+};
+
+const legalLinkRowStyle = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
 };
 
 export default HomePage;

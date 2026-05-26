@@ -20,6 +20,11 @@ import ClassScoringPage from "../../pages/scribe/ClassScoringPage";
 import LoginPage from "../../pages/auth/LoginPage";
 import HomePage from "../../pages/home/HomePage";
 import NotFoundPage from "../../pages/common/NotFoundPage";
+import {
+  PrivacyPage,
+  ResultsNoticePage,
+  TermsPage,
+} from "../../pages/legal/LegalPages";
 function AppRouter() {
   return (
     <BrowserRouter>
@@ -28,6 +33,9 @@ function AppRouter() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/results-notice" element={<ResultsNoticePage />} />
         <Route path="/public" element={<PublicAssociationsPage />} />
         <Route
           path="/public/associations/:associationId"
