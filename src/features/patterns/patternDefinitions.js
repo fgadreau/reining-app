@@ -3,6 +3,7 @@ const DEFAULT_HEADERS = ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"];
 export const PATTERN_DISCIPLINES = {
   REINING: "reining",
   RANCH_RIDING: "ranch_riding",
+  WESTERN_RIDING: "western_riding",
 };
 
 export const RANCH_APPEARANCE_HEADER = "RHA";
@@ -73,6 +74,25 @@ export const RANCH_ABBREVIATIONS = {
   GATE_R_OUT: "Right hand push gate out",
   GATE_TO: "Side pass to gate",
   CATTLE: "Walk through cattle",
+};
+
+export const WESTERN_RIDING_ABBREVIATIONS = {
+  WJOL: "Walk, jog over log",
+  LL: "Lope left lead",
+  RL: "Lope right lead",
+  LE: "Lope around end",
+  LC1: "1st line change",
+  LC2: "2nd line change",
+  LC3: "3rd line change",
+  LC4: "4th line change",
+  CC1: "1st crossing change",
+  CC2: "2nd crossing change",
+  CC3: "3rd crossing change",
+  CC4: "4th crossing change",
+  LOL: "Lope over log",
+  CIR: "Circle",
+  STBK: "Stop and back",
+  CTR: "Lope up the center",
 };
 
 const REINING_ABBREVIATIONS = {
@@ -201,6 +221,262 @@ const SMALL_FRY_RANCH_RIDING_PATTERNS = [
   },
 ];
 
+const WESTERN_RIDING_PATTERNS = [
+  {
+    id: "WR1",
+    name: "Western Riding #1",
+    maneuvers: [
+      "WJOL",
+      "LL/LE",
+      "LC1",
+      "LC2",
+      "LC3",
+      "LC4/LE",
+      "CC1",
+      "CC2",
+      "LOL",
+      "CC3",
+      "CC4",
+      "CTR/STBK",
+    ],
+  },
+  {
+    id: "WR2",
+    name: "Western Riding #2",
+    maneuvers: [
+      "WJOL",
+      "LL",
+      "CC1",
+      "CC2",
+      "CC3",
+      "CIR/LC1",
+      "LC2",
+      "LC3",
+      "LC4/CIR",
+      "LOL",
+      "STBK",
+    ],
+  },
+  {
+    id: "WR3",
+    name: "Western Riding #3",
+    maneuvers: [
+      "WJOL",
+      "LL",
+      "CC1",
+      "LOL",
+      "CC2",
+      "LC1",
+      "LC2",
+      "LC3",
+      "LC4",
+      "CC3",
+      "CC4",
+      "CTR/STBK",
+    ],
+  },
+  {
+    id: "WR4",
+    name: "Western Riding #4",
+    maneuvers: [
+      "WJOL",
+      "RL",
+      "LC1",
+      "LC2",
+      "LC3",
+      "LC4",
+      "CC1",
+      "CC2",
+      "CC3",
+      "LOL",
+      "STBK",
+    ],
+  },
+  {
+    id: "WR5",
+    name: "Western Riding #5",
+    maneuvers: [
+      "WJOL",
+      "LL",
+      "LC1",
+      "LC2",
+      "LC3",
+      "LC4",
+      "CC1",
+      "LOL",
+      "CC2",
+      "CC3",
+      "CC4",
+      "STBK",
+    ],
+  },
+  {
+    id: "WR6",
+    name: "Western Riding #6",
+    maneuvers: [
+      "WJOL",
+      "RL/LE",
+      "LC1",
+      "LC2",
+      "LC3",
+      "LC4/LE",
+      "CC1",
+      "CC2",
+      "LOL",
+      "CC3",
+      "CC4",
+      "CTR/STBK",
+    ],
+  },
+  {
+    id: "WR7",
+    name: "Western Riding #7",
+    maneuvers: [
+      "WJOL",
+      "RL",
+      "CC1",
+      "CC2",
+      "CC3",
+      "CIR/LC1",
+      "LC2",
+      "LC3",
+      "LC4/CIR",
+      "LOL",
+      "STBK",
+    ],
+  },
+  {
+    id: "WR8",
+    name: "Western Riding #8",
+    maneuvers: [
+      "WJOL",
+      "RL",
+      "CC1",
+      "LOL",
+      "CC2",
+      "LC1",
+      "LC2",
+      "LC3",
+      "LC4",
+      "CC3",
+      "CC4",
+      "CTR/STBK",
+    ],
+  },
+  {
+    id: "WR9",
+    name: "Western Riding #9",
+    maneuvers: [
+      "WJOL",
+      "LL",
+      "LC1",
+      "LC2",
+      "LC3",
+      "LC4",
+      "CC1",
+      "CC2",
+      "CC3",
+      "LOL",
+      "STBK",
+    ],
+  },
+];
+
+const LEVEL_1_WESTERN_RIDING_PATTERNS = [
+  {
+    id: "L1WR1",
+    name: "Level 1 Western Riding #1",
+    maneuvers: [
+      "WJOL",
+      "LL/LE",
+      "LC1",
+      "LC2/LE",
+      "CC1",
+      "CC2",
+      "LOL",
+      "CC3",
+      "CC4",
+      "CTR/STBK",
+    ],
+  },
+  {
+    id: "L1WR2",
+    name: "Level 1 Western Riding #2",
+    maneuvers: [
+      "WJOL",
+      "LL",
+      "CC1",
+      "CC2",
+      "CC3",
+      "CIR/LC1",
+      "LC2/CIR",
+      "LOL",
+      "STBK",
+    ],
+  },
+  {
+    id: "L1WR4",
+    name: "Level 1 Western Riding #4",
+    maneuvers: [
+      "WJOL",
+      "RL/LE",
+      "LC1",
+      "LC2/LE",
+      "CC1",
+      "CC2",
+      "CC3",
+      "LOL",
+      "STBK",
+    ],
+  },
+  {
+    id: "L1WR6",
+    name: "Level 1 Western Riding #6",
+    maneuvers: [
+      "WJOL",
+      "RL/LE",
+      "LC1",
+      "LC2/LE",
+      "CC1",
+      "CC2",
+      "LOL",
+      "CC3",
+      "CC4",
+      "CTR/STBK",
+    ],
+  },
+  {
+    id: "L1WR7",
+    name: "Level 1 Western Riding #7",
+    maneuvers: [
+      "WJOL",
+      "RL",
+      "CC1",
+      "CC2",
+      "CC3",
+      "CIR/LC1",
+      "LC2/CIR",
+      "LOL",
+      "STBK",
+    ],
+  },
+  {
+    id: "L1WR9",
+    name: "Level 1 Western Riding #9",
+    maneuvers: [
+      "WJOL",
+      "LL/LE",
+      "LC1",
+      "LC2/LE",
+      "CC1",
+      "CC2",
+      "CC3",
+      "LOL",
+      "STBK",
+    ],
+  },
+];
+
 const REINING_PATTERNS = Object.entries(REINING_HEADERS).map(
   ([number, headers]) => ({
     id: `R${number}`,
@@ -223,6 +499,14 @@ const PATTERN_DEFINITIONS = [
     discipline: PATTERN_DISCIPLINES.RANCH_RIDING,
     maneuvers: [...pattern.maneuvers, RANCH_APPEARANCE_HEADER],
   })),
+  ...WESTERN_RIDING_PATTERNS.map((pattern) => ({
+    ...pattern,
+    discipline: PATTERN_DISCIPLINES.WESTERN_RIDING,
+  })),
+  ...LEVEL_1_WESTERN_RIDING_PATTERNS.map((pattern) => ({
+    ...pattern,
+    discipline: PATTERN_DISCIPLINES.WESTERN_RIDING,
+  })),
 ];
 
 export const PATTERN_OPTION_GROUPS = [
@@ -237,6 +521,17 @@ export const PATTERN_OPTION_GROUPS = [
   {
     label: "Small Fry Ranch Riding",
     options: SMALL_FRY_RANCH_RIDING_PATTERNS.map(({ id, name }) => ({
+      id,
+      name,
+    })),
+  },
+  {
+    label: "Western Riding",
+    options: WESTERN_RIDING_PATTERNS.map(({ id, name }) => ({ id, name })),
+  },
+  {
+    label: "Level 1 Western Riding",
+    options: LEVEL_1_WESTERN_RIDING_PATTERNS.map(({ id, name }) => ({
       id,
       name,
     })),
@@ -276,6 +571,20 @@ export function getPatternKey(patternValue) {
     return `SFRR${smallFryMatch[1]}`;
   }
 
+  const westernRidingMatch = key.match(
+    /^(?:WR|WESTERN RIDING)\s*(?:#|PATTERN)?\s*([1-9])$/
+  );
+  if (westernRidingMatch) {
+    return `WR${westernRidingMatch[1]}`;
+  }
+
+  const levelOneWesternRidingMatch = key.match(
+    /^(?:L1WR|LEVEL 1 WESTERN RIDING|LEVEL ONE WESTERN RIDING)\s*(?:#|PATTERN)?\s*([1-9])$/
+  );
+  if (levelOneWesternRidingMatch) {
+    return `L1WR${levelOneWesternRidingMatch[1]}`;
+  }
+
   return key;
 }
 
@@ -299,6 +608,10 @@ export function getPatternDiscipline(patternValue) {
 
 export function isRanchRidingPattern(patternValue) {
   return getPatternDiscipline(patternValue) === PATTERN_DISCIPLINES.RANCH_RIDING;
+}
+
+export function isWesternRidingPattern(patternValue) {
+  return getPatternDiscipline(patternValue) === PATTERN_DISCIPLINES.WESTERN_RIDING;
 }
 
 export function getPatternHeaders(patternValue) {
@@ -328,6 +641,10 @@ export function getPatternManeuverDescription(maneuver, patternValue = "") {
 
   if (discipline === PATTERN_DISCIPLINES.RANCH_RIDING) {
     return describeRanchManeuver(token);
+  }
+
+  if (discipline === PATTERN_DISCIPLINES.WESTERN_RIDING) {
+    return WESTERN_RIDING_ABBREVIATIONS[token] || token;
   }
 
   return REINING_ABBREVIATIONS[token] || token;

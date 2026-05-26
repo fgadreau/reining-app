@@ -7,13 +7,14 @@ export function parsePenaltyValue(value) {
   if (!value) return 0;
 
   const text = String(value);
+  const textWithoutHalfFractions = text.replace(/½|1\/2|0\.5/g, " ");
   let total = 0;
 
-  const halfMatches = text.match(/½/g);
-  const oneMatches = text.match(/\b1\b/g);
-  const twoMatches = text.match(/\b2\b/g);
-  const threeMatches = text.match(/\b3\b/g);
-  const fiveMatches = text.match(/\b5\b/g);
+  const halfMatches = text.match(/½|1\/2|0\.5/g);
+  const oneMatches = textWithoutHalfFractions.match(/\b1\b/g);
+  const twoMatches = textWithoutHalfFractions.match(/\b2\b/g);
+  const threeMatches = textWithoutHalfFractions.match(/\b3\b/g);
+  const fiveMatches = textWithoutHalfFractions.match(/\b5\b/g);
 
   if (halfMatches) total += halfMatches.length * 0.5;
   if (oneMatches) total += oneMatches.length * 1;
@@ -49,9 +50,18 @@ export function penaltyCellHasVideoReview(value) {
   return String(value).includes("Révision vidéo");
 }
 
+export function penaltyCellHasDisqualification(value) {
+  if (!value) return false;
+  return String(value).includes("Disqualification");
+}
+
 export function getRunStatus(run) {
   if (run.penalties.some((cell) => penaltyCellHasVideoReview(cell))) {
     return "REVIEW";
+  }
+
+  if (run.penalties.some((cell) => penaltyCellHasDisqualification(cell))) {
+    return "DQ";
   }
 
   if (run.penalties.some((cell) => penaltyCellHasScratch(cell))) {
@@ -74,7 +84,7 @@ export function getRunStatus(run) {
 }
 
 export function runHasSpecialResult(run) {
-  return ["SCR", "NS", "S0", "OP"].includes(getRunStatus(run));
+  return ["DQ", "SCR", "NS", "S0", "OP"].includes(getRunStatus(run));
 }
 
 export function runHasVideoReview(run) {
@@ -140,6 +150,13 @@ export function recalculateRun(run) {
       ? `${penTotalText} + Révision vidéo`
       : "Révision vidéo";
     scoreTotalText = runHasAnyData(run) ? "Review" : "";
+  }
+
+  if (status === "DQ") {
+    penTotalText = penTotalText
+      ? `${penTotalText} + Disqualification`
+      : "Disqualification";
+    scoreTotalText = runHasAnyData(run) ? "DQ" : "";
   }
 
   if (status === "NS") {

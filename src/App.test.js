@@ -40,7 +40,10 @@ import {
   buildPatternTimingStats,
   calculateClassTimeSimulation,
 } from "./features/classes/classTimeAnalytics";
-import { getPatternHeaders } from "./features/patterns/patternDefinitions";
+import {
+  getPatternHeaders,
+  getPatternManeuverDescription,
+} from "./features/patterns/patternDefinitions";
 import { getScoringOptionsForPattern } from "./features/scoring/scoringOptions";
 
 beforeEach(() => {
@@ -123,6 +126,52 @@ test("uses ranch riding patterns and penalties", () => {
   expect(offPatternRun.penTotal).toBe("OP");
   expect(offPatternRun.scoreTotal).toBe("OP");
   expect(isScoredRunComplete(offPatternRun, 2)).toBe(true);
+});
+
+test("uses western riding patterns and disqualification scoring", () => {
+  expect(getPatternHeaders("WR1")).toEqual([
+    "WJOL",
+    "LL/LE",
+    "LC1",
+    "LC2",
+    "LC3",
+    "LC4/LE",
+    "CC1",
+    "CC2",
+    "LOL",
+    "CC3",
+    "CC4",
+    "CTR/STBK",
+  ]);
+  expect(getPatternHeaders("Level 1 Western Riding #7")).toEqual([
+    "WJOL",
+    "RL",
+    "CC1",
+    "CC2",
+    "CC3",
+    "CIR/LC1",
+    "LC2/CIR",
+    "LOL",
+    "STBK",
+  ]);
+  expect(getPatternManeuverDescription("LL/LE", "WR1")).toBe(
+    "Lope left lead / Lope around end"
+  );
+
+  expect(getScoringOptionsForPattern("WR1")).toMatchObject({
+    penaltyOptions: ["½", "1", "3", "5"],
+    statusPenaltyOptions: ["Score 0", "Disqualification", "Révision vidéo"],
+  });
+
+  const disqualifiedRun = recalculateRun({
+    backNumber: "600",
+    scores: ["+0.5", "0"],
+    penalties: ["1/2 Disqualification", ""],
+  });
+
+  expect(disqualifiedRun.penTotal).toBe("0.5 + Disqualification");
+  expect(disqualifiedRun.scoreTotal).toBe("DQ");
+  expect(isScoredRunComplete(disqualifiedRun, 2)).toBe(true);
 });
 
 test("parses imported draw rows in draw order", () => {
