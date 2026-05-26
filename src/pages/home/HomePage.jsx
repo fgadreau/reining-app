@@ -42,6 +42,17 @@ const ASSOCIATION_WORKFLOW = [
   },
 ];
 
+const SUPPORTED_DISCIPLINES = [
+  "Reining",
+  "Ranch Riding",
+  "Small Fry Ranch Riding",
+  "Western Riding",
+  "Trail / Obstacle Western",
+  "Western Horsemanship",
+  "Hunt Seat Equitation",
+  "Showmanship",
+];
+
 function HomePage() {
   const auth = useAuthUser();
   const [publicAssociations, setPublicAssociations] = useState([]);
@@ -141,6 +152,16 @@ function HomePage() {
           <div style={statusTextStyle}>
             Feuilles de pointage publiques, live et outils de gestion du temps
             pour les associations.
+          </div>
+          <div>
+            <div style={statusLabelStyle}>Disciplines supportées</div>
+            <div style={disciplineListStyle}>
+              {SUPPORTED_DISCIPLINES.map((discipline) => (
+                <span key={discipline} style={disciplinePillStyle}>
+                  {discipline}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -327,6 +348,25 @@ const statusValueStyle = {
 const statusTextStyle = {
   color: "#475569",
   lineHeight: 1.4,
+};
+
+const disciplineListStyle = {
+  display: "flex",
+  gap: 6,
+  flexWrap: "wrap",
+  marginTop: 8,
+};
+
+const disciplinePillStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "5px 8px",
+  borderRadius: 999,
+  border: "1px solid #cbd5e1",
+  background: "#fff",
+  color: "#334155",
+  fontSize: 12,
+  fontWeight: 700,
 };
 
 const workflowGridStyle = {
