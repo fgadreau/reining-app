@@ -957,6 +957,7 @@ function ClassSetupPage() {
                   <input
                     type="text"
                     value={maneuver.description}
+                    maxLength={customPatternConfig.maxDescriptionLength || 80}
                     onChange={(event) =>
                       updateCustomManeuverField(
                         index,
@@ -968,6 +969,10 @@ function ClassSetupPage() {
                     style={cellInputStyle}
                     disabled={!canManageSetup || isFullyLocked}
                   />
+                  <div style={characterCountStyle}>
+                    {String(maneuver.description || "").length}/
+                    {customPatternConfig.maxDescriptionLength || 80}
+                  </div>
                 </div>
               </div>
             ))}
@@ -1308,6 +1313,13 @@ const customPatternWarningStyle = {
   border: "1px solid #fdba74",
   color: "#9a3412",
   fontWeight: 600,
+};
+
+const characterCountStyle = {
+  marginTop: 4,
+  color: "#64748b",
+  fontSize: 12,
+  textAlign: "right",
 };
 
 const inlineFieldStyle = {

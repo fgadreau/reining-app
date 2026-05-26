@@ -16,6 +16,7 @@ export const CUSTOM_PATTERN_CONFIGS = {
     name: "Trail / Obstacle Western",
     discipline: PATTERN_DISCIPLINES.TRAIL,
     minManeuvers: 6,
+    maxDescriptionLength: 80,
     defaultManeuverPrefix: "OB",
   },
 };
@@ -756,7 +757,7 @@ export function isCustomPatternReady(patternValue, customPattern = null) {
   }
 
   return custom.maneuvers.every(
-    (maneuver) => maneuver.abbreviation && maneuver.description
+    (maneuver) => maneuver.abbreviation && maneuver.description.trim()
   );
 }
 
@@ -791,7 +792,7 @@ export function getPatternManeuverDescription(
         item.abbreviation === token || (!item.abbreviation && token === `M${index + 1}`)
     );
 
-    return customManeuver?.description || token;
+    return customManeuver?.description.trim() || token;
   }
 
   if (token === RANCH_APPEARANCE_HEADER) {
@@ -839,7 +840,11 @@ function normalizeCustomManeuver(maneuver, index, config) {
   )
     .trim()
     .toUpperCase();
-  const description = String(maneuver?.description || maneuver?.label || "").trim();
+  const maxDescriptionLength = config.maxDescriptionLength || 80;
+  const description = String(maneuver?.description || maneuver?.label || "").slice(
+    0,
+    maxDescriptionLength
+  );
 
   return {
     abbreviation: abbreviation || fallbackAbbreviation,

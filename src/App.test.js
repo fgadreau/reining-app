@@ -178,16 +178,17 @@ test("uses western riding patterns and disqualification scoring", () => {
 });
 
 test("uses trail custom patterns with six maneuver minimum", () => {
+  const longDescription = "A".repeat(100);
   const customPattern = normalizeCustomPattern(
     {
       discipline: "trail",
       maneuvers: [
         { abbreviation: "GATE", description: "Gate" },
-        { abbreviation: "BRDG", description: "Bridge" },
+        { abbreviation: "BRDG", description: "Bridge with flowers" },
         { abbreviation: "BK", description: "Back through obstacle" },
         { abbreviation: "BOX", description: "Box turn" },
         { abbreviation: "LOG", description: "Lope over logs" },
-        { abbreviation: "SIDE", description: "Side pass" },
+        { abbreviation: "SIDE", description: longDescription },
       ],
     },
     TRAIL_CUSTOM_PATTERN_ID
@@ -208,6 +209,14 @@ test("uses trail custom patterns with six maneuver minimum", () => {
       customPattern
     )
   ).toBe("Gate");
+  expect(
+    getPatternManeuverDescription(
+      "BRDG",
+      TRAIL_CUSTOM_PATTERN_ID,
+      customPattern
+    )
+  ).toBe("Bridge with flowers");
+  expect(customPattern.maneuvers[5].description).toHaveLength(80);
   expect(isCustomPatternReady(TRAIL_CUSTOM_PATTERN_ID, customPattern)).toBe(true);
   expect(getScoringOptionsForPattern(TRAIL_CUSTOM_PATTERN_ID, customPattern)).toMatchObject({
     penaltyOptions: ["½", "1", "3", "5"],
