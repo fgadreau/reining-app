@@ -35,7 +35,11 @@ import {
   DEFAULT_DRAG_DURATION_MINUTES,
   DRAG_INTERVAL_OPTIONS,
 } from "../../features/classes/classTiming";
-import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
+import {
+  PUBLICATION_STATUSES,
+  getPublicationStatusLabel,
+  isLivePublicationStatus,
+} from "../../features/publication/publicationRepository";
 import { savePublicationStateRepository } from "../../features/publication/publicationCloudRepository";
 import {
   buildScorePdfFileName,
@@ -51,6 +55,43 @@ function isOfficiallyFinalized(record) {
   return Boolean(
     record?.official?.finalized || record?.official?.judgeSignedAt
   );
+}
+
+const PUBLIC_LIVE_STATUS_OPTIONS = [
+  {
+    value: PUBLICATION_STATUSES.HIDDEN,
+    label: "Masqué",
+    description: "La classe n’apparaît pas en live public.",
+  },
+  {
+    value: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+    label: "Live sans scores",
+    description: "Affiche la classe et les participants sans pointage.",
+  },
+  {
+    value: PUBLICATION_STATUSES.LIVE_SCORING,
+    label: "Live avec scores",
+    description: "Affiche les scores complétés dans la vitrine publique.",
+  },
+  {
+    value: PUBLICATION_STATUSES.LIVE_FINISHED,
+    label: "Live terminé",
+    description: "Garde les scores terminés visibles avant publication officielle.",
+  },
+];
+
+function getPublicationStatusDescription(status) {
+  const option = PUBLIC_LIVE_STATUS_OPTIONS.find((item) => item.value === status);
+
+  if (option) {
+    return option.description;
+  }
+
+  if (isLivePublicationStatus(status)) {
+    return "Affiche la run en cours, la prochaine et les deux derniers passés dans la vitrine publique.";
+  }
+
+  return "Choisis comment cette classe apparaît dans la vitrine publique.";
 }
 
 function ClassSetupPage() {
@@ -83,6 +124,7 @@ function ClassSetupPage() {
       classSetup?.pattern || classItem?.pattern || ""
     )
   );
+  const [arena, setArena] = useState(classItem?.arena || "");
   const [runs, setRuns] = useState(classSetup?.runs || []);
   const [isDrawImported, setIsDrawImported] = useState(
     Boolean(classSetup?.isDrawImported)
@@ -95,9 +137,6 @@ function ClassSetupPage() {
   );
   const [publicationStatus, setPublicationStatus] = useState(
     classData?.publication?.status || PUBLICATION_STATUSES.HIDDEN
-  );
-  const [isPublicLiveEnabled, setIsPublicLiveEnabled] = useState(
-    classData?.publication?.status === PUBLICATION_STATUSES.LIVE
   );
   const [isFinalized, setIsFinalized] = useState(
     isOfficiallyFinalized(classRecord)
@@ -176,6 +215,7 @@ function ClassSetupPage() {
       setClassData(resolvedData);
       setPattern(nextPattern);
       setCustomPattern(nextCustomPattern);
+      setArena(nextClassItem?.arena || "");
       setRuns(nextRuns);
       setIsDrawImported(Boolean(nextSetup.isDrawImported));
       setDragInterval(String(nextSetup.dragInterval || ""));
@@ -184,9 +224,6 @@ function ClassSetupPage() {
       );
       setPublicationStatus(
         resolvedData.publication?.status || PUBLICATION_STATUSES.HIDDEN
-      );
-      setIsPublicLiveEnabled(
-        resolvedData.publication?.status === PUBLICATION_STATUSES.LIVE
       );
       setIsFinalized(isOfficiallyFinalized(nextRecord));
       setRunCountInput(String(nextRuns.length));
@@ -233,6 +270,7 @@ function ClassSetupPage() {
         canManageSetup &&
         classItem?.id &&
         (classItem.pattern !== pattern ||
+          String(classItem.arena || "") !== String(arena || "") ||
           JSON.stringify(classItem.customPattern || null) !==
             JSON.stringify(classCustomPattern));
 
@@ -242,6 +280,7 @@ function ClassSetupPage() {
         savedClassItem = await saveClassItemRepository({
           ...classItem,
           pattern,
+          arena,
           customPattern: classCustomPattern,
         });
       }
@@ -269,6 +308,7 @@ function ClassSetupPage() {
     classId,
     pattern,
     customPattern,
+    arena,
     runs,
     isDrawImported,
     dragInterval,
@@ -278,55 +318,27 @@ function ClassSetupPage() {
     classItem,
   ]);
 
-  useEffect(() => {
-    if (!hasLoadedSetup || !canManageSetup) return undefined;
-    if (isFinalized) return undefined;
-
-    const nextStatus = isPublicLiveEnabled
-      ? PUBLICATION_STATUSES.LIVE
-      : publicationStatus === PUBLICATION_STATUSES.LIVE
-        ? PUBLICATION_STATUSES.HIDDEN
-        : publicationStatus;
-
-    if (nextStatus === publicationStatus) {
-      return undefined;
+  const updatePublicationStatus = async (nextStatus) => {
+    if (!canManageSetup || !hasLoadedSetup || isPublicationLocked) {
+      return;
     }
 
-    let isCancelled = false;
+    const savedPublication = await savePublicationStateRepository(classId, {
+      status: nextStatus,
+      publishedAt: null,
+      publishedBy: null,
+    });
 
-    async function persistPublicationState() {
-      const savedPublication = await savePublicationStateRepository(classId, {
-        status: nextStatus,
-        publishedAt: null,
-        publishedBy: null,
-      });
-
-      if (isCancelled) return;
-
-      setPublicationStatus(savedPublication.status);
-      setClassData((currentData) =>
-        currentData
-          ? {
-              ...currentData,
-              publication: savedPublication,
-            }
-          : currentData
-      );
-    }
-
-    persistPublicationState();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [
-    canManageSetup,
-    classId,
-    hasLoadedSetup,
-    isFinalized,
-    isPublicLiveEnabled,
-    publicationStatus,
-  ]);
+    setPublicationStatus(savedPublication.status);
+    setClassData((currentData) =>
+      currentData
+        ? {
+            ...currentData,
+            publication: savedPublication,
+          }
+        : currentData
+    );
+  };
 
   const addRun = () => {
     if (!canManageSetup) return;
@@ -843,6 +855,23 @@ function ClassSetupPage() {
 
           {canManageSetup && (
             <div>
+              <label style={labelStyle}>Manège / arena</label>
+              <input
+                type="text"
+                value={arena}
+                onChange={(e) => setArena(e.target.value)}
+                placeholder="Ex. Manège 1"
+                style={inputStyle}
+                disabled={!canManageSetup}
+              />
+              <div style={helperTextStyle}>
+                Sert à distinguer plusieurs classes live en même temps.
+              </div>
+            </div>
+          )}
+
+          {canManageSetup && (
+            <div>
               <label style={labelStyle}>Nombre de runs</label>
               <div style={inlineFieldStyle}>
                 <input
@@ -899,27 +928,33 @@ function ClassSetupPage() {
 
           {canManageSetup && (
             <div>
-              <label style={labelStyle}>Vitrine publique</label>
-              <label style={checkboxRowStyle}>
-                <input
-                  type="checkbox"
-                  checked={isPublicLiveEnabled}
-                  onChange={(event) => {
-                    if (isFinalized) {
-                      showFinalizedMessage();
-                      return;
-                    }
-
-                    setIsPublicLiveEnabled(event.target.checked);
-                  }}
-                  disabled={isFinalized || isPublicationLocked}
-                />
-                <span>Autoriser le live public pour cette classe</span>
-              </label>
+              <label style={labelStyle}>Statut live public</label>
+              <select
+                value={publicationStatus}
+                onChange={(event) => updatePublicationStatus(event.target.value)}
+                style={inputStyle}
+                disabled={isPublicationLocked}
+              >
+                {PUBLIC_LIVE_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+                {publicationStatus === PUBLICATION_STATUSES.LIVE && (
+                  <option value={PUBLICATION_STATUSES.LIVE}>
+                    Live avec scores (ancien)
+                  </option>
+                )}
+                {isPublicationLocked && (
+                  <option value={publicationStatus}>
+                    {getPublicationStatusLabel(publicationStatus)}
+                  </option>
+                )}
+              </select>
               <div style={helperTextStyle}>
                 {isPublicationLocked
                   ? "La publication finale se gère au secrétariat."
-                  : "Affiche la run en cours, la prochaine et les deux derniers passés dans la vitrine publique."}
+                  : getPublicationStatusDescription(publicationStatus)}
               </div>
             </div>
           )}
@@ -1376,13 +1411,6 @@ const inlineFieldStyle = {
   display: "flex",
   gap: "8px",
   alignItems: "center",
-};
-
-const checkboxRowStyle = {
-  display: "flex",
-  gap: "8px",
-  alignItems: "center",
-  minHeight: 40,
 };
 
 const labelStyle = {

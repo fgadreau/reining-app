@@ -21,7 +21,11 @@ import {
   getPatternHeaders,
   getPatternManeuverDescription,
 } from "../patterns/patternDefinitions";
-import { PUBLICATION_STATUSES } from "./publicationRepository";
+import {
+  PUBLICATION_STATUSES,
+  canPublicationStatusShowScores,
+  isLivePublicationStatus,
+} from "./publicationRepository";
 
 function toAssociation(row) {
   return {
@@ -65,6 +69,7 @@ function toClass(row) {
     dayId: row.day_id,
     name: row.name || "",
     classCode: row.class_code || "",
+    arena: row.arena || "",
     pattern: row.pattern || "",
     customPattern:
       row.custom_pattern && typeof row.custom_pattern === "object"
@@ -184,13 +189,17 @@ export function getPublicShowView(showId) {
   const primaryLivePaidWarmup = findPrimaryLivePaidWarmup(livePaidWarmups);
   const timingByClassId = buildLocalPublicTimingByClassId(
     timingSections,
-    primaryLiveClass
+    liveClasses
+  );
+  const timedLiveClasses = liveClasses.map((classView) =>
+    attachPublicTiming(classView, timingByClassId)
   );
 
   return {
     sections: sections.filter((section) => section.classes.length > 0),
     publishedClassCount,
     liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
+    liveClasses: timedLiveClasses,
     livePaidWarmup: primaryLivePaidWarmup,
     liveClassCount: liveClasses.length + activePaidWarmupCount,
     classIds,
@@ -260,13 +269,17 @@ export async function getPublicShowViewRepository(showId) {
   const primaryLivePaidWarmup = findPrimaryLivePaidWarmup(livePaidWarmups);
   const timingByClassId = buildLocalPublicTimingByClassId(
     timingSections,
-    primaryLiveClass
+    liveClasses
+  );
+  const timedLiveClasses = liveClasses.map((classView) =>
+    attachPublicTiming(classView, timingByClassId)
   );
 
   return {
     sections: sections.filter((section) => section.classes.length > 0),
     publishedClassCount,
     liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
+    liveClasses: timedLiveClasses,
     livePaidWarmup: primaryLivePaidWarmup,
     liveClassCount: liveClasses.length + activePaidWarmupCount,
     classIds,
@@ -498,11 +511,15 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
     const primaryLiveClass = findPrimaryLiveClass(liveClasses);
     const activePaidWarmupCount = countActivePaidWarmups(livePaidWarmups);
     const primaryLivePaidWarmup = findPrimaryLivePaidWarmup(livePaidWarmups);
+    const timedLiveClasses = liveClasses.map((classView) =>
+      attachPublicTiming(classView, timingByClassId)
+    );
 
     return {
       sections: sections.filter((section) => section.classes.length > 0),
       publishedClassCount,
       liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
+      liveClasses: timedLiveClasses,
       livePaidWarmup: primaryLivePaidWarmup,
       liveClassCount: liveClasses.length + activePaidWarmupCount,
       classIds: allClassIds,
@@ -656,8 +673,14 @@ async function getPublicShowsByAssociationFromSupabase(associationId, supabase) 
   return Array.isArray(data) ? data.map(toShow) : [];
 }
 
-function buildLocalPublicTimingByClassId(timingSections, primaryLiveClass) {
-  if (!primaryLiveClass) {
+function buildLocalPublicTimingByClassId(timingSections, liveClasses) {
+  const liveClassIds = new Set(
+    (Array.isArray(liveClasses) ? liveClasses : [liveClasses])
+      .filter(Boolean)
+      .map((classView) => classView.classId)
+  );
+
+  if (liveClassIds.size === 0) {
     return new Map();
   }
 
@@ -681,24 +704,21 @@ function buildLocalPublicTimingByClassId(timingSections, primaryLiveClass) {
           patternAverageByValue.get(getClassPatternValue(classData)) || null,
       })
     );
-    const liveIndex = rows.findIndex(
-      (row) => row.classId === primaryLiveClass.classId
-    );
+    rows.forEach((liveRow, liveIndex) => {
+      if (!liveClassIds.has(liveRow.classId)) {
+        return;
+      }
 
-    if (liveIndex < 0) {
-      return;
-    }
-
-    const liveRow = rows[liveIndex];
-    const daySummary = buildPublicRemainingSummary(rows.slice(liveIndex), now);
-    timingByClassId.set(primaryLiveClass.classId, {
-      classEstimatedEndAt: liveRow.estimatedEndAt,
-      dayEstimatedEndAt: daySummary.estimatedEndAt,
-      classRemainingSeconds: liveRow.remainingSeconds,
-      dayRemainingSeconds: daySummary.remainingSeconds,
-      classRemainingRuns: liveRow.remainingRuns,
-      dayRemainingRuns: daySummary.remainingRuns,
-      estimatedAt: now.toISOString(),
+      const daySummary = buildPublicRemainingSummary(rows.slice(liveIndex), now);
+      timingByClassId.set(liveRow.classId, {
+        classEstimatedEndAt: liveRow.estimatedEndAt,
+        dayEstimatedEndAt: daySummary.estimatedEndAt,
+        classRemainingSeconds: liveRow.remainingSeconds,
+        dayRemainingSeconds: daySummary.remainingSeconds,
+        classRemainingRuns: liveRow.remainingRuns,
+        dayRemainingRuns: daySummary.remainingRuns,
+        estimatedAt: now.toISOString(),
+      });
     });
   });
 
@@ -819,6 +839,7 @@ export function buildPublicClassView(classData) {
     classId: classItem?.id,
     className: classItem?.name || "Classe",
     classCode: classItem?.classCode || "",
+    arena: classItem?.arena || "",
     pattern:
       getPatternDisplayName(patternValue, customPattern) ||
       official.pattern ||
@@ -838,24 +859,24 @@ export function buildPublicLiveClassView({
   publication,
   scoringSession,
 }) {
-  if (publication?.status !== PUBLICATION_STATUSES.LIVE) {
+  const publicationStatus = publication?.status || PUBLICATION_STATUSES.HIDDEN;
+
+  if (!isLivePublicationStatus(publicationStatus)) {
     return null;
   }
 
+  const showScores = canPublicationStatusShowScores(publicationStatus);
   const runs = Array.isArray(scoringSession?.runs)
     ? scoringSession.runs.map((run, index) =>
         normalizePublicLiveRun(
           run,
           index,
           setup?.pattern || classItem?.pattern || "",
-          setup?.customPattern || classItem?.customPattern || null
+          setup?.customPattern || classItem?.customPattern || null,
+          { showScores }
         )
       )
     : [];
-
-  if (!runs.length) {
-    return null;
-  }
 
   const activeRun =
     runs.find((run) => run.draw === scoringSession?.activeManoeuvre?.draw) ||
@@ -875,6 +896,9 @@ export function buildPublicLiveClassView({
     classId: classItem?.id,
     className: classItem?.name || "Classe",
     classCode: classItem?.classCode || "",
+    arena: classItem?.arena || "",
+    publicationStatus,
+    showScores,
     pattern:
       getPatternDisplayName(
         setup?.pattern || classItem?.pattern || "",
@@ -886,15 +910,25 @@ export function buildPublicLiveClassView({
     activeRun,
     nextRun,
     lastPassedRuns,
-    latestScore: [...runs].reverse().find(runHasScore) || null,
+    latestScore: showScores ? [...runs].reverse().find(runHasScore) || null : null,
     dragBreak,
   };
 }
 
-function normalizePublicLiveRun(run, index, pattern, customPattern = null) {
+function normalizePublicLiveRun(
+  run,
+  index,
+  pattern,
+  customPattern = null,
+  options = {}
+) {
   const scores = Array.isArray(run.scores) ? run.scores : [];
   const penalties = Array.isArray(run.penalties) ? run.penalties : [];
   const headers = getPatternHeaders(pattern, customPattern);
+  const showScores = options.showScores !== false;
+  const scoreTotal = run.scoreTotal ?? "";
+  const penTotal = run.penTotal ?? "";
+  const note = run.note || "";
 
   return {
     id: run.id,
@@ -903,9 +937,10 @@ function normalizePublicLiveRun(run, index, pattern, customPattern = null) {
     rider: run.rider || "",
     horse: run.horse || "",
     owner: run.owner || "",
-    scoreTotal: run.scoreTotal ?? "",
-    penTotal: run.penTotal ?? "",
-    note: run.note || "",
+    scoreTotal: showScores ? scoreTotal : "",
+    penTotal: showScores ? penTotal : "",
+    note: showScores ? note : "",
+    hasScore: runHasScore({ scoreTotal }),
     startedAt: run.startedAt || null,
     completedAt: run.completedAt || null,
     durationSeconds: run.durationSeconds || null,
@@ -914,8 +949,8 @@ function normalizePublicLiveRun(run, index, pattern, customPattern = null) {
     manoeuvres: headers.map((name, manoeuvreIndex) => ({
       name,
       description: getPatternManeuverDescription(name, pattern, customPattern),
-      score: scores[manoeuvreIndex] || "",
-      penalty: penalties[manoeuvreIndex] || "",
+      score: showScores ? scores[manoeuvreIndex] || "" : "",
+      penalty: showScores ? penalties[manoeuvreIndex] || "" : "",
     })),
   };
 }
@@ -1018,7 +1053,7 @@ function findLastPassedRuns(runs, activeRun, count) {
 
 function runHasScore(run) {
   const score = String(run?.scoreTotal ?? "").trim();
-  return Boolean(score && score !== "Review");
+  return Boolean(run?.hasScore || (score && score !== "Review"));
 }
 
 export function sortPublicResults(runs) {

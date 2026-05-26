@@ -13,9 +13,55 @@ const DEFAULT_VISIBLE_FIELDS = [
 export const PUBLICATION_STATUSES = {
   HIDDEN: "hidden",
   LIVE: "live",
+  LIVE_NO_SCORE: "live_no_score",
+  LIVE_SCORING: "live_scoring",
+  LIVE_FINISHED: "live_finished",
   OFFICIAL: "official",
   PUBLISHED: "published",
 };
+
+export const LIVE_PUBLICATION_STATUSES = [
+  PUBLICATION_STATUSES.LIVE,
+  PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  PUBLICATION_STATUSES.LIVE_SCORING,
+  PUBLICATION_STATUSES.LIVE_FINISHED,
+];
+
+export const SCORE_VISIBLE_PUBLICATION_STATUSES = [
+  PUBLICATION_STATUSES.LIVE,
+  PUBLICATION_STATUSES.LIVE_SCORING,
+  PUBLICATION_STATUSES.LIVE_FINISHED,
+  PUBLICATION_STATUSES.OFFICIAL,
+  PUBLICATION_STATUSES.PUBLISHED,
+];
+
+export function isLivePublicationStatus(status) {
+  return LIVE_PUBLICATION_STATUSES.includes(status);
+}
+
+export function canPublicationStatusShowScores(status) {
+  return SCORE_VISIBLE_PUBLICATION_STATUSES.includes(status);
+}
+
+export function getPublicationStatusLabel(status) {
+  switch (status) {
+    case PUBLICATION_STATUSES.LIVE:
+      return "Live";
+    case PUBLICATION_STATUSES.LIVE_NO_SCORE:
+      return "Live sans scores";
+    case PUBLICATION_STATUSES.LIVE_SCORING:
+      return "Live avec scores";
+    case PUBLICATION_STATUSES.LIVE_FINISHED:
+      return "Live terminé";
+    case PUBLICATION_STATUSES.OFFICIAL:
+      return "Officiel";
+    case PUBLICATION_STATUSES.PUBLISHED:
+      return "Publié";
+    case PUBLICATION_STATUSES.HIDDEN:
+    default:
+      return "Masqué";
+  }
+}
 
 export function loadAllPublicationStates() {
   try {

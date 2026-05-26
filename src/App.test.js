@@ -671,6 +671,92 @@ test("public live view exposes active, next, and last passed runs", () => {
   expect(classView.lastPassedRuns[0].note).toBe("Penalty note.");
 });
 
+test("public live without scores keeps runs visible and hides scoring details", () => {
+  const classView = buildPublicLiveClassView({
+    classItem: {
+      id: "class-live-no-score",
+      name: "Open Trail",
+      arena: "Manège 2",
+      pattern: "2",
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+    },
+    scoringSession: {
+      activeManoeuvre: {
+        draw: 2,
+      },
+      runs: [
+        {
+          id: "run-1",
+          draw: 1,
+          rider: "Rider 1",
+          horse: "Horse 1",
+          scoreTotal: "72.0",
+          note: "Score note",
+          scores: ["+0.5"],
+          penalties: ["1"],
+        },
+        {
+          id: "run-2",
+          draw: 2,
+          rider: "Rider 2",
+          horse: "Horse 2",
+          scoreTotal: "",
+        },
+        {
+          id: "run-3",
+          draw: 3,
+          rider: "Rider 3",
+          horse: "Horse 3",
+          scoreTotal: "",
+        },
+      ],
+    },
+  });
+
+  expect(classView.arena).toBe("Manège 2");
+  expect(classView.showScores).toBe(false);
+  expect(classView.activeRun.draw).toBe(2);
+  expect(classView.nextRun.draw).toBe(3);
+  expect(classView.latestScore).toBeNull();
+  expect(classView.lastPassedRuns[0]).toMatchObject({
+    draw: 1,
+    rider: "Rider 1",
+    scoreTotal: "",
+    note: "",
+  });
+  expect(classView.lastPassedRuns[0].manoeuvres[0]).toMatchObject({
+    score: "",
+    penalty: "",
+  });
+});
+
+test("public live class remains visible without scoring session runs", () => {
+  const classView = buildPublicLiveClassView({
+    classItem: {
+      id: "class-live-empty",
+      name: "Open Ranch",
+      arena: "Outdoor",
+      pattern: "2",
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE_SCORING,
+    },
+    scoringSession: null,
+  });
+
+  expect(classView).toMatchObject({
+    classId: "class-live-empty",
+    className: "Open Ranch",
+    arena: "Outdoor",
+    showScores: true,
+    activeRun: null,
+    nextRun: null,
+    latestScore: null,
+  });
+});
+
 test("public live view exposes a drag break before the next run", () => {
   const classView = buildPublicLiveClassView({
     classItem: {
@@ -768,10 +854,19 @@ test("announcer latest score follows publication state", () => {
     buildAnnouncerClassView({
       ...classData,
       publication: {
-        status: PUBLICATION_STATUSES.LIVE,
+        status: PUBLICATION_STATUSES.LIVE_SCORING,
       },
     }).latestScore.scoreTotal
   ).toBe("72.0");
+
+  expect(
+    buildAnnouncerClassView({
+      ...classData,
+      publication: {
+        status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+      },
+    }).latestScore
+  ).toBeNull();
 });
 
 test("announcer live view exposes active, next, and recent completed runs", () => {

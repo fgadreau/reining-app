@@ -48,6 +48,7 @@ function toClass(row) {
     dayId: row.day_id,
     name: row.name || "",
     classCode: row.class_code || "",
+    arena: row.arena || "",
     pattern: row.pattern || "",
     customPattern:
       row.custom_pattern && typeof row.custom_pattern === "object"
@@ -67,6 +68,7 @@ function toClassRow(classItem, options = {}) {
     day_id: classItem.dayId,
     name: classItem.name || "",
     class_code: classItem.classCode || "",
+    arena: classItem.arena || "",
     pattern: classItem.pattern || "",
     judge_name: classItem.judgeName || "",
     sort_order: Number(classItem.sortOrder) || 1,
@@ -81,6 +83,10 @@ function toClassRow(classItem, options = {}) {
 
 function isCustomPatternColumnMissingError(error) {
   return String(error?.message || "").includes("custom_pattern");
+}
+
+function isArenaColumnMissingError(error) {
+  return String(error?.message || "").includes("arena");
 }
 
 function saveClassLocally(classItem) {
@@ -327,11 +333,16 @@ export async function saveClassItemRepository(classItem) {
       const { error } = await supabase.from("classes").upsert(toClassRow(classItem));
       if (error) throw error;
     } catch (error) {
-      if (isCustomPatternColumnMissingError(error)) {
+      if (isCustomPatternColumnMissingError(error) || isArenaColumnMissingError(error)) {
         try {
+          const legacyRow = toClassRow(classItem, {
+            includeCustomPattern: !isCustomPatternColumnMissingError(error),
+          });
+          delete legacyRow.arena;
+
           const { error: legacyError } = await supabase
             .from("classes")
-            .upsert(toClassRow(classItem, { includeCustomPattern: false }));
+            .upsert(legacyRow);
 
           if (legacyError) throw legacyError;
           return saveClassLocally(classItem);

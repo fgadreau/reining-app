@@ -97,6 +97,7 @@ create table if not exists public.classes (
   day_id text not null references public.days(id) on delete cascade,
   name text not null,
   class_code text,
+  arena text,
   pattern text,
   custom_pattern jsonb,
   judge_name text,
@@ -125,6 +126,9 @@ create table if not exists public.paid_warmups (
 
 alter table public.classes
 add column if not exists custom_pattern jsonb;
+
+alter table public.classes
+add column if not exists arena text;
 
 create table if not exists public.class_setups (
   class_id text primary key references public.classes(id) on delete cascade,
@@ -1070,7 +1074,12 @@ returns boolean as $$
       select 1
       from public.publication_states ps
       where ps.class_id = target_class_id
-        and ps.status = 'live'
+        and ps.status in (
+          'live',
+          'live_no_score',
+          'live_scoring',
+          'live_finished'
+        )
     );
 $$ language sql stable security definer set search_path = public;
 
@@ -1183,7 +1192,12 @@ drop policy if exists "Anyone can read public publication states" on public.publ
 create policy "Anyone can read public publication states"
 on public.publication_states for select to anon, authenticated
 using (
-  status = 'live'
+  status in (
+    'live',
+    'live_no_score',
+    'live_scoring',
+    'live_finished'
+  )
   or (
     status = 'published'
     and public.class_has_published_official_result(class_id)
@@ -1212,7 +1226,12 @@ using (
     select 1
     from public.publication_states ps
     where ps.class_id = scoring_sessions.class_id
-      and ps.status = 'live'
+      and ps.status in (
+        'live',
+        'live_no_score',
+        'live_scoring',
+        'live_finished'
+      )
   )
 );
 
@@ -1380,7 +1399,12 @@ returns table (
     from class_remaining
     join public.publication_states publication
       on publication.class_id = class_remaining.id
-     and publication.status = 'live'
+     and publication.status in (
+       'live',
+       'live_no_score',
+       'live_scoring',
+       'live_finished'
+     )
   ),
   day_remaining as (
     select

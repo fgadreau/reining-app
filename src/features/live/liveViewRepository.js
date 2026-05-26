@@ -16,7 +16,10 @@ import {
 } from "../patterns/patternDefinitions";
 import { buildProvisionalRanking } from "../scoring/provisionalRanking";
 import { getSupabaseClient } from "../cloud/supabaseClient";
-import { PUBLICATION_STATUSES } from "../publication/publicationRepository";
+import {
+  canPublicationStatusShowScores,
+  getPublicationStatusLabel,
+} from "../publication/publicationRepository";
 import { loadActiveManoeuvre } from "../scoring/scoringRepository";
 
 const ANNOUNCER_CLASS_REALTIME_TABLES = [
@@ -47,19 +50,18 @@ export function getAnnouncerShowView(showId) {
   const allClasses = sections.flatMap((section) => section.classes);
   const allPaidWarmups = sections.flatMap((section) => section.paidWarmups);
 
-  const activeClass =
-    allClasses.find((item) => item.activeRun) ||
-    allClasses.find((item) => item.scoringStarted && item.nextRun) ||
-    null;
+  const activeClasses = findActiveClasses(allClasses);
+  const activeClass = activeClasses[0] || null;
   const activePaidWarmup =
     allPaidWarmups.find((item) => item.activeEntry) || null;
 
   return {
     sections,
     activeClass,
+    activeClasses,
     activePaidWarmup,
     latestScore: findLatestScoredRun(allClasses),
-    recentResults: findRecentPassedRuns(allClasses, 2, activeClass),
+    recentResults: findRecentPassedRuns(allClasses, 4, activeClasses),
   };
 }
 
@@ -91,19 +93,18 @@ export async function getAnnouncerShowViewRepository(showId) {
   const allClasses = sections.flatMap((section) => section.classes);
   const allPaidWarmups = sections.flatMap((section) => section.paidWarmups);
 
-  const activeClass =
-    allClasses.find((item) => item.activeRun) ||
-    allClasses.find((item) => item.scoringStarted && item.nextRun) ||
-    null;
+  const activeClasses = findActiveClasses(allClasses);
+  const activeClass = activeClasses[0] || null;
   const activePaidWarmup =
     allPaidWarmups.find((item) => item.activeEntry) || null;
 
   return {
     sections,
     activeClass,
+    activeClasses,
     activePaidWarmup,
     latestScore: findLatestScoredRun(allClasses),
-    recentResults: findRecentPassedRuns(allClasses, 2, activeClass),
+    recentResults: findRecentPassedRuns(allClasses, 4, activeClasses),
   };
 }
 
@@ -244,10 +245,12 @@ export function buildAnnouncerClassView(classData) {
     classId,
     className: classItem?.name || "Classe",
     classCode: classItem?.classCode || "",
+    arena: classItem?.arena || "",
     pattern: getPatternDisplayName(pattern, customPattern) || pattern,
     headers,
     status: classData.status,
     publicationStatus,
+    publicationStatusLabel: getPublicationStatusLabel(publicationStatus),
     runCount: runs.length,
     scoringStarted,
     isComplete,
@@ -262,11 +265,13 @@ export function buildAnnouncerClassView(classData) {
 }
 
 function canShowLatestScore(publicationStatus) {
-  return [
-    PUBLICATION_STATUSES.LIVE,
-    PUBLICATION_STATUSES.OFFICIAL,
-    PUBLICATION_STATUSES.PUBLISHED,
-  ].includes(publicationStatus);
+  return canPublicationStatusShowScores(publicationStatus);
+}
+
+function findActiveClasses(classes) {
+  return classes.filter(
+    (item) => item.activeRun || (item.scoringStarted && item.nextRun)
+  );
 }
 
 function normalizeRunForAnnouncer(run, index, headers) {
@@ -361,15 +366,10 @@ function wrapClassRuns(classView, runs) {
   }));
 }
 
-function findRecentPassedRuns(classes, count, activeClass) {
-  if (activeClass?.activeRun) {
-    return wrapClassRuns(
-      activeClass,
-      (activeClass.lastPassedRuns || []).slice(0, count)
-    );
-  }
+function findRecentPassedRuns(classes, count, activeClasses = []) {
+  const sourceClasses = activeClasses.length > 0 ? activeClasses : classes;
 
-  return classes
+  return sourceClasses
     .flatMap((classView, classIndex) =>
       wrapClassRuns(classView, classView.lastPassedRuns || []).map((entry) => ({
         ...entry,

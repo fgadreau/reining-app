@@ -198,11 +198,8 @@ function AnnouncerDashboardPage() {
         <FocusPanel title="En piste">
           {liveView.activePaidWarmup?.activeEntry ? (
             <PaidWarmupFocus warmup={liveView.activePaidWarmup} now={now} />
-          ) : liveView.activeClass?.activeRun ? (
-            <RunFocus
-              className={liveView.activeClass.className}
-              run={liveView.activeClass.activeRun}
-            />
+          ) : liveView.activeClasses?.length ? (
+            <ActiveClassFocusList classes={liveView.activeClasses} />
           ) : (
             <div style={mutedTextStyle}>Aucun run actif.</div>
           )}
@@ -214,12 +211,8 @@ function AnnouncerDashboardPage() {
               warmupName={liveView.activePaidWarmup.name}
               entry={liveView.activePaidWarmup.nextEntry}
             />
-          ) : liveView.activeClass?.nextRun ? (
-            <RunFocus
-              className={liveView.activeClass.className}
-              run={liveView.activeClass.nextRun}
-              compact
-            />
+          ) : liveView.activeClasses?.some((classView) => classView.nextRun) ? (
+            <NextRunFocusList classes={liveView.activeClasses} />
           ) : (
             <div style={mutedTextStyle}>Aucun prochain run.</div>
           )}
@@ -321,6 +314,46 @@ function RunFocus({ className, run, compact = false }) {
       <RunIdentity run={run} />
     </div>
   );
+}
+
+function ActiveClassFocusList({ classes }) {
+  return (
+    <div style={focusListStyle}>
+      {classes.map((classView) => (
+        <div key={classView.classId} style={focusListItemStyle}>
+          <RunFocus
+            className={formatClassLocation(classView)}
+            run={classView.activeRun || classView.nextRun}
+          />
+          <div style={mutedTextStyle}>{classView.publicationStatusLabel}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function NextRunFocusList({ classes }) {
+  return (
+    <div style={focusListStyle}>
+      {classes
+        .filter((classView) => classView.nextRun)
+        .map((classView) => (
+          <div key={classView.classId} style={focusListItemStyle}>
+            <RunFocus
+              className={formatClassLocation(classView)}
+              run={classView.nextRun}
+              compact
+            />
+          </div>
+        ))}
+    </div>
+  );
+}
+
+function formatClassLocation(classView) {
+  return classView.arena
+    ? `${classView.className} · ${classView.arena}`
+    : classView.className;
 }
 
 function PaidWarmupFocus({ warmup, now }) {
@@ -556,10 +589,14 @@ function ClassLiveCard({ classView, onOpenProvisionalRanking }) {
             {classView.classCode ? ` (${classView.classCode})` : ""}
           </div>
           <div style={mutedTextStyle}>
+            {classView.arena ? `Manège ${classView.arena} · ` : ""}
             Pattern {classView.pattern || "—"} · {classView.runCount} run(s)
           </div>
         </div>
-        <Badge tone={liveState.tone}>{liveState.label}</Badge>
+        <div style={badgeStackStyle}>
+          <Badge tone="muted">{classView.publicationStatusLabel}</Badge>
+          <Badge tone={liveState.tone}>{liveState.label}</Badge>
+        </div>
       </div>
       <div style={runGridStyle}>
         <RunBlock label="Actif" run={classView.activeRun} />
@@ -825,6 +862,18 @@ const focusClassNameStyle = {
   color: "#0f172a",
 };
 
+const focusListStyle = {
+  display: "grid",
+  gap: 10,
+};
+
+const focusListItemStyle = {
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  padding: 10,
+  background: "#f8fafc",
+};
+
 const scoreStyle = {
   fontSize: 44,
   fontWeight: 900,
@@ -926,6 +975,14 @@ const classCardHeaderStyle = {
   gap: 10,
   alignItems: "flex-start",
   marginBottom: 12,
+};
+
+const badgeStackStyle = {
+  display: "flex",
+  gap: 8,
+  alignItems: "center",
+  justifyContent: "flex-end",
+  flexWrap: "wrap",
 };
 
 const classNameStyle = {

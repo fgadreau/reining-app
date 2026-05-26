@@ -60,6 +60,7 @@ function DayClassesPage() {
   const [draft, setDraft] = useState({
     name: "",
     classCode: "",
+    arena: "",
     pattern: "",
     judgeName: "",
   });
@@ -94,6 +95,7 @@ function DayClassesPage() {
       associationId,
       name: "Nouvelle classe",
       classCode: "",
+      arena: "",
       pattern: "",
       customPattern: null,
       judgeName: "",
@@ -112,6 +114,7 @@ function DayClassesPage() {
     setDraft({
       name: newClass.name,
       classCode: newClass.classCode,
+      arena: newClass.arena,
       pattern: newClass.pattern,
       judgeName: newClass.judgeName,
     });
@@ -146,6 +149,7 @@ function DayClassesPage() {
     setDraft({
       name: item.name || "",
       classCode: item.classCode || "",
+      arena: item.arena || "",
       pattern: item.pattern || "",
       judgeName: item.judgeName || "",
     });
@@ -156,6 +160,7 @@ function DayClassesPage() {
     setDraft({
       name: "",
       classCode: "",
+      arena: "",
       pattern: "",
       judgeName: "",
     });
@@ -176,6 +181,7 @@ function DayClassesPage() {
       ...currentClass,
       name: draft.name,
       classCode: draft.classCode,
+      arena: draft.arena,
       pattern: draft.pattern,
       customPattern,
       judgeName: draft.judgeName,
@@ -499,6 +505,7 @@ function DayClassesPage() {
                             item.customPattern
                           ) || "—"}{" "}
                           • Juge {officialData.judgeName || "—"}
+                          {item.arena ? ` • Manège ${item.arena}` : ""}
                         </div>
                       </div>
 
@@ -608,6 +615,22 @@ function DayClassesPage() {
                               classCode: e.target.value,
                             }))
                           }
+                          style={inputStyle}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={labelStyle}>Manège / arena</label>
+                        <input
+                          type="text"
+                          value={draft.arena}
+                          onChange={(e) =>
+                            setDraft((prev) => ({
+                              ...prev,
+                              arena: e.target.value,
+                            }))
+                          }
+                          placeholder="Ex. Manège 1"
                           style={inputStyle}
                         />
                       </div>

@@ -16,6 +16,10 @@ import {
 import { PAID_WARMUP_STATUS_LABELS } from "../../features/paidWarmups/paidWarmupStorage";
 import { getShowById } from "../../features/shows/showSelectors";
 import {
+  getPublicationStatusLabel,
+  PUBLICATION_STATUSES,
+} from "../../features/publication/publicationRepository";
+import {
   buildScorePdfFileName,
   generateScorePdf,
 } from "../../utils/generateScorePdf";
@@ -33,7 +37,12 @@ function PublicResultsPage() {
   const [openClassId, setOpenClassId] = useState(null);
   const [now, setNow] = useState(() => new Date());
   const publicClassIdsKey = (publicView.classIds || []).join("|");
-  const hasLiveClass = Boolean(publicView.liveClass || publicView.livePaidWarmup);
+  const liveClasses = Array.isArray(publicView.liveClasses)
+    ? publicView.liveClasses
+    : publicView.liveClass
+      ? [publicView.liveClass]
+      : [];
+  const hasLiveClass = Boolean(liveClasses.length || publicView.livePaidWarmup);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -177,13 +186,26 @@ function PublicResultsPage() {
         <PublicPaidWarmupLivePanel warmup={publicView.livePaidWarmup} now={now} />
       )}
 
-      {publicView.liveClass && (
-        <PublicLivePanel classView={publicView.liveClass} now={now} />
+      {liveClasses.length > 0 && (
+        <div style={liveStackStyle}>
+          {liveClasses.map((classView) => (
+            <PublicLivePanel
+              key={classView.classId}
+              classView={classView}
+              now={now}
+            />
+          ))}
+        </div>
       )}
 
       <section style={summaryStyle}>
         <div style={summaryValueStyle}>{publicView.publishedClassCount}</div>
         <div style={summaryLabelStyle}>classe(s) avec feuilles publiées</div>
+        {publicView.liveClassCount > 0 && (
+          <div style={summarySubLabelStyle}>
+            {publicView.liveClassCount} live actif(s) dans la vitrine
+          </div>
+        )}
       </section>
 
       {isLoading ? (
@@ -301,6 +323,7 @@ function PublicClassResults({ association, show, classView, isOpen, onToggle }) 
           </h3>
           <div style={mutedTextStyle}>
             Pattern {classView.pattern || "—"}
+            {classView.arena ? ` · Manège ${classView.arena}` : ""}
             {classView.judgeName ? ` · Juge ${classView.judgeName}` : ""}
           </div>
         </div>
@@ -395,6 +418,10 @@ function PublicLivePanel({ classView, now }) {
   const dragBreak = classView.dragBreak?.isActive ? classView.dragBreak : null;
   const dragRemainingSeconds = getDragRemainingSeconds(dragBreak, now);
   const nextRun = dragBreak?.nextRun || classView.nextRun;
+  const showScores = classView.showScores !== false;
+  const publicationLabel = getPublicationStatusLabel(
+    classView.publicationStatus || PUBLICATION_STATUSES.LIVE
+  );
 
   return (
     <section style={livePanelStyle}>
@@ -405,12 +432,25 @@ function PublicLivePanel({ classView, now }) {
             {classView.className}
             {classView.classCode ? ` (${classView.classCode})` : ""}
           </h2>
-          <div style={mutedTextStyle}>Pattern {classView.pattern || "—"}</div>
+          <div style={mutedTextStyle}>
+            {classView.arena ? `Manège ${classView.arena} · ` : ""}
+            Pattern {classView.pattern || "—"}
+          </div>
         </div>
-        <Badge>{dragBreak ? "Drag" : "En cours"}</Badge>
+        <div style={badgeStackStyle}>
+          <Badge>{publicationLabel}</Badge>
+          <Badge>{dragBreak ? "Drag" : "En cours"}</Badge>
+        </div>
       </div>
 
       <PublicTimingSummary timing={classView.timing} />
+
+      {!showScores && (
+        <div style={noScoreNoticeStyle}>
+          Cette classe est visible en live. Les scores ne sont pas affichés pour
+          l’instant.
+        </div>
+      )}
 
       {dragBreak && (
         <div style={paidWarmupNoticeStyle}>
@@ -424,18 +464,31 @@ function PublicLivePanel({ classView, now }) {
           {dragBreak ? (
             <PublicDragCard remainingSeconds={dragRemainingSeconds} />
           ) : classView.activeRun ? (
-            <LiveRunCard run={classView.activeRun} showScore />
+            <LiveRunCard
+              run={classView.activeRun}
+              showScore={showScores}
+              showDetails={showScores}
+            />
           ) : (
             <div style={mutedTextStyle}>—</div>
           )}
         </div>
-        <LiveRunBlock label="Prochain participant" run={nextRun} />
+        <LiveRunBlock
+          label="Prochain participant"
+          run={nextRun}
+          showDetails={showScores}
+        />
         <div style={liveBlockStyle}>
           <div style={runLabelStyle}>Deux derniers passés</div>
           {classView.lastPassedRuns?.length ? (
             <div style={{ display: "grid", gap: 8 }}>
               {classView.lastPassedRuns.map((run) => (
-                <LiveRunCard key={run.id || run.draw} run={run} />
+                <LiveRunCard
+                  key={run.id || run.draw}
+                  run={run}
+                  showScore={showScores}
+                  showDetails={showScores}
+                />
               ))}
             </div>
           ) : (
@@ -596,12 +649,16 @@ function TimingMetric({ label, value }) {
   );
 }
 
-function LiveRunBlock({ label, run, showScore = false }) {
+function LiveRunBlock({ label, run, showScore = false, showDetails = true }) {
   return (
     <div style={liveBlockStyle}>
       <div style={runLabelStyle}>{label}</div>
       {run ? (
-        <LiveRunCard run={run} showScore={showScore} />
+        <LiveRunCard
+          run={run}
+          showScore={showScore}
+          showDetails={showDetails}
+        />
       ) : (
         <div style={mutedTextStyle}>—</div>
       )}
@@ -609,7 +666,7 @@ function LiveRunBlock({ label, run, showScore = false }) {
   );
 }
 
-function LiveRunCard({ run, showScore = true }) {
+function LiveRunCard({ run, showScore = true, showDetails = true }) {
   return (
     <div>
       <div style={runTitleStyle}>
@@ -618,8 +675,12 @@ function LiveRunCard({ run, showScore = true }) {
       <div style={runNameStyle}>{run.rider || "Rider —"}</div>
       <div style={mutedTextStyle}>{run.horse || "Horse —"}</div>
       {showScore && <div style={liveScoreStyle}>{run.scoreTotal || "—"}</div>}
-      <PublicRunNote note={run.note} />
-      <ManoeuvreDetails run={run} />
+      {showDetails && (
+        <>
+          <PublicRunNote note={run.note} />
+          <ManoeuvreDetails run={run} />
+        </>
+      )}
     </div>
   );
 }
@@ -751,6 +812,17 @@ const summaryLabelStyle = {
   marginTop: 4,
 };
 
+const summarySubLabelStyle = {
+  color: "#166534",
+  marginTop: 4,
+  fontSize: 13,
+};
+
+const liveStackStyle = {
+  display: "grid",
+  gap: 12,
+};
+
 const livePanelStyle = {
   background: "#fff",
   borderRadius: 12,
@@ -758,6 +830,23 @@ const livePanelStyle = {
   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
   marginBottom: 16,
   border: "1px solid #bbf7d0",
+};
+
+const badgeStackStyle = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
+};
+
+const noScoreNoticeStyle = {
+  border: "1px solid #bfdbfe",
+  borderRadius: 8,
+  padding: 10,
+  background: "#eff6ff",
+  color: "#1e3a8a",
+  fontWeight: 800,
+  marginBottom: 12,
 };
 
 const liveGridStyle = {
