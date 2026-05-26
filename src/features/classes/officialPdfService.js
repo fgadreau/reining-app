@@ -18,7 +18,14 @@ export function getOfficialPdfFileName(classData) {
 export function buildOfficialScorePdf({ association, classData, fileName }) {
   const classItem = classData?.classItem;
   const official = classData?.official || {};
-  const headers = getPatternHeaders(official.pattern);
+  const patternValue =
+    official.patternValue || classData?.setup?.pattern || classItem?.pattern || "";
+  const customPattern =
+    official.customPattern ||
+    classData?.setup?.customPattern ||
+    classItem?.customPattern ||
+    null;
+  const headers = getPatternHeaders(patternValue, customPattern);
   const officialRuns = Array.isArray(official.officialRuns)
     ? official.officialRuns
     : [];
@@ -84,6 +91,11 @@ export async function downloadOfficialScorePdf({
     ...classData.official,
     finalized: true,
     finalPdfFileName: fileName,
+    customPattern:
+      classData?.setup?.customPattern ||
+      classData?.classItem?.customPattern ||
+      classData?.official?.customPattern ||
+      null,
     officialRuns: Array.isArray(classData?.scoringRuns)
       ? classData.scoringRuns
       : [],

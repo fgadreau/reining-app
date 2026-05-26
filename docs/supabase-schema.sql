@@ -98,6 +98,7 @@ create table if not exists public.classes (
   name text not null,
   class_code text,
   pattern text,
+  custom_pattern jsonb,
   judge_name text,
   sort_order integer not null default 1,
   created_at timestamptz not null default now(),
@@ -122,9 +123,13 @@ create table if not exists public.paid_warmups (
   updated_at timestamptz not null default now()
 );
 
+alter table public.classes
+add column if not exists custom_pattern jsonb;
+
 create table if not exists public.class_setups (
   class_id text primary key references public.classes(id) on delete cascade,
   pattern text,
+  custom_pattern jsonb,
   runs jsonb not null default '[]'::jsonb,
   is_draw_imported boolean not null default false,
   started_at timestamptz,
@@ -150,6 +155,9 @@ add column if not exists drag_interval integer;
 alter table public.class_setups
 add column if not exists drag_duration_minutes integer not null default 8;
 
+alter table public.class_setups
+add column if not exists custom_pattern jsonb;
+
 create table if not exists public.scoring_sessions (
   class_id text primary key references public.classes(id) on delete cascade,
   runs jsonb not null default '[]'::jsonb,
@@ -167,9 +175,13 @@ create table if not exists public.official_results (
   judge_signed_at timestamptz,
   secretariat_validated_at timestamptz,
   final_pdf_file_name text,
+  custom_pattern jsonb,
   official_runs jsonb not null default '[]'::jsonb,
   updated_at timestamptz not null default now()
 );
+
+alter table public.official_results
+add column if not exists custom_pattern jsonb;
 
 create table if not exists public.publication_states (
   class_id text primary key references public.classes(id) on delete cascade,

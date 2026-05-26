@@ -12,7 +12,19 @@ export function getClassPatternValue(classData) {
   const patternValue = String(
     classData?.setup?.pattern || classData?.classItem?.pattern || ""
   ).trim();
-  return getPatternDisplayName(patternValue) || patternValue;
+  const customPattern =
+    classData?.setup?.customPattern || classData?.classItem?.customPattern || null;
+  return getPatternDisplayName(patternValue, customPattern) || patternValue;
+}
+
+function getClassPatternRawValue(classData) {
+  return String(
+    classData?.setup?.pattern || classData?.classItem?.pattern || ""
+  ).trim();
+}
+
+function getClassCustomPattern(classData) {
+  return classData?.setup?.customPattern || classData?.classItem?.customPattern || null;
 }
 
 export function getClassRunCount(classData) {
@@ -29,7 +41,10 @@ export function getClassScoringRuns(classData) {
 }
 
 export function getClassManeuverCount(classData) {
-  return getPatternHeaders(getClassPatternValue(classData)).length;
+  return getPatternHeaders(
+    getClassPatternRawValue(classData),
+    getClassCustomPattern(classData)
+  ).length;
 }
 
 export function getMedianSeconds(values) {

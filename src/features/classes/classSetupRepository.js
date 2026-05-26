@@ -9,6 +9,10 @@ import {
 function toSetup(row) {
   return normalizeClassSetup({
     pattern: row.pattern || "",
+    customPattern:
+      row.custom_pattern && typeof row.custom_pattern === "object"
+        ? row.custom_pattern
+        : null,
     runs: Array.isArray(row.runs) ? row.runs : [],
     isDrawImported: Boolean(row.is_draw_imported),
     startedAt: row.started_at || null,
@@ -28,6 +32,7 @@ function toSetup(row) {
 function toSetupRow(classId, setup, options = {}) {
   const normalized = normalizeClassSetup(setup);
   const includePlanning = options.includePlanning !== false;
+  const includeCustomPattern = options.includeCustomPattern !== false;
   const row = {
     class_id: classId,
     pattern: normalized.pattern || null,
@@ -49,6 +54,10 @@ function toSetupRow(classId, setup, options = {}) {
     row.drag_duration_minutes = normalized.dragDurationMinutes;
   }
 
+  if (includeCustomPattern) {
+    row.custom_pattern = normalized.customPattern || null;
+  }
+
   return row;
 }
 
@@ -59,6 +68,10 @@ function isPlanningColumnMissingError(error) {
     message.includes("drag_interval") ||
     message.includes("drag_duration_minutes")
   );
+}
+
+function isCustomPatternColumnMissingError(error) {
+  return String(error?.message || "").includes("custom_pattern");
 }
 
 export async function getClassSetupRepository(classId) {
@@ -102,6 +115,22 @@ export async function saveClassSetupRepository(classId, setup) {
 
       if (error) throw error;
     } catch (error) {
+      if (isCustomPatternColumnMissingError(error)) {
+        try {
+          const { error: legacyError } = await supabase
+            .from("class_setups")
+            .upsert(
+              toSetupRow(classId, normalized, { includeCustomPattern: false })
+            );
+
+          if (legacyError) throw legacyError;
+          return normalized;
+        } catch (legacyError) {
+          console.error("Erreur sauvegarde setup Supabase:", legacyError);
+          return normalized;
+        }
+      }
+
       if (isPlanningColumnMissingError(error)) {
         try {
           const { error: legacyError } = await supabase

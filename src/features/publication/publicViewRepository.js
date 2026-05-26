@@ -66,6 +66,10 @@ function toClass(row) {
     name: row.name || "",
     classCode: row.class_code || "",
     pattern: row.pattern || "",
+    customPattern:
+      row.custom_pattern && typeof row.custom_pattern === "object"
+        ? row.custom_pattern
+        : null,
     judgeName: row.judge_name || "",
     sortOrder: row.sort_order || 1,
   };
@@ -91,6 +95,10 @@ function toOfficialResult(row) {
     secretariatValidatedAt: row.secretariat_validated_at || null,
     isFinalized: Boolean(row.finalized),
     isSecretariatValidated: Boolean(row.secretariat_validated_at),
+    customPattern:
+      row.custom_pattern && typeof row.custom_pattern === "object"
+        ? row.custom_pattern
+        : null,
     officialRuns: Array.isArray(row.official_runs) ? row.official_runs : [],
   };
 }
@@ -791,10 +799,20 @@ export function buildPublicClassView(classData) {
     ? official.officialRuns
     : [];
   const patternValue =
-    official.pattern || classData.setup?.pattern || classItem?.pattern || "";
+    official.patternValue ||
+    official.pattern ||
+    classData.setup?.pattern ||
+    classItem?.pattern ||
+    "";
+  const customPattern =
+    official.customPattern ||
+    classData.setup?.customPattern ||
+    classItem?.customPattern ||
+    null;
   const runs = buildPublicScoresheetRuns(
     officialRuns.length > 0 ? officialRuns : classData.scoringRuns || [],
-    patternValue
+    patternValue,
+    customPattern
   );
 
   return {
@@ -802,7 +820,7 @@ export function buildPublicClassView(classData) {
     className: classItem?.name || "Classe",
     classCode: classItem?.classCode || "",
     pattern:
-      getPatternDisplayName(patternValue) ||
+      getPatternDisplayName(patternValue, customPattern) ||
       official.pattern ||
       classData.setup?.pattern ||
       classItem?.pattern ||
@@ -826,7 +844,12 @@ export function buildPublicLiveClassView({
 
   const runs = Array.isArray(scoringSession?.runs)
     ? scoringSession.runs.map((run, index) =>
-        normalizePublicLiveRun(run, index, classItem?.pattern || "")
+        normalizePublicLiveRun(
+          run,
+          index,
+          setup?.pattern || classItem?.pattern || "",
+          setup?.customPattern || classItem?.customPattern || null
+        )
       )
     : [];
 
@@ -852,7 +875,14 @@ export function buildPublicLiveClassView({
     classId: classItem?.id,
     className: classItem?.name || "Classe",
     classCode: classItem?.classCode || "",
-    pattern: getPatternDisplayName(classItem?.pattern || "") || classItem?.pattern || "",
+    pattern:
+      getPatternDisplayName(
+        setup?.pattern || classItem?.pattern || "",
+        setup?.customPattern || classItem?.customPattern || null
+      ) ||
+      setup?.pattern ||
+      classItem?.pattern ||
+      "",
     activeRun,
     nextRun,
     lastPassedRuns,
@@ -861,10 +891,10 @@ export function buildPublicLiveClassView({
   };
 }
 
-function normalizePublicLiveRun(run, index, pattern) {
+function normalizePublicLiveRun(run, index, pattern, customPattern = null) {
   const scores = Array.isArray(run.scores) ? run.scores : [];
   const penalties = Array.isArray(run.penalties) ? run.penalties : [];
-  const headers = getPatternHeaders(pattern);
+  const headers = getPatternHeaders(pattern, customPattern);
 
   return {
     id: run.id,
@@ -883,7 +913,7 @@ function normalizePublicLiveRun(run, index, pattern) {
     isReview: String(run.scoreTotal ?? "").trim() === "Review",
     manoeuvres: headers.map((name, manoeuvreIndex) => ({
       name,
-      description: getPatternManeuverDescription(name, pattern),
+      description: getPatternManeuverDescription(name, pattern, customPattern),
       score: scores[manoeuvreIndex] || "",
       penalty: penalties[manoeuvreIndex] || "",
     })),
@@ -1013,16 +1043,20 @@ export function sortPublicResults(runs) {
     }));
 }
 
-export function buildPublicScoresheetRuns(runs, pattern = "") {
+export function buildPublicScoresheetRuns(
+  runs,
+  pattern = "",
+  customPattern = null
+) {
   return [...runs]
-    .map((run, index) => normalizePublicRun(run, index, pattern))
+    .map((run, index) => normalizePublicRun(run, index, pattern, customPattern))
     .sort(compareRunsByDraw);
 }
 
-function normalizePublicRun(run, index, pattern = "") {
+function normalizePublicRun(run, index, pattern = "", customPattern = null) {
   const scores = Array.isArray(run.scores) ? run.scores : [];
   const penalties = Array.isArray(run.penalties) ? run.penalties : [];
-  const headers = getPatternHeaders(pattern);
+  const headers = getPatternHeaders(pattern, customPattern);
 
   return {
     id: run.id,
@@ -1036,7 +1070,7 @@ function normalizePublicRun(run, index, pattern = "") {
     note: run.note || "",
     manoeuvres: headers.map((name, manoeuvreIndex) => ({
       name,
-      description: getPatternManeuverDescription(name, pattern),
+      description: getPatternManeuverDescription(name, pattern, customPattern),
       score: scores[manoeuvreIndex] || "",
       penalty: penalties[manoeuvreIndex] || "",
     })),

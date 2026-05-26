@@ -205,10 +205,15 @@ function ClassScoringPage() {
   const classStatusLabel = getClassStatusLabel(classStatus);
 
   const patternValue = classSetup?.pattern || classItem?.pattern || "";
-  const headers = useMemo(() => getPatternHeaders(patternValue), [patternValue]);
+  const customPattern =
+    classSetup?.customPattern || classItem?.customPattern || null;
+  const headers = useMemo(
+    () => getPatternHeaders(patternValue, customPattern),
+    [patternValue, customPattern]
+  );
   const scoringOptions = useMemo(
-    () => getScoringOptionsForPattern(patternValue),
-    [patternValue]
+    () => getScoringOptionsForPattern(patternValue, customPattern),
+    [patternValue, customPattern]
   );
   const scoreOptions = scoringOptions.scoreOptions;
   const penaltyOptions = scoringOptions.penaltyOptions;
@@ -246,7 +251,12 @@ function ClassScoringPage() {
       const nextClassItem = nextData?.classItem;
       const nextSetup = nextData?.setup || {};
       const nextPatternValue = nextSetup.pattern || nextClassItem?.pattern || "";
-      const nextManeuverCount = getPatternHeaders(nextPatternValue).length;
+      const nextCustomPattern =
+        nextSetup.customPattern || nextClassItem?.customPattern || null;
+      const nextManeuverCount = getPatternHeaders(
+        nextPatternValue,
+        nextCustomPattern
+      ).length;
       const baseRuns = buildBaseRunsFromSetup(classId, nextManeuverCount);
       const nextRuns = mergeScoringRuns(
         baseRuns,
@@ -742,7 +752,7 @@ function ClassScoringPage() {
       return;
     }
 
-    const headersForPdf = getPatternHeaders(patternValue);
+    const headersForPdf = getPatternHeaders(patternValue, customPattern);
 
     const pdf = generateScorePdf({
       associationName: association?.name || "Association",

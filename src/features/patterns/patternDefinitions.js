@@ -4,9 +4,21 @@ export const PATTERN_DISCIPLINES = {
   REINING: "reining",
   RANCH_RIDING: "ranch_riding",
   WESTERN_RIDING: "western_riding",
+  TRAIL: "trail",
 };
 
 export const RANCH_APPEARANCE_HEADER = "RHA";
+export const TRAIL_CUSTOM_PATTERN_ID = "TRAIL_CUSTOM";
+
+export const CUSTOM_PATTERN_CONFIGS = {
+  [PATTERN_DISCIPLINES.TRAIL]: {
+    id: TRAIL_CUSTOM_PATTERN_ID,
+    name: "Trail / Obstacle Western",
+    discipline: PATTERN_DISCIPLINES.TRAIL,
+    minManeuvers: 6,
+    defaultManeuverPrefix: "OB",
+  },
+};
 
 const REINING_HEADERS = {
   "1": ["LR", "RR", "SB", "RS", "LS", "LLSL", "RLSL", "STOP"],
@@ -507,6 +519,13 @@ const PATTERN_DEFINITIONS = [
     ...pattern,
     discipline: PATTERN_DISCIPLINES.WESTERN_RIDING,
   })),
+  ...Object.values(CUSTOM_PATTERN_CONFIGS).map((config) => ({
+    id: config.id,
+    name: config.name,
+    discipline: config.discipline,
+    isCustom: true,
+    maneuvers: [],
+  })),
 ];
 
 export const PATTERN_OPTION_GROUPS = [
@@ -536,6 +555,13 @@ export const PATTERN_OPTION_GROUPS = [
       name,
     })),
   },
+  {
+    label: "Patrons custom",
+    options: Object.values(CUSTOM_PATTERN_CONFIGS).map(({ id, name }) => ({
+      id,
+      name,
+    })),
+  },
 ];
 
 function simplifyPatternValue(patternValue) {
@@ -549,6 +575,15 @@ function simplifyPatternValue(patternValue) {
 export function getPatternKey(patternValue) {
   const key = simplifyPatternValue(patternValue);
   if (!key) return "";
+
+  if (
+    key === TRAIL_CUSTOM_PATTERN_ID ||
+    key === "TRAIL" ||
+    key === "TRAIL / OBSTACLE WESTERN" ||
+    key === "OBSTACLE WESTERN"
+  ) {
+    return TRAIL_CUSTOM_PATTERN_ID;
+  }
 
   if (/^([1-9]|1[0-8]|A|B)$/.test(key)) {
     return `R${key}`;
@@ -597,44 +632,180 @@ export function getPatternSelectValue(patternValue) {
   return getPatternDefinition(patternValue)?.id || String(patternValue || "");
 }
 
-export function getPatternDisplayName(patternValue) {
+export function getPatternDisplayName(patternValue, customPattern = null) {
+  const custom = normalizeCustomPattern(customPattern, patternValue);
+
+  if (custom) {
+    return custom.name || getCustomPatternConfig(custom.discipline)?.name || "";
+  }
+
   const definition = getPatternDefinition(patternValue);
   return definition?.name || String(patternValue || "").trim();
 }
 
-export function getPatternDiscipline(patternValue) {
+export function getPatternDiscipline(patternValue, customPattern = null) {
+  const custom = normalizeCustomPattern(customPattern, patternValue);
+
+  if (custom) {
+    return custom.discipline;
+  }
+
   return getPatternDefinition(patternValue)?.discipline || PATTERN_DISCIPLINES.REINING;
 }
 
-export function isRanchRidingPattern(patternValue) {
-  return getPatternDiscipline(patternValue) === PATTERN_DISCIPLINES.RANCH_RIDING;
+export function isRanchRidingPattern(patternValue, customPattern = null) {
+  return (
+    getPatternDiscipline(patternValue, customPattern) ===
+    PATTERN_DISCIPLINES.RANCH_RIDING
+  );
 }
 
-export function isWesternRidingPattern(patternValue) {
-  return getPatternDiscipline(patternValue) === PATTERN_DISCIPLINES.WESTERN_RIDING;
+export function isWesternRidingPattern(patternValue, customPattern = null) {
+  return (
+    getPatternDiscipline(patternValue, customPattern) ===
+    PATTERN_DISCIPLINES.WESTERN_RIDING
+  );
 }
 
-export function getPatternHeaders(patternValue) {
+export function isTrailPattern(patternValue, customPattern = null) {
+  return (
+    getPatternDiscipline(patternValue, customPattern) === PATTERN_DISCIPLINES.TRAIL
+  );
+}
+
+export function isCustomPatternValue(patternValue) {
+  return Boolean(getPatternDefinition(patternValue)?.isCustom);
+}
+
+export function getCustomPatternConfig(disciplineOrPattern) {
+  const key = getPatternKey(disciplineOrPattern);
+  const byPattern = Object.values(CUSTOM_PATTERN_CONFIGS).find(
+    (config) => config.id === key
+  );
+
+  if (byPattern) {
+    return byPattern;
+  }
+
+  return CUSTOM_PATTERN_CONFIGS[disciplineOrPattern] || null;
+}
+
+export function getCustomPatternConfigForPattern(patternValue) {
+  const definition = getPatternDefinition(patternValue);
+
+  if (!definition?.isCustom) {
+    return null;
+  }
+
+  return getCustomPatternConfig(definition.discipline);
+}
+
+export function createDefaultCustomPattern(patternValue = TRAIL_CUSTOM_PATTERN_ID) {
+  const config = getCustomPatternConfigForPattern(patternValue);
+
+  if (!config) {
+    return null;
+  }
+
+  return {
+    discipline: config.discipline,
+    name: config.name,
+    maneuvers: createDefaultCustomManeuvers(config.minManeuvers, config),
+  };
+}
+
+export function normalizeCustomPattern(customPattern, patternValue = "") {
+  const patternConfig = getCustomPatternConfigForPattern(patternValue);
+  const config =
+    patternConfig ||
+    (!String(patternValue || "").trim()
+      ? getCustomPatternConfig(customPattern?.discipline)
+      : null);
+
+  if (!config) {
+    return null;
+  }
+
+  const sourceManeuvers = Array.isArray(customPattern?.maneuvers)
+    ? customPattern.maneuvers
+    : [];
+  const minCount = config.minManeuvers || 1;
+  const targetCount = Math.max(sourceManeuvers.length, minCount);
+  const maneuvers = Array.from({ length: targetCount }, (_, index) =>
+    normalizeCustomManeuver(sourceManeuvers[index], index, config)
+  );
+
+  return {
+    discipline: config.discipline,
+    name: String(customPattern?.name || config.name || "").trim(),
+    maneuvers,
+  };
+}
+
+export function isCustomPatternReady(patternValue, customPattern = null) {
+  const config = getCustomPatternConfigForPattern(patternValue);
+
+  if (!config) {
+    return true;
+  }
+
+  const custom = normalizeCustomPattern(customPattern, patternValue);
+
+  if (!custom || custom.maneuvers.length < config.minManeuvers) {
+    return false;
+  }
+
+  return custom.maneuvers.every(
+    (maneuver) => maneuver.abbreviation && maneuver.description
+  );
+}
+
+export function getPatternHeaders(patternValue, customPattern = null) {
+  const custom = normalizeCustomPattern(customPattern, patternValue);
+
+  if (custom) {
+    return custom.maneuvers.map(
+      (maneuver, index) => maneuver.abbreviation || `M${index + 1}`
+    );
+  }
+
   return getPatternDefinition(patternValue)?.maneuvers || DEFAULT_HEADERS;
 }
 
-export function getPatternManeuverDescription(maneuver, patternValue = "") {
+export function getPatternManeuverDescription(
+  maneuver,
+  patternValue = "",
+  customPattern = null
+) {
   const token = String(maneuver || "").trim();
 
   if (!token) {
     return "";
   }
 
+  const custom = normalizeCustomPattern(customPattern, patternValue);
+
+  if (custom) {
+    const customManeuver = custom.maneuvers.find(
+      (item, index) =>
+        item.abbreviation === token || (!item.abbreviation && token === `M${index + 1}`)
+    );
+
+    return customManeuver?.description || token;
+  }
+
   if (token === RANCH_APPEARANCE_HEADER) {
     return "Natural ranch horse appearance";
   }
 
-  const discipline = getPatternDiscipline(patternValue);
+  const discipline = getPatternDiscipline(patternValue, customPattern);
   const parts = splitManeuverParts(token);
 
   if (parts.length > 1) {
     return parts
-      .map((part) => getPatternManeuverDescription(part, patternValue))
+      .map((part) =>
+        getPatternManeuverDescription(part, patternValue, customPattern)
+      )
       .filter(Boolean)
       .join(" / ");
   }
@@ -650,8 +821,30 @@ export function getPatternManeuverDescription(maneuver, patternValue = "") {
   return REINING_ABBREVIATIONS[token] || token;
 }
 
-export function getPatternMoveCount(patternValue) {
-  return getPatternHeaders(patternValue).length;
+export function getPatternMoveCount(patternValue, customPattern = null) {
+  return getPatternHeaders(patternValue, customPattern).length;
+}
+
+function createDefaultCustomManeuvers(count, config) {
+  return Array.from({ length: count }, (_, index) =>
+    normalizeCustomManeuver(null, index, config)
+  );
+}
+
+function normalizeCustomManeuver(maneuver, index, config) {
+  const fallbackPrefix = config.defaultManeuverPrefix || "M";
+  const fallbackAbbreviation = `${fallbackPrefix}${index + 1}`;
+  const abbreviation = String(
+    maneuver?.abbreviation || maneuver?.abbr || maneuver?.name || ""
+  )
+    .trim()
+    .toUpperCase();
+  const description = String(maneuver?.description || maneuver?.label || "").trim();
+
+  return {
+    abbreviation: abbreviation || fallbackAbbreviation,
+    description,
+  };
 }
 
 function splitManeuverParts(token) {

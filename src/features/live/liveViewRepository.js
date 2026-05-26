@@ -202,7 +202,9 @@ export function buildAnnouncerClassView(classData) {
     ? classData.setup.runs
     : [];
   const pattern = classData.setup?.pattern || classItem?.pattern || "";
-  const headers = getPatternHeaders(pattern);
+  const customPattern =
+    classData.setup?.customPattern || classItem?.customPattern || null;
+  const headers = getPatternHeaders(pattern, customPattern);
   const sourceRuns = scoringRuns.length > 0 ? scoringRuns : setupRuns;
   const runs = sourceRuns.map((run, index) =>
     normalizeRunForAnnouncer(run, index, headers)
@@ -226,7 +228,7 @@ export function buildAnnouncerClassView(classData) {
     classId,
     className: classItem?.name || "Classe",
     classCode: classItem?.classCode || "",
-    pattern: getPatternDisplayName(pattern) || pattern,
+    pattern: getPatternDisplayName(pattern, customPattern) || pattern,
     headers,
     status: classData.status,
     publicationStatus,

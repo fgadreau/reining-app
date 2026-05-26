@@ -4,7 +4,9 @@ import {
   deleteClassCompletelyRepository,
   getClassesForDayRepository,
   saveClassItemRepository,
+  saveSetupForClassRepository,
 } from "../../features/classes/classRepository";
+import { getClassSetupRepository } from "../../features/classes/classSetupRepository";
 import {
   deletePaidWarmupRepository,
   getPaidWarmupsForDayRepository,
@@ -20,9 +22,12 @@ import { getShowById } from "../../features/shows/showSelectors";
 import { loadAssociations } from "../../features/associations/associationsData";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import {
+  createDefaultCustomPattern,
+  getCustomPatternConfigForPattern,
   getPatternDisplayName,
   getPatternHeaders,
   getPatternSelectValue,
+  normalizeCustomPattern,
   PATTERN_OPTION_GROUPS,
 } from "../../features/patterns/patternDefinitions";
 import { loadScoringRunsRepository } from "../../features/scoring/scoringRepository";
@@ -90,6 +95,7 @@ function DayClassesPage() {
       name: "Nouvelle classe",
       classCode: "",
       pattern: "",
+      customPattern: null,
       judgeName: "",
       showName: show?.name || "",
       date: day?.date || "",
@@ -159,11 +165,19 @@ function DayClassesPage() {
     if (!editingId) return;
 
     const currentClass = classes.find((item) => item.id === editingId);
+    const customPatternConfig = getCustomPatternConfigForPattern(draft.pattern);
+    const customPattern = customPatternConfig
+      ? normalizeCustomPattern(
+          currentClass?.customPattern || createDefaultCustomPattern(draft.pattern),
+          draft.pattern
+        )
+      : null;
     const nextClass = {
       ...currentClass,
       name: draft.name,
       classCode: draft.classCode,
       pattern: draft.pattern,
+      customPattern,
       judgeName: draft.judgeName,
       showId,
       associationId,
@@ -193,6 +207,65 @@ function DayClassesPage() {
 
     if (editingId === id) {
       cancelEdit();
+    }
+  };
+
+  const handleDuplicateClass = async (item) => {
+    if (!item?.id) return;
+
+    setIsSaving(true);
+
+    try {
+      const sourceSetup = await getClassSetupRepository(item.id);
+      const sourcePattern = sourceSetup.pattern || item.pattern || "";
+      const sourceCustomPattern =
+        sourceSetup.customPattern || item.customPattern || null;
+      const customPattern = getCustomPatternConfigForPattern(sourcePattern)
+        ? normalizeCustomPattern(
+            sourceCustomPattern || createDefaultCustomPattern(sourcePattern),
+            sourcePattern
+          )
+        : null;
+      const newClass = {
+        ...item,
+        id: createId("class"),
+        name: `${item.name || "Classe"} copie`,
+        pattern: sourcePattern,
+        customPattern,
+        sortOrder: classes.length + paidWarmups.length + 1,
+        finalized: false,
+        finalizedAt: null,
+        judgeSignedAt: null,
+        showId,
+        dayId,
+        associationId,
+        showName: show?.name || "",
+        date: day?.date || "",
+        dayLabel: day?.label || "",
+      };
+      const newSetup = {
+        ...sourceSetup,
+        pattern: sourcePattern,
+        customPattern,
+        runs: [],
+        isDrawImported: false,
+        startedAt: null,
+        lockedAt: null,
+        lockedBy: null,
+        finalized: false,
+        finalizedAt: null,
+        judgeSignature: null,
+        judgeSignedAt: null,
+        finalPdf: null,
+        finalPdfFileName: null,
+      };
+
+      const savedClass = await saveClassItemRepository(newClass);
+      await saveSetupForClassRepository(savedClass.id, newSetup);
+
+      setClasses((current) => [...current, savedClass]);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -250,7 +323,10 @@ function DayClassesPage() {
     }
 
     const scoringRuns = await loadScoringRunsRepository(item.id);
-    const headers = getPatternHeaders(officialData.pattern);
+    const headers = getPatternHeaders(
+      officialData.patternValue || officialData.pattern,
+      officialData.customPattern
+    );
 
     const pdf = generateScorePdf({
       associationName: association?.name || "Association",
@@ -417,8 +493,12 @@ function DayClassesPage() {
                         </div>
 
                         <div style={cardMetaStyle}>
-                          Pattern {getPatternDisplayName(item.pattern) || "—"} • Juge{" "}
-                          {officialData.judgeName || "—"}
+                          Pattern{" "}
+                          {getPatternDisplayName(
+                            item.pattern,
+                            item.customPattern
+                          ) || "—"}{" "}
+                          • Juge {officialData.judgeName || "—"}
                         </div>
                       </div>
 
@@ -476,6 +556,15 @@ function DayClassesPage() {
                             disabled={isCompleted || isSaving}
                           >
                             Modifier
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDuplicateClass(item)}
+                            style={secondaryButtonStyle}
+                            disabled={isSaving}
+                          >
+                            Dupliquer
                           </button>
 
                           <button

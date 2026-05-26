@@ -1,5 +1,6 @@
 import {
   isRanchRidingPattern,
+  isTrailPattern,
   isWesternRidingPattern,
 } from "../patterns/patternDefinitions";
 
@@ -26,12 +27,23 @@ const WESTERN_RIDING_OPTIONS = {
   statusPenaltyOptions: ["Score 0", "Disqualification", "Révision vidéo"],
 };
 
-export function getScoringOptionsForPattern(patternValue) {
-  if (isWesternRidingPattern(patternValue)) {
+const TRAIL_OPTIONS = {
+  scoreOptions: SCORE_OPTIONS,
+  penaltyOptions: ["½", "1", "3", "5"],
+  specialPenaltyTokens: ["Score 0", "Disqualification", "Révision vidéo"],
+  statusPenaltyOptions: ["Score 0", "Disqualification", "Révision vidéo"],
+};
+
+export function getScoringOptionsForPattern(patternValue, customPattern = null) {
+  if (isTrailPattern(patternValue, customPattern)) {
+    return TRAIL_OPTIONS;
+  }
+
+  if (isWesternRidingPattern(patternValue, customPattern)) {
     return WESTERN_RIDING_OPTIONS;
   }
 
-  return isRanchRidingPattern(patternValue)
+  return isRanchRidingPattern(patternValue, customPattern)
     ? RANCH_RIDING_OPTIONS
     : REINING_OPTIONS;
 }

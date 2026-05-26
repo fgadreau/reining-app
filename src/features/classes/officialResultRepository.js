@@ -11,13 +11,18 @@ function toOfficialResult(row) {
     judgeSignedAt: row.judge_signed_at || null,
     secretariatValidatedAt: row.secretariat_validated_at || null,
     finalPdfFileName: row.final_pdf_file_name || null,
+    customPattern:
+      row.custom_pattern && typeof row.custom_pattern === "object"
+        ? row.custom_pattern
+        : null,
     officialRuns: Array.isArray(row.official_runs) ? row.official_runs : [],
     updatedAt: row.updated_at || null,
   };
 }
 
-function toOfficialResultRow(classId, official) {
-  return {
+function toOfficialResultRow(classId, official, options = {}) {
+  const includeCustomPattern = options.includeCustomPattern !== false;
+  const row = {
     class_id: classId,
     judge_name: official.judgeName || null,
     judge_signature: official.judgeSignature || null,
@@ -30,6 +35,16 @@ function toOfficialResultRow(classId, official) {
       ? official.officialRuns
       : [],
   };
+
+  if (includeCustomPattern) {
+    row.custom_pattern = official.customPattern || null;
+  }
+
+  return row;
+}
+
+function isCustomPatternColumnMissingError(error) {
+  return String(error?.message || "").includes("custom_pattern");
 }
 
 function getLocalOfficialResult(classId) {
@@ -45,6 +60,7 @@ function getLocalOfficialResult(classId) {
     judgeSignedAt: official.judgeSignedAt || null,
     secretariatValidatedAt: official.secretariatValidatedAt || null,
     finalPdfFileName: official.finalPdfFileName || null,
+    customPattern: official.customPattern || null,
     officialRuns: Array.isArray(official.officialRuns)
       ? official.officialRuns
       : [],
@@ -80,6 +96,7 @@ export async function getOfficialResultRepository(classId) {
         judgeSignedAt: result.judgeSignedAt,
         secretariatValidatedAt: result.secretariatValidatedAt,
         finalPdfFileName: result.finalPdfFileName,
+        customPattern: result.customPattern,
         officialRuns: result.officialRuns,
       },
     });
@@ -111,6 +128,7 @@ export async function saveOfficialResultRepository(classId, updates) {
       judgeSignedAt: next.judgeSignedAt,
       secretariatValidatedAt: next.secretariatValidatedAt,
       finalPdfFileName: next.finalPdfFileName,
+      customPattern: next.customPattern,
       officialRuns: next.officialRuns,
     },
   });
@@ -125,6 +143,22 @@ export async function saveOfficialResultRepository(classId, updates) {
 
       if (error) throw error;
     } catch (error) {
+      if (isCustomPatternColumnMissingError(error)) {
+        try {
+          const { error: legacyError } = await supabase
+            .from("official_results")
+            .upsert(
+              toOfficialResultRow(classId, next, { includeCustomPattern: false })
+            );
+
+          if (legacyError) throw legacyError;
+          return next;
+        } catch (legacyError) {
+          console.error("Erreur sauvegarde résultat officiel Supabase:", legacyError);
+          return next;
+        }
+      }
+
       console.error("Erreur sauvegarde résultat officiel Supabase:", error);
     }
   }
@@ -155,6 +189,11 @@ export async function validateOfficialResultRepository({
     judgeSignedAt: official.judgeSignedAt || official.finalizedAt || validatedAt,
     secretariatValidatedAt: validatedAt,
     finalPdfFileName: official.finalPdfFileName || null,
+    customPattern:
+      classData?.setup?.customPattern ||
+      classData?.classItem?.customPattern ||
+      official.customPattern ||
+      null,
     officialRuns: Array.isArray(classData?.scoringRuns)
       ? classData.scoringRuns
       : [],

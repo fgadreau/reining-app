@@ -82,6 +82,12 @@ export function getClassOfficialData(classId, classItem, officialResult = null) 
     setup?.pattern ||
     classItem?.pattern ||
     "";
+  const customPattern =
+    setup?.customPattern ||
+    officialResult?.customPattern ||
+    record?.official?.customPattern ||
+    classItem?.customPattern ||
+    null;
 
   return {
     setup,
@@ -99,7 +105,9 @@ export function getClassOfficialData(classId, classItem, officialResult = null) 
     officialRuns,
     eventName,
     eventDate,
-    pattern: getPatternDisplayName(pattern) || pattern,
+    pattern: getPatternDisplayName(pattern, customPattern) || pattern,
+    patternValue: pattern,
+    customPattern,
   };
 }
 

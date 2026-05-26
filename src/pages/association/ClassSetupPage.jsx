@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   getClassFullData,
   getClassFullDataRepository,
+  saveClassItemRepository,
   saveSetupForClassRepository,
 } from "../../features/classes/classRepository";
 import {
@@ -21,9 +22,13 @@ import {
 import { hasScoringStarted } from "../../features/scoring/scoringSelectors";
 import { appStyles as styles } from "../../styles/appStyles";
 import {
+  createDefaultCustomPattern,
+  getCustomPatternConfigForPattern,
   getPatternHeaders,
   getPatternSelectValue,
+  isCustomPatternReady,
   PATTERN_OPTION_GROUPS,
+  normalizeCustomPattern,
 } from "../../features/patterns/patternDefinitions";
 import { loadScoringRunsRepository } from "../../features/scoring/scoringRepository";
 import {
@@ -72,6 +77,12 @@ function ClassSetupPage() {
   const [pattern, setPattern] = useState(
     classSetup?.pattern || classItem?.pattern || ""
   );
+  const [customPattern, setCustomPattern] = useState(() =>
+    normalizeCustomPattern(
+      classSetup?.customPattern || classItem?.customPattern || null,
+      classSetup?.pattern || classItem?.pattern || ""
+    )
+  );
   const [runs, setRuns] = useState(classSetup?.runs || []);
   const [isDrawImported, setIsDrawImported] = useState(
     Boolean(classSetup?.isDrawImported)
@@ -114,6 +125,15 @@ function ClassSetupPage() {
 
   const classStatus = isFinalized ? "completed" : getClassStatus(classItem);
   const classStatusLabel = getClassStatusLabel(classStatus);
+  const customPatternConfig = getCustomPatternConfigForPattern(pattern);
+  const normalizedCustomPattern = customPatternConfig
+    ? normalizeCustomPattern(customPattern, pattern)
+    : null;
+  const isSelectedCustomPattern = Boolean(customPatternConfig);
+  const isCustomPatternComplete = isCustomPatternReady(
+    pattern,
+    normalizedCustomPattern
+  );
 
   function showLockedMessage(actionLabel) {
     alert(
@@ -144,6 +164,10 @@ function ClassSetupPage() {
       const nextSetup = resolvedData.setup || {};
       const nextRecord = resolvedData.record || getClassRecord(classId);
       const nextPattern = nextSetup.pattern || nextClassItem?.pattern || "";
+      const nextCustomPattern = normalizeCustomPattern(
+        nextSetup.customPattern || nextClassItem?.customPattern || null,
+        nextPattern
+      );
       const nextRuns = nextSetup.runs || [];
 
       if (!isMounted) return;
@@ -151,6 +175,7 @@ function ClassSetupPage() {
       setupRef.current = nextSetup;
       setClassData(resolvedData);
       setPattern(nextPattern);
+      setCustomPattern(nextCustomPattern);
       setRuns(nextRuns);
       setIsDrawImported(Boolean(nextSetup.isDrawImported));
       setDragInterval(String(nextSetup.dragInterval || ""));
@@ -190,14 +215,36 @@ function ClassSetupPage() {
         return;
       }
 
+      const nextCustomPattern = getCustomPatternConfigForPattern(pattern)
+        ? normalizeCustomPattern(customPattern, pattern)
+        : null;
       const savedSetup = await saveSetupForClassRepository(classId, {
         ...setupRef.current,
         pattern,
+        customPattern: nextCustomPattern,
         runs,
         isDrawImported,
         dragInterval: dragInterval || null,
         dragDurationMinutes,
       });
+
+      const classCustomPattern = nextCustomPattern || null;
+      const shouldSyncClassPattern =
+        canManageSetup &&
+        classItem?.id &&
+        (classItem.pattern !== pattern ||
+          JSON.stringify(classItem.customPattern || null) !==
+            JSON.stringify(classCustomPattern));
+
+      let savedClassItem = null;
+
+      if (shouldSyncClassPattern) {
+        savedClassItem = await saveClassItemRepository({
+          ...classItem,
+          pattern,
+          customPattern: classCustomPattern,
+        });
+      }
 
       if (isCancelled) return;
 
@@ -206,6 +253,7 @@ function ClassSetupPage() {
         currentData
           ? {
               ...currentData,
+              classItem: savedClassItem || currentData.classItem,
               setup: savedSetup,
             }
           : currentData
@@ -220,11 +268,14 @@ function ClassSetupPage() {
   }, [
     classId,
     pattern,
+    customPattern,
     runs,
     isDrawImported,
     dragInterval,
     dragDurationMinutes,
     hasLoadedSetup,
+    canManageSetup,
+    classItem,
   ]);
 
   useEffect(() => {
@@ -449,6 +500,85 @@ function ClassSetupPage() {
     });
   };
 
+  const updateCustomManeuverCount = (value) => {
+    if (!canManageSetup || !customPatternConfig) return;
+
+    if (isFinalized) {
+      showFinalizedMessage();
+      return;
+    }
+
+    if (isStructureLocked) {
+      showLockedMessage("La modification du patron custom");
+      return;
+    }
+
+    const parsedCount = parseInt(value, 10);
+    const targetCount = Number.isFinite(parsedCount)
+      ? Math.max(parsedCount, customPatternConfig.minManeuvers)
+      : customPatternConfig.minManeuvers;
+
+    setCustomPattern((prev) => {
+      const current =
+        normalizeCustomPattern(prev, pattern) ||
+        createDefaultCustomPattern(pattern);
+      const nextManeuvers = current.maneuvers.slice(0, targetCount);
+
+      while (nextManeuvers.length < targetCount) {
+        nextManeuvers.push({
+          abbreviation: `${customPatternConfig.defaultManeuverPrefix || "M"}${
+            nextManeuvers.length + 1
+          }`,
+          description: "",
+        });
+      }
+
+      return normalizeCustomPattern(
+        {
+          ...current,
+          maneuvers: nextManeuvers,
+        },
+        pattern
+      );
+    });
+  };
+
+  const updateCustomManeuverField = (index, field, value) => {
+    if (!canManageSetup || !customPatternConfig) return;
+
+    if (isFinalized) {
+      showFinalizedMessage();
+      return;
+    }
+
+    if (isStructureLocked) {
+      showLockedMessage("La modification du patron custom");
+      return;
+    }
+
+    setCustomPattern((prev) => {
+      const current =
+        normalizeCustomPattern(prev, pattern) ||
+        createDefaultCustomPattern(pattern);
+      const nextManeuvers = current.maneuvers.map((maneuver, maneuverIndex) =>
+        maneuverIndex === index
+          ? {
+              ...maneuver,
+              [field]: value,
+            }
+          : maneuver
+      );
+
+      return normalizeCustomPattern(
+        {
+          ...current,
+          maneuvers: nextManeuvers,
+        },
+        pattern
+      );
+    });
+  };
+
   const applyImportedDraw = (importedDraw) => {
     const resequencedRuns = importedDraw?.runs || [];
 
@@ -516,7 +646,7 @@ function ClassSetupPage() {
 
   const handleDownloadOfficialPdf = async () => {
     const scoringRuns = await loadScoringRunsRepository(classId);
-    const headers = getPatternHeaders(pattern);
+    const headers = getPatternHeaders(pattern, normalizedCustomPattern);
     const record = getClassRecord(classId);
 
     const pdf = generateScorePdf({
@@ -651,7 +781,21 @@ function ClassSetupPage() {
                   return;
                 }
 
-                setPattern(e.target.value);
+                const nextPattern = e.target.value;
+                const nextConfig = getCustomPatternConfigForPattern(nextPattern);
+
+                setPattern(nextPattern);
+                setCustomPattern((currentCustomPattern) =>
+                  nextConfig
+                    ? normalizeCustomPattern(
+                        currentCustomPattern ||
+                          classSetup?.customPattern ||
+                          classItem?.customPattern ||
+                          createDefaultCustomPattern(nextPattern),
+                        nextPattern
+                      )
+                    : null
+                );
               }}
               style={inputStyle}
               disabled={!canManageSetup || isFullyLocked}
@@ -753,6 +897,83 @@ function ClassSetupPage() {
           )}
         </div>
       </section>
+
+      {isSelectedCustomPattern && (
+        <section style={cardStyle}>
+          <div style={sectionHeaderStyle}>
+            <div>
+              <h2 style={sectionTitleStyle}>{customPatternConfig.name}</h2>
+              <p style={helperTextStyle}>
+                Minimum {customPatternConfig.minManeuvers} manoeuvres pour cette
+                discipline.
+              </p>
+            </div>
+          </div>
+
+          {!isCustomPatternComplete && (
+            <div style={customPatternWarningStyle}>
+              Complète l’abréviation et la description de chaque manoeuvre avant
+              d’ouvrir le scoring.
+            </div>
+          )}
+
+          <div style={customPatternCountStyle}>
+            <label style={labelStyle}>Nombre d’obstacles/manoeuvres</label>
+            <input
+              type="number"
+              min={customPatternConfig.minManeuvers}
+              value={normalizedCustomPattern?.maneuvers.length || 0}
+              onChange={(event) => updateCustomManeuverCount(event.target.value)}
+              style={smallNumberInputStyle}
+              disabled={!canManageSetup || isFullyLocked}
+            />
+          </div>
+
+          <div style={customPatternGridStyle}>
+            {(normalizedCustomPattern?.maneuvers || []).map((maneuver, index) => (
+              <div key={index} style={customManeuverRowStyle}>
+                <div style={customManeuverIndexStyle}>#{index + 1}</div>
+
+                <div>
+                  <label style={labelStyle}>Abréviation</label>
+                  <input
+                    type="text"
+                    value={maneuver.abbreviation}
+                    onChange={(event) =>
+                      updateCustomManeuverField(
+                        index,
+                        "abbreviation",
+                        event.target.value
+                      )
+                    }
+                    placeholder="GATE"
+                    style={cellInputStyle}
+                    disabled={!canManageSetup || isFullyLocked}
+                  />
+                </div>
+
+                <div>
+                  <label style={labelStyle}>Description complète</label>
+                  <input
+                    type="text"
+                    value={maneuver.description}
+                    onChange={(event) =>
+                      updateCustomManeuverField(
+                        index,
+                        "description",
+                        event.target.value
+                      )
+                    }
+                    placeholder="Gate"
+                    style={cellInputStyle}
+                    disabled={!canManageSetup || isFullyLocked}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section style={cardStyle}>
         <div style={sectionHeaderStyle}>
@@ -1054,6 +1275,39 @@ const fieldGridStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
   gap: "16px",
+};
+
+const customPatternCountStyle = {
+  maxWidth: 280,
+  marginBottom: 16,
+};
+
+const customPatternGridStyle = {
+  display: "grid",
+  gap: 10,
+};
+
+const customManeuverRowStyle = {
+  display: "grid",
+  gridTemplateColumns: "48px minmax(120px, 180px) minmax(220px, 1fr)",
+  gap: 10,
+  alignItems: "end",
+};
+
+const customManeuverIndexStyle = {
+  paddingBottom: 10,
+  fontWeight: 700,
+  color: "#475569",
+};
+
+const customPatternWarningStyle = {
+  marginBottom: 16,
+  padding: "10px 12px",
+  borderRadius: 8,
+  background: "#fff7ed",
+  border: "1px solid #fdba74",
+  color: "#9a3412",
+  fontWeight: 600,
 };
 
 const inlineFieldStyle = {

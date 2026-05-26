@@ -4,6 +4,7 @@ import {
   normalizeDragDurationMinutes,
   normalizeDragInterval,
 } from "./classTiming";
+import { normalizeCustomPattern } from "../patterns/patternDefinitions";
 
 const STORAGE_KEY = "reining_class_setup_v1";
 
@@ -87,9 +88,12 @@ export function resequenceRuns(runs) {
 }
 
 function normalizeSetup(setup = {}) {
+  const pattern = setup.pattern ?? "";
+
   return {
     ...setup,
-    pattern: setup.pattern ?? "",
+    pattern,
+    customPattern: normalizeCustomPattern(setup.customPattern, pattern),
     runs: Array.isArray(setup.runs) ? setup.runs.map(normalizeRun) : [],
     isDrawImported: Boolean(setup.isDrawImported),
     startedAt: setup.startedAt ?? null,

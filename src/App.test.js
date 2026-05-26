@@ -41,8 +41,11 @@ import {
   calculateClassTimeSimulation,
 } from "./features/classes/classTimeAnalytics";
 import {
+  isCustomPatternReady,
+  normalizeCustomPattern,
   getPatternHeaders,
   getPatternManeuverDescription,
+  TRAIL_CUSTOM_PATTERN_ID,
 } from "./features/patterns/patternDefinitions";
 import { getScoringOptionsForPattern } from "./features/scoring/scoringOptions";
 
@@ -172,6 +175,50 @@ test("uses western riding patterns and disqualification scoring", () => {
   expect(disqualifiedRun.penTotal).toBe("0.5 + Disqualification");
   expect(disqualifiedRun.scoreTotal).toBe("DQ");
   expect(isScoredRunComplete(disqualifiedRun, 2)).toBe(true);
+});
+
+test("uses trail custom patterns with six maneuver minimum", () => {
+  const customPattern = normalizeCustomPattern(
+    {
+      discipline: "trail",
+      maneuvers: [
+        { abbreviation: "GATE", description: "Gate" },
+        { abbreviation: "BRDG", description: "Bridge" },
+        { abbreviation: "BK", description: "Back through obstacle" },
+        { abbreviation: "BOX", description: "Box turn" },
+        { abbreviation: "LOG", description: "Lope over logs" },
+        { abbreviation: "SIDE", description: "Side pass" },
+      ],
+    },
+    TRAIL_CUSTOM_PATTERN_ID
+  );
+
+  expect(getPatternHeaders(TRAIL_CUSTOM_PATTERN_ID, customPattern)).toEqual([
+    "GATE",
+    "BRDG",
+    "BK",
+    "BOX",
+    "LOG",
+    "SIDE",
+  ]);
+  expect(
+    getPatternManeuverDescription(
+      "GATE",
+      TRAIL_CUSTOM_PATTERN_ID,
+      customPattern
+    )
+  ).toBe("Gate");
+  expect(isCustomPatternReady(TRAIL_CUSTOM_PATTERN_ID, customPattern)).toBe(true);
+  expect(getScoringOptionsForPattern(TRAIL_CUSTOM_PATTERN_ID, customPattern)).toMatchObject({
+    penaltyOptions: ["½", "1", "3", "5"],
+    statusPenaltyOptions: ["Score 0", "Disqualification", "Révision vidéo"],
+  });
+  expect(
+    getPatternHeaders(
+      TRAIL_CUSTOM_PATTERN_ID,
+      normalizeCustomPattern({ discipline: "trail", maneuvers: [] }, TRAIL_CUSTOM_PATTERN_ID)
+    )
+  ).toHaveLength(6);
 });
 
 test("parses imported draw rows in draw order", () => {
@@ -307,6 +354,65 @@ test("publishes scoresheets in draw order with manoeuvre details", () => {
     description: "Walk",
     score: "+0.5",
     penalty: "",
+  });
+});
+
+test("publishes custom trail scoresheets with obstacle descriptions", () => {
+  const customPattern = normalizeCustomPattern(
+    {
+      discipline: "trail",
+      maneuvers: [
+        { abbreviation: "GATE", description: "Gate" },
+        { abbreviation: "BRDG", description: "Bridge" },
+        { abbreviation: "BK", description: "Back through obstacle" },
+        { abbreviation: "BOX", description: "Box turn" },
+        { abbreviation: "LOG", description: "Lope over logs" },
+        { abbreviation: "SIDE", description: "Side pass" },
+      ],
+    },
+    TRAIL_CUSTOM_PATTERN_ID
+  );
+  const classView = buildPublicClassView({
+    classItem: {
+      id: "class-trail",
+      name: "Trail Amateur",
+      pattern: TRAIL_CUSTOM_PATTERN_ID,
+      customPattern,
+    },
+    setup: {
+      pattern: TRAIL_CUSTOM_PATTERN_ID,
+      customPattern,
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.PUBLISHED,
+      publishedAt: "2026-05-24T14:00:00.000Z",
+    },
+    official: {
+      isSecretariatValidated: true,
+      customPattern,
+      officialRuns: [
+        {
+          id: "run-1",
+          draw: 1,
+          backNumber: "101",
+          rider: "Felix Gadreau",
+          horse: "Trail Horse",
+          scores: ["+1"],
+          penalties: ["½"],
+          scoreTotal: "70.5",
+          penTotal: "0.5",
+        },
+      ],
+    },
+    scoringRuns: [],
+  });
+
+  expect(classView.pattern).toBe("Trail / Obstacle Western");
+  expect(classView.runs[0].manoeuvres[0]).toMatchObject({
+    name: "GATE",
+    description: "Gate",
+    score: "+1",
+    penalty: "½",
   });
 });
 

@@ -127,7 +127,10 @@ function ShowTimeManagementPage() {
           patternAverageRunSeconds:
             patternAverageByValue.get(
               getPatternDisplayName(
-                classData?.setup?.pattern || classData?.classItem?.pattern || "—"
+                classData?.setup?.pattern || classData?.classItem?.pattern || "—",
+                classData?.setup?.customPattern ||
+                  classData?.classItem?.customPattern ||
+                  null
               ) || "—"
             ) || null,
         })

@@ -1,8 +1,12 @@
 import { getClassSetup } from "./classSetupStorage";
 import { hasScoringStarted } from "../scoring/scoringSelectors";
+import { isCustomPatternReady } from "../patterns/patternDefinitions";
 
 function hasValidPattern(setup, classItem) {
-  return Boolean(setup?.pattern || classItem?.pattern);
+  const pattern = setup?.pattern || classItem?.pattern;
+  const customPattern = setup?.customPattern || classItem?.customPattern || null;
+
+  return Boolean(pattern) && isCustomPatternReady(pattern, customPattern);
 }
 
 function hasRuns(setup) {

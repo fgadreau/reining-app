@@ -49,13 +49,18 @@ function toClass(row) {
     name: row.name || "",
     classCode: row.class_code || "",
     pattern: row.pattern || "",
+    customPattern:
+      row.custom_pattern && typeof row.custom_pattern === "object"
+        ? row.custom_pattern
+        : null,
     judgeName: row.judge_name || "",
     sortOrder: row.sort_order || 1,
   };
 }
 
-function toClassRow(classItem) {
-  return {
+function toClassRow(classItem, options = {}) {
+  const includeCustomPattern = options.includeCustomPattern !== false;
+  const row = {
     id: classItem.id,
     association_id: classItem.associationId,
     show_id: classItem.showId,
@@ -66,6 +71,16 @@ function toClassRow(classItem) {
     judge_name: classItem.judgeName || "",
     sort_order: Number(classItem.sortOrder) || 1,
   };
+
+  if (includeCustomPattern) {
+    row.custom_pattern = classItem.customPattern || null;
+  }
+
+  return row;
+}
+
+function isCustomPatternColumnMissingError(error) {
+  return String(error?.message || "").includes("custom_pattern");
 }
 
 function saveClassLocally(classItem) {
@@ -312,6 +327,20 @@ export async function saveClassItemRepository(classItem) {
       const { error } = await supabase.from("classes").upsert(toClassRow(classItem));
       if (error) throw error;
     } catch (error) {
+      if (isCustomPatternColumnMissingError(error)) {
+        try {
+          const { error: legacyError } = await supabase
+            .from("classes")
+            .upsert(toClassRow(classItem, { includeCustomPattern: false }));
+
+          if (legacyError) throw legacyError;
+          return saveClassLocally(classItem);
+        } catch (legacyError) {
+          console.error("Erreur sauvegarde classe Supabase:", legacyError);
+          return saveClassLocally(classItem);
+        }
+      }
+
       console.error("Erreur sauvegarde classe Supabase:", error);
     }
   }

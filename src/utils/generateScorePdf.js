@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import { getPatternDisplayName } from "../features/patterns/patternDefinitions";
 
 function safeText(value) {
   return String(value ?? "");
@@ -330,7 +331,15 @@ y += 9;
         );
         drawText(`Date: ${eventDate || ""}`, 52, y);
         drawText(`Class: ${classItem?.name || ""}`, 88, y);
-        drawText(`Pattern: ${classSetup?.pattern || ""}`, pageWidth - 36, y);
+        drawText(
+          `Pattern: ${
+            getPatternDisplayName(classSetup?.pattern, classSetup?.customPattern) ||
+            classSetup?.pattern ||
+            ""
+          }`,
+          pageWidth - 36,
+          y
+        );
 
         y += 5;;
 
