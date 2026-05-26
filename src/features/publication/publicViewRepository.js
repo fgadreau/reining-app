@@ -116,6 +116,7 @@ function toScoringSession(row) {
       row.active_manoeuvre && typeof row.active_manoeuvre === "object"
         ? row.active_manoeuvre
         : null,
+    updatedAt: row.updated_at || null,
   };
 }
 
@@ -134,6 +135,7 @@ function toPaidWarmup(row) {
     activeStartedAt: row.active_started_at || null,
     entries: Array.isArray(row.entries) ? row.entries : [],
     sortOrder: row.sort_order || 1,
+    updatedAt: row.updated_at || null,
   };
 }
 
@@ -899,6 +901,8 @@ export function buildPublicLiveClassView({
     arena: classItem?.arena || "",
     publicationStatus,
     showScores,
+    liveUpdatedAt:
+      scoringSession?.updatedAt || getLatestRunActivityAt(runs) || null,
     pattern:
       getPatternDisplayName(
         setup?.pattern || classItem?.pattern || "",
@@ -1054,6 +1058,15 @@ function findLastPassedRuns(runs, activeRun, count) {
 function runHasScore(run) {
   const score = String(run?.scoreTotal ?? "").trim();
   return Boolean(run?.hasScore || (score && score !== "Review"));
+}
+
+function getLatestRunActivityAt(runs) {
+  const timestamps = (Array.isArray(runs) ? runs : [])
+    .map((run) => run?.completedAt || run?.startedAt || null)
+    .filter(Boolean)
+    .sort();
+
+  return timestamps[timestamps.length - 1] || null;
 }
 
 export function sortPublicResults(runs) {

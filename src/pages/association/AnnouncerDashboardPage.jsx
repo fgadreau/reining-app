@@ -5,6 +5,7 @@ import {
   getAnnouncerShowViewRepository,
   subscribeAnnouncerShowViewRepository,
 } from "../../features/live/liveViewRepository";
+import { formatLiveDataFreshness } from "../../features/live/liveFreshness";
 import { PROVISIONAL_RANKING_NOTE } from "../../features/scoring/provisionalRanking";
 import { savePaidWarmupRepository } from "../../features/paidWarmups/paidWarmupRepository";
 import {
@@ -199,7 +200,7 @@ function AnnouncerDashboardPage() {
           {liveView.activePaidWarmup?.activeEntry ? (
             <PaidWarmupFocus warmup={liveView.activePaidWarmup} now={now} />
           ) : liveView.activeClasses?.length ? (
-            <ActiveClassFocusList classes={liveView.activeClasses} />
+            <ActiveClassFocusList classes={liveView.activeClasses} now={now} />
           ) : (
             <div style={mutedTextStyle}>Aucun run actif.</div>
           )}
@@ -212,7 +213,7 @@ function AnnouncerDashboardPage() {
               entry={liveView.activePaidWarmup.nextEntry}
             />
           ) : liveView.activeClasses?.some((classView) => classView.nextRun) ? (
-            <NextRunFocusList classes={liveView.activeClasses} />
+            <NextRunFocusList classes={liveView.activeClasses} now={now} />
           ) : (
             <div style={mutedTextStyle}>Aucun prochain run.</div>
           )}
@@ -258,6 +259,7 @@ function AnnouncerDashboardPage() {
                   <ClassLiveCard
                     key={classView.classId}
                     classView={classView}
+                    now={now}
                     onOpenProvisionalRanking={setRankingClass}
                   />
                 ))}
@@ -316,7 +318,7 @@ function RunFocus({ className, run, compact = false }) {
   );
 }
 
-function ActiveClassFocusList({ classes }) {
+function ActiveClassFocusList({ classes, now }) {
   return (
     <div style={focusListStyle}>
       {classes.map((classView) => (
@@ -325,14 +327,17 @@ function ActiveClassFocusList({ classes }) {
             className={formatClassLocation(classView)}
             run={classView.activeRun || classView.nextRun}
           />
-          <div style={mutedTextStyle}>{classView.publicationStatusLabel}</div>
+          <div style={focusBadgeRowStyle}>
+            <LiveFreshnessBadge updatedAt={classView.liveUpdatedAt} now={now} />
+            <Badge tone="muted">{classView.publicationStatusLabel}</Badge>
+          </div>
         </div>
       ))}
     </div>
   );
 }
 
-function NextRunFocusList({ classes }) {
+function NextRunFocusList({ classes, now }) {
   return (
     <div style={focusListStyle}>
       {classes
@@ -344,6 +349,9 @@ function NextRunFocusList({ classes }) {
               run={classView.nextRun}
               compact
             />
+            <div style={focusBadgeRowStyle}>
+              <LiveFreshnessBadge updatedAt={classView.liveUpdatedAt} now={now} />
+            </div>
           </div>
         ))}
     </div>
@@ -439,9 +447,12 @@ function PaidWarmupLiveCard({
               : "Aucun drag planifié"}
           </div>
         </div>
-        <Badge tone={activeEntry ? "warn" : "muted"}>
-          {activeEntry ? "Timer actif" : "Paid warm up"}
-        </Badge>
+        <div style={badgeStackStyle}>
+          <LiveFreshnessBadge updatedAt={warmup.updatedAt} now={now} />
+          <Badge tone={activeEntry ? "warn" : "muted"}>
+            {activeEntry ? "Timer actif" : "Paid warm up"}
+          </Badge>
+        </div>
       </div>
 
       {warmup.isDragDue && (
@@ -576,7 +587,7 @@ function PaidWarmupTimerCue({ warmup, remainingSeconds }) {
   return null;
 }
 
-function ClassLiveCard({ classView, onOpenProvisionalRanking }) {
+function ClassLiveCard({ classView, now, onOpenProvisionalRanking }) {
   const liveState = getClassLiveState(classView);
   const hasProvisionalRanking = classView.provisionalRanking?.length > 0;
 
@@ -594,6 +605,7 @@ function ClassLiveCard({ classView, onOpenProvisionalRanking }) {
           </div>
         </div>
         <div style={badgeStackStyle}>
+          <LiveFreshnessBadge updatedAt={classView.liveUpdatedAt} now={now} />
           <Badge tone="muted">{classView.publicationStatusLabel}</Badge>
           <Badge tone={liveState.tone}>{liveState.label}</Badge>
         </div>
@@ -749,6 +761,16 @@ function Badge({ children, tone = "muted" }) {
   return <span style={badgeStyle(tone)}>{children}</span>;
 }
 
+function LiveFreshnessBadge({ updatedAt, now }) {
+  const freshness = formatLiveDataFreshness(updatedAt, now);
+
+  return (
+    <span style={badgeStyle(freshness.tone)}>
+      {freshness.label}
+    </span>
+  );
+}
+
 const modalBackdropStyle = {
   position: "fixed",
   inset: 0,
@@ -872,6 +894,13 @@ const focusListItemStyle = {
   borderRadius: 8,
   padding: 10,
   background: "#f8fafc",
+};
+
+const focusBadgeRowStyle = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+  marginTop: 8,
 };
 
 const scoreStyle = {
@@ -1126,6 +1155,14 @@ function getBadgeColors(tone) {
       border: "#86efac",
       background: "#ecfdf5",
       color: "#166534",
+    };
+  }
+
+  if (tone === "danger") {
+    return {
+      border: "#fecaca",
+      background: "#fff5f5",
+      color: "#991b1b",
     };
   }
 

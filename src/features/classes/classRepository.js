@@ -132,6 +132,12 @@ export function getClassFullData(classId) {
   const record = getClassRecord(classId);
   const official = getClassOfficialData(classId, classItem);
   const scoringRuns = loadScoringRuns(classId);
+  const scoringSession = {
+    classId,
+    runs: scoringRuns,
+    activeManoeuvre: null,
+    updatedAt: getLatestRunActivityAt(scoringRuns),
+  };
   const publication = getPublicationState(classId);
 
   return {
@@ -140,6 +146,7 @@ export function getClassFullData(classId) {
     record,
     official,
     publication,
+    scoringSession,
     scoringRuns,
     status: official.isFinalized ? "completed" : getClassStatus(classItem),
   };
@@ -276,9 +283,19 @@ export async function getClassFullDataRepository(classId) {
     record,
     official,
     publication,
+    scoringSession,
     scoringRuns: scoringSession.runs,
     status: official.isFinalized ? "completed" : getClassStatus(classItem),
   };
+}
+
+function getLatestRunActivityAt(runs) {
+  const timestamps = (Array.isArray(runs) ? runs : [])
+    .map((run) => run?.completedAt || run?.startedAt || null)
+    .filter(Boolean)
+    .sort();
+
+  return timestamps[timestamps.length - 1] || null;
 }
 
 export async function getClassesForDayRepository(dayId) {

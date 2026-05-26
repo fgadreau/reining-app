@@ -251,6 +251,8 @@ export function buildAnnouncerClassView(classData) {
     status: classData.status,
     publicationStatus,
     publicationStatusLabel: getPublicationStatusLabel(publicationStatus),
+    liveUpdatedAt:
+      classData.scoringSession?.updatedAt || getLatestRunActivityAt(runs) || null,
     runCount: runs.length,
     scoringStarted,
     isComplete,
@@ -290,6 +292,8 @@ function normalizeRunForAnnouncer(run, index, headers) {
     note: run.note || "",
     status: run.status || "",
     isActive: Boolean(run.isActive),
+    startedAt: run.startedAt || null,
+    completedAt: run.completedAt || null,
     scores,
     penalties,
     isReview: String(run.scoreTotal ?? "").trim() === "Review",
@@ -389,6 +393,15 @@ function findRecentPassedRuns(classes, count, activeClasses = []) {
 function getRunOrder(run) {
   const parsed = Number.parseInt(run?.draw, 10);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getLatestRunActivityAt(runs) {
+  const timestamps = (Array.isArray(runs) ? runs : [])
+    .map((run) => run?.completedAt || run?.startedAt || null)
+    .filter(Boolean)
+    .sort();
+
+  return timestamps[timestamps.length - 1] || null;
 }
 
 function runHasScore(run) {

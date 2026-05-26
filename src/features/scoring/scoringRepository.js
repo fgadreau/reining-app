@@ -29,6 +29,7 @@ function toScoringSession(row, classId) {
         ? row.active_manoeuvre
         : null,
     startedAt: row?.started_at || null,
+    updatedAt: row?.updated_at || row?.updatedAt || null,
   };
 }
 

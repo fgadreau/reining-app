@@ -13,6 +13,7 @@ import {
   getPaidWarmupDragRemainingSeconds,
   getPaidWarmupRemainingSeconds,
 } from "../../features/paidWarmups/paidWarmupLive";
+import { formatLiveDataFreshness } from "../../features/live/liveFreshness";
 import { PAID_WARMUP_STATUS_LABELS } from "../../features/paidWarmups/paidWarmupStorage";
 import { getShowById } from "../../features/shows/showSelectors";
 import {
@@ -438,6 +439,7 @@ function PublicLivePanel({ classView, now }) {
           </div>
         </div>
         <div style={badgeStackStyle}>
+          <LiveFreshnessBadge updatedAt={classView.liveUpdatedAt} now={now} />
           <Badge>{publicationLabel}</Badge>
           <Badge>{dragBreak ? "Drag" : "En cours"}</Badge>
         </div>
@@ -517,7 +519,10 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
             Paid warm up · {warmup.durationMinutesPerRider} min/cavalier
           </div>
         </div>
-        <Badge>{isDragDue ? "Drag" : "En cours"}</Badge>
+        <div style={badgeStackStyle}>
+          <LiveFreshnessBadge updatedAt={warmup.updatedAt} now={now} />
+          <Badge>{isDragDue ? "Drag" : "En cours"}</Badge>
+        </div>
       </div>
 
       {isDragDue && (
@@ -761,6 +766,12 @@ function normalizeSearchText(value) {
 
 function Badge({ children }) {
   return <span style={badgeStyle}>{children}</span>;
+}
+
+function LiveFreshnessBadge({ updatedAt, now }) {
+  const freshness = formatLiveDataFreshness(updatedAt, now);
+
+  return <span style={freshnessBadgeStyle(freshness.tone)}>{freshness.label}</span>;
 }
 
 const heroStyle = {
@@ -1168,6 +1179,49 @@ const badgeStyle = {
   fontSize: 13,
   whiteSpace: "nowrap",
 };
+
+const freshnessBadgeStyle = (tone) => {
+  const colors = getFreshnessColors(tone);
+
+  return {
+    ...badgeStyle,
+    border: `1px solid ${colors.border}`,
+    background: colors.background,
+    color: colors.color,
+  };
+};
+
+function getFreshnessColors(tone) {
+  if (tone === "success") {
+    return {
+      border: "#86efac",
+      background: "#ecfdf5",
+      color: "#166534",
+    };
+  }
+
+  if (tone === "danger") {
+    return {
+      border: "#fecaca",
+      background: "#fff5f5",
+      color: "#991b1b",
+    };
+  }
+
+  if (tone === "warn") {
+    return {
+      border: "#fdba74",
+      background: "#fff7ed",
+      color: "#9a3412",
+    };
+  }
+
+  return {
+    border: "#cbd5e1",
+    background: "#f8fafc",
+    color: "#475569",
+  };
+}
 
 const linkButtonStyle = {
   display: "inline-flex",
