@@ -17,6 +17,7 @@ function ScoreTable({
   toggleSpecialPenalty,
   clearPenaltyCell,
   updateBackNumber,
+  updateRunNote,
   isLocked,
   styles,
 }) {
@@ -84,6 +85,7 @@ function ScoreTable({
                 toggleSpecialPenalty={toggleSpecialPenalty}
                 clearPenaltyCell={clearPenaltyCell}
                 updateBackNumber={updateBackNumber}
+                updateRunNote={updateRunNote}
                 isLocked={isLocked}
                 styles={styles}
               />

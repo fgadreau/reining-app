@@ -275,7 +275,14 @@ test("keeps public results hidden until secretariat validation", () => {
       isFinalized: true,
       isSecretariatValidated: false,
     },
-    scoringRuns: [{ id: "run-1", draw: 1, scoreTotal: "72.0" }],
+    scoringRuns: [
+      {
+        id: "run-1",
+        draw: 1,
+        scoreTotal: "72.0",
+        note: "Penalty explained to participant.",
+      },
+    ],
   };
 
   expect(buildPublicClassView(classData)).toBeNull();
@@ -288,7 +295,11 @@ test("keeps public results hidden until secretariat validation", () => {
         isSecretariatValidated: true,
       },
     })?.runs
-  ).toHaveLength(1);
+  ).toMatchObject([
+    {
+      note: "Penalty explained to participant.",
+    },
+  ]);
 });
 
 test("public live view exposes active, next, and last passed runs", () => {
@@ -330,6 +341,7 @@ test("public live view exposes active, next, and last passed runs", () => {
           backNumber: "303",
           rider: "Rider 3",
           scoreTotal: "70.5",
+          note: "Penalty note.",
           scores: ["0", "+0.5"],
           penalties: ["", "2"],
         },
@@ -358,6 +370,7 @@ test("public live view exposes active, next, and last passed runs", () => {
     score: "+0.5",
     penalty: "2",
   });
+  expect(classView.lastPassedRuns[0].note).toBe("Penalty note.");
 });
 
 test("public live view exposes a drag break before the next run", () => {

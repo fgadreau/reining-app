@@ -875,6 +875,7 @@ function normalizePublicLiveRun(run, index, pattern) {
     owner: run.owner || "",
     scoreTotal: run.scoreTotal ?? "",
     penTotal: run.penTotal ?? "",
+    note: run.note || "",
     startedAt: run.startedAt || null,
     completedAt: run.completedAt || null,
     durationSeconds: run.durationSeconds || null,
@@ -1032,6 +1033,7 @@ function normalizePublicRun(run, index, pattern = "") {
     owner: run.owner || "",
     scoreTotal: run.scoreTotal ?? "",
     penTotal: run.penTotal ?? "",
+    note: run.note || "",
     manoeuvres: headers.map((name, manoeuvreIndex) => ({
       name,
       description: getPatternManeuverDescription(name, pattern),

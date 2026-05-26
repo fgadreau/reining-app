@@ -15,6 +15,7 @@ function RunRows({
   toggleSpecialPenalty,
   clearPenaltyCell,
   updateBackNumber,
+  updateRunNote,
   isLocked,
   styles,
 }) {
@@ -73,6 +74,7 @@ function RunRows({
   const renderCellValue = (value) => {
     return value ? value : <span style={styles.placeholder}>—</span>;
   };
+  const shouldShowNoteRow = isActiveRun || String(run.note || "").trim();
 
   return (
     <>
@@ -222,6 +224,26 @@ function RunRows({
           </td>
         ))}
       </tr>
+
+      {shouldShowNoteRow && (
+        <tr>
+          <td colSpan={colSpan} style={styles.runNoteCell}>
+            <div style={styles.runNoteLabel}>Note du juge</div>
+            {isLocked ? (
+              <div style={styles.runNoteText}>
+                {String(run.note || "").trim() || "—"}
+              </div>
+            ) : (
+              <textarea
+                value={run.note || ""}
+                onChange={(event) => updateRunNote(run.draw, event.target.value)}
+                placeholder="Note pour ce participant"
+                style={styles.runNoteInput}
+              />
+            )}
+          </td>
+        </tr>
+      )}
 
       {isActiveRun && !isLocked && (
         <ManoeuvrePicker

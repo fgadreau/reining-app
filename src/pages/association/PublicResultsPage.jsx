@@ -385,6 +385,7 @@ function PublicScoresheetRun({ run }) {
         </div>
       </div>
 
+      <PublicRunNote note={run.note} />
       <ManoeuvreDetails run={run} showDescriptions />
     </article>
   );
@@ -617,7 +618,21 @@ function LiveRunCard({ run, showScore = true }) {
       <div style={runNameStyle}>{run.rider || "Rider —"}</div>
       <div style={mutedTextStyle}>{run.horse || "Horse —"}</div>
       {showScore && <div style={liveScoreStyle}>{run.scoreTotal || "—"}</div>}
+      <PublicRunNote note={run.note} />
       <ManoeuvreDetails run={run} />
+    </div>
+  );
+}
+
+function PublicRunNote({ note }) {
+  const cleanNote = String(note || "").trim();
+
+  if (!cleanNote) return null;
+
+  return (
+    <div style={runNotePublicStyle}>
+      <div style={runLabelStyle}>Note du juge</div>
+      <div style={runNoteTextStyle}>{cleanNote}</div>
     </div>
   );
 }
@@ -814,6 +829,20 @@ const liveScoreStyle = {
   fontSize: 28,
   fontWeight: 900,
   marginTop: 8,
+};
+
+const runNotePublicStyle = {
+  border: "1px solid #cbd5e1",
+  borderRadius: 8,
+  padding: 10,
+  background: "#f8fafc",
+  marginTop: 10,
+};
+
+const runNoteTextStyle = {
+  color: "#334155",
+  whiteSpace: "pre-wrap",
+  lineHeight: 1.4,
 };
 
 const paidWarmupTimerStyle = {

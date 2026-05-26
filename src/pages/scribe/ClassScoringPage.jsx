@@ -83,6 +83,7 @@ function buildBaseRunsFromSetup(classId, maneuverCount) {
           penTotal: 0,
           scoreTotal: 70,
           isActive: false,
+          note: "",
         },
         maneuverCount
       )
@@ -121,6 +122,7 @@ function mergeScoringRuns(baseRuns, savedRuns, maneuverCount) {
           penTotal: saved.penTotal ?? baseRun.penTotal,
           scoreTotal: saved.scoreTotal ?? baseRun.scoreTotal,
           isActive: saved.isActive ?? baseRun.isActive,
+          note: saved.note ?? baseRun.note ?? "",
           startedAt: saved.startedAt ?? null,
           completedAt: saved.completedAt ?? null,
           durationSeconds: saved.durationSeconds ?? null,
@@ -490,6 +492,30 @@ function ClassScoringPage() {
           : run
       )
     );
+  };
+
+  const updateRunNote = (draw, newValue) => {
+    if (isCompleted) return;
+
+    setRuns((prevRuns) =>
+      prevRuns.map((run) =>
+        run.draw === draw
+          ? {
+              ...run,
+              note: newValue,
+              isActive: true,
+            }
+          : {
+              ...run,
+              isActive: false,
+            }
+      )
+    );
+
+    setActiveManoeuvre({
+      draw,
+      manoeuvreIndex: 0,
+    });
   };
 
   const updateScoreCell = (draw, manoeuvreIndex, newValue) => {
@@ -1119,6 +1145,7 @@ function ClassScoringPage() {
         toggleSpecialPenalty={toggleSpecialPenalty}
         clearPenaltyCell={clearPenaltyCell}
         updateBackNumber={updateBackNumber}
+        updateRunNote={updateRunNote}
         isLocked={isCompleted}
         styles={styles}
       />

@@ -361,6 +361,7 @@ function RecentResults({ results }) {
             </div>
             <div style={compactScoreStyle}>{run.scoreTotal || "—"}</div>
           </div>
+          <RunNote note={run.note} />
           <ManoeuvreDetails run={run} />
         </div>
       ))}
@@ -591,10 +592,24 @@ function RunBlock({ label, run, showScore = false }) {
         <>
           <RunIdentity run={run} />
           {showScore && <div style={compactScoreStyle}>{run.scoreTotal || "—"}</div>}
+          <RunNote note={run.note} />
         </>
       ) : (
         <div style={mutedTextStyle}>—</div>
       )}
+    </div>
+  );
+}
+
+function RunNote({ note }) {
+  const cleanNote = String(note || "").trim();
+
+  if (!cleanNote) return null;
+
+  return (
+    <div style={runNoteStyle}>
+      <div style={runLabelStyle}>Note du juge</div>
+      <div style={runNoteTextStyle}>{cleanNote}</div>
     </div>
   );
 }
@@ -717,6 +732,20 @@ const compactScoreStyle = {
   fontWeight: 900,
   color: "#111827",
   marginTop: 8,
+};
+
+const runNoteStyle = {
+  border: "1px solid #cbd5e1",
+  borderRadius: 8,
+  padding: 8,
+  background: "#fff",
+  marginTop: 8,
+};
+
+const runNoteTextStyle = {
+  color: "#334155",
+  whiteSpace: "pre-wrap",
+  lineHeight: 1.4,
 };
 
 const recentListStyle = {

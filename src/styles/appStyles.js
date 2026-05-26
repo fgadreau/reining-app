@@ -258,6 +258,41 @@ export const appStyles = {
     letterSpacing: 0,
   },
 
+  runNoteCell: {
+    border: "1px solid #d1d5db",
+    padding: "10px 12px",
+    backgroundColor: "#f8fafc",
+    textAlign: "left",
+  },
+
+  runNoteLabel: {
+    color: "#64748b",
+    fontSize: "12px",
+    fontWeight: 800,
+    textTransform: "uppercase",
+    letterSpacing: 0,
+    marginBottom: "6px",
+  },
+
+  runNoteInput: {
+    width: "100%",
+    minHeight: "52px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "8px",
+    padding: "8px 10px",
+    resize: "vertical",
+    boxSizing: "border-box",
+    fontSize: "14px",
+    fontFamily: "inherit",
+    backgroundColor: "#fff",
+  },
+
+  runNoteText: {
+    color: "#334155",
+    lineHeight: 1.4,
+    whiteSpace: "pre-wrap",
+  },
+
   activeRow: {
     backgroundColor: "#fcfcfc",
   },

@@ -262,6 +262,7 @@ function normalizeRunForAnnouncer(run, index, headers) {
     owner: run.owner || "",
     scoreTotal: run.scoreTotal ?? "",
     penTotal: run.penTotal ?? "",
+    note: run.note || "",
     status: run.status || "",
     isActive: Boolean(run.isActive),
     scores,
