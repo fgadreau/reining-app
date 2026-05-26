@@ -86,7 +86,7 @@ export function getRunStatus(run) {
 }
 
 export function runHasSpecialResult(run) {
-  return ["DQ", "SCR", "NS", "S0", "OP"].includes(getRunStatus(run));
+  return ["DQ", "SCR", "NS", "S0"].includes(getRunStatus(run));
 }
 
 export function runHasVideoReview(run) {
@@ -180,7 +180,7 @@ export function recalculateRun(run, options = {}) {
 
   if (status === "OP") {
     penTotalText = penTotalText ? `${penTotalText} + OP` : "OP";
-    scoreTotalText = runHasAnyData(run) ? "OP" : "";
+    scoreTotalText = scoreTotalText ? `${scoreTotalText} OP` : "";
   }
 
   return {

@@ -1,5 +1,6 @@
 import {
   OVERALL_FORM_EFFECTIVENESS_HEADER,
+  RANCH_APPEARANCE_HEADER,
   isPerformanceCustomPattern,
   isRanchRidingPattern,
   isTrailPattern,
@@ -48,6 +49,7 @@ const RANCH_RIDING_OPTIONS = {
   penaltyOptions: ["1", "3", "5"],
   specialPenaltyTokens: ["OP", "Score 0", "Révision vidéo"],
   statusPenaltyOptions: ["OP", "Score 0", "Révision vidéo"],
+  penaltyDisabledHeaders: [RANCH_APPEARANCE_HEADER],
 };
 
 const WESTERN_RIDING_OPTIONS = {

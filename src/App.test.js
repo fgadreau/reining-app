@@ -123,17 +123,33 @@ test("uses ranch riding patterns and penalties", () => {
   expect(getScoringOptionsForPattern("RR1")).toMatchObject({
     penaltyOptions: ["1", "3", "5"],
     statusPenaltyOptions: ["OP", "Score 0", "Révision vidéo"],
+    penaltyDisabledHeaders: ["RHA"],
   });
 
-  const offPatternRun = recalculateRun({
-    backNumber: "500",
-    scores: ["0", "0"],
-    penalties: ["OP", ""],
-  });
+  const offPatternRun = recalculateRun(
+    {
+      backNumber: "500",
+      scores: ["0", "0", "0"],
+      penalties: ["OP", "", "5"],
+    },
+    {
+      penaltyDisabledIndexes: [2],
+    }
+  );
 
   expect(offPatternRun.penTotal).toBe("OP");
-  expect(offPatternRun.scoreTotal).toBe("OP");
-  expect(isScoredRunComplete(offPatternRun, 2)).toBe(true);
+  expect(offPatternRun.scoreTotal).toBe("70.0 OP");
+  expect(isScoredRunComplete(offPatternRun, 3)).toBe(true);
+  expect(
+    isScoredRunComplete(
+      {
+        backNumber: "500",
+        scores: ["0", "", "0"],
+        penalties: ["OP", "", ""],
+      },
+      3
+    )
+  ).toBe(false);
 });
 
 test("uses western riding patterns and disqualification scoring", () => {
