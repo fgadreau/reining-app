@@ -5,6 +5,7 @@ import {
   getAnnouncerShowViewRepository,
   subscribeAnnouncerShowViewRepository,
 } from "../../features/live/liveViewRepository";
+import { PROVISIONAL_RANKING_NOTE } from "../../features/scoring/provisionalRanking";
 import { savePaidWarmupRepository } from "../../features/paidWarmups/paidWarmupRepository";
 import {
   formatPaidWarmupTimer,
@@ -27,6 +28,7 @@ function AnnouncerDashboardPage() {
   const [liveView, setLiveView] = useState(() => getAnnouncerShowView(showId));
   const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
+  const [rankingClass, setRankingClass] = useState(null);
   const autoCompletedPaidWarmupKeyRef = useRef(null);
   const liveClassIdsKey = useMemo(
     () => getLiveViewClassIds(liveView).join("|"),
@@ -260,7 +262,11 @@ function AnnouncerDashboardPage() {
             ) : (
               <div style={classListStyle}>
                 {section.classes.map((classView) => (
-                  <ClassLiveCard key={classView.classId} classView={classView} />
+                  <ClassLiveCard
+                    key={classView.classId}
+                    classView={classView}
+                    onOpenProvisionalRanking={setRankingClass}
+                  />
                 ))}
                 {(section.paidWarmups || []).map((warmup) => (
                   <PaidWarmupLiveCard
@@ -278,6 +284,13 @@ function AnnouncerDashboardPage() {
           </section>
         ))}
       </div>
+
+      {rankingClass && (
+        <ProvisionalRankingModal
+          classView={rankingClass}
+          onClose={() => setRankingClass(null)}
+        />
+      )}
     </div>
   );
 }
@@ -530,8 +543,9 @@ function PaidWarmupTimerCue({ warmup, remainingSeconds }) {
   return null;
 }
 
-function ClassLiveCard({ classView }) {
+function ClassLiveCard({ classView, onOpenProvisionalRanking }) {
   const liveState = getClassLiveState(classView);
+  const hasProvisionalRanking = classView.provisionalRanking?.length > 0;
 
   return (
     <div style={classCardStyle}>
@@ -562,6 +576,17 @@ function ClassLiveCard({ classView }) {
               run,
             }))}
           />
+        </div>
+      )}
+      {hasProvisionalRanking && (
+        <div style={actionRowStyle}>
+          <button
+            type="button"
+            onClick={() => onOpenProvisionalRanking(classView)}
+            style={secondaryButtonStyle}
+          >
+            Classement provisoire
+          </button>
         </div>
       )}
     </div>
@@ -646,9 +671,103 @@ function ManoeuvreDetails({ run }) {
   );
 }
 
+function ProvisionalRankingModal({ classView, onClose }) {
+  const ranking = classView.provisionalRanking || [];
+
+  return (
+    <div style={modalBackdropStyle} role="dialog" aria-modal="true">
+      <div style={modalStyle}>
+        <div style={modalHeaderStyle}>
+          <div>
+            <h2 style={sectionTitleStyle}>Classement provisoire</h2>
+            <div style={classNameStyle}>{classView.className}</div>
+            <div style={mutedTextStyle}>{PROVISIONAL_RANKING_NOTE}</div>
+          </div>
+          <button type="button" onClick={onClose} style={secondaryButtonStyle}>
+            Fermer
+          </button>
+        </div>
+
+        <div style={rankingListStyle}>
+          {ranking.map((run) => (
+            <div key={run.id || run.draw} style={rankingRowStyle}>
+              <div style={rankingRankStyle}>#{run.rank}</div>
+              <div>
+                <div style={runTitleStyle}>
+                  Draw {run.draw || "—"} · Back {run.backNumber || "—"}
+                </div>
+                <div style={runNameStyle}>{run.rider || "Rider —"}</div>
+                <div style={mutedTextStyle}>{run.horse || "Horse —"}</div>
+              </div>
+              <div style={rankingScoreStyle}>{run.scoreTotal || "—"}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Badge({ children, tone = "muted" }) {
   return <span style={badgeStyle(tone)}>{children}</span>;
 }
+
+const modalBackdropStyle = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(15, 23, 42, 0.45)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 20,
+  zIndex: 1000,
+};
+
+const modalStyle = {
+  width: "min(720px, 100%)",
+  maxHeight: "85vh",
+  overflow: "auto",
+  background: "#fff",
+  borderRadius: 10,
+  padding: 18,
+  boxShadow: "0 20px 50px rgba(15, 23, 42, 0.25)",
+};
+
+const modalHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 12,
+  marginBottom: 14,
+};
+
+const rankingListStyle = {
+  display: "grid",
+  gap: 8,
+};
+
+const rankingRowStyle = {
+  display: "grid",
+  gridTemplateColumns: "64px 1fr auto",
+  gap: 12,
+  alignItems: "center",
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  padding: 10,
+  background: "#f8fafc",
+};
+
+const rankingRankStyle = {
+  fontWeight: 900,
+  fontSize: 18,
+  color: "#0f172a",
+};
+
+const rankingScoreStyle = {
+  fontWeight: 900,
+  fontSize: 20,
+  color: "#111827",
+};
 
 const heroStyle = {
   background: "#fff",

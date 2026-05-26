@@ -15,12 +15,14 @@ export function parsePenaltyValue(value) {
   const twoMatches = textWithoutHalfFractions.match(/\b2\b/g);
   const threeMatches = textWithoutHalfFractions.match(/\b3\b/g);
   const fiveMatches = textWithoutHalfFractions.match(/\b5\b/g);
+  const tenMatches = textWithoutHalfFractions.match(/\b10\b/g);
 
   if (halfMatches) total += halfMatches.length * 0.5;
   if (oneMatches) total += oneMatches.length * 1;
   if (twoMatches) total += twoMatches.length * 2;
   if (threeMatches) total += threeMatches.length * 3;
   if (fiveMatches) total += fiveMatches.length * 5;
+  if (tenMatches) total += tenMatches.length * 10;
 
   return total;
 }
@@ -122,13 +124,20 @@ export function isScoredRunComplete(run, maneuverCount) {
   return true;
 }
 
-export function recalculateRun(run) {
-  const penTotalNumber = run.penalties.reduce(
-    (sum, val) => sum + parsePenaltyValue(val),
+export function recalculateRun(run, options = {}) {
+  const baseScore = Number.isFinite(options.baseScore)
+    ? options.baseScore
+    : 70;
+  const penaltyDisabledIndexes = new Set(options.penaltyDisabledIndexes || []);
+  const penalties = Array.isArray(run.penalties) ? run.penalties : [];
+  const scores = Array.isArray(run.scores) ? run.scores : [];
+  const penTotalNumber = penalties.reduce(
+    (sum, val, index) =>
+      penaltyDisabledIndexes.has(index) ? sum : sum + parsePenaltyValue(val),
     0
   );
 
-  const manoeuvreTotal = run.scores.reduce(
+  const manoeuvreTotal = scores.reduce(
     (sum, val) => sum + parseScoreValue(val),
     0
   );
@@ -137,7 +146,7 @@ export function recalculateRun(run) {
 
   let penTotalText = penTotalNumber ? penTotalNumber.toFixed(1) : "";
   let scoreTotalText = runHasAnyData(run)
-    ? (70 + manoeuvreTotal - penTotalNumber).toFixed(1)
+    ? (baseScore + manoeuvreTotal - penTotalNumber).toFixed(1)
     : "";
 
   if (status === "SCR") {

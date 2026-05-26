@@ -7,7 +7,9 @@ function RunRows({
   activeManoeuvre,
   setActiveManoeuvre,
   scoreOptions,
+  scoreOptionsByIndex,
   penaltyOptions,
+  penaltyDisabledIndexes,
   statusPenaltyOptions,
   updateScoreCell,
   clearScoreCell,
@@ -33,6 +35,10 @@ function RunRows({
   }, [isLocked, editingBackNumber]);
 
   const manoeuvreCount = useMemo(() => headers.length, [headers]);
+  const penaltyDisabledIndexSet = useMemo(
+    () => new Set(penaltyDisabledIndexes || []),
+    [penaltyDisabledIndexes]
+  );
   const colSpan = 3 + manoeuvreCount + 2;
 
   const isSelectedManoeuvre = (manoeuvreIndex) => {
@@ -78,14 +84,18 @@ function RunRows({
 
   return (
     <>
-      {isActiveRun && !isLocked && (
+      {isActiveRun &&
+        !isLocked &&
+        !penaltyDisabledIndexSet.has(activeManoeuvre?.manoeuvreIndex) && (
         <ManoeuvrePicker
           position="top"
           run={run}
           headers={headers}
           activeManoeuvre={activeManoeuvre}
           scoreOptions={scoreOptions}
+          scoreOptionsByIndex={scoreOptionsByIndex}
           penaltyOptions={penaltyOptions}
+          penaltyDisabledIndexes={penaltyDisabledIndexes}
           statusPenaltyOptions={statusPenaltyOptions}
           updateScoreCell={updateScoreCell}
           clearScoreCell={clearScoreCell}
@@ -161,20 +171,33 @@ function RunRows({
           P
         </td>
 
-        {run.penalties.map((value, index) => (
-          <td
-            key={`p-${run.id || run.draw}-${index}`}
-            onClick={() => openManoeuvre(index)}
-            style={{
-              ...styles.td,
-              ...(isLocked ? {} : styles.clickableCell),
-              ...(isSelectedManoeuvre(index) ? styles.activePenaltyCell : {}),
-              ...(isActiveRun ? styles.activeRunCell : {}),
-            }}
-          >
-            {renderCellValue(value)}
-          </td>
-        ))}
+        {run.penalties.map((value, index) => {
+          const isPenaltyDisabled = penaltyDisabledIndexSet.has(index);
+
+          return (
+            <td
+              key={`p-${run.id || run.draw}-${index}`}
+              onClick={() => {
+                if (!isPenaltyDisabled) openManoeuvre(index);
+              }}
+              style={{
+                ...styles.td,
+                ...(isLocked || isPenaltyDisabled ? {} : styles.clickableCell),
+                ...(isSelectedManoeuvre(index) && !isPenaltyDisabled
+                  ? styles.activePenaltyCell
+                  : {}),
+                ...(isActiveRun ? styles.activeRunCell : {}),
+                ...(isPenaltyDisabled ? disabledPenaltyCellStyle : {}),
+              }}
+            >
+              {isPenaltyDisabled ? (
+                <span style={styles.placeholder}>—</span>
+              ) : (
+                renderCellValue(value)
+              )}
+            </td>
+          );
+        })}
 
         <td
           rowSpan={2}
@@ -252,7 +275,9 @@ function RunRows({
           headers={headers}
           activeManoeuvre={activeManoeuvre}
           scoreOptions={scoreOptions}
+          scoreOptionsByIndex={scoreOptionsByIndex}
           penaltyOptions={penaltyOptions}
+          penaltyDisabledIndexes={penaltyDisabledIndexes}
           statusPenaltyOptions={statusPenaltyOptions}
           updateScoreCell={updateScoreCell}
           clearScoreCell={clearScoreCell}
@@ -268,5 +293,10 @@ function RunRows({
     </>
   );
 }
+
+const disabledPenaltyCellStyle = {
+  background: "#f8fafc",
+  color: "#94a3b8",
+};
 
 export default RunRows;

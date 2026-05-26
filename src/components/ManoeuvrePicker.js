@@ -6,7 +6,9 @@ function ManoeuvrePicker({
   headers,
   activeManoeuvre,
   scoreOptions,
+  scoreOptionsByIndex,
   penaltyOptions,
+  penaltyDisabledIndexes,
   statusPenaltyOptions,
   updateScoreCell,
   clearScoreCell,
@@ -30,9 +32,18 @@ function ManoeuvrePicker({
   const manoeuvreName = headers[manoeuvreIndex];
   const activePenaltyValue = run.penalties[manoeuvreIndex] || "";
   const activeScoreValue = run.scores[manoeuvreIndex] || "";
+  const activeScoreOptions =
+    scoreOptionsByIndex?.[manoeuvreIndex] || scoreOptions || [];
+  const penaltyDisabled = (penaltyDisabledIndexes || []).includes(
+    manoeuvreIndex
+  );
   const statusOptions = Array.isArray(statusPenaltyOptions)
     ? statusPenaltyOptions
     : [];
+
+  if (position === "top" && penaltyDisabled) {
+    return null;
+  }
 
   if (position === "top") {
     return (
@@ -99,7 +110,7 @@ function ManoeuvrePicker({
           </div>
 
           <div style={styles.optionGrid}>
-            {scoreOptions.map((option) => (
+            {activeScoreOptions.map((option) => (
               <button
                 key={`score-${run.id || run.draw}-${manoeuvreIndex}-${option}`}
                 style={{

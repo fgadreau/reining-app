@@ -9,7 +9,9 @@ function ScoreTable({
   activeManoeuvre,
   setActiveManoeuvre,
   scoreOptions,
+  scoreOptionsByIndex,
   penaltyOptions,
+  penaltyDisabledIndexes,
   statusPenaltyOptions,
   updateScoreCell,
   clearScoreCell,
@@ -77,7 +79,9 @@ function ScoreTable({
                 activeManoeuvre={activeManoeuvre}
                 setActiveManoeuvre={setActiveManoeuvre}
                 scoreOptions={scoreOptions}
+                scoreOptionsByIndex={scoreOptionsByIndex}
                 penaltyOptions={penaltyOptions}
+                penaltyDisabledIndexes={penaltyDisabledIndexes}
                 statusPenaltyOptions={statusPenaltyOptions}
                 updateScoreCell={updateScoreCell}
                 clearScoreCell={clearScoreCell}

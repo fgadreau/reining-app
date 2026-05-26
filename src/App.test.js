@@ -46,8 +46,13 @@ import {
   getPatternHeaders,
   getPatternManeuverDescription,
   TRAIL_CUSTOM_PATTERN_ID,
+  WESTERN_HORSEMANSHIP_CUSTOM_PATTERN_ID,
+  SHOWMANSHIP_CUSTOM_PATTERN_ID,
+  OVERALL_FORM_EFFECTIVENESS_HEADER,
+  patternHasRailAdjustment,
 } from "./features/patterns/patternDefinitions";
 import { getScoringOptionsForPattern } from "./features/scoring/scoringOptions";
+import { buildProvisionalRanking } from "./features/scoring/provisionalRanking";
 
 beforeEach(() => {
   localStorage.clear();
@@ -228,6 +233,101 @@ test("uses trail custom patterns with six maneuver minimum", () => {
       normalizeCustomPattern({ discipline: "trail", maneuvers: [] }, TRAIL_CUSTOM_PATTERN_ID)
     )
   ).toHaveLength(6);
+});
+
+test("uses AQHA performance custom patterns with F&E scoring", () => {
+  const customPattern = normalizeCustomPattern(
+    {
+      discipline: "western_horsemanship",
+      name: "Pattern with rail",
+      maneuvers: [
+        { abbreviation: "WJ", description: "Walk jog transition" },
+        { abbreviation: "LL", description: "Left lead lope" },
+      ],
+    },
+    WESTERN_HORSEMANSHIP_CUSTOM_PATTERN_ID
+  );
+
+  expect(
+    getPatternHeaders(WESTERN_HORSEMANSHIP_CUSTOM_PATTERN_ID, customPattern)
+  ).toEqual(["WJ", "LL", OVERALL_FORM_EFFECTIVENESS_HEADER]);
+  expect(
+    getPatternManeuverDescription(
+      OVERALL_FORM_EFFECTIVENESS_HEADER,
+      WESTERN_HORSEMANSHIP_CUSTOM_PATTERN_ID,
+      customPattern
+    )
+  ).toBe("Overall form and effectiveness");
+  expect(
+    patternHasRailAdjustment(
+      WESTERN_HORSEMANSHIP_CUSTOM_PATTERN_ID,
+      customPattern
+    )
+  ).toBe(true);
+  expect(patternHasRailAdjustment(SHOWMANSHIP_CUSTOM_PATTERN_ID)).toBe(false);
+
+  const scoringOptions = getScoringOptionsForPattern(
+    WESTERN_HORSEMANSHIP_CUSTOM_PATTERN_ID,
+    customPattern
+  );
+
+  expect(scoringOptions.scoreOptions).toEqual(
+    expect.arrayContaining(["-3", "-2.5", "0", "+2.5", "+3"])
+  );
+  expect(scoringOptions.scoreOptionsByHeader[OVERALL_FORM_EFFECTIVENESS_HEADER]).toEqual(
+    expect.arrayContaining(["0", "2.5", "5"])
+  );
+  expect(scoringOptions).toMatchObject({
+    penaltyOptions: ["3", "5", "10"],
+    statusPenaltyOptions: ["Disqualification", "Révision vidéo"],
+    penaltyDisabledHeaders: [OVERALL_FORM_EFFECTIVENESS_HEADER],
+  });
+
+  const scoredRun = recalculateRun(
+    {
+      backNumber: "100",
+      scores: ["+1", "4.5"],
+      penalties: ["3", "10"],
+    },
+    {
+      penaltyDisabledIndexes: [1],
+    }
+  );
+
+  expect(scoredRun.penTotal).toBe("3.0");
+  expect(scoredRun.scoreTotal).toBe("72.5");
+
+  const tenPenaltyRun = recalculateRun({
+    scores: ["0"],
+    penalties: ["10"],
+  });
+
+  expect(tenPenaltyRun.penTotal).toBe("10.0");
+  expect(tenPenaltyRun.scoreTotal).toBe("60.0");
+
+  const disqualifiedRun = recalculateRun(
+    {
+      backNumber: "101",
+      scores: ["0", "5"],
+      penalties: ["Disqualification", ""],
+    },
+    {
+      penaltyDisabledIndexes: [1],
+    }
+  );
+
+  expect(disqualifiedRun.scoreTotal).toBe("DQ");
+});
+
+test("builds provisional rankings for rail adjustment classes", () => {
+  const ranking = buildProvisionalRanking([
+    { id: "run-1", draw: 1, backNumber: "101", rider: "A", scoreTotal: "71.0" },
+    { id: "run-2", draw: 2, backNumber: "102", rider: "B", scoreTotal: "72.5" },
+    { id: "run-3", draw: 3, backNumber: "103", rider: "C", scoreTotal: "DQ" },
+  ]);
+
+  expect(ranking.map((run) => run.id)).toEqual(["run-2", "run-1", "run-3"]);
+  expect(ranking.map((run) => run.rank)).toEqual([1, 2, 3]);
 });
 
 test("parses imported draw rows in draw order", () => {

@@ -12,7 +12,9 @@ import { buildPaidWarmupLiveView } from "../paidWarmups/paidWarmupLive";
 import {
   getPatternDisplayName,
   getPatternHeaders,
+  patternHasRailAdjustment,
 } from "../patterns/patternDefinitions";
+import { buildProvisionalRanking } from "../scoring/provisionalRanking";
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import { PUBLICATION_STATUSES } from "../publication/publicationRepository";
 import { loadActiveManoeuvre } from "../scoring/scoringRepository";
@@ -205,24 +207,38 @@ export function buildAnnouncerClassView(classData) {
   const customPattern =
     classData.setup?.customPattern || classItem?.customPattern || null;
   const headers = getPatternHeaders(pattern, customPattern);
+  const hasRailAdjustment = patternHasRailAdjustment(pattern, customPattern);
   const sourceRuns = scoringRuns.length > 0 ? scoringRuns : setupRuns;
   const runs = sourceRuns.map((run, index) =>
     normalizeRunForAnnouncer(run, index, headers)
   );
-  const activeManoeuvre = classId ? loadActiveManoeuvre(classId) : null;
+  const isOfficiallyCompleted = Boolean(
+    classData.setup?.finalized ||
+      classData.setup?.judgeSignedAt ||
+      classItem?.finalized ||
+      classItem?.judgeSignedAt ||
+      classData.status === "completed"
+  );
+  const activeManoeuvre =
+    classId && !isOfficiallyCompleted ? loadActiveManoeuvre(classId) : null;
   const activeRun =
-    runs.find((run) => run.draw === activeManoeuvre?.draw) ||
-    runs.find((run) => run.isActive) ||
-    null;
+    isOfficiallyCompleted
+      ? null
+      : runs.find((run) => run.draw === activeManoeuvre?.draw) ||
+        runs.find((run) => run.isActive) ||
+        null;
 
   const publicationStatus = classData.publication?.status || "hidden";
   const canShowScores = canShowLatestScore(publicationStatus);
   const latestScore = canShowScores ? findLatestRunWithScore(runs) : null;
-  const nextRun = findNextRun(runs, activeRun);
+  const nextRun = isOfficiallyCompleted ? null : findNextRun(runs, activeRun);
   const lastPassedRuns = findLastPassedRuns(runs, activeRun, 2);
   const scoringStarted = runs.some(runHasData);
   const isComplete =
-    runs.length > 0 && scoringStarted && !activeRun && !nextRun;
+    isOfficiallyCompleted ||
+    (runs.length > 0 && scoringStarted && !activeRun && !nextRun);
+  const provisionalRanking =
+    hasRailAdjustment && isComplete ? buildProvisionalRanking(runs) : [];
 
   return {
     classId,
@@ -235,6 +251,8 @@ export function buildAnnouncerClassView(classData) {
     runCount: runs.length,
     scoringStarted,
     isComplete,
+    hasRailAdjustment,
+    provisionalRanking,
     activeRun,
     nextRun,
     latestScore,

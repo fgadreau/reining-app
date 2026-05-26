@@ -543,6 +543,34 @@ function ClassSetupPage() {
     });
   };
 
+  const updateCustomPatternName = (value) => {
+    if (!canManageSetup || !customPatternConfig) return;
+
+    if (isFinalized) {
+      showFinalizedMessage();
+      return;
+    }
+
+    if (isStructureLocked) {
+      showLockedMessage("La modification du patron custom");
+      return;
+    }
+
+    setCustomPattern((prev) => {
+      const current =
+        normalizeCustomPattern(prev, pattern) ||
+        createDefaultCustomPattern(pattern);
+
+      return normalizeCustomPattern(
+        {
+          ...current,
+          name: value,
+        },
+        pattern
+      );
+    });
+  };
+
   const updateCustomManeuverField = (index, field, value) => {
     if (!canManageSetup || !customPatternConfig) return;
 
@@ -917,6 +945,23 @@ function ClassSetupPage() {
             </div>
           )}
 
+          <div style={customPatternNameStyle}>
+            <label style={labelStyle}>Nom du patron custom</label>
+            <input
+              type="text"
+              value={normalizedCustomPattern?.name || ""}
+              maxLength={customPatternConfig.maxNameLength || 80}
+              onChange={(event) => updateCustomPatternName(event.target.value)}
+              placeholder={customPatternConfig.name}
+              style={inputStyle}
+              disabled={!canManageSetup || isFullyLocked}
+            />
+            <div style={characterCountStyle}>
+              {String(normalizedCustomPattern?.name || "").length}/
+              {customPatternConfig.maxNameLength || 80}
+            </div>
+          </div>
+
           <div style={customPatternCountStyle}>
             <label style={labelStyle}>Nombre d’obstacles/manoeuvres</label>
             <input
@@ -1284,6 +1329,11 @@ const fieldGridStyle = {
 
 const customPatternCountStyle = {
   maxWidth: 280,
+  marginBottom: 16,
+};
+
+const customPatternNameStyle = {
+  maxWidth: 520,
   marginBottom: 16,
 };
 

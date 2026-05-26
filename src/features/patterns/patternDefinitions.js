@@ -5,10 +5,31 @@ export const PATTERN_DISCIPLINES = {
   RANCH_RIDING: "ranch_riding",
   WESTERN_RIDING: "western_riding",
   TRAIL: "trail",
+  WESTERN_HORSEMANSHIP: "western_horsemanship",
+  HUNT_SEAT_EQUITATION: "hunt_seat_equitation",
+  SHOWMANSHIP: "showmanship",
 };
 
 export const RANCH_APPEARANCE_HEADER = "RHA";
 export const TRAIL_CUSTOM_PATTERN_ID = "TRAIL_CUSTOM";
+export const WESTERN_HORSEMANSHIP_CUSTOM_PATTERN_ID =
+  "WESTERN_HORSEMANSHIP_CUSTOM";
+export const HUNT_SEAT_EQUITATION_CUSTOM_PATTERN_ID =
+  "HUNT_SEAT_EQUITATION_CUSTOM";
+export const SHOWMANSHIP_CUSTOM_PATTERN_ID = "SHOWMANSHIP_CUSTOM";
+
+export const OVERALL_FORM_EFFECTIVENESS_HEADER = "F&E";
+export const OVERALL_FORM_EFFECTIVENESS_DESCRIPTION =
+  "Overall form and effectiveness";
+
+const PERFORMANCE_CUSTOM_PATTERN_SHARED_CONFIG = {
+  minManeuvers: 1,
+  maxNameLength: 80,
+  maxDescriptionLength: 80,
+  defaultManeuverPrefix: "M",
+  overallHeader: OVERALL_FORM_EFFECTIVENESS_HEADER,
+  overallDescription: OVERALL_FORM_EFFECTIVENESS_DESCRIPTION,
+};
 
 export const CUSTOM_PATTERN_CONFIGS = {
   [PATTERN_DISCIPLINES.TRAIL]: {
@@ -16,8 +37,30 @@ export const CUSTOM_PATTERN_CONFIGS = {
     name: "Trail / Obstacle Western",
     discipline: PATTERN_DISCIPLINES.TRAIL,
     minManeuvers: 6,
+    maxNameLength: 80,
     maxDescriptionLength: 80,
     defaultManeuverPrefix: "OB",
+  },
+  [PATTERN_DISCIPLINES.WESTERN_HORSEMANSHIP]: {
+    ...PERFORMANCE_CUSTOM_PATTERN_SHARED_CONFIG,
+    id: WESTERN_HORSEMANSHIP_CUSTOM_PATTERN_ID,
+    name: "Western Horsemanship",
+    discipline: PATTERN_DISCIPLINES.WESTERN_HORSEMANSHIP,
+    railAdjustment: true,
+  },
+  [PATTERN_DISCIPLINES.HUNT_SEAT_EQUITATION]: {
+    ...PERFORMANCE_CUSTOM_PATTERN_SHARED_CONFIG,
+    id: HUNT_SEAT_EQUITATION_CUSTOM_PATTERN_ID,
+    name: "Hunt Seat Equitation",
+    discipline: PATTERN_DISCIPLINES.HUNT_SEAT_EQUITATION,
+    railAdjustment: true,
+  },
+  [PATTERN_DISCIPLINES.SHOWMANSHIP]: {
+    ...PERFORMANCE_CUSTOM_PATTERN_SHARED_CONFIG,
+    id: SHOWMANSHIP_CUSTOM_PATTERN_ID,
+    name: "Showmanship",
+    discipline: PATTERN_DISCIPLINES.SHOWMANSHIP,
+    railAdjustment: false,
   },
 };
 
@@ -586,6 +629,15 @@ export function getPatternKey(patternValue) {
     return TRAIL_CUSTOM_PATTERN_ID;
   }
 
+  const customPatternConfig = Object.values(CUSTOM_PATTERN_CONFIGS).find(
+    (config) =>
+      key === config.id || key === simplifyPatternValue(config.name)
+  );
+
+  if (customPatternConfig) {
+    return customPatternConfig.id;
+  }
+
   if (/^([1-9]|1[0-8]|A|B)$/.test(key)) {
     return `R${key}`;
   }
@@ -637,7 +689,9 @@ export function getPatternDisplayName(patternValue, customPattern = null) {
   const custom = normalizeCustomPattern(customPattern, patternValue);
 
   if (custom) {
-    return custom.name || getCustomPatternConfig(custom.discipline)?.name || "";
+    return (
+      custom.name.trim() || getCustomPatternConfig(custom.discipline)?.name || ""
+    );
   }
 
   const definition = getPatternDefinition(patternValue);
@@ -672,6 +726,19 @@ export function isTrailPattern(patternValue, customPattern = null) {
   return (
     getPatternDiscipline(patternValue, customPattern) === PATTERN_DISCIPLINES.TRAIL
   );
+}
+
+export function isPerformanceCustomPattern(patternValue, customPattern = null) {
+  return [
+    PATTERN_DISCIPLINES.WESTERN_HORSEMANSHIP,
+    PATTERN_DISCIPLINES.HUNT_SEAT_EQUITATION,
+    PATTERN_DISCIPLINES.SHOWMANSHIP,
+  ].includes(getPatternDiscipline(patternValue, customPattern));
+}
+
+export function patternHasRailAdjustment(patternValue, customPattern = null) {
+  const discipline = getPatternDiscipline(patternValue, customPattern);
+  return Boolean(getCustomPatternConfig(discipline)?.railAdjustment);
 }
 
 export function isCustomPatternValue(patternValue) {
@@ -736,9 +803,16 @@ export function normalizeCustomPattern(customPattern, patternValue = "") {
     normalizeCustomManeuver(sourceManeuvers[index], index, config)
   );
 
+  const hasCustomName = Object.prototype.hasOwnProperty.call(
+    customPattern || {},
+    "name"
+  );
+  const maxNameLength = config.maxNameLength || 80;
+  const nameSource = hasCustomName ? customPattern.name : config.name;
+
   return {
     discipline: config.discipline,
-    name: String(customPattern?.name || config.name || "").trim(),
+    name: String(nameSource || "").slice(0, maxNameLength),
     maneuvers,
   };
 }
@@ -765,9 +839,12 @@ export function getPatternHeaders(patternValue, customPattern = null) {
   const custom = normalizeCustomPattern(customPattern, patternValue);
 
   if (custom) {
-    return custom.maneuvers.map(
+    const config = getCustomPatternConfig(custom.discipline);
+    const headers = custom.maneuvers.map(
       (maneuver, index) => maneuver.abbreviation || `M${index + 1}`
     );
+
+    return config?.overallHeader ? [...headers, config.overallHeader] : headers;
   }
 
   return getPatternDefinition(patternValue)?.maneuvers || DEFAULT_HEADERS;
@@ -787,6 +864,12 @@ export function getPatternManeuverDescription(
   const custom = normalizeCustomPattern(customPattern, patternValue);
 
   if (custom) {
+    const config = getCustomPatternConfig(custom.discipline);
+
+    if (config?.overallHeader && token === config.overallHeader) {
+      return config.overallDescription || token;
+    }
+
     const customManeuver = custom.maneuvers.find(
       (item, index) =>
         item.abbreviation === token || (!item.abbreviation && token === `M${index + 1}`)

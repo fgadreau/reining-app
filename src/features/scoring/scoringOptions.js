@@ -1,10 +1,40 @@
 import {
+  OVERALL_FORM_EFFECTIVENESS_HEADER,
+  isPerformanceCustomPattern,
   isRanchRidingPattern,
   isTrailPattern,
   isWesternRidingPattern,
 } from "../patterns/patternDefinitions";
 
 export const SCORE_OPTIONS = ["-1.5", "-1", "-0.5", "0", "+0.5", "+1", "+1.5"];
+export const PERFORMANCE_SCORE_OPTIONS = [
+  "-3",
+  "-2.5",
+  "-2",
+  "-1.5",
+  "-1",
+  "-0.5",
+  "0",
+  "+0.5",
+  "+1",
+  "+1.5",
+  "+2",
+  "+2.5",
+  "+3",
+];
+export const OVERALL_FORM_EFFECTIVENESS_OPTIONS = [
+  "0",
+  "0.5",
+  "1",
+  "1.5",
+  "2",
+  "2.5",
+  "3",
+  "3.5",
+  "4",
+  "4.5",
+  "5",
+];
 
 const REINING_OPTIONS = {
   scoreOptions: SCORE_OPTIONS,
@@ -34,7 +64,23 @@ const TRAIL_OPTIONS = {
   statusPenaltyOptions: ["Score 0", "Disqualification", "Révision vidéo"],
 };
 
+const PERFORMANCE_CUSTOM_OPTIONS = {
+  baseScore: 70,
+  scoreOptions: PERFORMANCE_SCORE_OPTIONS,
+  scoreOptionsByHeader: {
+    [OVERALL_FORM_EFFECTIVENESS_HEADER]: OVERALL_FORM_EFFECTIVENESS_OPTIONS,
+  },
+  penaltyOptions: ["3", "5", "10"],
+  specialPenaltyTokens: ["Disqualification", "Révision vidéo"],
+  statusPenaltyOptions: ["Disqualification", "Révision vidéo"],
+  penaltyDisabledHeaders: [OVERALL_FORM_EFFECTIVENESS_HEADER],
+};
+
 export function getScoringOptionsForPattern(patternValue, customPattern = null) {
+  if (isPerformanceCustomPattern(patternValue, customPattern)) {
+    return PERFORMANCE_CUSTOM_OPTIONS;
+  }
+
   if (isTrailPattern(patternValue, customPattern)) {
     return TRAIL_OPTIONS;
   }

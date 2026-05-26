@@ -20,8 +20,15 @@ import { loadAssociations } from "../../features/associations/associationsData";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import { getDayById } from "../../features/days/daySelectors";
 import { getShowById } from "../../features/shows/showSelectors";
-import { getPatternHeaders } from "../../features/patterns/patternDefinitions";
+import {
+  getPatternHeaders,
+  patternHasRailAdjustment,
+} from "../../features/patterns/patternDefinitions";
 import { getScoringOptionsForPattern } from "../../features/scoring/scoringOptions";
+import {
+  PROVISIONAL_RANKING_NOTE,
+  buildProvisionalRanking,
+} from "../../features/scoring/provisionalRanking";
 import {
   isScoredRunComplete,
   recalculateRun,
@@ -63,7 +70,38 @@ function normalizeRunArrays(run, targetLength) {
   };
 }
 
-function buildBaseRunsFromSetup(classId, maneuverCount) {
+function getPenaltyDisabledIndexes(headers, scoringOptions) {
+  const disabledHeaders = new Set(scoringOptions.penaltyDisabledHeaders || []);
+
+  return headers.reduce((indexes, header, index) => {
+    if (disabledHeaders.has(header)) {
+      indexes.push(index);
+    }
+
+    return indexes;
+  }, []);
+}
+
+function getScoreOptionsByIndex(headers, scoringOptions) {
+  const scoreOptionsByHeader = scoringOptions.scoreOptionsByHeader || {};
+
+  return headers.map(
+    (header) => scoreOptionsByHeader[header] || scoringOptions.scoreOptions
+  );
+}
+
+function getScoringCalculationOptions(headers, scoringOptions) {
+  return {
+    baseScore: scoringOptions.baseScore ?? 70,
+    penaltyDisabledIndexes: getPenaltyDisabledIndexes(headers, scoringOptions),
+  };
+}
+
+function buildBaseRunsFromSetup(
+  classId,
+  maneuverCount,
+  scoringCalculationOptions = {}
+) {
   const setup = getClassSetup(classId);
   const setupRuns = Array.isArray(setup?.runs) ? setup.runs : [];
 
@@ -86,15 +124,24 @@ function buildBaseRunsFromSetup(classId, maneuverCount) {
           note: "",
         },
         maneuverCount
-      )
+      ),
+      scoringCalculationOptions
     )
   );
 }
 
-function mergeScoringRuns(baseRuns, savedRuns, maneuverCount) {
+function mergeScoringRuns(
+  baseRuns,
+  savedRuns,
+  maneuverCount,
+  scoringCalculationOptions = {}
+) {
   if (!Array.isArray(savedRuns) || savedRuns.length === 0) {
     return baseRuns.map((run) =>
-      recalculateRun(normalizeRunArrays(run, maneuverCount))
+      recalculateRun(
+        normalizeRunArrays(run, maneuverCount),
+        scoringCalculationOptions
+      )
     );
   }
 
@@ -104,7 +151,10 @@ function mergeScoringRuns(baseRuns, savedRuns, maneuverCount) {
     const saved = savedById.get(baseRun.id);
 
     if (!saved) {
-      return recalculateRun(normalizeRunArrays(baseRun, maneuverCount));
+      return recalculateRun(
+        normalizeRunArrays(baseRun, maneuverCount),
+        scoringCalculationOptions
+      );
     }
 
     return recalculateRun(
@@ -128,15 +178,29 @@ function mergeScoringRuns(baseRuns, savedRuns, maneuverCount) {
           durationSeconds: saved.durationSeconds ?? null,
         },
         maneuverCount
-      )
+      ),
+      scoringCalculationOptions
     );
   });
 }
 
-function loadRunsForClass(classId, maneuverCount) {
-  const baseRuns = buildBaseRunsFromSetup(classId, maneuverCount);
+function loadRunsForClass(
+  classId,
+  maneuverCount,
+  scoringCalculationOptions = {}
+) {
+  const baseRuns = buildBaseRunsFromSetup(
+    classId,
+    maneuverCount,
+    scoringCalculationOptions
+  );
   const savedRuns = loadScoringRuns(classId);
-  return mergeScoringRuns(baseRuns, savedRuns, maneuverCount);
+  return mergeScoringRuns(
+    baseRuns,
+    savedRuns,
+    maneuverCount,
+    scoringCalculationOptions
+  );
 }
 
 function sameActiveManoeuvre(a, b) {
@@ -219,10 +283,27 @@ function ClassScoringPage() {
   const penaltyOptions = scoringOptions.penaltyOptions;
   const specialPenaltyTokens = scoringOptions.specialPenaltyTokens;
   const statusPenaltyOptions = scoringOptions.statusPenaltyOptions;
+  const scoreOptionsByIndex = useMemo(
+    () => getScoreOptionsByIndex(headers, scoringOptions),
+    [headers, scoringOptions]
+  );
+  const penaltyDisabledIndexes = useMemo(
+    () => getPenaltyDisabledIndexes(headers, scoringOptions),
+    [headers, scoringOptions]
+  );
+  const penaltyDisabledIndexSet = useMemo(
+    () => new Set(penaltyDisabledIndexes),
+    [penaltyDisabledIndexes]
+  );
+  const scoringCalculationOptions = useMemo(
+    () => getScoringCalculationOptions(headers, scoringOptions),
+    [headers, scoringOptions]
+  );
   const maneuverCount = headers.length;
+  const hasRailAdjustment = patternHasRailAdjustment(patternValue, customPattern);
 
   const [runs, setRuns] = useState(() =>
-    loadRunsForClass(classId, maneuverCount)
+    loadRunsForClass(classId, maneuverCount, scoringCalculationOptions)
   );
   const lastPersistedRunsRef = useRef(JSON.stringify(runs));
   const [activeManoeuvre, setActiveManoeuvre] = useState(() =>
@@ -235,6 +316,7 @@ function ClassScoringPage() {
   );
 
   const [showFinalizeBox, setShowFinalizeBox] = useState(false);
+  const [showProvisionalRanking, setShowProvisionalRanking] = useState(false);
   const [judgeName, setJudgeName] = useState(assignedJudgeName);
   const [judgeSignature, setJudgeSignature] = useState(
     classSetup?.judgeSignature || null
@@ -257,11 +339,25 @@ function ClassScoringPage() {
         nextPatternValue,
         nextCustomPattern
       ).length;
-      const baseRuns = buildBaseRunsFromSetup(classId, nextManeuverCount);
+      const nextHeaders = getPatternHeaders(nextPatternValue, nextCustomPattern);
+      const nextScoringOptions = getScoringOptionsForPattern(
+        nextPatternValue,
+        nextCustomPattern
+      );
+      const nextScoringCalculationOptions = getScoringCalculationOptions(
+        nextHeaders,
+        nextScoringOptions
+      );
+      const baseRuns = buildBaseRunsFromSetup(
+        classId,
+        nextManeuverCount,
+        nextScoringCalculationOptions
+      );
       const nextRuns = mergeScoringRuns(
         baseRuns,
         nextData?.scoringRuns || [],
-        nextManeuverCount
+        nextManeuverCount,
+        nextScoringCalculationOptions
       );
       const nextActiveManoeuvre = loadActiveManoeuvre(classId);
       const nextIsCompleted = Boolean(
@@ -287,7 +383,11 @@ function ClassScoringPage() {
   }, [classId]);
 
   useEffect(() => {
-    const nextRuns = loadRunsForClass(classId, maneuverCount);
+    const nextRuns = loadRunsForClass(
+      classId,
+      maneuverCount,
+      scoringCalculationOptions
+    );
 
     setRuns((prevRuns) => {
       const prevSerialized = JSON.stringify(prevRuns);
@@ -314,14 +414,23 @@ function ClassScoringPage() {
     } else {
       setActiveManoeuvre((prev) => (prev ? null : prev));
     }
-  }, [classId, maneuverCount, isCompleted]);
+  }, [classId, maneuverCount, scoringCalculationOptions, isCompleted]);
 
   useEffect(() => {
     const setupRuns = Array.isArray(classSetup?.runs) ? classSetup.runs : [];
 
     setRuns((prevRuns) => {
-      const baseRuns = buildBaseRunsFromSetup(classId, maneuverCount);
-      const mergedRuns = mergeScoringRuns(baseRuns, prevRuns, maneuverCount);
+      const baseRuns = buildBaseRunsFromSetup(
+        classId,
+        maneuverCount,
+        scoringCalculationOptions
+      );
+      const mergedRuns = mergeScoringRuns(
+        baseRuns,
+        prevRuns,
+        maneuverCount,
+        scoringCalculationOptions
+      );
 
       const prevSerialized = JSON.stringify(prevRuns);
       const nextSerialized = JSON.stringify(mergedRuns);
@@ -342,7 +451,7 @@ function ClassScoringPage() {
 
       return stillExists && manoeuvreStillExists ? prevActive : null;
     });
-  }, [classId, classSetup, maneuverCount, isCompleted]);
+  }, [classId, classSetup, maneuverCount, scoringCalculationOptions, isCompleted]);
 
   useEffect(() => {
     if (!hasLoadedSession) return;
@@ -441,6 +550,11 @@ function ClassScoringPage() {
   );
   const hasBlockingScoringSync = isScoringSyncBlockingStatus(scoringSyncStatus);
   const canSignClass = canFinalize && !hasBlockingScoringSync;
+  const provisionalRanking = useMemo(() => buildProvisionalRanking(runs), [runs]);
+  const canShowProvisionalRanking =
+    hasRailAdjustment &&
+    provisionalRanking.length > 0 &&
+    (canFinalize || isCompleted);
 
   const normalizeSpaces = (value) =>
     String(value || "").replace(/\s+/g, " ").trim();
@@ -553,11 +667,14 @@ function ClassScoringPage() {
         nextScores[manoeuvreIndex] = newValue;
 
         return stampRunTiming(
-          recalculateRun({
-            ...run,
-            isActive: true,
-            scores: nextScores.slice(0, maneuverCount),
-          }),
+          recalculateRun(
+            {
+              ...run,
+              isActive: true,
+              scores: nextScores.slice(0, maneuverCount),
+            },
+            scoringCalculationOptions
+          ),
           maneuverCount,
           changedAt
         );
@@ -577,6 +694,7 @@ function ClassScoringPage() {
 
   const addPenaltyToken = (draw, manoeuvreIndex, token) => {
     if (isCompleted) return;
+    if (penaltyDisabledIndexSet.has(manoeuvreIndex)) return;
 
     const changedAt = new Date().toISOString();
     ensureClassStartedAt(changedAt);
@@ -616,11 +734,14 @@ function ClassScoringPage() {
         }
 
         return stampRunTiming(
-          recalculateRun({
-            ...run,
-            isActive: true,
-            penalties: nextPenalties.slice(0, maneuverCount),
-          }),
+          recalculateRun(
+            {
+              ...run,
+              isActive: true,
+              penalties: nextPenalties.slice(0, maneuverCount),
+            },
+            scoringCalculationOptions
+          ),
           maneuverCount,
           changedAt
         );
@@ -635,6 +756,7 @@ function ClassScoringPage() {
 
   const toggleSpecialPenalty = (draw, manoeuvreIndex, token) => {
     if (isCompleted) return;
+    if (penaltyDisabledIndexSet.has(manoeuvreIndex)) return;
 
     const changedAt = new Date().toISOString();
     ensureClassStartedAt(changedAt);
@@ -667,11 +789,14 @@ function ClassScoringPage() {
         }
 
         return stampRunTiming(
-          recalculateRun({
-            ...run,
-            isActive: true,
-            penalties: nextPenalties.slice(0, maneuverCount),
-          }),
+          recalculateRun(
+            {
+              ...run,
+              isActive: true,
+              penalties: nextPenalties.slice(0, maneuverCount),
+            },
+            scoringCalculationOptions
+          ),
           maneuverCount,
           changedAt
         );
@@ -686,6 +811,7 @@ function ClassScoringPage() {
 
   const clearPenaltyCell = (draw, manoeuvreIndex) => {
     if (isCompleted) return;
+    if (penaltyDisabledIndexSet.has(manoeuvreIndex)) return;
 
     const changedAt = new Date().toISOString();
 
@@ -706,11 +832,14 @@ function ClassScoringPage() {
         nextPenalties[manoeuvreIndex] = "";
 
         return stampRunTiming(
-          recalculateRun({
-            ...run,
-            isActive: true,
-            penalties: nextPenalties.slice(0, maneuverCount),
-          }),
+          recalculateRun(
+            {
+              ...run,
+              isActive: true,
+              penalties: nextPenalties.slice(0, maneuverCount),
+            },
+            scoringCalculationOptions
+          ),
           maneuverCount,
           changedAt
         );
@@ -989,6 +1118,16 @@ function ClassScoringPage() {
             Exporter sauvegarde
           </button>
 
+          {canShowProvisionalRanking && (
+            <button
+              type="button"
+              onClick={() => setShowProvisionalRanking(true)}
+              style={secondaryButtonStyle}
+            >
+              Classement provisoire
+            </button>
+          )}
+
           {!isCompleted && (
             <button
               type="button"
@@ -1096,6 +1235,14 @@ function ClassScoringPage() {
         </section>
       )}
 
+      {showProvisionalRanking && (
+        <ProvisionalRankingModal
+          title="Classement provisoire"
+          ranking={provisionalRanking}
+          onClose={() => setShowProvisionalRanking(false)}
+        />
+      )}
+
       <section style={timingCardStyle}>
         <div style={timingHeaderStyle}>
           <h2 style={sectionTitleStyle}>Gestion du temps</h2>
@@ -1147,7 +1294,9 @@ function ClassScoringPage() {
         activeManoeuvre={activeManoeuvre}
         setActiveManoeuvre={setActiveManoeuvreWithRun}
         scoreOptions={scoreOptions}
+        scoreOptionsByIndex={scoreOptionsByIndex}
         penaltyOptions={penaltyOptions}
+        penaltyDisabledIndexes={penaltyDisabledIndexes}
         statusPenaltyOptions={statusPenaltyOptions}
         updateScoreCell={updateScoreCell}
         clearScoreCell={clearScoreCell}
@@ -1159,6 +1308,41 @@ function ClassScoringPage() {
         isLocked={isCompleted}
         styles={styles}
       />
+    </div>
+  );
+}
+
+function ProvisionalRankingModal({ title, ranking, onClose }) {
+  return (
+    <div style={modalBackdropStyle} role="dialog" aria-modal="true">
+      <div style={modalStyle}>
+        <div style={modalHeaderStyle}>
+          <div>
+            <h2 style={sectionTitleStyle}>{title}</h2>
+            <div style={helperTextStyle}>{PROVISIONAL_RANKING_NOTE}</div>
+          </div>
+          <button type="button" onClick={onClose} style={secondaryButtonStyle}>
+            Fermer
+          </button>
+        </div>
+
+        <div style={rankingListStyle}>
+          {ranking.map((run) => (
+            <div key={run.id || run.draw} style={rankingRowStyle}>
+              <div style={rankingRankStyle}>#{run.rank}</div>
+              <div>
+                <div style={rankingNameStyle}>
+                  Draw {run.draw || "—"} · Back {run.backNumber || "—"}
+                </div>
+                <div style={helperTextStyle}>
+                  {run.rider || "Rider —"} · {run.horse || "Horse —"}
+                </div>
+              </div>
+              <div style={rankingScoreStyle}>{run.scoreTotal || "—"}</div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1305,6 +1489,74 @@ const finalizeCardStyle = {
   padding: "16px",
   background: "#fff",
   marginBottom: "20px",
+};
+
+const modalBackdropStyle = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(15, 23, 42, 0.45)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "20px",
+  zIndex: 1000,
+};
+
+const modalStyle = {
+  width: "min(720px, 100%)",
+  maxHeight: "85vh",
+  overflow: "auto",
+  background: "#fff",
+  borderRadius: "10px",
+  padding: "18px",
+  boxShadow: "0 20px 50px rgba(15, 23, 42, 0.25)",
+};
+
+const modalHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: "12px",
+  marginBottom: "14px",
+};
+
+const helperTextStyle = {
+  color: "#64748b",
+  fontSize: "13px",
+  lineHeight: 1.4,
+};
+
+const rankingListStyle = {
+  display: "grid",
+  gap: "8px",
+};
+
+const rankingRowStyle = {
+  display: "grid",
+  gridTemplateColumns: "64px 1fr auto",
+  gap: "12px",
+  alignItems: "center",
+  border: "1px solid #e2e8f0",
+  borderRadius: "8px",
+  padding: "10px",
+  background: "#f8fafc",
+};
+
+const rankingRankStyle = {
+  fontWeight: 900,
+  fontSize: "18px",
+  color: "#0f172a",
+};
+
+const rankingNameStyle = {
+  fontWeight: 800,
+  color: "#0f172a",
+};
+
+const rankingScoreStyle = {
+  fontWeight: 900,
+  fontSize: "20px",
+  color: "#111827",
 };
 
 const timingCardStyle = {
