@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { filterAssociationsBySearch } from "../../features/associations/associationSearch";
 import { getPublicAssociationsRepository } from "../../features/publication/publicViewRepository";
 import { appStyles as styles } from "../../styles/appStyles";
 
 function PublicAssociationsPage() {
   const [associations, setAssociations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -24,6 +26,11 @@ function PublicAssociationsPage() {
       isMounted = false;
     };
   }, []);
+
+  const filteredAssociations = useMemo(
+    () => filterAssociationsBySearch(associations, searchQuery),
+    [associations, searchQuery]
+  );
 
   return (
     <div style={styles.app}>
@@ -49,24 +56,43 @@ function PublicAssociationsPage() {
           d’une classe ou publie des feuilles de pointage.
         </div>
       ) : (
-        <div style={gridStyle}>
-          {associations.map((association) => (
-            <article key={association.id} style={cardStyle}>
-              <div>
-                <h2 style={cardTitleStyle}>{association.name}</h2>
-                <div style={mutedTextStyle}>
-                  {association.shortName || "Association"}
-                  {association.timezone ? ` · ${association.timezone}` : ""}
-                </div>
-              </div>
-              <Link
-                to={`/public/associations/${association.id}`}
-                style={primaryLinkStyle}
-              >
-                Voir les shows
-              </Link>
-            </article>
-          ))}
+        <div style={{ display: "grid", gap: 12 }}>
+          <label style={searchLabelStyle}>
+            <span>Rechercher une association</span>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Nom court ou nom complet"
+              style={searchInputStyle}
+            />
+          </label>
+
+          {filteredAssociations.length === 0 ? (
+            <div style={emptyStateStyle}>
+              Aucune association ne correspond à cette recherche.
+            </div>
+          ) : (
+            <div style={gridStyle}>
+              {filteredAssociations.map((association) => (
+                <article key={association.id} style={cardStyle}>
+                  <div>
+                    <h2 style={cardTitleStyle}>{association.name}</h2>
+                    <div style={mutedTextStyle}>
+                      {association.shortName || "Association"}
+                      {association.timezone ? ` · ${association.timezone}` : ""}
+                    </div>
+                  </div>
+                  <Link
+                    to={`/public/associations/${association.id}`}
+                    style={primaryLinkStyle}
+                  >
+                    Voir les shows
+                  </Link>
+                </article>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -127,6 +153,22 @@ const cardTitleStyle = {
 const mutedTextStyle = {
   color: "#64748b",
   marginTop: 6,
+};
+
+const searchLabelStyle = {
+  display: "grid",
+  gap: 6,
+  color: "#334155",
+  fontWeight: 800,
+};
+
+const searchInputStyle = {
+  width: "100%",
+  maxWidth: 520,
+  padding: "10px 12px",
+  borderRadius: 8,
+  border: "1px solid #cbd5e1",
+  boxSizing: "border-box",
 };
 
 const primaryLinkStyle = {

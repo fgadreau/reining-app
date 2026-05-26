@@ -7,6 +7,7 @@ import {
   parseImportedDraw,
   parseImportedRuns,
 } from "./features/classes/classSetupImport";
+import { filterAssociationsBySearch } from "./features/associations/associationSearch";
 import {
   getPublicationState,
   publishClass,
@@ -344,6 +345,23 @@ test("builds provisional rankings for rail adjustment classes", () => {
 
   expect(ranking.map((run) => run.id)).toEqual(["run-2", "run-1", "run-3"]);
   expect(ranking.map((run) => run.rank)).toEqual([1, 2, 3]);
+});
+
+test("filters associations by short name or full name", () => {
+  const associations = [
+    { id: "aqr", name: "Association Québécoise de Reining", shortName: "AQR" },
+    { id: "nrc", name: "National Reining Classic", shortName: "NRC" },
+  ];
+
+  expect(
+    filterAssociationsBySearch(associations, "aqr").map((item) => item.id)
+  ).toEqual(["aqr"]);
+  expect(
+    filterAssociationsBySearch(associations, "quebecoise").map((item) => item.id)
+  ).toEqual(["aqr"]);
+  expect(
+    filterAssociationsBySearch(associations, "classic").map((item) => item.id)
+  ).toEqual(["nrc"]);
 });
 
 test("parses imported draw rows in draw order", () => {

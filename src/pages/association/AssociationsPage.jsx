@@ -7,6 +7,7 @@ import {
   loadAssociationsRepository,
   saveAssociationRepository,
 } from "../../features/associations/associationRepository";
+import { filterAssociationsBySearch } from "../../features/associations/associationSearch";
 import { createAssociationId } from "../../features/associations/associationsData";
 import {
   loadIsPlatformAdminRepository,
@@ -38,6 +39,8 @@ function AssociationsPage() {
   const [memberships, setMemberships] = useState([]);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [notice, setNotice] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isAssociationFormOpen, setIsAssociationFormOpen] = useState(false);
   const auth = useAuthUser();
   const authUserId = auth.user?.id;
   const authUserEmail = auth.user?.email;
@@ -116,6 +119,11 @@ function AssociationsPage() {
     return [...visibleAssociations].sort((a, b) => a.name.localeCompare(b.name));
   }, [associations, isLocalMode, isPlatformAdmin, memberships]);
 
+  const filteredAssociations = useMemo(
+    () => filterAssociationsBySearch(sortedAssociations, searchQuery),
+    [sortedAssociations, searchQuery]
+  );
+
   function handleChange(field, value) {
     setForm((current) => ({
       ...current,
@@ -126,6 +134,7 @@ function AssociationsPage() {
   function resetForm() {
     setForm(emptyForm);
     setEditingId(null);
+    setIsAssociationFormOpen(false);
   }
 
   async function handleSubmit(event) {
@@ -226,6 +235,7 @@ function AssociationsPage() {
   }
 
   function handleEdit(association) {
+    setIsAssociationFormOpen(true);
     setEditingId(association.id);
     setForm({
       name: association.name || "",
@@ -284,53 +294,79 @@ function AssociationsPage() {
 
       {canShowAssociationForm && !auth.isLoading && (
         <div style={cardStyle}>
-          <h2 style={{ marginTop: 0 }}>
-            {editingId ? "Modifier une association" : "Ajouter une association"}
-          </h2>
+          <div style={formHeaderStyle}>
+            <div>
+              <h2 style={{ margin: 0 }}>
+                {editingId
+                  ? "Modifier une association"
+                  : "Ajouter une association"}
+              </h2>
+              {!isAssociationFormOpen && !editingId && (
+                <div style={helperTextStyle}>
+                  Ouvre cette section seulement quand tu veux créer une nouvelle
+                  association.
+                </div>
+              )}
+            </div>
 
-          <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
-            <label style={{ display: "grid", gap: 6 }}>
-              <span>Nom</span>
-              <input
-                value={form.name}
-                onChange={(e) => handleChange("name", e.target.value)}
-                placeholder="Association Québécoise de Reining"
-                style={inputStyle}
-              />
-            </label>
-
-            <label style={{ display: "grid", gap: 6 }}>
-              <span>Nom court</span>
-              <input
-                value={form.shortName}
-                onChange={(e) => handleChange("shortName", e.target.value)}
-                placeholder="AQR"
-                style={inputStyle}
-              />
-            </label>
-
-            <label style={{ display: "grid", gap: 6 }}>
-              <span>Fuseau horaire</span>
-              <input
-                value={form.timezone}
-                onChange={(e) => handleChange("timezone", e.target.value)}
-                placeholder="America/Montreal"
-                style={inputStyle}
-              />
-            </label>
-
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button type="submit" disabled={isSaving}>
-                {editingId ? "Enregistrer" : "Ajouter"}
+            {!isAssociationFormOpen && !editingId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setForm(emptyForm);
+                  setEditingId(null);
+                  setIsAssociationFormOpen(true);
+                }}
+                disabled={isSaving}
+              >
+                Ajouter une association
               </button>
+            )}
+          </div>
 
-              {editingId ? (
+          {(isAssociationFormOpen || editingId) && (
+            <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>Nom</span>
+                <input
+                  value={form.name}
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  placeholder="Association Québécoise de Reining"
+                  style={inputStyle}
+                />
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>Nom court</span>
+                <input
+                  value={form.shortName}
+                  onChange={(e) => handleChange("shortName", e.target.value)}
+                  placeholder="AQR"
+                  style={inputStyle}
+                />
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>Fuseau horaire</span>
+                <input
+                  value={form.timezone}
+                  onChange={(e) => handleChange("timezone", e.target.value)}
+                  placeholder="America/Montreal"
+                  style={inputStyle}
+                />
+              </label>
+
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button type="submit" disabled={isSaving}>
+                  {editingId ? "Enregistrer" : "Ajouter"}
+                </button>
+
                 <button type="button" onClick={resetForm} disabled={isSaving}>
                   Annuler
                 </button>
-              ) : null}
-            </div>
-          </form>
+              </div>
+            </form>
+          )}
 
           {notice && <div style={noticeStyle}>{notice}</div>}
         </div>
@@ -345,7 +381,24 @@ function AssociationsPage() {
         </div>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
-          {sortedAssociations.map((association) => {
+          <label style={searchWrapStyle}>
+            <span style={searchLabelStyle}>Recherche d’association</span>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Nom court ou nom complet"
+              style={inputStyle}
+            />
+          </label>
+
+          {filteredAssociations.length === 0 ? (
+            <div style={emptyStateStyle}>
+              Aucune association ne correspond à cette recherche.
+            </div>
+          ) : null}
+
+          {filteredAssociations.map((association) => {
             const canManage = isLocalMode
               ? true
               : isPlatformAdmin ||
@@ -409,6 +462,34 @@ const cardStyle = {
   padding: 16,
   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
   marginBottom: 16,
+};
+
+const formHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 12,
+  flexWrap: "wrap",
+};
+
+const helperTextStyle = {
+  color: "#64748b",
+  fontSize: 13,
+  marginTop: 6,
+};
+
+const searchWrapStyle = {
+  display: "grid",
+  gap: 6,
+  background: "#fff",
+  borderRadius: 12,
+  padding: 16,
+  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+};
+
+const searchLabelStyle = {
+  color: "#334155",
+  fontWeight: 700,
 };
 
 const inputStyle = {
