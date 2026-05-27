@@ -454,9 +454,11 @@ function PublicScoresheetRun({ run }) {
 
 function PublicLivePanel({ classView, now }) {
   const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
   const dragBreak = classView.dragBreak?.isActive ? classView.dragBreak : null;
   const dragRemainingSeconds = getDragRemainingSeconds(dragBreak, now);
   const nextRun = dragBreak?.nextRun || classView.nextRun;
+  const secondNextRun = classView.secondNextRun;
   const showScores = classView.showScores !== false;
   const showScoreDetails = showScores && classView.showScoreDetails !== false;
   const canShowRunScore = (run) =>
@@ -465,10 +467,29 @@ function PublicLivePanel({ classView, now }) {
     classView.publicationStatus || PUBLICATION_STATUSES.LIVE,
     t
   );
+  const panelDetailsId = `public-live-details-${classView.classId || "class"}`;
+
+  function togglePanel() {
+    setIsOpen((current) => !current);
+  }
+
+  function handlePanelKeyDown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    togglePanel();
+  }
 
   return (
     <section style={livePanelStyle}>
-      <div style={classHeaderStyle}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        aria-controls={panelDetailsId}
+        onClick={togglePanel}
+        onKeyDown={handlePanelKeyDown}
+        style={livePanelToggleStyle(isOpen)}
+      >
         <div>
           <div style={eyebrowStyle}>{t("public.results.liveLabel")}</div>
           <h2 style={sectionTitleStyle}>
@@ -488,69 +509,90 @@ function PublicLivePanel({ classView, now }) {
           <Badge>
             {dragBreak ? t("public.results.drag") : t("public.results.inProgress")}
           </Badge>
+          <span style={toggleIconStyle}>
+            {isOpen ? t("public.results.hide") : t("public.results.view")}
+          </span>
         </div>
       </div>
 
-      <PublicTimingSummary timing={classView.timing} />
+      {!isOpen ? null : (
+        <div id={panelDetailsId}>
+          <PublicTimingSummary timing={classView.timing} />
 
-      {!showScores && (
-        <div style={noScoreNoticeStyle}>
-          {t("public.results.noScoresNotice")}
-        </div>
-      )}
-
-      {showScores && !showScoreDetails && (
-        <div style={noScoreNoticeStyle}>
-          {t("public.results.completedScoresNotice")}
-        </div>
-      )}
-
-      {dragBreak && (
-        <div style={paidWarmupNoticeStyle}>
-          {t("public.results.dragInProgress", {
-            minutes: dragBreak.durationMinutes ?? "—",
-          })}
-        </div>
-      )}
-
-      <div style={liveGridStyle}>
-        <div style={liveBlockStyle}>
-          <div style={runLabelStyle}>{t("public.results.onCourse")}</div>
-          {dragBreak ? (
-            <PublicDragCard remainingSeconds={dragRemainingSeconds} />
-          ) : classView.activeRun ? (
-            <LiveRunCard
-              run={classView.activeRun}
-              showScore={canShowRunScore(classView.activeRun)}
-              showDetails={showScoreDetails}
-            />
-          ) : (
-            <div style={mutedTextStyle}>—</div>
+          {!showScores && (
+            <div style={noScoreNoticeStyle}>
+              {t("public.results.noScoresNotice")}
+            </div>
           )}
-        </div>
-        <LiveRunBlock
-          label={t("public.results.nextParticipant")}
-          run={nextRun}
-          showDetails={showScoreDetails}
-        />
-        <div style={liveBlockStyle}>
-          <div style={runLabelStyle}>{t("public.results.lastTwoPassed")}</div>
-          {classView.lastPassedRuns?.length ? (
-            <div style={{ display: "grid", gap: 8 }}>
-              {classView.lastPassedRuns.map((run) => (
+
+          {showScores && !showScoreDetails && (
+            <div style={noScoreNoticeStyle}>
+              {t("public.results.completedScoresNotice")}
+            </div>
+          )}
+
+          {dragBreak && (
+            <div style={paidWarmupNoticeStyle}>
+              {t("public.results.dragInProgress", {
+                minutes: dragBreak.durationMinutes ?? "—",
+              })}
+            </div>
+          )}
+
+          <div style={liveGridStyle}>
+            <div style={liveBlockStyle}>
+              <div style={runLabelStyle}>{t("public.results.onCourse")}</div>
+              {dragBreak ? (
+                <PublicDragCard remainingSeconds={dragRemainingSeconds} />
+              ) : classView.activeRun ? (
                 <LiveRunCard
-                  key={run.id || run.draw}
-                  run={run}
-                  showScore={canShowRunScore(run)}
+                  run={classView.activeRun}
+                  showScore={canShowRunScore(classView.activeRun)}
                   showDetails={showScoreDetails}
                 />
-              ))}
+              ) : (
+                <div style={mutedTextStyle}>—</div>
+              )}
             </div>
-          ) : (
-            <div style={mutedTextStyle}>—</div>
-          )}
+            <LiveRunBlock
+              label={t("public.results.nextParticipant")}
+              run={nextRun}
+              showDetails={showScoreDetails}
+              statusLabel={t("public.results.statusWaiting")}
+              status="waiting"
+            />
+            <LiveRunBlock
+              label={t("public.results.secondNextParticipant")}
+              run={secondNextRun}
+              showDetails={showScoreDetails}
+              statusLabel={t("public.results.statusPreparation")}
+              status="preparation"
+            />
+            <div style={liveBlockStyle}>
+              <div style={runLabelStyle}>{t("public.results.lastTwoPassed")}</div>
+              {classView.lastPassedRuns?.length ? (
+                <div style={{ display: "grid", gap: 8 }}>
+                  {classView.lastPassedRuns.map((run) => (
+                    <LiveRunCard
+                      key={run.id || run.draw}
+                      run={run}
+                      showScore={canShowRunScore(run)}
+                      showDetails={showScoreDetails}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div style={mutedTextStyle}>—</div>
+              )}
+            </div>
+          </div>
+
+          <PublicLiveOrderTable
+            runs={classView.orderRuns || []}
+            showScores={showScores}
+          />
         </div>
-      </div>
+      )}
     </section>
   );
 }
@@ -731,10 +773,22 @@ function TimingMetric({ label, value }) {
   );
 }
 
-function LiveRunBlock({ label, run, showScore = false, showDetails = true }) {
+function LiveRunBlock({
+  label,
+  run,
+  showScore = false,
+  showDetails = true,
+  statusLabel = null,
+  status = "waiting",
+}) {
   return (
     <div style={liveBlockStyle}>
-      <div style={runLabelStyle}>{label}</div>
+      <div style={liveBlockHeaderStyle}>
+        <div style={runLabelStyle}>{label}</div>
+        {run && statusLabel && (
+          <span style={orderStatusBadgeStyle(status)}>{statusLabel}</span>
+        )}
+      </div>
       {run ? (
         <LiveRunCard
           run={run}
@@ -744,6 +798,47 @@ function LiveRunBlock({ label, run, showScore = false, showDetails = true }) {
       ) : (
         <div style={mutedTextStyle}>—</div>
       )}
+    </div>
+  );
+}
+
+function PublicLiveOrderTable({ runs, showScores }) {
+  const { t } = useTranslation();
+
+  if (!runs.length) {
+    return null;
+  }
+
+  return (
+    <div style={orderPanelStyle}>
+      <div style={orderHeaderStyle}>
+        <div style={runLabelStyle}>{t("public.results.orderOfGo")}</div>
+        <div style={mutedTextStyle}>
+          {t("public.results.passedWithScores")}
+        </div>
+      </div>
+      <div style={orderListStyle}>
+        {runs.map((run) => (
+          <div key={run.id || run.draw} style={orderRowStyle}>
+            <div style={orderDrawStyle}>#{run.draw || "—"}</div>
+            <div style={orderIdentityStyle}>
+              <div style={runNameStyle}>
+                {run.rider || t("public.results.riderFallback")}
+              </div>
+              <div style={mutedTextStyle}>
+                {t("public.results.backNumber")} {run.backNumber || "—"} ·{" "}
+                {run.horse || t("public.results.horseFallback")}
+              </div>
+            </div>
+            <span style={orderStatusBadgeStyle(run.liveOrderStatus)}>
+              {getPublicRunOrderStatusLabel(run.liveOrderStatus, t)}
+            </span>
+            <div style={orderScoreStyle}>
+              {showScores && run.scoreTotal ? run.scoreTotal : "—"}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -878,6 +973,22 @@ function getPaidWarmupStatusLabel(status, t) {
   }
 }
 
+function getPublicRunOrderStatusLabel(status, t) {
+  switch (status) {
+    case "active":
+      return t("public.results.statusOnCourse");
+    case "waiting":
+      return t("public.results.statusWaiting");
+    case "preparation":
+      return t("public.results.statusPreparation");
+    case "passed":
+      return t("public.results.statusPassed");
+    case "upcoming":
+    default:
+      return t("public.results.statusUpcoming");
+  }
+}
+
 function normalizeSearchText(value) {
   return String(value || "")
     .normalize("NFD")
@@ -981,6 +1092,17 @@ const livePanelStyle = {
   border: "1px solid #bbf7d0",
 };
 
+const livePanelToggleStyle = (isOpen) => ({
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  alignItems: "flex-start",
+  flexWrap: "wrap",
+  marginBottom: isOpen ? 12 : 0,
+  cursor: "pointer",
+  outlineOffset: 4,
+});
+
 const badgeStackStyle = {
   display: "flex",
   gap: 8,
@@ -1042,6 +1164,65 @@ const liveBlockStyle = {
   borderRadius: 8,
   padding: 12,
   minHeight: 112,
+};
+
+const liveBlockHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 8,
+  alignItems: "flex-start",
+  flexWrap: "wrap",
+};
+
+const orderPanelStyle = {
+  borderTop: "1px solid #e2e8f0",
+  marginTop: 14,
+  paddingTop: 14,
+};
+
+const orderHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 10,
+  alignItems: "flex-start",
+  flexWrap: "wrap",
+  marginBottom: 10,
+};
+
+const orderListStyle = {
+  display: "grid",
+  gap: 8,
+};
+
+const orderRowStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  flexWrap: "wrap",
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  padding: 10,
+  background: "#f8fafc",
+};
+
+const orderDrawStyle = {
+  width: 48,
+  flex: "0 0 48px",
+  fontWeight: 900,
+  color: "#0f172a",
+};
+
+const orderIdentityStyle = {
+  flex: "1 1 220px",
+  minWidth: 0,
+};
+
+const orderScoreStyle = {
+  minWidth: 72,
+  textAlign: "right",
+  fontSize: 20,
+  fontWeight: 900,
+  color: "#111827",
 };
 
 const runLabelStyle = {
@@ -1317,6 +1498,64 @@ const badgeStyle = {
   fontSize: 13,
   whiteSpace: "nowrap",
 };
+
+const orderStatusBadgeStyle = (status) => {
+  const colors = getOrderStatusColors(status);
+
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    minHeight: 26,
+    padding: "4px 9px",
+    borderRadius: 999,
+    border: `1px solid ${colors.border}`,
+    background: colors.background,
+    color: colors.color,
+    fontWeight: 800,
+    fontSize: 12,
+    whiteSpace: "nowrap",
+  };
+};
+
+function getOrderStatusColors(status) {
+  if (status === "active") {
+    return {
+      border: "#fdba74",
+      background: "#fff7ed",
+      color: "#9a3412",
+    };
+  }
+
+  if (status === "waiting") {
+    return {
+      border: "#93c5fd",
+      background: "#eff6ff",
+      color: "#1d4ed8",
+    };
+  }
+
+  if (status === "preparation") {
+    return {
+      border: "#fde68a",
+      background: "#fefce8",
+      color: "#854d0e",
+    };
+  }
+
+  if (status === "passed") {
+    return {
+      border: "#86efac",
+      background: "#ecfdf5",
+      color: "#166534",
+    };
+  }
+
+  return {
+    border: "#cbd5e1",
+    background: "#fff",
+    color: "#475569",
+  };
+}
 
 const freshnessBadgeStyle = (tone) => {
   const colors = getFreshnessColors(tone);

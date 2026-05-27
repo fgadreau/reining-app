@@ -123,6 +123,20 @@ function toScoringSession(row) {
   };
 }
 
+function toClassSetup(row) {
+  return {
+    classId: row.class_id,
+    pattern: row.pattern || "",
+    customPattern:
+      row.custom_pattern && typeof row.custom_pattern === "object"
+        ? row.custom_pattern
+        : null,
+    runs: Array.isArray(row.runs) ? row.runs : [],
+    dragInterval: row.drag_interval || null,
+    dragDurationMinutes: row.drag_duration_minutes,
+  };
+}
+
 function toPaidWarmup(row) {
   return {
     id: row.id,
@@ -165,10 +179,7 @@ export function getPublicShowView(showId) {
         classItem: classData.classItem,
         setup: classData.setup,
         publication: classData.publication,
-        scoringSession: {
-          runs: classData.scoringRuns,
-          activeManoeuvre: null,
-        },
+        scoringSession: classData.scoringSession,
       });
 
       if (liveClass) {
@@ -243,10 +254,7 @@ export async function getPublicShowViewRepository(showId) {
             classItem: classData.classItem,
             setup: classData.setup,
             publication: classData.publication,
-            scoringSession: {
-              runs: classData.scoringRuns,
-              activeManoeuvre: null,
-            },
+            scoringSession: classData.scoringSession,
           });
 
           if (liveClass) {
@@ -358,7 +366,7 @@ export function subscribePublicShowViewRepository(showId, classIds, onChange) {
   );
 
   uniqueClassIds.forEach((classId) => {
-    ["official_results", "scoring_sessions"].forEach((table) => {
+    ["official_results", "scoring_sessions", "class_setups"].forEach((table) => {
       channel.on(
         "postgres_changes",
         {
@@ -440,25 +448,33 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
           return { day, classes: [] };
         }
 
-        const [publicationResult, officialResult, scoringResult] = await Promise.all([
-          supabase
-            .from("publication_states")
-            .select("*")
-            .in("class_id", classIds),
-          supabase
-            .from("official_results")
-            .select("*")
-            .in("class_id", classIds),
-          supabase
-            .from("scoring_sessions")
-            .select("*")
-            .in("class_id", classIds),
-        ]);
+        const [publicationResult, officialResult, scoringResult, setupResult] =
+          await Promise.all([
+            supabase
+              .from("publication_states")
+              .select("*")
+              .in("class_id", classIds),
+            supabase
+              .from("official_results")
+              .select("*")
+              .in("class_id", classIds),
+            supabase
+              .from("scoring_sessions")
+              .select("*")
+              .in("class_id", classIds),
+            supabase
+              .from("class_setups")
+              .select("*")
+              .in("class_id", classIds),
+          ]);
 
         if (publicationResult.error) throw publicationResult.error;
         if (officialResult.error) throw officialResult.error;
         if (scoringResult.error) {
           console.error("Erreur chargement live public Supabase:", scoringResult.error);
+        }
+        if (setupResult.error) {
+          console.error("Erreur chargement setup public Supabase:", setupResult.error);
         }
 
         const publicationsByClassId = new Map(
@@ -479,12 +495,16 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
             toScoringSession(row),
           ])
         );
+        const setupByClassId = new Map(
+          (setupResult.data || []).map((row) => [row.class_id, toClassSetup(row)])
+        );
 
         const classViews = classes.map((classItem) => {
           const publication = publicationsByClassId.get(classItem.id);
+          const setup = setupByClassId.get(classItem.id) || null;
           const liveClass = buildPublicLiveClassView({
             classItem,
-            setup: null,
+            setup,
             publication,
             scoringSession: scoringByClassId.get(classItem.id),
           });
@@ -495,7 +515,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
 
           return buildPublicClassView({
             classItem,
-            setup: null,
+            setup,
             publication,
             official: officialByClassId.get(classItem.id),
             scoringRuns: [],
@@ -874,8 +894,12 @@ export function buildPublicLiveClassView({
   const showScores = liveScoreDisplayMode !== LIVE_SCORE_DISPLAY_MODES.HIDDEN;
   const showScoreDetails =
     liveScoreDisplayMode === LIVE_SCORE_DISPLAY_MODES.FULL_DETAILS;
-  const runs = Array.isArray(scoringSession?.runs)
-    ? scoringSession.runs.map((run, index) =>
+  const scoringRuns = Array.isArray(scoringSession?.runs)
+    ? scoringSession.runs
+    : [];
+  const setupRuns = Array.isArray(setup?.runs) ? setup.runs : [];
+  const sourceRuns = scoringRuns.length > 0 ? scoringRuns : setupRuns;
+  const runs = sourceRuns.map((run, index) =>
         normalizePublicLiveRun(
           run,
           index,
@@ -883,15 +907,23 @@ export function buildPublicLiveClassView({
           setup?.customPattern || classItem?.customPattern || null,
           { liveScoreDisplayMode }
         )
-      )
-    : [];
+      );
 
   const activeRun =
     runs.find((run) => run.draw === scoringSession?.activeManoeuvre?.draw) ||
     runs.find((run) => run.isActive) ||
     null;
+  const upcomingRuns = findUpcomingRuns(runs, activeRun);
+  const nextRun = upcomingRuns[0] || null;
+  const secondNextRun = upcomingRuns[1] || null;
+  const passedRuns = findPassedRuns(runs);
   const lastPassedRuns = findLastPassedRuns(runs, activeRun, 2);
-  const nextRun = findNextRun(runs, activeRun);
+  const orderRuns = buildLiveRunOrder({
+    runs,
+    activeRun,
+    nextRun,
+    secondNextRun,
+  });
   const dragBreak = buildPublicClassDragBreak({
     runs,
     activeRun,
@@ -920,8 +952,12 @@ export function buildPublicLiveClassView({
       "",
     activeRun,
     nextRun,
+    secondNextRun,
+    upcomingRuns,
+    orderRuns,
+    passedRuns,
     lastPassedRuns,
-    latestScore: showScores ? [...runs].reverse().find(runHasScore) || null : null,
+    latestScore: showScores ? passedRuns.find(runHasScore) || null : null,
     dragBreak,
   };
 }
@@ -967,6 +1003,11 @@ function normalizePublicLiveRun(
     penTotal: showScoreDetails ? penTotal : "",
     note: showScoreDetails ? note : "",
     hasScore: showScores && runHasScore({ scoreTotal }),
+    isPassed: isPublicRunPassed({
+      ...run,
+      scoreTotal,
+      isComplete,
+    }),
     isComplete,
     startedAt: run.startedAt || null,
     completedAt: run.completedAt || null,
@@ -1014,7 +1055,7 @@ function buildPublicClassDragBreak({
 }) {
   const normalizedDragInterval = Number.parseInt(dragInterval, 10);
   const normalizedDragDurationMinutes = Number.parseInt(dragDurationMinutes, 10);
-  const completedRuns = runs.filter(runHasScore);
+  const completedRuns = runs.filter(runIsPassed);
 
   if (
     activeRun ||
@@ -1043,44 +1084,80 @@ function buildPublicClassDragBreak({
   };
 }
 
-function findNextRun(runs, activeRun) {
-  if (!runs.length) return null;
+function findUpcomingRuns(runs, activeRun) {
+  if (!runs.length) return [];
 
-  if (!activeRun) {
-    return runs.find((run) => !runHasScore(run) && !run.isReview) || null;
-  }
+  const activeIndex = activeRun
+    ? runs.findIndex((run) => isSameRun(run, activeRun))
+    : -1;
+  const sourceRuns = activeIndex >= 0 ? runs.slice(activeIndex + 1) : runs;
 
-  const activeIndex = runs.findIndex((run) =>
-    run.id ? run.id === activeRun.id : run.draw === activeRun.draw
+  return sourceRuns.filter(
+    (run) => !isSameRun(run, activeRun) && !runIsPassed(run) && !run.isReview
   );
+}
 
-  if (activeIndex < 0) return null;
-
-  return (
-    runs.slice(activeIndex + 1).find((run) => !runHasScore(run) && !run.isReview) ||
-    null
-  );
+function findPassedRuns(runs) {
+  return runs.filter(runIsPassed).reverse();
 }
 
 function findLastPassedRuns(runs, activeRun, count) {
   if (!activeRun) {
-    return runs.filter(runHasScore).slice(-count).reverse();
+    return findPassedRuns(runs).slice(0, count);
   }
 
-  const activeIndex = runs.findIndex((run) =>
-    run.id ? run.id === activeRun.id : run.draw === activeRun.draw
-  );
+  const activeIndex = runs.findIndex((run) => isSameRun(run, activeRun));
 
   if (activeIndex <= 0) {
     return [];
   }
 
-  return runs.slice(0, activeIndex).slice(-count).reverse();
+  return runs.slice(0, activeIndex).filter(runIsPassed).slice(-count).reverse();
 }
 
 function runHasScore(run) {
   const score = String(run?.scoreTotal ?? "").trim();
   return Boolean(run?.hasScore || (score && score !== "Review"));
+}
+
+function runIsPassed(run) {
+  return Boolean(run?.isPassed || runHasScore(run));
+}
+
+function isPublicRunPassed(run) {
+  const score = String(run?.scoreTotal ?? "").trim();
+  return Boolean(
+    run?.isComplete ||
+      run?.completedAt ||
+      ["done", "completed", "passed"].includes(String(run?.status || "")) ||
+      (score && score !== "Review")
+  );
+}
+
+function buildLiveRunOrder({ runs, activeRun, nextRun, secondNextRun }) {
+  return runs.map((run) => ({
+    ...run,
+    liveOrderStatus: getLiveRunOrderStatus({
+      run,
+      activeRun,
+      nextRun,
+      secondNextRun,
+    }),
+  }));
+}
+
+function getLiveRunOrderStatus({ run, activeRun, nextRun, secondNextRun }) {
+  if (isSameRun(run, activeRun)) return "active";
+  if (isSameRun(run, nextRun)) return "waiting";
+  if (isSameRun(run, secondNextRun)) return "preparation";
+  if (runIsPassed(run)) return "passed";
+  return "upcoming";
+}
+
+function isSameRun(a, b) {
+  if (!a || !b) return false;
+  if (a.id && b.id) return a.id === b.id;
+  return String(a.draw ?? "") === String(b.draw ?? "");
 }
 
 function getLatestRunActivityAt(runs) {

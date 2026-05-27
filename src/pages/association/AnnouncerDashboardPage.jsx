@@ -209,7 +209,7 @@ function AnnouncerDashboardPage() {
           )}
         </FocusPanel>
 
-        <FocusPanel title={t("public.results.nextParticipant")}>
+        <FocusPanel title={t("management.announcer.waiting")}>
           {liveView.activePaidWarmup?.nextEntry ? (
             <PaidWarmupEntryFocus
               warmupName={liveView.activePaidWarmup.name}
@@ -224,7 +224,17 @@ function AnnouncerDashboardPage() {
           )}
         </FocusPanel>
 
-        <FocusPanel title={t("public.results.lastTwoPassed")}>
+        <FocusPanel title={t("management.announcer.inPreparation")}>
+          {liveView.activeClasses?.some((classView) => classView.secondNextRun) ? (
+            <PreparationRunFocusList classes={liveView.activeClasses} now={now} />
+          ) : (
+            <div style={mutedTextStyle}>
+              {t("management.announcer.noPreparationRun")}
+            </div>
+          )}
+        </FocusPanel>
+
+        <FocusPanel title={t("management.announcer.passedWithScores")}>
           {liveView.activePaidWarmup?.lastPassedEntries?.length ? (
             <PaidWarmupRecentEntries warmup={liveView.activePaidWarmup} />
           ) : liveView.recentResults?.length ? (
@@ -362,6 +372,27 @@ function NextRunFocusList({ classes, now }) {
             <RunFocus
               className={formatClassLocation(classView)}
               run={classView.nextRun}
+              compact
+            />
+            <div style={focusBadgeRowStyle}>
+              <LiveFreshnessBadge updatedAt={classView.liveUpdatedAt} now={now} />
+            </div>
+          </div>
+        ))}
+    </div>
+  );
+}
+
+function PreparationRunFocusList({ classes, now }) {
+  return (
+    <div style={focusListStyle}>
+      {classes
+        .filter((classView) => classView.secondNextRun)
+        .map((classView) => (
+          <div key={classView.classId} style={focusListItemStyle}>
+            <RunFocus
+              className={formatClassLocation(classView)}
+              run={classView.secondNextRun}
               compact
             />
             <div style={focusBadgeRowStyle}>
@@ -636,12 +667,32 @@ function PaidWarmupTimerCue({ warmup, remainingSeconds }) {
 
 function ClassLiveCard({ classView, now, onOpenProvisionalRanking }) {
   const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
   const liveState = getClassLiveState(classView, t);
   const hasProvisionalRanking = classView.provisionalRanking?.length > 0;
+  const cardDetailsId = `announcer-live-details-${classView.classId || "class"}`;
+
+  function toggleCard() {
+    setIsOpen((current) => !current);
+  }
+
+  function handleCardKeyDown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    toggleCard();
+  }
 
   return (
     <div style={classCardStyle}>
-      <div style={classCardHeaderStyle}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        aria-controls={cardDetailsId}
+        onClick={toggleCard}
+        onKeyDown={handleCardKeyDown}
+        style={classCardHeaderToggleStyle(isOpen)}
+      >
         <div>
           <div style={classNameStyle}>
             {classView.className}
@@ -663,40 +714,92 @@ function ClassLiveCard({ classView, now, onOpenProvisionalRanking }) {
             {getPublicationStatusLabel(classView.publicationStatus, t)}
           </Badge>
           <Badge tone={liveState.tone}>{liveState.label}</Badge>
+          <Badge tone="muted">
+            {isOpen ? t("public.results.hide") : t("public.results.view")}
+          </Badge>
         </div>
       </div>
-      <div style={runGridStyle}>
-        <RunBlock label={t("management.announcer.active")} run={classView.activeRun} />
-        <RunBlock label={t("management.announcer.next")} run={classView.nextRun} />
-        <RunBlock
-          label={t("management.announcer.latestScore")}
-          run={classView.latestScore}
-          showScore
-        />
+
+      {!isOpen ? null : (
+        <div id={cardDetailsId}>
+          <div style={runGridStyle}>
+            <RunBlock
+              label={t("management.announcer.active")}
+              run={classView.activeRun}
+            />
+            <RunBlock
+              label={t("management.announcer.waiting")}
+              run={classView.nextRun}
+            />
+            <RunBlock
+              label={t("management.announcer.inPreparation")}
+              run={classView.secondNextRun}
+            />
+            <RunBlock
+              label={t("management.announcer.latestScore")}
+              run={classView.latestScore}
+              showScore
+            />
+          </div>
+
+          {classView.orderRuns?.length > 0 && (
+            <AnnouncerOrderList runs={classView.orderRuns} />
+          )}
+
+          {classView.passedRuns?.length > 0 && (
+            <div style={completedWrapStyle}>
+              <div style={runLabelStyle}>
+                {t("management.announcer.passedWithScores")}
+              </div>
+              <RecentResults
+                results={classView.passedRuns.map((run) => ({
+                  classId: classView.classId,
+                  className: classView.className,
+                  run,
+                }))}
+              />
+            </div>
+          )}
+
+          {hasProvisionalRanking && (
+            <div style={actionRowStyle}>
+              <button
+                type="button"
+                onClick={() => onOpenProvisionalRanking(classView)}
+                style={secondaryButtonStyle}
+              >
+                {t("management.announcer.provisionalRanking")}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AnnouncerOrderList({ runs }) {
+  const { t } = useTranslation();
+
+  return (
+    <div style={announcerOrderWrapStyle}>
+      <div style={runLabelStyle}>{t("public.results.orderOfGo")}</div>
+      <div style={announcerOrderListStyle}>
+        {runs.map((run) => (
+          <div key={run.id || run.draw} style={announcerOrderRowStyle}>
+            <div style={announcerOrderDrawStyle}>#{run.draw || "—"}</div>
+            <div style={announcerOrderIdentityStyle}>
+              <RunIdentity run={run} />
+            </div>
+            <Badge tone={getOrderStatusTone(run.liveOrderStatus)}>
+              {getAnnouncerRunOrderStatusLabel(run.liveOrderStatus, t)}
+            </Badge>
+            <div style={announcerOrderScoreStyle}>
+              {run.scoreTotal || "—"}
+            </div>
+          </div>
+        ))}
       </div>
-      {classView.lastPassedRuns?.length > 0 && (
-        <div style={completedWrapStyle}>
-          <div style={runLabelStyle}>{t("public.results.lastTwoPassed")}</div>
-          <RecentResults
-            results={classView.lastPassedRuns.map((run) => ({
-              classId: classView.classId,
-              className: classView.className,
-              run,
-            }))}
-          />
-        </div>
-      )}
-      {hasProvisionalRanking && (
-        <div style={actionRowStyle}>
-          <button
-            type="button"
-            onClick={() => onOpenProvisionalRanking(classView)}
-            style={secondaryButtonStyle}
-          >
-            {t("management.announcer.provisionalRanking")}
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -715,6 +818,28 @@ function getClassLiveState(classView, t) {
   }
 
   return { label: t("public.results.paidWarmupStatusPending"), tone: "muted" };
+}
+
+function getAnnouncerRunOrderStatusLabel(status, t) {
+  switch (status) {
+    case "active":
+      return t("public.results.statusOnCourse");
+    case "waiting":
+      return t("public.results.statusWaiting");
+    case "preparation":
+      return t("public.results.statusPreparation");
+    case "passed":
+      return t("public.results.statusPassed");
+    case "upcoming":
+    default:
+      return t("public.results.statusUpcoming");
+  }
+}
+
+function getOrderStatusTone(status) {
+  if (status === "active" || status === "preparation") return "warn";
+  if (status === "passed") return "success";
+  return "muted";
 }
 
 function getPaidWarmupStatusLabel(status, t) {
@@ -1122,6 +1247,13 @@ const classCardHeaderStyle = {
   marginBottom: 12,
 };
 
+const classCardHeaderToggleStyle = (isOpen) => ({
+  ...classCardHeaderStyle,
+  marginBottom: isOpen ? 12 : 0,
+  cursor: "pointer",
+  outlineOffset: 4,
+});
+
 const badgeStackStyle = {
   display: "flex",
   gap: 8,
@@ -1171,6 +1303,48 @@ const completedWrapStyle = {
   marginTop: 12,
   borderTop: "1px solid #e2e8f0",
   paddingTop: 12,
+};
+
+const announcerOrderWrapStyle = {
+  marginTop: 12,
+  borderTop: "1px solid #e2e8f0",
+  paddingTop: 12,
+};
+
+const announcerOrderListStyle = {
+  display: "grid",
+  gap: 8,
+};
+
+const announcerOrderRowStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  flexWrap: "wrap",
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  padding: 10,
+  background: "#f8fafc",
+};
+
+const announcerOrderDrawStyle = {
+  width: 48,
+  flex: "0 0 48px",
+  fontWeight: 900,
+  color: "#0f172a",
+};
+
+const announcerOrderIdentityStyle = {
+  flex: "1 1 220px",
+  minWidth: 0,
+};
+
+const announcerOrderScoreStyle = {
+  minWidth: 64,
+  textAlign: "right",
+  fontSize: 20,
+  fontWeight: 900,
+  color: "#111827",
 };
 
 const runLabelStyle = {

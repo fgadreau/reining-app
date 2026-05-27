@@ -61,7 +61,7 @@ export function getAnnouncerShowView(showId) {
     activeClasses,
     activePaidWarmup,
     latestScore: findLatestScoredRun(allClasses),
-    recentResults: findRecentPassedRuns(allClasses, 4, activeClasses),
+    recentResults: findRecentPassedRuns(allClasses, 4),
   };
 }
 
@@ -104,7 +104,7 @@ export async function getAnnouncerShowViewRepository(showId) {
     activeClasses,
     activePaidWarmup,
     latestScore: findLatestScoredRun(allClasses),
-    recentResults: findRecentPassedRuns(allClasses, 4, activeClasses),
+    recentResults: findRecentPassedRuns(allClasses, 4),
   };
 }
 
@@ -232,8 +232,17 @@ export function buildAnnouncerClassView(classData) {
   const publicationStatus = classData.publication?.status || "hidden";
   const canShowScores = canShowLatestScore(publicationStatus);
   const latestScore = canShowScores ? findLatestRunWithScore(runs) : null;
-  const nextRun = isOfficiallyCompleted ? null : findNextRun(runs, activeRun);
+  const upcomingRuns = isOfficiallyCompleted ? [] : findUpcomingRuns(runs, activeRun);
+  const nextRun = upcomingRuns[0] || null;
+  const secondNextRun = upcomingRuns[1] || null;
+  const passedRuns = findPassedRuns(runs);
   const lastPassedRuns = findLastPassedRuns(runs, activeRun, 2);
+  const orderRuns = buildLiveRunOrder({
+    runs,
+    activeRun,
+    nextRun,
+    secondNextRun,
+  });
   const scoringStarted = runs.some(runHasData);
   const isComplete =
     isOfficiallyCompleted ||
@@ -260,6 +269,10 @@ export function buildAnnouncerClassView(classData) {
     provisionalRanking,
     activeRun,
     nextRun,
+    secondNextRun,
+    upcomingRuns,
+    orderRuns,
+    passedRuns,
     latestScore,
     lastPassedRuns,
     lastCompletedRuns: lastPassedRuns,
@@ -305,22 +318,16 @@ function normalizeRunForAnnouncer(run, index, headers) {
   };
 }
 
-function findNextRun(runs, activeRun) {
-  if (!runs.length) return null;
+function findUpcomingRuns(runs, activeRun) {
+  if (!runs.length) return [];
 
-  if (!activeRun) {
-    return runs.find((run) => !runHasScore(run) && !run.isReview) || null;
-  }
+  const activeIndex = activeRun
+    ? runs.findIndex((run) => isSameRun(run, activeRun))
+    : -1;
+  const sourceRuns = activeIndex >= 0 ? runs.slice(activeIndex + 1) : runs;
 
-  const activeIndex = runs.findIndex((run) =>
-    run.id ? run.id === activeRun.id : run.draw === activeRun.draw
-  );
-
-  if (activeIndex < 0) return null;
-
-  return (
-    runs.slice(activeIndex + 1).find((run) => !runHasScore(run) && !run.isReview) ||
-    null
+  return sourceRuns.filter(
+    (run) => !isSameRun(run, activeRun) && !runIsPassed(run) && !run.isReview
   );
 }
 
@@ -328,24 +335,22 @@ function findLatestRunWithScore(runs) {
   return [...runs].reverse().find(runHasScore) || null;
 }
 
-function findLastCompletedRuns(runs, count) {
-  return runs.filter(runHasScore).slice(-count).reverse();
+function findPassedRuns(runs) {
+  return runs.filter(runIsPassed).reverse();
 }
 
 function findLastPassedRuns(runs, activeRun, count) {
   if (!activeRun) {
-    return findLastCompletedRuns(runs, count);
+    return findPassedRuns(runs).slice(0, count);
   }
 
-  const activeIndex = runs.findIndex((run) =>
-    run.id ? run.id === activeRun.id : run.draw === activeRun.draw
-  );
+  const activeIndex = runs.findIndex((run) => isSameRun(run, activeRun));
 
   if (activeIndex <= 0) {
     return [];
   }
 
-  return runs.slice(0, activeIndex).slice(-count).reverse();
+  return runs.slice(0, activeIndex).filter(runIsPassed).slice(-count).reverse();
 }
 
 function findLatestScoredRun(classes) {
@@ -370,18 +375,24 @@ function wrapClassRuns(classView, runs) {
   }));
 }
 
-function findRecentPassedRuns(classes, count, activeClasses = []) {
-  const sourceClasses = activeClasses.length > 0 ? activeClasses : classes;
-
-  return sourceClasses
+function findRecentPassedRuns(classes, count) {
+  return classes
     .flatMap((classView, classIndex) =>
-      wrapClassRuns(classView, classView.lastPassedRuns || []).map((entry) => ({
+      wrapClassRuns(
+        classView,
+        classView.passedRuns || classView.lastPassedRuns || []
+      ).map((entry) => ({
         ...entry,
         classIndex,
         runOrder: getRunOrder(entry.run),
+        completedAt: Date.parse(entry.run?.completedAt || ""),
       }))
     )
     .sort((a, b) => {
+      const aCompletedAt = Number.isFinite(a.completedAt) ? a.completedAt : 0;
+      const bCompletedAt = Number.isFinite(b.completedAt) ? b.completedAt : 0;
+
+      if (aCompletedAt !== bCompletedAt) return aCompletedAt - bCompletedAt;
       if (a.classIndex !== b.classIndex) return a.classIndex - b.classIndex;
       return a.runOrder - b.runOrder;
     })
@@ -407,6 +418,41 @@ function getLatestRunActivityAt(runs) {
 function runHasScore(run) {
   const score = String(run?.scoreTotal ?? "").trim();
   return Boolean(score && score !== "Review");
+}
+
+function runIsPassed(run) {
+  const status = String(run?.status || "");
+  return Boolean(
+    runHasScore(run) ||
+      run?.completedAt ||
+      ["done", "completed", "passed"].includes(status)
+  );
+}
+
+function buildLiveRunOrder({ runs, activeRun, nextRun, secondNextRun }) {
+  return runs.map((run) => ({
+    ...run,
+    liveOrderStatus: getLiveRunOrderStatus({
+      run,
+      activeRun,
+      nextRun,
+      secondNextRun,
+    }),
+  }));
+}
+
+function getLiveRunOrderStatus({ run, activeRun, nextRun, secondNextRun }) {
+  if (isSameRun(run, activeRun)) return "active";
+  if (isSameRun(run, nextRun)) return "waiting";
+  if (isSameRun(run, secondNextRun)) return "preparation";
+  if (runIsPassed(run)) return "passed";
+  return "upcoming";
+}
+
+function isSameRun(a, b) {
+  if (!a || !b) return false;
+  if (a.id && b.id) return a.id === b.id;
+  return String(a.draw ?? "") === String(b.draw ?? "");
 }
 
 function runHasData(run) {

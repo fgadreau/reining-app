@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import { getPatternDisplayName } from "../features/patterns/patternDefinitions";
-import { getScoringOptionsForPattern } from "../features/scoring/scoringOptions";
+import { getScoreRuleLines } from "../features/scoring/scoringRuleText";
 
 function safeText(value) {
   return String(value ?? "");
@@ -86,49 +86,6 @@ function getRunNote(run) {
   return safeText(run?.note || run?.judgeNote || run?.comment).trim();
 }
 
-function formatRuleOptions(options = []) {
-  return options.map((option) => safeText(option)).filter(Boolean).join(" / ");
-}
-
-function getScoreRuleText(scoreOptions = []) {
-  const firstOption = safeText(scoreOptions[0]);
-  const lastOption = safeText(scoreOptions[scoreOptions.length - 1]);
-
-  if (firstOption === "-3" && lastOption === "+3") {
-    return "MANEUVER SCORES: -3 to +3 by 1/2 point";
-  }
-
-  return "MANEUVER SCORES: -1 1/2 Extremely Poor   -1 Very Poor   -1/2 Poor   0 Correct   +1/2 Good   +1 Very Good   +1 1/2 Excellent";
-}
-
-function getScoreRuleLines(patternValue, customPattern) {
-  const scoringOptions = getScoringOptionsForPattern(patternValue, customPattern);
-  const lines = [getScoreRuleText(scoringOptions.scoreOptions)];
-  const penaltyOptions = formatRuleOptions(scoringOptions.penaltyOptions);
-  const specialOptions = formatRuleOptions(
-    (scoringOptions.statusPenaltyOptions || []).filter(
-      (option) => option !== "Révision vidéo"
-    )
-  );
-
-  if (scoringOptions.scoreOptionsByHeader?.["F&E"]) {
-    lines.push("F&E / Overall form and effectiveness: 0 to 5, no penalties in that cell");
-  }
-
-  if (penaltyOptions || specialOptions) {
-    lines.push(
-      [
-        penaltyOptions ? `PENALTIES: ${penaltyOptions}` : "",
-        specialOptions ? `SPECIAL: ${specialOptions}` : "",
-      ]
-        .filter(Boolean)
-        .join("   ")
-    );
-  }
-
-  return lines;
-}
-
 export function buildScorePdfFileName({
   associationAbbreviation,
   showName,
@@ -206,6 +163,38 @@ export function generateScorePdf({
     doc.setFontSize(fitted.fontSize);
     drawText(fitted.text, x, yPos, options);
     doc.setFontSize(fontSize);
+  }
+
+  function drawWrappedText(text, x, yPos, maxWidth, options = {}) {
+    const fontSize = options.fontSize || 8;
+    const lineHeight = options.lineHeight || fontSize * 0.42;
+    const maxLines = options.maxLines || 2;
+
+    doc.setFont("helvetica", options.fontStyle || "normal");
+    doc.setFontSize(fontSize);
+
+    const lines = doc
+      .splitTextToSize(safeText(text), maxWidth)
+      .slice(0, maxLines);
+
+    if (!lines.length) {
+      return 0;
+    }
+
+    const lastIndex = lines.length - 1;
+    const sourceLines = doc.splitTextToSize(safeText(text), maxWidth);
+    if (sourceLines.length > maxLines) {
+      const fitted = fitCellText(doc, lines[lastIndex], maxWidth, fontSize, 5.5);
+      lines[lastIndex] = fitted.text;
+    }
+
+    if (options.align) {
+      doc.text(lines, x, yPos, { align: options.align });
+    } else {
+      doc.text(lines, x, yPos);
+    }
+
+    return lines.length * lineHeight;
   }
 
   function drawCell(x, yPos, w, h, text = "", options = {}) {
@@ -341,11 +330,11 @@ export function generateScorePdf({
   }
 
   function drawPageHeader() {
-        const hasLogo = Boolean(associationLogoDataUrl);
-        const logoX = marginLeft;
-        const logoY = y - 1;
-        const logoW = 14;
-        const logoH = 14;
+    const hasLogo = Boolean(associationLogoDataUrl);
+    const logoX = marginLeft;
+    const logoY = y - 1;
+    const logoW = 14;
+    const logoH = 14;
 
     if (hasLogo) {
       try {
@@ -356,46 +345,51 @@ export function generateScorePdf({
     }
 
     doc.setFont("times", "bold");
-        doc.setFontSize(11);
-        drawText(
-        `${associationName || "Association"} Score Card / Feuille de pointage`,
-        hasLogo ? marginLeft + 18 : marginLeft,
-        y + 4
+    doc.setFontSize(11);
+    drawText(
+      `${associationName || "Association"} Score Card / Feuille de pointage`,
+      hasLogo ? marginLeft + 18 : marginLeft,
+      y + 4
     );
 
-doc.setFont("helvetica", "normal");
-doc.setFontSize(8);
-drawText(`Judge: ${classSetup?.judgeName || ""}`, pageWidth - 48, y + 4);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    drawText(`Judge: ${classSetup?.judgeName || ""}`, pageWidth - 48, y + 4);
 
-y += 9;
+    y += 9;
 
     doc.setFontSize(8);
-        drawFittedText(
-          `Event: ${formatEventLabel(eventName, classItem)}`,
-          marginLeft,
-          y,
-          42,
-          { fontSize: 8 }
-        );
-        drawFittedText(`Date: ${eventDate || ""}`, 52, y, 32, {
-          fontSize: 8,
-        });
-        drawFittedText(`Class: ${classItem?.name || ""}`, 88, y, 62, {
-          fontSize: 8,
-        });
-        drawFittedText(
-          `Pattern: ${
-            getPatternDisplayName(patternValue, customPattern) ||
-            patternValue ||
-            ""
-          }`,
-          pageWidth - marginRight,
-          y,
-          58,
-          { fontSize: 8, align: "right" }
-        );
+    drawFittedText(
+      `Event: ${formatEventLabel(eventName, classItem)}`,
+      marginLeft,
+      y,
+      fullTableW - 42,
+      { fontSize: 8 }
+    );
+    drawFittedText(`Date: ${eventDate || ""}`, pageWidth - marginRight, y, 38, {
+      fontSize: 8,
+      align: "right",
+    });
 
-        y += 5;
+    y += 4.2;
+
+    drawFittedText(`Class: ${classItem?.name || ""}`, marginLeft, y, fullTableW, {
+      fontSize: 8,
+    });
+
+    y += 4.2;
+
+    const patternLabel =
+      getPatternDisplayName(patternValue, customPattern) || patternValue || "";
+    const patternTextHeight = drawWrappedText(
+      `Pattern: ${patternLabel}`,
+      marginLeft,
+      y,
+      fullTableW,
+      { fontSize: 8, lineHeight: 3.5, maxLines: 2 }
+    );
+
+    y += Math.max(patternTextHeight, 3.5) + 1;
 
     doc.setFontSize(5.8);
     scoreRuleLines.forEach((line) => {

@@ -43,6 +43,7 @@ import {
   calculateClassTimingSummary,
   stampRunTiming,
 } from "./features/classes/classTiming";
+import { getScoreRuleLines } from "./features/scoring/scoringRuleText";
 import {
   buildClassTimingRow,
   buildPatternTimingStats,
@@ -341,6 +342,34 @@ test("uses AQHA performance custom patterns with F&E scoring", () => {
   );
 
   expect(disqualifiedRun.scoreTotal).toBe("DQ");
+});
+
+test("PDF score rules follow the class scoring scale", () => {
+  const customPattern = normalizeCustomPattern(
+    {
+      discipline: "western_horsemanship",
+      name: "Pattern with rail",
+      maneuvers: [
+        { abbreviation: "WJ", description: "Walk jog transition" },
+        { abbreviation: "LL", description: "Left lead lope" },
+      ],
+    },
+    WESTERN_HORSEMANSHIP_CUSTOM_PATTERN_ID
+  );
+
+  expect(getScoreRuleLines("2")).toEqual(
+    expect.arrayContaining([
+      expect.stringContaining("-1 1/2 Extremely Poor"),
+    ])
+  );
+  expect(
+    getScoreRuleLines(WESTERN_HORSEMANSHIP_CUSTOM_PATTERN_ID, customPattern)
+  ).toEqual(
+    expect.arrayContaining([
+      expect.stringContaining("-3 Extremely Poor"),
+      expect.stringContaining("F&E / Overall form and effectiveness"),
+    ])
+  );
 });
 
 test("builds provisional rankings for rail adjustment classes", () => {
@@ -709,12 +738,29 @@ test("public live view exposes active, next, and last passed runs", () => {
           rider: "Rider 5",
           scoreTotal: "",
         },
+        {
+          id: "run-6",
+          draw: 6,
+          backNumber: "606",
+          rider: "Rider 6",
+          scoreTotal: "",
+        },
       ],
     },
   });
 
   expect(classView.activeRun.draw).toBe(4);
   expect(classView.nextRun.draw).toBe(5);
+  expect(classView.secondNextRun.draw).toBe(6);
+  expect(classView.orderRuns.map((run) => run.liveOrderStatus)).toEqual([
+    "passed",
+    "passed",
+    "passed",
+    "active",
+    "waiting",
+    "preparation",
+  ]);
+  expect(classView.passedRuns.map((run) => run.draw)).toEqual([3, 2, 1]);
   expect(classView.lastPassedRuns.map((run) => run.draw)).toEqual([3, 2]);
   expect(classView.lastPassedRuns[0].manoeuvres[1]).toMatchObject({
     score: "+0.5",
@@ -782,6 +828,35 @@ test("public live without scores keeps runs visible and hides scoring details", 
     score: "",
     penalty: "",
   });
+});
+
+test("public live view uses setup order before scoring starts", () => {
+  const classView = buildPublicLiveClassView({
+    classItem: {
+      id: "class-live-setup-order",
+      name: "Green Reiner",
+      pattern: "2",
+    },
+    setup: {
+      runs: [
+        { id: "setup-run-1", draw: 1, backNumber: "101", rider: "Rider 1" },
+        { id: "setup-run-2", draw: 2, backNumber: "202", rider: "Rider 2" },
+        { id: "setup-run-3", draw: 3, backNumber: "303", rider: "Rider 3" },
+      ],
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+    },
+    scoringSession: null,
+  });
+
+  expect(classView.nextRun.draw).toBe(1);
+  expect(classView.secondNextRun.draw).toBe(2);
+  expect(classView.orderRuns.map((run) => run.liveOrderStatus)).toEqual([
+    "waiting",
+    "preparation",
+    "upcoming",
+  ]);
 });
 
 test("public live scoring shows completed totals only", () => {
@@ -1016,6 +1091,15 @@ test("announcer live view exposes active, next, and recent completed runs", () =
         scores: [],
         penalties: [],
       },
+      {
+        id: "run-4",
+        draw: 4,
+        backNumber: "404",
+        rider: "Rider 4",
+        scoreTotal: "",
+        scores: [],
+        penalties: [],
+      },
     ],
   };
 
@@ -1023,7 +1107,15 @@ test("announcer live view exposes active, next, and recent completed runs", () =
 
   expect(classView.activeRun.draw).toBe(2);
   expect(classView.nextRun.draw).toBe(3);
+  expect(classView.secondNextRun.draw).toBe(4);
   expect(classView.latestScore.draw).toBe(1);
+  expect(classView.orderRuns.map((run) => run.liveOrderStatus)).toEqual([
+    "passed",
+    "active",
+    "waiting",
+    "preparation",
+  ]);
+  expect(classView.passedRuns.map((run) => run.draw)).toEqual([1]);
   expect(classView.lastPassedRuns.map((run) => run.draw)).toEqual([1]);
   expect(classView.lastPassedRuns[0].manoeuvres[0]).toMatchObject({
     name: "RSLL",
