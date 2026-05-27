@@ -34,6 +34,7 @@ create table if not exists public.associations (
   short_name text,
   timezone text,
   logo_data_url text,
+  website_url text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -545,14 +546,16 @@ create or replace function public.create_association_with_owner(
   target_name text,
   target_short_name text default null,
   target_timezone text default null,
-  target_logo_data_url text default null
+  target_logo_data_url text default null,
+  target_website_url text default null
 )
 returns table (
   id text,
   name text,
   short_name text,
   timezone text,
-  logo_data_url text
+  logo_data_url text,
+  website_url text
 ) as $$
 declare
   created_id text;
@@ -577,14 +580,16 @@ begin
     name,
     short_name,
     timezone,
-    logo_data_url
+    logo_data_url,
+    website_url
   )
   values (
     btrim(target_id),
     btrim(target_name),
     nullif(btrim(target_short_name), ''),
     nullif(btrim(target_timezone), ''),
-    nullif(target_logo_data_url, '')
+    nullif(target_logo_data_url, ''),
+    nullif(btrim(target_website_url), '')
   )
   returning associations.id into created_id;
 
@@ -606,13 +611,15 @@ begin
     a.name,
     a.short_name,
     a.timezone,
-    a.logo_data_url
+    a.logo_data_url,
+    a.website_url
   from public.associations a
   where a.id = created_id;
 end;
 $$ language plpgsql security definer set search_path = public;
 
 grant execute on function public.create_association_with_owner(
+  text,
   text,
   text,
   text,

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import AssociationLogo from "../../components/AssociationLogo";
+import ShareButton from "../../components/ShareButton";
 import {
   getPublicAssociationRepository,
   getPublicShowRepository,
@@ -14,6 +16,7 @@ import {
   getPaidWarmupRemainingSeconds,
 } from "../../features/paidWarmups/paidWarmupLive";
 import { formatLiveDataFreshness } from "../../features/live/liveFreshness";
+import { getAssociationWebsiteHref } from "../../features/associations/associationProfile";
 import { PAID_WARMUP_STATUS_LABELS } from "../../features/paidWarmups/paidWarmupStorage";
 import { getShowById } from "../../features/shows/showSelectors";
 import {
@@ -162,25 +165,45 @@ function PublicResultsPage() {
       </div>
 
       <section style={heroStyle}>
-        <div>
-          <div style={eyebrowStyle}>Feuilles de pointage publiques</div>
-          <h1 style={titleStyle}>{show?.name || "Show"}</h1>
-          <div style={subtitleStyle}>
-            {show?.venue || show?.location || "Lieu à confirmer"}
+        <div style={heroBrandStyle}>
+          <AssociationLogo association={association} size={58} />
+          <div>
+            <div style={eyebrowStyle}>Feuilles de pointage publiques</div>
+            <h1 style={titleStyle}>{show?.name || "Show"}</h1>
+            <div style={subtitleStyle}>
+              {association?.shortName || association?.name || "Association"} ·{" "}
+              {show?.venue || show?.location || "Lieu à confirmer"}
+            </div>
           </div>
         </div>
-        {isPublicRoute ? (
-          <Link to={`/public/associations/${associationId}`} style={linkButtonStyle}>
-            Shows
-          </Link>
-        ) : (
-          <Link
-            to={`/associations/${associationId}/shows/${showId}`}
-            style={linkButtonStyle}
-          >
-            Show
-          </Link>
-        )}
+        <div style={heroActionsStyle}>
+          {getAssociationWebsiteHref(association) && (
+            <a
+              href={getAssociationWebsiteHref(association)}
+              target="_blank"
+              rel="noreferrer"
+              style={linkButtonStyle}
+            >
+              Site web
+            </a>
+          )}
+          <ShareButton
+            url={`/public/associations/${associationId}/shows/${showId}`}
+            title={show?.name || "Vitrine publique ShowScore"}
+          />
+          {isPublicRoute ? (
+            <Link to={`/public/associations/${associationId}`} style={linkButtonStyle}>
+              Shows
+            </Link>
+          ) : (
+            <Link
+              to={`/associations/${associationId}/shows/${showId}`}
+              style={linkButtonStyle}
+            >
+              Show
+            </Link>
+          )}
+        </div>
       </section>
 
       {publicView.livePaidWarmup && (
@@ -420,6 +443,9 @@ function PublicLivePanel({ classView, now }) {
   const dragRemainingSeconds = getDragRemainingSeconds(dragBreak, now);
   const nextRun = dragBreak?.nextRun || classView.nextRun;
   const showScores = classView.showScores !== false;
+  const showScoreDetails = showScores && classView.showScoreDetails !== false;
+  const canShowRunScore = (run) =>
+    showScores && Boolean(String(run?.scoreTotal || "").trim());
   const publicationLabel = getPublicationStatusLabel(
     classView.publicationStatus || PUBLICATION_STATUSES.LIVE
   );
@@ -454,6 +480,13 @@ function PublicLivePanel({ classView, now }) {
         </div>
       )}
 
+      {showScores && !showScoreDetails && (
+        <div style={noScoreNoticeStyle}>
+          Les scores s’affichent seulement quand la run du participant est
+          complétée par le scribe.
+        </div>
+      )}
+
       {dragBreak && (
         <div style={paidWarmupNoticeStyle}>
           Drag de surface en cours · {dragBreak.durationMinutes ?? "—"} min
@@ -468,8 +501,8 @@ function PublicLivePanel({ classView, now }) {
           ) : classView.activeRun ? (
             <LiveRunCard
               run={classView.activeRun}
-              showScore={showScores}
-              showDetails={showScores}
+              showScore={canShowRunScore(classView.activeRun)}
+              showDetails={showScoreDetails}
             />
           ) : (
             <div style={mutedTextStyle}>—</div>
@@ -478,7 +511,7 @@ function PublicLivePanel({ classView, now }) {
         <LiveRunBlock
           label="Prochain participant"
           run={nextRun}
-          showDetails={showScores}
+          showDetails={showScoreDetails}
         />
         <div style={liveBlockStyle}>
           <div style={runLabelStyle}>Deux derniers passés</div>
@@ -488,8 +521,8 @@ function PublicLivePanel({ classView, now }) {
                 <LiveRunCard
                   key={run.id || run.draw}
                   run={run}
-                  showScore={showScores}
-                  showDetails={showScores}
+                  showScore={canShowRunScore(run)}
+                  showDetails={showScoreDetails}
                 />
               ))}
             </div>
@@ -787,6 +820,20 @@ const heroStyle = {
   flexWrap: "wrap",
 };
 
+const heroBrandStyle = {
+  display: "flex",
+  gap: 14,
+  alignItems: "flex-start",
+  minWidth: 0,
+};
+
+const heroActionsStyle = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
+};
+
 const eyebrowStyle = {
   color: "#64748b",
   fontWeight: 700,
@@ -798,6 +845,7 @@ const eyebrowStyle = {
 const titleStyle = {
   margin: "4px 0",
   fontSize: 28,
+  overflowWrap: "anywhere",
 };
 
 const subtitleStyle = {
@@ -862,7 +910,7 @@ const noScoreNoticeStyle = {
 
 const liveGridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
   gap: 12,
 };
 
@@ -876,7 +924,7 @@ const timingPanelStyle = {
 
 const timingGridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
   gap: 10,
 };
 
@@ -975,7 +1023,7 @@ const paidWarmupCueStyle = (tone) => ({
 
 const detailsGridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(64px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 72px), 1fr))",
   gap: 6,
   marginTop: 10,
 };
@@ -1233,6 +1281,7 @@ const linkButtonStyle = {
   background: "#fff",
   color: "#111827",
   textDecoration: "none",
+  maxWidth: "100%",
 };
 
 const secondaryButtonStyle = {

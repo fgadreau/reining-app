@@ -35,6 +35,12 @@ export const SCORE_VISIBLE_PUBLICATION_STATUSES = [
   PUBLICATION_STATUSES.PUBLISHED,
 ];
 
+export const LIVE_SCORE_DISPLAY_MODES = {
+  HIDDEN: "hidden",
+  COMPLETED_TOTAL: "completed_total",
+  FULL_DETAILS: "full_details",
+};
+
 export function isLivePublicationStatus(status) {
   return LIVE_PUBLICATION_STATUSES.includes(status);
 }
@@ -43,14 +49,35 @@ export function canPublicationStatusShowScores(status) {
   return SCORE_VISIBLE_PUBLICATION_STATUSES.includes(status);
 }
 
+export function getLiveScoreDisplayMode(status) {
+  if (status === PUBLICATION_STATUSES.LIVE_NO_SCORE) {
+    return LIVE_SCORE_DISPLAY_MODES.HIDDEN;
+  }
+
+  if (status === PUBLICATION_STATUSES.LIVE_SCORING) {
+    return LIVE_SCORE_DISPLAY_MODES.COMPLETED_TOTAL;
+  }
+
+  if (
+    status === PUBLICATION_STATUSES.LIVE ||
+    status === PUBLICATION_STATUSES.LIVE_FINISHED
+  ) {
+    return LIVE_SCORE_DISPLAY_MODES.FULL_DETAILS;
+  }
+
+  return canPublicationStatusShowScores(status)
+    ? LIVE_SCORE_DISPLAY_MODES.FULL_DETAILS
+    : LIVE_SCORE_DISPLAY_MODES.HIDDEN;
+}
+
 export function getPublicationStatusLabel(status) {
   switch (status) {
     case PUBLICATION_STATUSES.LIVE:
-      return "Live";
+      return "Live détaillé";
     case PUBLICATION_STATUSES.LIVE_NO_SCORE:
       return "Live sans scores";
     case PUBLICATION_STATUSES.LIVE_SCORING:
-      return "Live avec scores";
+      return "Live scores complétés";
     case PUBLICATION_STATUSES.LIVE_FINISHED:
       return "Live terminé";
     case PUBLICATION_STATUSES.OFFICIAL:

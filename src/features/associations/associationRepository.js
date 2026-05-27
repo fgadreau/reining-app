@@ -12,6 +12,7 @@ function toAssociation(row) {
     shortName: row.short_name || "",
     timezone: row.timezone || "",
     logoDataUrl: row.logo_data_url || null,
+    websiteUrl: row.website_url || "",
   };
 }
 
@@ -22,6 +23,7 @@ function toAssociationRow(association) {
     short_name: association.shortName || "",
     timezone: association.timezone || "",
     logo_data_url: association.logoDataUrl || null,
+    website_url: association.websiteUrl || null,
   };
 }
 
@@ -108,6 +110,7 @@ export async function createAssociationWithOwnerRepository(association) {
       target_short_name: normalized.shortName || "",
       target_timezone: normalized.timezone || "",
       target_logo_data_url: normalized.logoDataUrl || null,
+      target_website_url: normalized.websiteUrl || null,
     })
     .maybeSingle();
 

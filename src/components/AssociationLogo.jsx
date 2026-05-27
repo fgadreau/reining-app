@@ -1,0 +1,40 @@
+import React from "react";
+import { getAssociationInitials } from "../features/associations/associationProfile";
+
+function AssociationLogo({ association, size = 64 }) {
+  const logoSource = String(association?.logoDataUrl || "").trim();
+  const initials = getAssociationInitials(association);
+  const logoStyle = {
+    ...baseLogoStyle,
+    width: size,
+    height: size,
+    minWidth: size,
+    fontSize: Math.max(13, Math.round(size / 4)),
+  };
+
+  if (logoSource) {
+    return (
+      <img
+        src={logoSource}
+        alt={`Logo ${association?.shortName || association?.name || "association"}`}
+        style={{ ...logoStyle, objectFit: "contain" }}
+      />
+    );
+  }
+
+  return <div style={logoStyle}>{initials || "ASSO"}</div>;
+}
+
+const baseLogoStyle = {
+  borderRadius: 8,
+  border: "1px solid #dbeafe",
+  background: "#eff6ff",
+  color: "#1d4ed8",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontWeight: 900,
+  overflow: "hidden",
+};
+
+export default AssociationLogo;

@@ -8,6 +8,7 @@ import {
   parseImportedRuns,
 } from "./features/classes/classSetupImport";
 import { filterAssociationsBySearch } from "./features/associations/associationSearch";
+import { normalizeAssociationWebsiteUrl } from "./features/associations/associationProfile";
 import {
   getPublicationState,
   publishClass,
@@ -362,6 +363,16 @@ test("filters associations by short name or full name", () => {
   expect(
     filterAssociationsBySearch(associations, "classic").map((item) => item.id)
   ).toEqual(["nrc"]);
+});
+
+test("normalizes association website urls for public links", () => {
+  expect(normalizeAssociationWebsiteUrl("showscore.app")).toBe(
+    "https://showscore.app"
+  );
+  expect(normalizeAssociationWebsiteUrl("https://showscore.app")).toBe(
+    "https://showscore.app"
+  );
+  expect(normalizeAssociationWebsiteUrl("")).toBe("");
 });
 
 test("parses imported draw rows in draw order", () => {
@@ -735,6 +746,61 @@ test("public live without scores keeps runs visible and hides scoring details", 
     draw: 1,
     rider: "Rider 1",
     scoreTotal: "",
+    note: "",
+  });
+  expect(classView.lastPassedRuns[0].manoeuvres[0]).toMatchObject({
+    score: "",
+    penalty: "",
+  });
+});
+
+test("public live scoring shows completed totals only", () => {
+  const classView = buildPublicLiveClassView({
+    classItem: {
+      id: "class-live-completed-score",
+      name: "Open Reining",
+      pattern: "2",
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE_SCORING,
+    },
+    scoringSession: {
+      activeManoeuvre: {
+        draw: 2,
+      },
+      runs: [
+        {
+          id: "run-1",
+          draw: 1,
+          rider: "Rider 1",
+          backNumber: "101",
+          scoreTotal: "70.0",
+          penTotal: "",
+          note: "Completed note",
+          scores: Array(7).fill("0"),
+          penalties: Array(7).fill(""),
+        },
+        {
+          id: "run-2",
+          draw: 2,
+          rider: "Rider 2",
+          backNumber: "202",
+          scoreTotal: "70.5",
+          scores: ["+0.5", ""],
+          penalties: ["", ""],
+        },
+      ],
+    },
+  });
+
+  expect(classView.showScores).toBe(true);
+  expect(classView.showScoreDetails).toBe(false);
+  expect(classView.activeRun.scoreTotal).toBe("");
+  expect(classView.latestScore.draw).toBe(1);
+  expect(classView.lastPassedRuns[0]).toMatchObject({
+    draw: 1,
+    scoreTotal: "70.0",
+    penTotal: "",
     note: "",
   });
   expect(classView.lastPassedRuns[0].manoeuvres[0]).toMatchObject({

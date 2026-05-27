@@ -10,6 +10,7 @@ import { getDaysByShowRepository } from "../days/dayRepository";
 import { getDaysByShowId } from "../days/daySelectors";
 import { getPaidWarmupsByDayId } from "../paidWarmups/paidWarmupStorage";
 import { buildPaidWarmupLiveView } from "../paidWarmups/paidWarmupLive";
+import { isScoredRunComplete } from "../../utils/scoring";
 import {
   buildClassTimingRow,
   buildPatternTimingStats,
@@ -22,8 +23,9 @@ import {
   getPatternManeuverDescription,
 } from "../patterns/patternDefinitions";
 import {
+  LIVE_SCORE_DISPLAY_MODES,
   PUBLICATION_STATUSES,
-  canPublicationStatusShowScores,
+  getLiveScoreDisplayMode,
   isLivePublicationStatus,
 } from "./publicationRepository";
 
@@ -34,6 +36,7 @@ function toAssociation(row) {
     shortName: row.short_name || "",
     timezone: row.timezone || "",
     logoDataUrl: row.logo_data_url || null,
+    websiteUrl: row.website_url || "",
   };
 }
 
@@ -867,7 +870,10 @@ export function buildPublicLiveClassView({
     return null;
   }
 
-  const showScores = canPublicationStatusShowScores(publicationStatus);
+  const liveScoreDisplayMode = getLiveScoreDisplayMode(publicationStatus);
+  const showScores = liveScoreDisplayMode !== LIVE_SCORE_DISPLAY_MODES.HIDDEN;
+  const showScoreDetails =
+    liveScoreDisplayMode === LIVE_SCORE_DISPLAY_MODES.FULL_DETAILS;
   const runs = Array.isArray(scoringSession?.runs)
     ? scoringSession.runs.map((run, index) =>
         normalizePublicLiveRun(
@@ -875,7 +881,7 @@ export function buildPublicLiveClassView({
           index,
           setup?.pattern || classItem?.pattern || "",
           setup?.customPattern || classItem?.customPattern || null,
-          { showScores }
+          { liveScoreDisplayMode }
         )
       )
     : [];
@@ -901,6 +907,7 @@ export function buildPublicLiveClassView({
     arena: classItem?.arena || "",
     publicationStatus,
     showScores,
+    showScoreDetails,
     liveUpdatedAt:
       scoringSession?.updatedAt || getLatestRunActivityAt(runs) || null,
     pattern:
@@ -929,7 +936,22 @@ function normalizePublicLiveRun(
   const scores = Array.isArray(run.scores) ? run.scores : [];
   const penalties = Array.isArray(run.penalties) ? run.penalties : [];
   const headers = getPatternHeaders(pattern, customPattern);
-  const showScores = options.showScores !== false;
+  const liveScoreDisplayMode =
+    options.liveScoreDisplayMode || LIVE_SCORE_DISPLAY_MODES.FULL_DETAILS;
+  const isComplete = isScoredRunComplete(
+    {
+      ...run,
+      scores,
+      penalties,
+    },
+    headers.length
+  );
+  const showScoreDetails =
+    liveScoreDisplayMode === LIVE_SCORE_DISPLAY_MODES.FULL_DETAILS;
+  const showScores =
+    showScoreDetails ||
+    (liveScoreDisplayMode === LIVE_SCORE_DISPLAY_MODES.COMPLETED_TOTAL &&
+      isComplete);
   const scoreTotal = run.scoreTotal ?? "";
   const penTotal = run.penTotal ?? "";
   const note = run.note || "";
@@ -942,9 +964,10 @@ function normalizePublicLiveRun(
     horse: run.horse || "",
     owner: run.owner || "",
     scoreTotal: showScores ? scoreTotal : "",
-    penTotal: showScores ? penTotal : "",
-    note: showScores ? note : "",
-    hasScore: runHasScore({ scoreTotal }),
+    penTotal: showScoreDetails ? penTotal : "",
+    note: showScoreDetails ? note : "",
+    hasScore: showScores && runHasScore({ scoreTotal }),
+    isComplete,
     startedAt: run.startedAt || null,
     completedAt: run.completedAt || null,
     durationSeconds: run.durationSeconds || null,
@@ -953,8 +976,8 @@ function normalizePublicLiveRun(
     manoeuvres: headers.map((name, manoeuvreIndex) => ({
       name,
       description: getPatternManeuverDescription(name, pattern, customPattern),
-      score: showScores ? scores[manoeuvreIndex] || "" : "",
-      penalty: showScores ? penalties[manoeuvreIndex] || "" : "",
+      score: showScoreDetails ? scores[manoeuvreIndex] || "" : "",
+      penalty: showScoreDetails ? penalties[manoeuvreIndex] || "" : "",
     })),
   };
 }

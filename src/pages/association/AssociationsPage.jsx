@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import AssociationLogo from "../../components/AssociationLogo";
 import {
   createAssociationWithOwnerRepository,
   deleteAssociationRepository,
@@ -20,6 +21,7 @@ import {
   hasAssociationRole,
 } from "../../features/auth/accessRoles";
 import { redeemPendingAssociationInvitationsRepository } from "../../features/auth/invitationRepository";
+import { normalizeAssociationWebsiteUrl } from "../../features/associations/associationProfile";
 import { useAuthUser } from "../../features/auth/useAuthUser";
 import { getCloudSyncStatus } from "../../features/cloud/supabaseStatus";
 import { appStyles as styles } from "../../styles/appStyles";
@@ -28,6 +30,8 @@ const emptyForm = {
   name: "",
   shortName: "",
   timezone: "America/Montreal",
+  logoDataUrl: "",
+  websiteUrl: "",
 };
 
 function AssociationsPage() {
@@ -137,6 +141,20 @@ function AssociationsPage() {
     setIsAssociationFormOpen(false);
   }
 
+  function handleLogoFileChange(event) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      handleChange("logoDataUrl", String(reader.result || ""));
+    };
+    reader.readAsDataURL(file);
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setNotice("");
@@ -144,6 +162,8 @@ function AssociationsPage() {
     const name = form.name.trim();
     const shortName = form.shortName.trim();
     const timezone = form.timezone.trim();
+    const logoDataUrl = form.logoDataUrl.trim();
+    const websiteUrl = normalizeAssociationWebsiteUrl(form.websiteUrl);
 
     if (!name) {
       alert("Le nom est requis");
@@ -169,6 +189,8 @@ function AssociationsPage() {
           name,
           shortName,
           timezone,
+          logoDataUrl,
+          websiteUrl,
         };
 
         await saveAssociationRepository(nextAssociation);
@@ -185,6 +207,8 @@ function AssociationsPage() {
           name,
           shortName,
           timezone,
+          logoDataUrl,
+          websiteUrl,
         };
 
         let savedAssociation = null;
@@ -227,7 +251,7 @@ function AssociationsPage() {
     } catch (error) {
       const message = error?.message || "Création impossible.";
       setNotice(
-        `Impossible d'enregistrer l'association. ${message} Si Supabase refuse l'accès, exécute la migration docs/supabase-onboarding-access-migration.sql.`
+        `Impossible d'enregistrer l'association. ${message} Si Supabase refuse l'accès, exécute docs/supabase-onboarding-access-migration.sql et docs/supabase-association-public-profile-migration.sql.`
       );
     } finally {
       setIsSaving(false);
@@ -241,6 +265,8 @@ function AssociationsPage() {
       name: association.name || "",
       shortName: association.shortName || "",
       timezone: association.timezone || "America/Montreal",
+      logoDataUrl: association.logoDataUrl || "",
+      websiteUrl: association.websiteUrl || "",
     });
   }
 
@@ -356,6 +382,52 @@ function AssociationsPage() {
                 />
               </label>
 
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>Site web public</span>
+                <input
+                  value={form.websiteUrl}
+                  onChange={(e) => handleChange("websiteUrl", e.target.value)}
+                  placeholder="https://association.ca"
+                  style={inputStyle}
+                />
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>Logo de l’association</span>
+                <input
+                  value={form.logoDataUrl}
+                  onChange={(e) => handleChange("logoDataUrl", e.target.value)}
+                  placeholder="URL du logo ou image importée"
+                  style={inputStyle}
+                />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoFileChange}
+                  style={fileInputStyle}
+                />
+              </label>
+
+              {form.logoDataUrl ? (
+                <div style={logoPreviewRowStyle}>
+                  <AssociationLogo
+                    association={{
+                      name: form.name,
+                      shortName: form.shortName,
+                      logoDataUrl: form.logoDataUrl,
+                    }}
+                    size={52}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleChange("logoDataUrl", "")}
+                    disabled={isSaving}
+                  >
+                    Retirer le logo
+                  </button>
+                </div>
+              ) : null}
+
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button type="submit" disabled={isSaving}>
                   {editingId ? "Enregistrer" : "Ajouter"}
@@ -406,12 +478,27 @@ function AssociationsPage() {
 
             return (
               <div key={association.id} style={cardStyle}>
-                <div style={{ fontWeight: 700, fontSize: 18 }}>
-                  {association.name}
-                </div>
+                <div style={associationHeaderStyle}>
+                  <AssociationLogo association={association} size={52} />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 18 }}>
+                      {association.name}
+                    </div>
 
-                <div style={{ color: "#64748b", marginTop: 4 }}>
-                  {association.shortName} • {association.timezone}
+                    <div style={{ color: "#64748b", marginTop: 4 }}>
+                      {association.shortName} • {association.timezone}
+                    </div>
+                    {association.websiteUrl && (
+                      <a
+                        href={normalizeAssociationWebsiteUrl(association.websiteUrl)}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={websiteLinkStyle}
+                      >
+                        Site web
+                      </a>
+                    )}
+                  </div>
                 </div>
 
                 <div style={actionRowStyle}>
@@ -498,6 +585,36 @@ const inputStyle = {
   borderRadius: 10,
   border: "1px solid #cbd5e1",
   boxSizing: "border-box",
+};
+
+const fileInputStyle = {
+  width: "100%",
+  padding: 8,
+  borderRadius: 10,
+  border: "1px dashed #cbd5e1",
+  boxSizing: "border-box",
+  background: "#f8fafc",
+};
+
+const logoPreviewRowStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+  flexWrap: "wrap",
+};
+
+const associationHeaderStyle = {
+  display: "flex",
+  gap: 12,
+  alignItems: "flex-start",
+  minWidth: 0,
+};
+
+const websiteLinkStyle = {
+  display: "inline-flex",
+  marginTop: 6,
+  color: "#1d4ed8",
+  fontWeight: 700,
 };
 
 const actionRowStyle = {

@@ -1,12 +1,17 @@
--- Reining App V2 onboarding access migration
+-- ShowScore association public profile migration
 -- Run this once in Supabase SQL editor for existing projects.
--- This makes account onboarding explicit:
--- - any authenticated user can create an association;
--- - the creator becomes admin of the association in the same database call;
--- - invited users can accept memberships for the invited association/role.
+-- Adds the public website URL used by the public showcase.
 
 alter table public.associations
 add column if not exists website_url text;
+
+drop function if exists public.create_association_with_owner(
+  text,
+  text,
+  text,
+  text,
+  text
+);
 
 create or replace function public.create_association_with_owner(
   target_id text,
@@ -93,24 +98,3 @@ grant execute on function public.create_association_with_owner(
   text,
   text
 ) to authenticated;
-
-drop policy if exists "Authenticated users can create associations" on public.associations;
-create policy "Authenticated users can create associations"
-on public.associations for insert to authenticated
-with check (true);
-
-drop policy if exists "Admins and invited users can insert memberships" on public.association_memberships;
-create policy "Admins and invited users can insert memberships"
-on public.association_memberships for insert to authenticated
-with check (
-  public.current_user_can_admin_association(association_id)
-  or (
-    user_id = auth.uid()
-    and role = 'admin'
-    and not public.association_has_memberships(association_id)
-  )
-  or (
-    user_id = auth.uid()
-    and public.current_user_has_pending_invitation(association_id, role)
-  )
-);

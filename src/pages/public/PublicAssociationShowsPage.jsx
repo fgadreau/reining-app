@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import AssociationLogo from "../../components/AssociationLogo";
+import ShareButton from "../../components/ShareButton";
+import { getAssociationWebsiteHref } from "../../features/associations/associationProfile";
 import {
   getPublicAssociationRepository,
   getPublicShowsByAssociationRepository,
@@ -44,12 +47,31 @@ function PublicAssociationShowsPage() {
       </div>
 
       <section style={heroStyle}>
-        <div>
-          <div style={eyebrowStyle}>Vitrine publique</div>
-          <h1 style={titleStyle}>{association?.name || "Association"}</h1>
-          <div style={subtitleStyle}>
-            Shows avec live public ou feuilles de pointage publiées
+        <div style={associationHeaderStyle}>
+          <AssociationLogo association={association} size={64} />
+          <div>
+            <div style={eyebrowStyle}>Vitrine publique</div>
+            <h1 style={titleStyle}>{association?.name || "Association"}</h1>
+            <div style={subtitleStyle}>
+              Shows avec live public ou feuilles de pointage publiées
+            </div>
           </div>
+        </div>
+        <div style={heroActionsStyle}>
+          {getAssociationWebsiteHref(association) && (
+            <a
+              href={getAssociationWebsiteHref(association)}
+              target="_blank"
+              rel="noreferrer"
+              style={secondaryLinkStyle}
+            >
+              Site web
+            </a>
+          )}
+          <ShareButton
+            url={`/public/associations/${associationId}`}
+            title={association?.name || "Vitrine publique ShowScore"}
+          />
         </div>
       </section>
 
@@ -78,12 +100,18 @@ function PublicAssociationShowsPage() {
                   )}
                 </div>
               </div>
-              <Link
-                to={`/public/associations/${associationId}/shows/${show.id}`}
-                style={primaryLinkStyle}
-              >
-                Voir le show
-              </Link>
+              <div style={cardActionsStyle}>
+                <Link
+                  to={`/public/associations/${associationId}/shows/${show.id}`}
+                  style={primaryLinkStyle}
+                >
+                  Voir le show
+                </Link>
+                <ShareButton
+                  url={`/public/associations/${associationId}/shows/${show.id}`}
+                  title={show.name || "Vitrine publique ShowScore"}
+                />
+              </div>
             </article>
           ))}
         </div>
@@ -102,6 +130,25 @@ const heroStyle = {
   padding: 18,
   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
   marginBottom: 16,
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 14,
+  alignItems: "flex-start",
+  flexWrap: "wrap",
+};
+
+const associationHeaderStyle = {
+  display: "flex",
+  gap: 14,
+  alignItems: "flex-start",
+  minWidth: 0,
+};
+
+const heroActionsStyle = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
 };
 
 const eyebrowStyle = {
@@ -115,6 +162,7 @@ const eyebrowStyle = {
 const titleStyle = {
   margin: "4px 0",
   fontSize: 30,
+  overflowWrap: "anywhere",
 };
 
 const subtitleStyle = {
@@ -136,6 +184,13 @@ const cardStyle = {
   gap: 16,
   alignItems: "flex-start",
   flexWrap: "wrap",
+};
+
+const cardActionsStyle = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
 };
 
 const cardTitleStyle = {
@@ -177,6 +232,7 @@ const primaryLinkStyle = {
   background: "#111827",
   color: "#fff",
   textDecoration: "none",
+  maxWidth: "100%",
 };
 
 const secondaryLinkStyle = {
@@ -189,6 +245,7 @@ const secondaryLinkStyle = {
   background: "#fff",
   color: "#111827",
   textDecoration: "none",
+  maxWidth: "100%",
 };
 
 const emptyStateStyle = {

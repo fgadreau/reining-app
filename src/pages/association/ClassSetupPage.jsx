@@ -70,13 +70,13 @@ const PUBLIC_LIVE_STATUS_OPTIONS = [
   },
   {
     value: PUBLICATION_STATUSES.LIVE_SCORING,
-    label: "Live avec scores",
-    description: "Affiche les scores complétés dans la vitrine publique.",
+    label: "Live scores complétés",
+    description: "Affiche seulement le total quand la run est complétée.",
   },
   {
-    value: PUBLICATION_STATUSES.LIVE_FINISHED,
-    label: "Live terminé",
-    description: "Garde les scores terminés visibles avant publication officielle.",
+    value: PUBLICATION_STATUSES.LIVE,
+    label: "Live détaillé",
+    description: "Affiche les scores de manoeuvres et pénalités à mesure.",
   },
 ];
 
@@ -92,6 +92,33 @@ function getPublicationStatusDescription(status) {
   }
 
   return "Choisis comment cette classe apparaît dans la vitrine publique.";
+}
+
+function normalizeSetupPublicationStatus(status) {
+  return status === PUBLICATION_STATUSES.LIVE_FINISHED
+    ? PUBLICATION_STATUSES.LIVE_SCORING
+    : status || PUBLICATION_STATUSES.HIDDEN;
+}
+
+function getRunDrawNumber(run, index = 0) {
+  const parsed = Number(run?.draw ?? run?.order ?? index + 1);
+  return Number.isFinite(parsed) ? parsed : index + 1;
+}
+
+function getNextLateEntryDraw(runs) {
+  const negativeDraws = (Array.isArray(runs) ? runs : [])
+    .map(getRunDrawNumber)
+    .filter((value) => value < 0);
+
+  if (!negativeDraws.length) return -1;
+
+  return Math.min(...negativeDraws) - 1;
+}
+
+function sortRunsByDraw(runs) {
+  return resequenceRuns(
+    [...runs].sort((a, b) => getRunDrawNumber(a) - getRunDrawNumber(b))
+  );
 }
 
 function ClassSetupPage() {
@@ -136,7 +163,7 @@ function ClassSetupPage() {
     String(classSetup?.dragDurationMinutes || DEFAULT_DRAG_DURATION_MINUTES)
   );
   const [publicationStatus, setPublicationStatus] = useState(
-    classData?.publication?.status || PUBLICATION_STATUSES.HIDDEN
+    normalizeSetupPublicationStatus(classData?.publication?.status)
   );
   const [isFinalized, setIsFinalized] = useState(
     isOfficiallyFinalized(classRecord)
@@ -223,7 +250,7 @@ function ClassSetupPage() {
         String(nextSetup.dragDurationMinutes || DEFAULT_DRAG_DURATION_MINUTES)
       );
       setPublicationStatus(
-        resolvedData.publication?.status || PUBLICATION_STATUSES.HIDDEN
+        normalizeSetupPublicationStatus(resolvedData.publication?.status)
       );
       setIsFinalized(isOfficiallyFinalized(nextRecord));
       setRunCountInput(String(nextRuns.length));
@@ -350,6 +377,32 @@ function ClassSetupPage() {
 
     setIsDrawImported(false);
     setRuns((prev) => [...prev, createEmptyRun(prev.length + 1)]);
+  };
+
+  const addLateEntryRun = () => {
+    if (!canManageSetup) return;
+
+    if (isFinalized) {
+      showFinalizedMessage();
+      return;
+    }
+
+    if (isStructureLocked) {
+      showLockedMessage("L’ajout d’une inscription tardive");
+      return;
+    }
+
+    const nextDraw = getNextLateEntryDraw(runs);
+    setRunCountInput(String(runs.length + 1));
+    setRuns((prev) =>
+      sortRunsByDraw([
+        ...prev,
+        {
+          ...createEmptyRun(prev.length + 1),
+          draw: nextDraw,
+        },
+      ])
+    );
   };
 
   const deleteRun = (runId) => {
@@ -940,11 +993,6 @@ function ClassSetupPage() {
                     {option.label}
                   </option>
                 ))}
-                {publicationStatus === PUBLICATION_STATUSES.LIVE && (
-                  <option value={PUBLICATION_STATUSES.LIVE}>
-                    Live avec scores (ancien)
-                  </option>
-                )}
                 {isPublicationLocked && (
                   <option value={publicationStatus}>
                     {getPublicationStatusLabel(publicationStatus)}
@@ -1068,6 +1116,14 @@ function ClassSetupPage() {
             <div style={buttonRowStyle}>
               <button onClick={addRun} style={buttonStyle} disabled={isFinalized}>
                 + Ajouter un run
+              </button>
+
+              <button
+                onClick={addLateEntryRun}
+                style={buttonStyle}
+                disabled={isFullyLocked}
+              >
+                + Inscription tardive
               </button>
 
               <button

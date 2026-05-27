@@ -8,12 +8,16 @@ const defaultAssociations = [
     name: "Association Québécoise de Reining",
     shortName: "AQR",
     timezone: "America/Montreal",
+    logoDataUrl: null,
+    websiteUrl: "",
   },
   {
     id: "era",
     name: "Eastern Reining Alliance",
     shortName: "ERA",
     timezone: "America/Toronto",
+    logoDataUrl: null,
+    websiteUrl: "",
   },
 ];
 

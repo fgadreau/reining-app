@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import AssociationLogo from "../../components/AssociationLogo";
+import ShareButton from "../../components/ShareButton";
+import { getAssociationWebsiteHref } from "../../features/associations/associationProfile";
 import { filterAssociationsBySearch } from "../../features/associations/associationSearch";
 import { getPublicAssociationsRepository } from "../../features/publication/publicViewRepository";
 import { appStyles as styles } from "../../styles/appStyles";
@@ -76,19 +79,39 @@ function PublicAssociationsPage() {
             <div style={gridStyle}>
               {filteredAssociations.map((association) => (
                 <article key={association.id} style={cardStyle}>
-                  <div>
-                    <h2 style={cardTitleStyle}>{association.name}</h2>
-                    <div style={mutedTextStyle}>
-                      {association.shortName || "Association"}
-                      {association.timezone ? ` · ${association.timezone}` : ""}
+                  <div style={associationHeaderStyle}>
+                    <AssociationLogo association={association} size={56} />
+                    <div>
+                      <h2 style={cardTitleStyle}>{association.name}</h2>
+                      <div style={mutedTextStyle}>
+                        {association.shortName || "Association"}
+                        {association.timezone ? ` · ${association.timezone}` : ""}
+                      </div>
+                      {getAssociationWebsiteHref(association) && (
+                        <a
+                          href={getAssociationWebsiteHref(association)}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={websiteLinkStyle}
+                        >
+                          Site web
+                        </a>
+                      )}
                     </div>
                   </div>
-                  <Link
-                    to={`/public/associations/${association.id}`}
-                    style={primaryLinkStyle}
-                  >
-                    Voir les shows
-                  </Link>
+                  <div style={cardActionsStyle}>
+                    <Link
+                      to={`/public/associations/${association.id}`}
+                      style={primaryLinkStyle}
+                    >
+                      Voir les shows
+                    </Link>
+                    <ShareButton
+                      url={`/public/associations/${association.id}`}
+                      title={association.name || "Vitrine publique ShowScore"}
+                      style={secondaryButtonStyle}
+                    />
+                  </div>
                 </article>
               ))}
             </div>
@@ -131,7 +154,7 @@ const subtitleStyle = {
 
 const gridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
   gap: 12,
 };
 
@@ -145,6 +168,13 @@ const cardStyle = {
   alignContent: "space-between",
 };
 
+const associationHeaderStyle = {
+  display: "flex",
+  gap: 12,
+  alignItems: "flex-start",
+  minWidth: 0,
+};
+
 const cardTitleStyle = {
   margin: 0,
   fontSize: 20,
@@ -153,6 +183,13 @@ const cardTitleStyle = {
 const mutedTextStyle = {
   color: "#64748b",
   marginTop: 6,
+};
+
+const websiteLinkStyle = {
+  display: "inline-flex",
+  marginTop: 8,
+  color: "#1d4ed8",
+  fontWeight: 800,
 };
 
 const searchLabelStyle = {
@@ -181,6 +218,19 @@ const primaryLinkStyle = {
   background: "#111827",
   color: "#fff",
   textDecoration: "none",
+  minHeight: 40,
+  maxWidth: "100%",
+};
+
+const cardActionsStyle = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+  alignItems: "center",
+};
+
+const secondaryButtonStyle = {
+  minHeight: 40,
 };
 
 const secondaryLinkStyle = {

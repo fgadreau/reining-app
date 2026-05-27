@@ -4,6 +4,8 @@ export const associations = [
     name: "Association Québécoise de Reining",
     shortName: "AQR",
     timezone: "America/Montreal",
+    logoDataUrl: null,
+    websiteUrl: "",
     status: "active",
   },
   {
@@ -11,6 +13,8 @@ export const associations = [
     name: "Eastern Reining Alliance",
     shortName: "ERA",
     timezone: "America/Toronto",
+    logoDataUrl: null,
+    websiteUrl: "",
     status: "active",
   },
 ];

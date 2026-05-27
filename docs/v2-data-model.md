@@ -26,6 +26,7 @@ Fields:
 - `shortName`
 - `timezone`
 - `logoDataUrl`
+- `websiteUrl`
 
 ### Show
 
