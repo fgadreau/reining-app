@@ -65,6 +65,7 @@ function createImportedRun({ order, backNumber, rider, horse, owner, status }) {
   return {
     id: createId("run"),
     order,
+    draw: order,
     backNumber: cleanText(backNumber),
     rider: cleanText(rider),
     horse: cleanText(horse),
@@ -151,7 +152,7 @@ function parseStructuredCsv(lines) {
     }
 
     const parsedPosition = Number.parseInt(positionValue, 10);
-    if (!Number.isFinite(parsedPosition) || parsedPosition <= 0) return;
+    if (!Number.isFinite(parsedPosition) || parsedPosition === 0) return;
 
     const backNumber =
       cells[backNumberIndex] || cells[fallbackBackNumberIndex] || "";
@@ -197,7 +198,7 @@ function parseSimpleDelimitedText(lines) {
 
     const parsedDraw = Number.parseInt(parts[0], 10);
     const order =
-      Number.isFinite(parsedDraw) && parsedDraw > 0 ? parsedDraw : index + 1;
+      Number.isFinite(parsedDraw) && parsedDraw !== 0 ? parsedDraw : index + 1;
 
     runs.push(
       createImportedRun({
@@ -252,7 +253,7 @@ function parsePositionedPdfPages(pages) {
   pages.forEach((pageLines) => {
     pageLines.forEach((line) => {
       const drawCell = line.cells.find(
-        (cell) => cell.x >= 35 && cell.x <= 70 && /^\d+$/.test(cell.text)
+        (cell) => cell.x >= 35 && cell.x <= 70 && /^-?\d+$/.test(cell.text)
       );
       const horseCell = line.cells.find((cell) => cell.x >= 130 && cell.x < 280);
       const ownerCell = line.cells.find((cell) => cell.x >= 300 && cell.x < 520);

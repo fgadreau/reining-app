@@ -367,19 +367,30 @@ test("filters associations by short name or full name", () => {
 test("parses imported draw rows in draw order", () => {
   const runs = parseImportedRuns(`
     2, 202, Marie Roy, Custom Whiz, Luc Roy
+    -1, 303, Late Entry, First Horse, Late Owner
     1, 101, Felix Gadreau, Smart Spook, Jean Tremblay
   `);
 
   expect(runs).toMatchObject([
     {
       order: 1,
+      draw: -1,
+      backNumber: "303",
+      rider: "Late Entry",
+      horse: "First Horse",
+      owner: "Late Owner",
+    },
+    {
+      order: 2,
+      draw: 1,
       backNumber: "101",
       rider: "Felix Gadreau",
       horse: "Smart Spook",
       owner: "Jean Tremblay",
     },
     {
-      order: 2,
+      order: 3,
+      draw: 2,
       backNumber: "202",
       rider: "Marie Roy",
       horse: "Custom Whiz",
@@ -1044,6 +1055,32 @@ test("tracks run timing and estimates remaining class time with drags", () => {
   expect(summary.remainingRuns).toBe(2);
   expect(summary.remainingDragBreaks).toBe(1);
   expect(summary.remainingSeconds).toBe(840);
+
+  const filteredSummary = calculateClassTimingSummary({
+    runs: [
+      {
+        backNumber: "201",
+        scores: ["0"],
+        penalties: [""],
+        durationSeconds: 59,
+      },
+      {
+        backNumber: "202",
+        scores: ["0"],
+        penalties: [""],
+        durationSeconds: 60,
+      },
+      {
+        backNumber: "203",
+        scores: ["0"],
+        penalties: [""],
+        durationSeconds: 541,
+      },
+    ],
+    maneuverCount: 1,
+  });
+
+  expect(filteredSummary.averageRunSeconds).toBe(60);
 });
 
 test("summarizes class timing by pattern", () => {
@@ -1102,13 +1139,13 @@ test("summarizes class timing by pattern", () => {
   expect(stats[0]).toMatchObject({
     pattern: "Reining #5",
     classCount: 2,
-    timedRunCount: 1,
-    averageRunSeconds: 180,
-    medianRunSeconds: 180,
+    timedRunCount: 2,
+    averageRunSeconds: 150,
+    medianRunSeconds: 150,
   });
   expect(timingRow.remainingRuns).toBe(2);
   expect(timingRow.remainingDragBreaks).toBe(1);
-  expect(timingRow.remainingSeconds).toBe(840);
+  expect(timingRow.remainingSeconds).toBe(720);
 
   expect(
     calculateClassTimeSimulation({
@@ -1119,6 +1156,6 @@ test("summarizes class timing by pattern", () => {
     })
   ).toMatchObject({
     dragBreaks: 2,
-    totalSeconds: 2760,
+    totalSeconds: 2460,
   });
 });

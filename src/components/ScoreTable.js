@@ -21,6 +21,7 @@ function ScoreTable({
   updateBackNumber,
   updateRunNote,
   isLocked,
+  isBackNumberLocked,
   styles,
 }) {
   const normalizedDragInterval = Number.parseInt(dragInterval, 10);
@@ -91,6 +92,7 @@ function ScoreTable({
                 updateBackNumber={updateBackNumber}
                 updateRunNote={updateRunNote}
                 isLocked={isLocked}
+                isBackNumberLocked={isBackNumberLocked}
                 styles={styles}
               />
 

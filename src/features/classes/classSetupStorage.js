@@ -69,10 +69,20 @@ export function createEmptyRun(nextOrder = 1) {
   };
 }
 
+function normalizeDraw(value) {
+  if (value === null || value === undefined || value === "") return null;
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed !== 0 ? parsed : null;
+}
+
 export function normalizeRun(run, index = 0) {
+  const draw = normalizeDraw(run?.draw);
+
   return {
     id: run?.id ?? createId("run"),
     order: run?.order ?? index + 1,
+    ...(draw !== null ? { draw } : {}),
     backNumber: run?.backNumber ?? "",
     rider: run?.rider ?? "",
     horse: run?.horse ?? "",

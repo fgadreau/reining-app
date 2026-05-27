@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import { getPatternDisplayName } from "../features/patterns/patternDefinitions";
+import { getScoringOptionsForPattern } from "../features/scoring/scoringOptions";
 
 function safeText(value) {
   return String(value ?? "");
@@ -85,6 +86,49 @@ function getRunNote(run) {
   return safeText(run?.note || run?.judgeNote || run?.comment).trim();
 }
 
+function formatRuleOptions(options = []) {
+  return options.map((option) => safeText(option)).filter(Boolean).join(" / ");
+}
+
+function getScoreRuleText(scoreOptions = []) {
+  const firstOption = safeText(scoreOptions[0]);
+  const lastOption = safeText(scoreOptions[scoreOptions.length - 1]);
+
+  if (firstOption === "-3" && lastOption === "+3") {
+    return "MANEUVER SCORES: -3 to +3 by 1/2 point";
+  }
+
+  return "MANEUVER SCORES: -1 1/2 Extremely Poor   -1 Very Poor   -1/2 Poor   0 Correct   +1/2 Good   +1 Very Good   +1 1/2 Excellent";
+}
+
+function getScoreRuleLines(patternValue, customPattern) {
+  const scoringOptions = getScoringOptionsForPattern(patternValue, customPattern);
+  const lines = [getScoreRuleText(scoringOptions.scoreOptions)];
+  const penaltyOptions = formatRuleOptions(scoringOptions.penaltyOptions);
+  const specialOptions = formatRuleOptions(
+    (scoringOptions.statusPenaltyOptions || []).filter(
+      (option) => option !== "Révision vidéo"
+    )
+  );
+
+  if (scoringOptions.scoreOptionsByHeader?.["F&E"]) {
+    lines.push("F&E / Overall form and effectiveness: 0 to 5, no penalties in that cell");
+  }
+
+  if (penaltyOptions || specialOptions) {
+    lines.push(
+      [
+        penaltyOptions ? `PENALTIES: ${penaltyOptions}` : "",
+        specialOptions ? `SPECIAL: ${specialOptions}` : "",
+      ]
+        .filter(Boolean)
+        .join("   ")
+    );
+  }
+
+  return lines;
+}
+
 export function buildScorePdfFileName({
   associationAbbreviation,
   showName,
@@ -117,6 +161,10 @@ export function generateScorePdf({
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
+  const patternValue = classSetup?.pattern || classItem?.pattern || "";
+  const customPattern =
+    classSetup?.customPattern || classItem?.customPattern || null;
+  const scoreRuleLines = getScoreRuleLines(patternValue, customPattern);
 
   const marginLeft = 8;
   const marginRight = 8;
@@ -329,28 +377,33 @@ y += 9;
           42,
           { fontSize: 8 }
         );
-        drawText(`Date: ${eventDate || ""}`, 52, y);
-        drawText(`Class: ${classItem?.name || ""}`, 88, y);
-        drawText(
+        drawFittedText(`Date: ${eventDate || ""}`, 52, y, 32, {
+          fontSize: 8,
+        });
+        drawFittedText(`Class: ${classItem?.name || ""}`, 88, y, 62, {
+          fontSize: 8,
+        });
+        drawFittedText(
           `Pattern: ${
-            getPatternDisplayName(classSetup?.pattern, classSetup?.customPattern) ||
-            classSetup?.pattern ||
+            getPatternDisplayName(patternValue, customPattern) ||
+            patternValue ||
             ""
           }`,
-          pageWidth - 36,
-          y
+          pageWidth - marginRight,
+          y,
+          58,
+          { fontSize: 8, align: "right" }
         );
 
-        y += 5;;
+        y += 5;
 
     doc.setFontSize(5.8);
-    drawText(
-      "MANEUVER SCORES: -1 1/2 Extremely Poor   -1 Very Poor   -1/2 Poor   0 Correct   +1/2 Good   +1 Very Good   +1 1/2 Excellent",
-      marginLeft,
-      y
-    );
+    scoreRuleLines.forEach((line) => {
+      drawFittedText(line, marginLeft, y, fullTableW, { fontSize: 5.8 });
+      y += 3.4;
+    });
 
-    y += 4.5;
+    y += 1.1;
 
     let x = marginLeft;
     drawCell(x, y, drawW, headerH, "DRAW", { fontStyle: "bold", fontSize: 6.2 });

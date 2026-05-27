@@ -97,6 +97,10 @@ function getScoringCalculationOptions(headers, scoringOptions) {
   };
 }
 
+function getSetupRunDraw(run, index) {
+  return run?.draw ?? run?.order ?? index + 1;
+}
+
 function buildBaseRunsFromSetup(
   classId,
   maneuverCount,
@@ -110,8 +114,8 @@ function buildBaseRunsFromSetup(
       normalizeRunArrays(
         {
           id: run.id,
-          draw: index + 1,
-          order: index + 1,
+          draw: getSetupRunDraw(run, index),
+          order: run.order ?? index + 1,
           backNumber: run.backNumber || "",
           rider: run.rider || "",
           horse: run.horse || "",
@@ -301,6 +305,8 @@ function ClassScoringPage() {
   );
   const maneuverCount = headers.length;
   const hasRailAdjustment = patternHasRailAdjustment(patternValue, customPattern);
+  const isDrawImported = Boolean(classSetup?.isDrawImported);
+  const canEditBackNumbers = !isCompleted && !isDrawImported;
 
   const [runs, setRuns] = useState(() =>
     loadRunsForClass(classId, maneuverCount, scoringCalculationOptions)
@@ -446,7 +452,9 @@ function ClassScoringPage() {
     setActiveManoeuvre((prevActive) => {
       if (!prevActive) return prevActive;
 
-      const stillExists = setupRuns.some((_, index) => index + 1 === prevActive.draw);
+      const stillExists = setupRuns.some(
+        (run, index) => getSetupRunDraw(run, index) === prevActive.draw
+      );
       const manoeuvreStillExists = prevActive.manoeuvreIndex < maneuverCount;
 
       return stillExists && manoeuvreStillExists ? prevActive : null;
@@ -604,7 +612,7 @@ function ClassScoringPage() {
   };
 
   const updateBackNumber = (draw, newValue) => {
-    if (isCompleted) return;
+    if (!canEditBackNumbers) return;
 
     setRuns((prevRuns) =>
       prevRuns.map((run) =>
@@ -1306,6 +1314,7 @@ function ClassScoringPage() {
         updateBackNumber={updateBackNumber}
         updateRunNote={updateRunNote}
         isLocked={isCompleted}
+        isBackNumberLocked={!canEditBackNumbers}
         styles={styles}
       />
     </div>

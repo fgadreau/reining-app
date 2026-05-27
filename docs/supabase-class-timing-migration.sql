@@ -13,7 +13,7 @@ alter table public.class_setups
 add column if not exists drag_duration_minutes integer not null default 8;
 
 create or replace function public.global_pattern_timing_stats(
-  min_duration_seconds integer default 150
+  min_duration_seconds integer default 60
 )
 returns table (
   pattern text,
@@ -58,19 +58,23 @@ returns table (
     count(*) as run_count,
     count(*) filter (
       where run_durations.duration_seconds >= greatest(min_duration_seconds, 0)
+        and run_durations.duration_seconds <= 540
     ) as timed_run_count,
     avg(run_durations.duration_seconds) filter (
       where run_durations.duration_seconds >= greatest(min_duration_seconds, 0)
+        and run_durations.duration_seconds <= 540
     ) as average_run_seconds,
     percentile_cont(0.5) within group (
       order by run_durations.duration_seconds
     ) filter (
       where run_durations.duration_seconds >= greatest(min_duration_seconds, 0)
+        and run_durations.duration_seconds <= 540
     ) as median_run_seconds
   from run_durations
   group by run_durations.pattern
   having count(*) filter (
     where run_durations.duration_seconds >= greatest(min_duration_seconds, 0)
+      and run_durations.duration_seconds <= 540
   ) > 0
   order by run_durations.pattern;
 $$ language sql stable security definer set search_path = public;

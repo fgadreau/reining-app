@@ -1120,6 +1120,10 @@ function ClassSetupPage() {
               <br />
               Une ligne par run.
               <br />
+              Les inscriptions tardives peuvent utiliser un draw négatif
+              (<code>-1</code>, <code>-2</code>, etc.) pour passer avant le draw
+              1.
+              <br />
               Exemple :
               <br />
               <code>1, 101, Félix Gadreau, Smart Spook, Jean Tremblay</code>
@@ -1175,7 +1179,7 @@ function ClassSetupPage() {
               <tbody>
                 {runs.map((run, index) => (
                   <tr key={run.id}>
-                    <td style={tdStyle}>{index + 1}</td>
+                    <td style={tdStyle}>{run.draw ?? run.order ?? index + 1}</td>
 
                     <td style={tdStyle}>
                       <input

@@ -159,6 +159,9 @@ function HomePage() {
             Feuilles de pointage publiques, live et outils de gestion du temps
             pour les associations.
           </div>
+          <div style={developmentNoticeStyle}>
+            Utilisation gratuite garantie pour 2026, année de développement.
+          </div>
           <div>
             <div style={statusLabelStyle}>Disciplines supportées</div>
             <div style={disciplineListStyle}>
@@ -370,6 +373,16 @@ const statusValueStyle = {
 const statusTextStyle = {
   color: "#475569",
   lineHeight: 1.4,
+};
+
+const developmentNoticeStyle = {
+  border: "1px solid #bae6fd",
+  borderRadius: 8,
+  background: "#f0f9ff",
+  color: "#075985",
+  padding: "8px 10px",
+  fontWeight: 700,
+  lineHeight: 1.35,
 };
 
 const disciplineListStyle = {

@@ -132,7 +132,7 @@ drop function if exists public.public_show_timing_summary(text, integer);
 
 create or replace function public.public_show_timing_summary(
   target_show_id text,
-  min_duration_seconds integer default 150
+  min_duration_seconds integer default 60
 )
 returns table (
   class_id text,
@@ -184,6 +184,7 @@ returns table (
       pattern,
       avg(duration_seconds) filter (
         where duration_seconds >= greatest(min_duration_seconds, 0)
+          and duration_seconds <= 540
       ) as average_run_seconds
     from run_durations
     group by pattern
@@ -245,6 +246,7 @@ returns table (
     cross join lateral (
       select avg(duration_seconds) filter (
         where duration_seconds >= greatest(min_duration_seconds, 0)
+          and duration_seconds <= 540
       ) as average_run_seconds
       from (
         select

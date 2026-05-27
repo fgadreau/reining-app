@@ -19,20 +19,22 @@ function RunRows({
   updateBackNumber,
   updateRunNote,
   isLocked,
+  isBackNumberLocked,
   styles,
 }) {
   const [editingBackNumber, setEditingBackNumber] = useState(false);
   const [tempBackNumber, setTempBackNumber] = useState(run.backNumber || "");
+  const canEditBackNumber = !isLocked && !isBackNumberLocked;
 
   useEffect(() => {
     setTempBackNumber(run.backNumber || "");
   }, [run.backNumber]);
 
   useEffect(() => {
-    if (isLocked && editingBackNumber) {
+    if (!canEditBackNumber && editingBackNumber) {
       setEditingBackNumber(false);
     }
-  }, [isLocked, editingBackNumber]);
+  }, [canEditBackNumber, editingBackNumber]);
 
   const manoeuvreCount = useMemo(() => headers.length, [headers]);
   const penaltyDisabledIndexSet = useMemo(
@@ -62,7 +64,7 @@ function RunRows({
   };
 
   const saveBackNumber = () => {
-    if (isLocked) {
+    if (!canEditBackNumber) {
       setEditingBackNumber(false);
       setTempBackNumber(run.backNumber || "");
       return;
@@ -128,10 +130,10 @@ function RunRows({
             ...styles.mergedMainCell,
             ...styles.backNumberCell,
             ...(isActiveRun ? styles.activeRunMainCell : {}),
-            ...(isLocked ? {} : styles.clickableCell),
+            ...(canEditBackNumber ? styles.clickableCell : {}),
           }}
           onClick={() => {
-            if (isLocked) return;
+            if (!canEditBackNumber) return;
 
             if (!editingBackNumber) {
               setEditingBackNumber(true);

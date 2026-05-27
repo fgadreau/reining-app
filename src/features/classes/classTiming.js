@@ -6,7 +6,8 @@ import {
 
 export const DRAG_INTERVAL_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
 export const DEFAULT_DRAG_DURATION_MINUTES = 8;
-export const MIN_MEASURED_RUN_SECONDS = 150;
+export const MIN_MEASURED_RUN_SECONDS = 60;
+export const MAX_MEASURED_RUN_SECONDS = 9 * 60;
 
 export function normalizeDragInterval(value) {
   const parsed = Number.parseInt(value, 10);
@@ -66,6 +67,14 @@ export function getRunDurationSeconds(run) {
   return Number.isFinite(duration) && duration > 0 ? duration : null;
 }
 
+export function isMeasuredRunDurationUsable(durationSeconds) {
+  return (
+    Number.isFinite(durationSeconds) &&
+    durationSeconds >= MIN_MEASURED_RUN_SECONDS &&
+    durationSeconds <= MAX_MEASURED_RUN_SECONDS
+  );
+}
+
 export function stampRunTiming(run, maneuverCount, timestamp = new Date().toISOString()) {
   const hasTimingData = runHasAnyData(run);
   const startedAt = run.startedAt || (hasTimingData ? timestamp : null);
@@ -108,9 +117,7 @@ export function calculateClassTimingSummary({
   const remainingRuns = Math.max(sourceRuns.length - completedRuns, 0);
   const timedDurations = sourceRuns
     .map(getRunDurationSeconds)
-    .filter(
-      (value) => Number.isFinite(value) && value >= MIN_MEASURED_RUN_SECONDS
-    );
+    .filter(isMeasuredRunDurationUsable);
   const averageRunSeconds = timedDurations.length
     ? timedDurations.reduce((sum, value) => sum + value, 0) /
       timedDurations.length
