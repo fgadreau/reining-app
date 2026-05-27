@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "../features/i18n/I18nProvider";
 
 function SignaturePad({
   value = null,
@@ -7,6 +8,7 @@ function SignaturePad({
   height = 180,
   disabled = false,
 }) {
+  const { t } = useTranslation();
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
@@ -124,7 +126,7 @@ function SignaturePad({
 
       <div>
         <button type="button" onClick={clearSignature} disabled={disabled}>
-          Effacer la signature
+          {t("management.scoring.clearSignature")}
         </button>
       </div>
     </div>

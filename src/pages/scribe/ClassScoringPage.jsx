@@ -14,7 +14,6 @@ import {
 } from "../../features/classes/classFinalizationService";
 import {
   getClassStatus,
-  getClassStatusLabel,
 } from "../../features/classes/classStatusSelectors";
 import { loadAssociations } from "../../features/associations/associationsData";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
@@ -25,10 +24,7 @@ import {
   patternHasRailAdjustment,
 } from "../../features/patterns/patternDefinitions";
 import { getScoringOptionsForPattern } from "../../features/scoring/scoringOptions";
-import {
-  PROVISIONAL_RANKING_NOTE,
-  buildProvisionalRanking,
-} from "../../features/scoring/provisionalRanking";
+import { buildProvisionalRanking } from "../../features/scoring/provisionalRanking";
 import {
   isScoredRunComplete,
   recalculateRun,
@@ -54,6 +50,7 @@ import {
   buildScorePdfFileName,
   generateScorePdf,
 } from "../../utils/generateScorePdf";
+import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
 
 function normalizeRunArrays(run, targetLength) {
@@ -243,6 +240,7 @@ function sanitizeFilePart(value, fallback = "export") {
 function ClassScoringPage() {
   const { associationId, classId } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const access = useAssociationAccess(associationId);
 
   const [classData, setClassData] = useState(() => getClassFullData(classId));
@@ -270,7 +268,7 @@ function ClassScoringPage() {
   );
 
   const classStatus = isCompleted ? "completed" : getClassStatus(classItem);
-  const classStatusLabel = getClassStatusLabel(classStatus);
+  const classStatusLabel = getClassStatusLabel(classStatus, t);
 
   const patternValue = classSetup?.pattern || classItem?.pattern || "";
   const customPattern =
@@ -885,7 +883,7 @@ function ClassScoringPage() {
 
   const handleDownloadOfficialPdf = () => {
     if (!isSecretariatValidated) {
-      alert("Le PDF officiel sera disponible après validation du secrétariat.");
+      alert(t("management.classes.pdfAfterValidation"));
       return;
     }
 
@@ -985,9 +983,7 @@ function ClassScoringPage() {
     setScoringSyncStatus(nextStatus);
 
     if (isScoringSyncBlockingStatus(nextStatus)) {
-      alert(
-        "Impossible de finaliser : les scores sont sauvegardés localement, mais pas encore synchronisés. Réessaie la sync ou exporte une sauvegarde locale avant de continuer."
-      );
+      alert(t("management.scoring.finalizeSyncBlocked"));
       return false;
     }
 
@@ -998,12 +994,12 @@ function ClassScoringPage() {
     if (isCompleted) return;
 
     if (hasPendingVideoReview) {
-      alert("Impossible de finaliser : une révision vidéo est encore en attente.");
+      alert(t("management.scoring.finalizeVideoReview"));
       return;
     }
 
     if (!canFinalize) {
-      alert("Impossible de finaliser : certains runs ne sont pas complets.");
+      alert(t("management.scoring.finalizeIncomplete"));
       return;
     }
 
@@ -1016,12 +1012,12 @@ function ClassScoringPage() {
     const signingJudgeName = assignedJudgeName || judgeName.trim();
 
     if (!signingJudgeName) {
-      alert("Le nom du juge est requis.");
+      alert(t("management.scoring.judgeNameRequired"));
       return;
     }
 
     if (!judgeSignature) {
-      alert("La signature du juge est requise.");
+      alert(t("management.scoring.judgeSignatureRequired"));
       return;
     }
 
@@ -1057,9 +1053,9 @@ function ClassScoringPage() {
       setClassData(nextData);
       setShowFinalizeBox(false);
 
-      alert("Classe finalisée avec signature. Le PDF a été généré.");
+      alert(t("management.scoring.finalizedSuccess"));
     } catch (error) {
-      alert(error.message || "Impossible de finaliser cette classe.");
+      alert(error.message || t("management.scoring.finalizeFailed"));
     }
   };
 
@@ -1068,11 +1064,11 @@ function ClassScoringPage() {
       <div style={styles.app}>
         <div style={{ marginBottom: 16 }}>
           <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-            ← Retour
+            {t("public.results.back")}
           </button>
         </div>
         <div style={lockBannerStyle}>
-          Ce rôle n’a pas accès au scoring de cette association.
+          {t("management.scoring.accessDenied")}
         </div>
       </div>
     );
@@ -1082,30 +1078,42 @@ function ClassScoringPage() {
     <div style={styles.app}>
       <div style={{ marginBottom: 16 }}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          ← Retour
+          {t("public.results.back")}
         </button>
       </div>
 
       <div style={topHeaderStyle}>
         <div style={styles.topbarWrap}>
           <div style={styles.topbar}>
-            {(classItem?.name || "Classe") +
-              (patternValue ? ` | Pattern ${patternValue}` : "") +
-              (classSetup?.judgeName || classItem?.judgeName
-                ? ` | Juge ${classSetup?.judgeName || classItem?.judgeName}`
-                : "") +
-              ` | ${runCount} run(s)` +
-              (activeRunDraw != null ? ` | Run active: ${activeRunDraw}` : "")}
+            {[
+              classItem?.name || t("management.classes.unnamedClass"),
+              patternValue
+                ? `${t("public.results.pattern")} ${patternValue}`
+                : "",
+              classSetup?.judgeName || classItem?.judgeName
+                ? `${t("public.results.judge")} ${
+                    classSetup?.judgeName || classItem?.judgeName
+                  }`
+                : "",
+              t("management.scoring.runCount", { count: runCount }),
+              activeRunDraw != null
+                ? t("management.scoring.activeRun", {
+                    draw: activeRunDraw,
+                  })
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" | ")}
           </div>
         </div>
 
         <div style={headerButtonsStyle}>
           <div style={statusBadgeStyle(classStatus)}>
-            Statut : {classStatusLabel}
+            {t("management.scoring.statusPrefix")}: {classStatusLabel}
           </div>
 
           <div style={scoringSyncBadgeStyle(scoringSyncStatus)}>
-            {getScoringSyncLabel(scoringSyncStatus)}
+            {getScoringSyncLabel(scoringSyncStatus, t)}
           </div>
 
           {scoringSyncStatus === SCORING_SYNC_STATUS.PENDING && (
@@ -1114,7 +1122,7 @@ function ClassScoringPage() {
               onClick={handleRetryScoringSync}
               style={secondaryButtonStyle}
             >
-              Réessayer sync
+              {t("management.scoring.retrySync")}
             </button>
           )}
 
@@ -1123,7 +1131,7 @@ function ClassScoringPage() {
             onClick={handleExportLocalScoringBackup}
             style={secondaryButtonStyle}
           >
-            Exporter sauvegarde
+            {t("management.scoring.exportBackup")}
           </button>
 
           {canShowProvisionalRanking && (
@@ -1132,7 +1140,7 @@ function ClassScoringPage() {
               onClick={() => setShowProvisionalRanking(true)}
               style={secondaryButtonStyle}
             >
-              Classement provisoire
+              {t("management.scoring.provisionalRanking")}
             </button>
           )}
 
@@ -1143,7 +1151,7 @@ function ClassScoringPage() {
               style={primaryButtonStyle}
               disabled={!canSignClass}
             >
-              Signer la classe
+              {t("management.scoring.signClass")}
             </button>
           )}
 
@@ -1153,7 +1161,7 @@ function ClassScoringPage() {
               onClick={handleDownloadOfficialPdf}
               style={primaryButtonStyle}
             >
-              Télécharger le PDF officiel
+              {t("management.scoring.downloadOfficialPdf")}
             </button>
           )}
         </div>
@@ -1161,26 +1169,25 @@ function ClassScoringPage() {
 
       {isCompleted && (
         <div style={lockBannerStyle}>
-          Cette classe est terminée. Les scores, pénalités et back numbers sont verrouillés.
+          {t("management.scoring.classCompletedBanner")}
         </div>
       )}
 
       {!isCompleted && hasPendingVideoReview && (
         <div style={warningBannerStyle}>
-          Une révision vidéo est en attente. Le score du run concerné reste caché
-          et la classe ne peut pas être finalisée.
+          {t("management.scoring.videoReviewBanner")}
         </div>
       )}
 
-      {!isCompleted && getScoringSyncNotice(scoringSyncStatus) && (
+      {!isCompleted && getScoringSyncNotice(scoringSyncStatus, t) && (
         <div style={scoringSyncNoticeStyle(scoringSyncStatus)}>
-          {getScoringSyncNotice(scoringSyncStatus)}
+          {getScoringSyncNotice(scoringSyncStatus, t)}
         </div>
       )}
 
       {!isCompleted && !hasPendingVideoReview && !canFinalize && (
         <div style={warningBannerStyle}>
-          La classe ne peut pas être finalisée tant que tous les runs ne sont pas complets.
+          {t("management.scoring.incompleteBanner")}
         </div>
       )}
 
@@ -1188,24 +1195,28 @@ function ClassScoringPage() {
         <section style={finalizeCardStyle}>
           <div style={sectionHeaderStyle}>
             <h2 style={sectionTitleStyle}>
-              Signature du juge
+              {t("management.scoring.judgeSignatureTitle")}
               {assignedJudgeName ? ` ${assignedJudgeName}` : ""}
             </h2>
           </div>
 
           {assignedJudgeName ? (
             <div style={judgeNoticeStyle}>
-              Le juge associé à cette classe est {assignedJudgeName}.
+              {t("management.scoring.judgeAssignedNotice", {
+                judgeName: assignedJudgeName,
+              })}
             </div>
           ) : (
             <div style={fieldGridStyle}>
               <div>
-                <label style={labelStyle}>Nom du juge</label>
+                <label style={labelStyle}>
+                  {t("management.scoring.judgeNameLabel")}
+                </label>
                 <input
                   type="text"
                   value={judgeName}
                   onChange={(e) => setJudgeName(e.target.value)}
-                  placeholder="Nom du juge"
+                  placeholder={t("management.scoring.judgeNameLabel")}
                   style={inputStyle}
                 />
               </div>
@@ -1213,7 +1224,9 @@ function ClassScoringPage() {
           )}
 
           <div style={{ marginTop: 16 }}>
-            <label style={labelStyle}>Signature du juge</label>
+            <label style={labelStyle}>
+              {t("management.scoring.judgeSignatureTitle")}
+            </label>
             <SignaturePad
               value={judgeSignature}
               onChange={setJudgeSignature}
@@ -1229,7 +1242,7 @@ function ClassScoringPage() {
               style={primaryButtonStyle}
               disabled={hasBlockingScoringSync}
             >
-              Confirmer la signature et finaliser
+              {t("management.scoring.confirmFinalize")}
             </button>
 
             <button
@@ -1237,7 +1250,7 @@ function ClassScoringPage() {
               onClick={() => setShowFinalizeBox(false)}
               style={secondaryButtonStyle}
             >
-              Annuler
+              {t("management.access.cancel")}
             </button>
           </div>
         </section>
@@ -1245,7 +1258,6 @@ function ClassScoringPage() {
 
       {showProvisionalRanking && (
         <ProvisionalRankingModal
-          title="Classement provisoire"
           ranking={provisionalRanking}
           onClose={() => setShowProvisionalRanking(false)}
         />
@@ -1253,43 +1265,53 @@ function ClassScoringPage() {
 
       <section style={timingCardStyle}>
         <div style={timingHeaderStyle}>
-          <h2 style={sectionTitleStyle}>Gestion du temps</h2>
+          <h2 style={sectionTitleStyle}>{t("nav.dayTiming")}</h2>
         </div>
 
         <div style={timingGridStyle}>
           <div style={timingMetricStyle}>
-            <span style={timingLabelStyle}>Début</span>
+            <span style={timingLabelStyle}>
+              {t("management.scoring.timingStart")}
+            </span>
             <strong>{formatClockTime(classSetup?.startedAt)}</strong>
           </div>
           <div style={timingMetricStyle}>
-            <span style={timingLabelStyle}>Complétés</span>
+            <span style={timingLabelStyle}>
+              {t("management.scoring.timingCompleted")}
+            </span>
             <strong>
               {timingSummary.completedRuns}/{runCount}
             </strong>
           </div>
           <div style={timingMetricStyle}>
-            <span style={timingLabelStyle}>Moyenne/run</span>
+            <span style={timingLabelStyle}>
+              {t("management.time.averagePerRun")}
+            </span>
             <strong>{formatDuration(timingSummary.averageRunSeconds)}</strong>
           </div>
           <div style={timingMetricStyle}>
-            <span style={timingLabelStyle}>Drags restants</span>
+            <span style={timingLabelStyle}>
+              {t("management.time.remainingDrags")}
+            </span>
             <strong>{timingSummary.remainingDragBreaks}</strong>
           </div>
           <div style={timingMetricStyle}>
-            <span style={timingLabelStyle}>Temps restant</span>
+            <span style={timingLabelStyle}>
+              {t("management.time.remainingTime")}
+            </span>
             <strong>{formatDuration(timingSummary.remainingSeconds)}</strong>
           </div>
           <div style={timingMetricStyle}>
-            <span style={timingLabelStyle}>Fin estimée</span>
+            <span style={timingLabelStyle}>
+              {t("management.time.estimatedEndHeader")}
+            </span>
             <strong>{formatClockTime(timingSummary.estimatedEndAt)}</strong>
           </div>
         </div>
 
         {timingSummary.averageRunSeconds == null && (
           <div style={timingHintStyle}>
-            Le début réel sera enregistré au premier score ou à la première
-            pénalité. L’estimation s’activera après le premier run complété avec
-            un temps mesuré.
+            {t("management.scoring.timingHint")}
           </div>
         )}
       </section>
@@ -1321,17 +1343,23 @@ function ClassScoringPage() {
   );
 }
 
-function ProvisionalRankingModal({ title, ranking, onClose }) {
+function ProvisionalRankingModal({ ranking, onClose }) {
+  const { t } = useTranslation();
+
   return (
     <div style={modalBackdropStyle} role="dialog" aria-modal="true">
       <div style={modalStyle}>
         <div style={modalHeaderStyle}>
           <div>
-            <h2 style={sectionTitleStyle}>{title}</h2>
-            <div style={helperTextStyle}>{PROVISIONAL_RANKING_NOTE}</div>
+            <h2 style={sectionTitleStyle}>
+              {t("management.scoring.provisionalRanking")}
+            </h2>
+            <div style={helperTextStyle}>
+              {t("management.scoring.provisionalRankingNote")}
+            </div>
           </div>
           <button type="button" onClick={onClose} style={secondaryButtonStyle}>
-            Fermer
+            {t("management.announcer.close")}
           </button>
         </div>
 
@@ -1341,10 +1369,12 @@ function ProvisionalRankingModal({ title, ranking, onClose }) {
               <div style={rankingRankStyle}>#{run.rank}</div>
               <div>
                 <div style={rankingNameStyle}>
-                  Draw {run.draw || "—"} · Back {run.backNumber || "—"}
+                  {t("management.announcer.draw")} {run.draw || "—"} ·{" "}
+                  {t("public.results.backNumber")} {run.backNumber || "—"}
                 </div>
                 <div style={helperTextStyle}>
-                  {run.rider || "Rider —"} · {run.horse || "Horse —"}
+                  {run.rider || t("public.results.riderFallback")} ·{" "}
+                  {run.horse || t("public.results.horseFallback")}
                 </div>
               </div>
               <div style={rankingScoreStyle}>{run.scoreTotal || "—"}</div>
@@ -1389,16 +1419,37 @@ const headerButtonsStyle = {
   flexWrap: "wrap",
 };
 
-function getScoringSyncLabel(status) {
-  if (status === SCORING_SYNC_STATUS.SYNCING) return "Synchronisation";
-  if (status === SCORING_SYNC_STATUS.SYNCED) return "Synchronisé";
-  if (status === SCORING_SYNC_STATUS.PENDING) return "Sync en attente";
-  return "Sauvé localement";
+function getClassStatusLabel(status, t) {
+  switch (status) {
+    case "draft":
+      return t("management.classes.statusDraft");
+    case "ready":
+      return t("management.classes.statusReady");
+    case "in_progress":
+      return t("management.classes.statusInProgress");
+    case "completed":
+      return t("management.classes.statusCompleted");
+    default:
+      return "—";
+  }
 }
 
-function getScoringSyncNotice(status) {
+function getScoringSyncLabel(status, t) {
+  if (status === SCORING_SYNC_STATUS.SYNCING) {
+    return t("management.scoring.syncSyncing");
+  }
+  if (status === SCORING_SYNC_STATUS.SYNCED) {
+    return t("management.scoring.syncSynced");
+  }
   if (status === SCORING_SYNC_STATUS.PENDING) {
-    return "Les scores sont sauvegardés localement sur cet appareil, mais ils ne sont pas encore synchronisés. Garde cette page ouverte, réessaie la sync au besoin, ou exporte une sauvegarde locale.";
+    return t("management.scoring.syncPending");
+  }
+  return t("management.scoring.syncLocal");
+}
+
+function getScoringSyncNotice(status, t) {
+  if (status === SCORING_SYNC_STATUS.PENDING) {
+    return t("management.scoring.syncNoticePending");
   }
 
   return "";

@@ -10,6 +10,12 @@ import {
 import { filterAssociationsBySearch } from "./features/associations/associationSearch";
 import { normalizeAssociationWebsiteUrl } from "./features/associations/associationProfile";
 import {
+  detectBrowserLanguage,
+  getInitialLanguage,
+  normalizeLanguage,
+  translate,
+} from "./features/i18n/i18n";
+import {
   getPublicationState,
   publishClass,
   PUBLICATION_STATUSES,
@@ -373,6 +379,30 @@ test("normalizes association website urls for public links", () => {
     "https://showscore.app"
   );
   expect(normalizeAssociationWebsiteUrl("")).toBe("");
+});
+
+test("detects and translates the interface language", () => {
+  const storage = {
+    getItem: () => "en-CA",
+    setItem: () => {},
+  };
+
+  expect(normalizeLanguage("fr-CA")).toBe("fr");
+  expect(normalizeLanguage("es")).toBe("");
+  expect(
+    detectBrowserLanguage({
+      languages: ["es-MX", "en-US"],
+      language: "fr-CA",
+    })
+  ).toBe("en");
+  expect(getInitialLanguage({ storage, navigatorLike: { language: "fr-CA" } })).toBe(
+    "en"
+  );
+  expect(translate("en", "nav.publicShowcase")).toBe("Public showcase");
+  expect(translate("en", "public.results.liveActive", { count: 2 })).toBe(
+    "Active live feeds in the showcase: 2"
+  );
+  expect(translate("en", "missing.key")).toBe("missing.key");
 });
 
 test("parses imported draw rows in draw order", () => {

@@ -17,13 +17,17 @@ export function buildAssociationInvitationEmail({
   invitation,
   origin,
   associationName,
+  copy,
 }) {
   const invitationUrl = buildAssociationInvitationUrl(origin, invitation);
-  const subject = "Invitation ShowScore";
+  const resolvedAssociationName =
+    associationName || copy?.associationFallback || "une association";
+  const subject = copy?.subject || "Invitation ShowScore";
   const body = [
-    `Tu as été invité à rejoindre ${associationName || "une association"} sur ShowScore.`,
+    copy?.bodyIntro ||
+      `Tu as été invité à rejoindre ${resolvedAssociationName} sur ShowScore.`,
     "",
-    "Crée ton compte avec ce lien, puis connecte-toi:",
+    copy?.bodyAction || "Crée ton compte avec ce lien, puis connecte-toi:",
     invitationUrl,
   ].join("\n");
 
@@ -39,11 +43,13 @@ export function buildAssociationInvitationMailto({
   invitation,
   origin,
   associationName,
+  copy,
 }) {
   const email = buildAssociationInvitationEmail({
     invitation,
     origin,
     associationName,
+    copy,
   });
 
   return `mailto:${encodeURIComponent(invitation?.email || "")}?subject=${encodeURIComponent(

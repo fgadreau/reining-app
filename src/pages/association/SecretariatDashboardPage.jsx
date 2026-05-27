@@ -6,7 +6,6 @@ import {
   getClassFullDataRepository,
   getClassesForDayRepository,
 } from "../../features/classes/classRepository";
-import { getClassStatusLabel } from "../../features/classes/classStatusSelectors";
 import {
   downloadOfficialScorePdf,
   getOfficialPdfFileName,
@@ -17,12 +16,15 @@ import {
   publishClassRepository,
   unpublishClassRepository,
 } from "../../features/publication/publicationCloudRepository";
+import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
 import { getShowById } from "../../features/shows/showSelectors";
+import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
 
 function SecretariatDashboardPage() {
   const { associationId, showId } = useParams();
   const navigate = useNavigate();
+  const { t, language } = useTranslation();
   const [version, setVersion] = useState(0);
   const [daySections, setDaySections] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -92,7 +94,7 @@ function SecretariatDashboardPage() {
       });
       refresh();
     } catch (error) {
-      alert(error.message || "Impossible de générer le PDF officiel.");
+      alert(error.message || t("management.secretariat.pdfGenerateFailed"));
     }
   };
 
@@ -101,7 +103,7 @@ function SecretariatDashboardPage() {
       await validateOfficialResultRepository({ classData });
       refresh();
     } catch (error) {
-      alert(error.message || "Impossible de valider cette classe.");
+      alert(error.message || t("management.secretariat.validationFailed"));
     }
   };
 
@@ -109,9 +111,9 @@ function SecretariatDashboardPage() {
     return (
       <div style={styles.app}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          ← Retour
+          {t("public.results.back")}
         </button>
-        <div style={emptyStateStyle}>Show introuvable.</div>
+        <div style={emptyStateStyle}>{t("public.results.showNotFound")}</div>
       </div>
     );
   }
@@ -120,10 +122,10 @@ function SecretariatDashboardPage() {
     return (
       <div style={styles.app}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          ← Retour
+          {t("public.results.back")}
         </button>
         <div style={emptyStateStyle}>
-          Ce rôle n’a pas accès au tableau secrétariat.
+          {t("management.secretariat.accessDenied")}
         </div>
       </div>
     );
@@ -133,17 +135,17 @@ function SecretariatDashboardPage() {
     <div style={styles.app}>
       <div style={{ marginBottom: 16 }}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          ← Retour
+          {t("public.results.back")}
         </button>
       </div>
 
       <section style={heroStyle}>
         <div>
-          <div style={eyebrowStyle}>Secrétariat</div>
-          <h1 style={titleStyle}>{show.name || "Show"}</h1>
+          <div style={eyebrowStyle}>{t("nav.secretariat")}</div>
+          <h1 style={titleStyle}>{show.name || t("common.show")}</h1>
           <div style={subtitleStyle}>
-            {association?.shortName || association?.name || "Association"} ·{" "}
-            {show.venue || show.location || "Lieu à confirmer"}
+            {association?.shortName || association?.name || t("common.association")} ·{" "}
+            {show.venue || show.location || t("public.results.venueTbd")}
           </div>
         </div>
         <div style={heroActionsStyle}>
@@ -151,65 +153,72 @@ function SecretariatDashboardPage() {
             to={`/associations/${associationId}/shows/${showId}/time`}
             style={linkButtonStyle}
           >
-            Gestion du temps
+            {t("management.secretariat.timeManagement")}
           </Link>
           <Link
             to={`/associations/${associationId}/shows/${showId}`}
             style={linkButtonStyle}
           >
-            Gérer les journées
+            {t("management.secretariat.manageDays")}
           </Link>
         </div>
       </section>
 
       <section style={summaryGridStyle}>
-        <SummaryTile label="Classes" value={summary.total} />
-        <SummaryTile label="Draft" value={summary.draft} tone="muted" />
-        <SummaryTile label="Prêtes" value={summary.ready} tone="info" />
-        <SummaryTile label="En cours" value={summary.inProgress} tone="warn" />
-        <SummaryTile label="Signées" value={summary.signed} tone="warn" />
-        <SummaryTile label="Validées" value={summary.validated} tone="success" />
-        <SummaryTile label="PDF" value={summary.pdfReady} tone="success" />
-        <SummaryTile label="Publiées" value={summary.published} tone="success" />
+        <SummaryTile label={t("management.secretariat.classes")} value={summary.total} />
+        <SummaryTile label={t("management.classes.statusDraft")} value={summary.draft} tone="muted" />
+        <SummaryTile label={t("management.secretariat.ready")} value={summary.ready} tone="info" />
+        <SummaryTile label={t("management.classes.statusInProgress")} value={summary.inProgress} tone="warn" />
+        <SummaryTile label={t("management.secretariat.signed")} value={summary.signed} tone="warn" />
+        <SummaryTile label={t("management.secretariat.validated")} value={summary.validated} tone="success" />
+        <SummaryTile label={t("management.secretariat.pdf")} value={summary.pdfReady} tone="success" />
+        <SummaryTile label={t("management.secretariat.published")} value={summary.published} tone="success" />
       </section>
 
       {isLoading ? (
-        <div style={emptyStateStyle}>Chargement du tableau secrétariat…</div>
+        <div style={emptyStateStyle}>{t("management.secretariat.loading")}</div>
       ) : daySections.length === 0 ? (
-        <div style={emptyStateStyle}>Aucune journée pour ce show.</div>
+        <div style={emptyStateStyle}>{t("management.days.empty")}</div>
       ) : (
         <div style={{ display: "grid", gap: 16 }}>
           {daySections.map(({ day, classRows }) => (
             <section key={day.id} style={cardStyle}>
               <div style={sectionHeaderStyle}>
                 <div>
-                  <h2 style={sectionTitleStyle}>{day.label || "Journée"}</h2>
+                  <h2 style={sectionTitleStyle}>
+                    {day.label || t("management.days.dayFallback")}
+                  </h2>
                   <div style={metaStyle}>
-                    {day.date || "Date non définie"} · {classRows.length} classe(s)
+                    {day.date || t("public.results.dateTbd")} ·{" "}
+                    {t("management.secretariat.classCount", {
+                      count: classRows.length,
+                    })}
                   </div>
                 </div>
                 <Link
                   to={`/associations/${associationId}/shows/${showId}/days/${day.id}`}
                   style={linkButtonStyle}
                 >
-                  Ouvrir classes
+                  {t("management.days.openClasses")}
                 </Link>
               </div>
 
               {classRows.length === 0 ? (
-                <div style={softEmptyStyle}>Aucune classe pour cette journée.</div>
+                <div style={softEmptyStyle}>
+                  {t("management.secretariat.noClassesForDay")}
+                </div>
               ) : (
                 <div style={tableWrapStyle}>
                   <table style={tableStyle}>
                     <thead>
                       <tr>
-                        <th style={thStyle}>Classe</th>
-                        <th style={thStyle}>Setup</th>
-                        <th style={thStyle}>Scoring</th>
-                        <th style={thStyle}>Officiel</th>
-                        <th style={thStyle}>PDF officiel</th>
-                        <th style={thStyle}>Publication</th>
-                        <th style={thStyle}>Actions</th>
+                        <th style={thStyle}>{t("management.secretariat.class")}</th>
+                        <th style={thStyle}>{t("management.secretariat.setup")}</th>
+                        <th style={thStyle}>{t("management.secretariat.scoring")}</th>
+                        <th style={thStyle}>{t("management.secretariat.official")}</th>
+                        <th style={thStyle}>{t("management.secretariat.officialPdf")}</th>
+                        <th style={thStyle}>{t("management.secretariat.publication")}</th>
+                        <th style={thStyle}>{t("management.classSetup.actions")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -223,6 +232,7 @@ function SecretariatDashboardPage() {
                           onPublish={handlePublish}
                           onUnpublish={handleUnpublish}
                           canManage={access.canManageAssociation}
+                          language={language}
                         />
                       ))}
                     </tbody>
@@ -245,7 +255,9 @@ function ClassRow({
   onPublish,
   onUnpublish,
   canManage,
+  language,
 }) {
+  const { t } = useTranslation();
   const classItem = classData.classItem;
   const setup = classData.setup;
   const official = classData.official;
@@ -271,23 +283,29 @@ function ClassRow({
   const scoringComplete =
     classData.status === "completed" || isSigned || isValidated;
   const scoringBadge = scoringComplete
-    ? { label: "Terminée", tone: "success" }
+    ? { label: t("management.secretariat.scoringCompleted"), tone: "success" }
     : scoringStarted
-      ? { label: "En cours", tone: "warn" }
-      : { label: "Pas commencé", tone: "muted" };
+      ? { label: t("management.secretariat.scoringInProgress"), tone: "warn" }
+      : { label: t("management.secretariat.scoringNotStarted"), tone: "muted" };
 
   return (
     <tr>
       <td style={tdStyle}>
         <div style={classNameStyle}>
-          {classItem?.name || "Classe sans nom"}
+          {classItem?.name || t("management.classes.unnamedClass")}
           {classItem?.classCode ? ` (${classItem.classCode})` : ""}
         </div>
-        <div style={metaStyle}>Pattern {setup?.pattern || classItem?.pattern || "—"}</div>
+        <div style={metaStyle}>
+          {t("public.results.pattern")} {setup?.pattern || classItem?.pattern || "—"}
+        </div>
       </td>
       <td style={tdStyle}>
         <Badge tone={setupReady ? "success" : "muted"}>
-          {setupReady ? `${setup.runs.length} run(s)` : "À compléter"}
+          {setupReady
+            ? t("management.secretariat.setupRunCount", {
+                count: setup.runs.length,
+              })
+            : t("management.secretariat.setupIncomplete")}
         </Badge>
       </td>
       <td style={tdStyle}>
@@ -296,14 +314,16 @@ function ClassRow({
       <td style={tdStyle}>
         <Badge tone={isValidated ? "success" : isSigned ? "warn" : "muted"}>
           {isValidated
-            ? "Validée"
+            ? t("management.secretariat.officialValidated")
             : isSigned
-              ? "Signée, à valider"
-              : getClassStatusLabel(classData.status)}
+              ? t("management.secretariat.officialSignedToValidate")
+              : getClassStatusLabel(classData.status, t)}
         </Badge>
         {official?.secretariatValidatedAt && (
           <div style={metaStyle}>
-            Validée {formatDateTime(official.secretariatValidatedAt)}
+            {t("management.secretariat.validatedAt", {
+              date: formatDateTime(official.secretariatValidatedAt, language),
+            })}
           </div>
         )}
       </td>
@@ -311,10 +331,10 @@ function ClassRow({
         <div style={{ display: "grid", gap: 6 }}>
           <Badge tone={officialPdfReady ? "success" : isSigned ? "warn" : "muted"}>
             {officialPdfReady
-              ? "Généré"
+              ? t("management.secretariat.pdfGenerated")
               : isSigned && !isValidated
-                ? "Validation requise"
-                : "À générer"}
+                ? t("management.secretariat.pdfValidationRequired")
+                : t("management.secretariat.pdfToGenerate")}
           </Badge>
           {officialPdfReady && finalPdfFileName && (
             <div style={fileNameStyle} title={finalPdfFileName}>
@@ -324,8 +344,17 @@ function ClassRow({
         </div>
       </td>
       <td style={tdStyle}>
-        <Badge tone={publication?.status === "published" ? "success" : "muted"}>
-          {publication?.status || "hidden"}
+        <Badge
+          tone={
+            publication?.status === PUBLICATION_STATUSES.PUBLISHED
+              ? "success"
+              : "muted"
+          }
+        >
+          {getPublicationStatusLabel(
+            publication?.status || PUBLICATION_STATUSES.HIDDEN,
+            t
+          )}
         </Badge>
       </td>
       <td style={tdStyle}>
@@ -334,13 +363,13 @@ function ClassRow({
             to={`/associations/${associationId}/classes/${classId}/setup`}
             style={smallLinkButtonStyle}
           >
-            Setup
+            {t("management.secretariat.setup")}
           </Link>
           <Link
             to={`/associations/${associationId}/scribe/classes/${classId}`}
             style={smallLinkButtonStyle}
           >
-            Scoring
+            {t("management.secretariat.scoring")}
           </Link>
           {canManage && (
             <>
@@ -350,7 +379,7 @@ function ClassRow({
                   onClick={() => onValidateOfficial(classData)}
                   style={smallPrimaryButtonStyle}
                 >
-                  Valider officiel
+                  {t("management.secretariat.validateOfficial")}
                 </button>
               )}
               <button
@@ -359,7 +388,9 @@ function ClassRow({
                 style={smallButtonStyle}
                 disabled={!isValidated}
               >
-                {officialPdfReady ? "Télécharger PDF" : "Générer PDF"}
+                {officialPdfReady
+                  ? t("public.results.downloadPdf")
+                  : t("management.secretariat.generatePdf")}
               </button>
               {officialPdfReady && (
                 <button
@@ -369,16 +400,16 @@ function ClassRow({
                   }
                   style={smallButtonStyle}
                 >
-                  Régénérer
+                  {t("management.secretariat.regenerate")}
                 </button>
               )}
-              {publication?.status === "published" ? (
+              {publication?.status === PUBLICATION_STATUSES.PUBLISHED ? (
                 <button
                   type="button"
                   onClick={() => onUnpublish(classId)}
                   style={smallButtonStyle}
                 >
-                  Masquer
+                  {t("management.secretariat.hide")}
                 </button>
               ) : (
                 <button
@@ -387,7 +418,7 @@ function ClassRow({
                   style={smallButtonStyle}
                   disabled={!isValidated || !officialPdfReady}
                 >
-                  Publier
+                  {t("management.secretariat.publish")}
                 </button>
               )}
             </>
@@ -442,10 +473,45 @@ function buildSummary(classRows) {
   );
 }
 
-function formatDateTime(value) {
+function getClassStatusLabel(status, t) {
+  switch (status) {
+    case "draft":
+      return t("management.classes.statusDraft");
+    case "ready":
+      return t("management.classes.statusReady");
+    case "in_progress":
+      return t("management.classes.statusInProgress");
+    case "completed":
+      return t("management.classes.statusCompleted");
+    default:
+      return "—";
+  }
+}
+
+function getPublicationStatusLabel(status, t) {
+  switch (status) {
+    case PUBLICATION_STATUSES.LIVE:
+      return t("public.status.live");
+    case PUBLICATION_STATUSES.LIVE_NO_SCORE:
+      return t("public.status.liveNoScore");
+    case PUBLICATION_STATUSES.LIVE_SCORING:
+      return t("public.status.liveScoring");
+    case PUBLICATION_STATUSES.LIVE_FINISHED:
+      return t("public.status.liveFinished");
+    case PUBLICATION_STATUSES.OFFICIAL:
+      return t("public.status.official");
+    case PUBLICATION_STATUSES.PUBLISHED:
+      return t("public.status.published");
+    case PUBLICATION_STATUSES.HIDDEN:
+    default:
+      return t("public.status.hidden");
+  }
+}
+
+function formatDateTime(value, language = "fr") {
   if (!value) return "";
 
-  return new Date(value).toLocaleString("fr-CA", {
+  return new Date(value).toLocaleString(language === "en" ? "en-CA" : "fr-CA", {
     dateStyle: "short",
     timeStyle: "short",
   });

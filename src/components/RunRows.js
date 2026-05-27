@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import ManoeuvrePicker from "./ManoeuvrePicker";
+import { useTranslation } from "../features/i18n/I18nProvider";
 
 function RunRows({
   run,
@@ -22,6 +23,7 @@ function RunRows({
   isBackNumberLocked,
   styles,
 }) {
+  const { t } = useTranslation();
   const [editingBackNumber, setEditingBackNumber] = useState(false);
   const [tempBackNumber, setTempBackNumber] = useState(run.backNumber || "");
   const canEditBackNumber = !isLocked && !isBackNumberLocked;
@@ -253,7 +255,7 @@ function RunRows({
       {shouldShowNoteRow && (
         <tr>
           <td colSpan={colSpan} style={styles.runNoteCell}>
-            <div style={styles.runNoteLabel}>Note du juge</div>
+            <div style={styles.runNoteLabel}>{t("public.results.judgeNote")}</div>
             {isLocked ? (
               <div style={styles.runNoteText}>
                 {String(run.note || "").trim() || "—"}
@@ -262,7 +264,7 @@ function RunRows({
               <textarea
                 value={run.note || ""}
                 onChange={(event) => updateRunNote(run.draw, event.target.value)}
-                placeholder="Note pour ce participant"
+                placeholder={t("management.scoring.participantNotePlaceholder")}
                 style={styles.runNoteInput}
               />
             )}

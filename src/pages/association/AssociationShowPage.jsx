@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { getAssociationRepository } from "../../features/associations/associationRepository";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import { getCloudSyncStatus } from "../../features/cloud/supabaseStatus";
+import { useTranslation } from "../../features/i18n/I18nProvider";
 import {
   deleteShowRepository,
   getShowsByAssociationRepository,
@@ -13,6 +14,7 @@ import { appStyles as styles } from "../../styles/appStyles";
 
 function AssociationShowPage() {
   const { associationId } = useParams();
+  const { t } = useTranslation();
 
   const [association, setAssociation] = useState(null);
   const [shows, setShows] = useState([]);
@@ -58,7 +60,7 @@ function AssociationShowPage() {
     const newShow = {
       id: createId("show"),
       associationId,
-      name: "Nouveau show",
+      name: t("management.shows.newShowName"),
       location: "",
       venue: "",
       startDate: "",
@@ -131,7 +133,7 @@ function AssociationShowPage() {
   };
 
   const handleDeleteShow = async (showId) => {
-    const confirmed = window.confirm("Supprimer ce show ?");
+    const confirmed = window.confirm(t("management.shows.deleteConfirm"));
     if (!confirmed) return;
 
     setIsSaving(true);
@@ -148,9 +150,9 @@ function AssociationShowPage() {
     return (
       <div style={styles.app}>
         <div style={{ marginBottom: 16 }}>
-          <Link to="/associations">← Retour aux associations</Link>
+          <Link to="/associations">{t("management.shows.backAssociations")}</Link>
         </div>
-        <div style={emptyStateStyle}>Chargement des shows…</div>
+        <div style={emptyStateStyle}>{t("management.shows.loading")}</div>
       </div>
     );
   }
@@ -159,10 +161,10 @@ function AssociationShowPage() {
     return (
       <div style={styles.app}>
         <div style={{ marginBottom: 16 }}>
-          <Link to="/associations">← Retour aux associations</Link>
+          <Link to="/associations">{t("management.shows.backAssociations")}</Link>
         </div>
 
-        <div style={emptyStateStyle}>Association introuvable.</div>
+        <div style={emptyStateStyle}>{t("management.shows.associationNotFound")}</div>
       </div>
     );
   }
@@ -176,11 +178,11 @@ function AssociationShowPage() {
     return (
       <div style={styles.app}>
         <div style={{ marginBottom: 16 }}>
-          <Link to="/associations">← Retour aux associations</Link>
+          <Link to="/associations">{t("management.shows.backAssociations")}</Link>
         </div>
 
         <div style={emptyStateStyle}>
-          Ce rôle n’a pas accès à cette association.
+          {t("management.shows.accessDenied")}
         </div>
       </div>
     );
@@ -189,19 +191,22 @@ function AssociationShowPage() {
   return (
     <div style={styles.app}>
       <div style={{ marginBottom: 16 }}>
-        <Link to="/associations">← Retour aux associations</Link>
+        <Link to="/associations">{t("management.shows.backAssociations")}</Link>
       </div>
 
       <div style={headerWrapStyle}>
         <div>
           <h1 style={{ marginBottom: 4 }}>{association.name}</h1>
-          <h2 style={{ fontSize: 20, margin: 0 }}>Shows</h2>
+          <h2 style={{ fontSize: 20, margin: 0 }}>{t("common.shows")}</h2>
           <div style={{ marginTop: 10 }}>
             <span style={syncBadgeStyle(cloudStatus.configured)}>
-              Sync : {getSyncLabel(cloudStatus)}
+              {t("management.sync.label")}: {getSyncLabel(cloudStatus, t)}
             </span>
             <span style={accessBadgeStyle(access.canManageAssociation)}>
-              Accès : {access.isLoadingAccess ? "chargement…" : access.roleLabel}
+              {t("management.shows.accessLabel")}:{" "}
+              {access.isLoadingAccess
+                ? t("management.shows.accessLoading")
+                : access.roleLabel}
             </span>
           </div>
         </div>
@@ -212,13 +217,13 @@ function AssociationShowPage() {
             style={primaryButtonStyle}
             disabled={isSaving}
           >
-            + Ajouter un show
+            {t("management.shows.addShow")}
           </button>
         )}
       </div>
 
       {shows.length === 0 ? (
-        <div style={emptyStateStyle}>Aucun show pour cette association.</div>
+        <div style={emptyStateStyle}>{t("management.shows.empty")}</div>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
           {shows.map((show) => {
@@ -228,19 +233,25 @@ function AssociationShowPage() {
               <div key={show.id} style={cardStyle}>
                 {!isEditing ? (
                   <>
-                    <div style={cardTitleStyle}>{show.name || "Show sans nom"}</div>
+                    <div style={cardTitleStyle}>
+                      {show.name || t("management.shows.unnamedShow")}
+                    </div>
 
                     <div style={cardMetaStyle}>
-                      {(show.location || "Lieu non défini") +
+                      {(show.location || t("management.shows.locationTbd")) +
                         (show.startDate
                           ? ` • ${show.startDate}${
-                              show.endDate ? ` au ${show.endDate}` : ""
+                              show.endDate
+                                ? ` ${t("management.shows.dateRangeJoin")} ${show.endDate}`
+                                : ""
                             }`
                           : "")}
                     </div>
 
                     <div style={cardMetaStyle}>
-                      {show.venue || "Venue —"} • Statut {formatStatus(show.status)}
+                      {show.venue || t("management.shows.venueFallback")} •{" "}
+                      {t("management.shows.statusPrefix")}{" "}
+                      {formatStatus(show.status, t)}
                     </div>
 
                     <div style={actionRowStyle}>
@@ -248,7 +259,7 @@ function AssociationShowPage() {
                         to={`/associations/${associationId}/shows/${show.id}`}
                         style={linkButtonStyle}
                       >
-                        Ouvrir le show
+                        {t("management.shows.openShow")}
                       </Link>
 
                       {access.canManageAssociation && (
@@ -259,7 +270,7 @@ function AssociationShowPage() {
                             style={secondaryButtonStyle}
                             disabled={isSaving}
                           >
-                            Modifier
+                            {t("management.shows.edit")}
                           </button>
 
                           <button
@@ -268,7 +279,7 @@ function AssociationShowPage() {
                             style={dangerButtonStyle}
                             disabled={isSaving}
                           >
-                            Supprimer
+                            {t("management.shows.delete")}
                           </button>
                         </>
                       )}
@@ -278,7 +289,9 @@ function AssociationShowPage() {
                   <>
                     <div style={editGridStyle}>
                       <div>
-                        <label style={labelStyle}>Nom</label>
+                        <label style={labelStyle}>
+                          {t("management.shows.nameLabel")}
+                        </label>
                         <input
                           type="text"
                           value={draft.name}
@@ -290,7 +303,9 @@ function AssociationShowPage() {
                       </div>
 
                       <div>
-                        <label style={labelStyle}>Lieu</label>
+                        <label style={labelStyle}>
+                          {t("management.shows.locationLabel")}
+                        </label>
                         <input
                           type="text"
                           value={draft.location}
@@ -305,7 +320,9 @@ function AssociationShowPage() {
                       </div>
 
                       <div>
-                        <label style={labelStyle}>Venue</label>
+                        <label style={labelStyle}>
+                          {t("management.shows.venueLabel")}
+                        </label>
                         <input
                           type="text"
                           value={draft.venue}
@@ -317,7 +334,9 @@ function AssociationShowPage() {
                       </div>
 
                       <div>
-                        <label style={labelStyle}>Date début</label>
+                        <label style={labelStyle}>
+                          {t("management.shows.startDateLabel")}
+                        </label>
                         <input
                           type="date"
                           value={draft.startDate}
@@ -332,7 +351,9 @@ function AssociationShowPage() {
                       </div>
 
                       <div>
-                        <label style={labelStyle}>Date fin</label>
+                        <label style={labelStyle}>
+                          {t("management.shows.endDateLabel")}
+                        </label>
                         <input
                           type="date"
                           value={draft.endDate}
@@ -347,7 +368,9 @@ function AssociationShowPage() {
                       </div>
 
                       <div>
-                        <label style={labelStyle}>Statut</label>
+                        <label style={labelStyle}>
+                          {t("management.shows.statusLabel")}
+                        </label>
                         <select
                           value={draft.status}
                           onChange={(e) =>
@@ -358,9 +381,15 @@ function AssociationShowPage() {
                           }
                           style={inputStyle}
                         >
-                          <option value="draft">Draft</option>
-                          <option value="active">Actif</option>
-                          <option value="completed">Terminé</option>
+                          <option value="draft">
+                            {t("management.shows.statusDraft")}
+                          </option>
+                          <option value="active">
+                            {t("management.shows.statusActive")}
+                          </option>
+                          <option value="completed">
+                            {t("management.shows.statusCompleted")}
+                          </option>
                         </select>
                       </div>
                     </div>
@@ -372,7 +401,7 @@ function AssociationShowPage() {
                         style={primaryButtonStyle}
                         disabled={isSaving}
                       >
-                        Enregistrer
+                        {t("management.shows.save")}
                       </button>
 
                       <button
@@ -381,7 +410,7 @@ function AssociationShowPage() {
                         style={secondaryButtonStyle}
                         disabled={isSaving}
                       >
-                        Annuler
+                        {t("management.shows.cancel")}
                       </button>
                     </div>
                   </>
@@ -395,10 +424,10 @@ function AssociationShowPage() {
   );
 }
 
-function formatStatus(status) {
-  if (status === "active") return "Actif";
-  if (status === "completed") return "Terminé";
-  return "Draft";
+function formatStatus(status, t) {
+  if (status === "active") return t("management.shows.statusActive");
+  if (status === "completed") return t("management.shows.statusCompleted");
+  return t("management.shows.statusDraft");
 }
 
 const headerWrapStyle = {
@@ -526,10 +555,10 @@ const accessBadgeStyle = (hasManagementAccess) => ({
   fontSize: 13,
 });
 
-function getSyncLabel(cloudStatus) {
-  if (!cloudStatus.configured) return "Local";
-  if (cloudStatus.authenticated) return "Supabase connecté";
-  return "Supabase non connecté";
+function getSyncLabel(cloudStatus, t) {
+  if (!cloudStatus.configured) return t("management.sync.local");
+  if (cloudStatus.authenticated) return t("management.sync.connected");
+  return t("management.sync.disconnected");
 }
 
 export default AssociationShowPage;

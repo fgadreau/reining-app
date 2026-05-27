@@ -16,7 +16,7 @@ import {
   DEFAULT_PAID_WARMUP_DURATION_MINUTES,
   getPaidWarmupStats,
 } from "../../features/paidWarmups/paidWarmupStorage";
-import { getClassStatus, getClassStatusLabel } from "../../features/classes/classStatusSelectors";
+import { getClassStatus } from "../../features/classes/classStatusSelectors";
 import { getDayById } from "../../features/days/daySelectors";
 import { getShowById } from "../../features/shows/showSelectors";
 import { loadAssociations } from "../../features/associations/associationsData";
@@ -36,12 +36,14 @@ import {
   generateScorePdf,
 } from "../../utils/generateScorePdf";
 import { getClassOfficialData } from "../../features/classes/classOfficialData";
+import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
 import { createId } from "../../utils/createId";
 
 function DayClassesPage() {
   const { associationId, showId, dayId } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const day = getDayById(dayId);
   const show = getShowById(showId);
@@ -93,7 +95,7 @@ function DayClassesPage() {
       dayId,
       showId,
       associationId,
-      name: "Nouvelle classe",
+      name: t("management.classes.newClassName"),
       classCode: "",
       arena: "",
       pattern: "",
@@ -126,7 +128,7 @@ function DayClassesPage() {
       dayId,
       showId,
       associationId,
-      name: "Nouveau paid warm up",
+      name: t("management.classes.newPaidWarmupName"),
       durationMinutesPerRider: DEFAULT_PAID_WARMUP_DURATION_MINUTES,
       dragInterval: null,
       dragDurationMinutes: 8,
@@ -203,7 +205,7 @@ function DayClassesPage() {
   };
 
   const handleDeleteClass = async (id) => {
-    const confirmed = window.confirm("Supprimer cette classe ?");
+    const confirmed = window.confirm(t("management.classes.deleteConfirm"));
     if (!confirmed) return;
 
     setIsSaving(true);
@@ -235,7 +237,9 @@ function DayClassesPage() {
       const newClass = {
         ...item,
         id: createId("class"),
-        name: `${item.name || "Classe"} copie`,
+        name: t("management.classes.duplicateName", {
+          name: item.name || t("management.classes.classFallback"),
+        }),
         pattern: sourcePattern,
         customPattern,
         sortOrder: classes.length + paidWarmups.length + 1,
@@ -276,7 +280,9 @@ function DayClassesPage() {
   };
 
   const handleDeletePaidWarmup = async (id) => {
-    const confirmed = window.confirm("Supprimer ce paid warm up ?");
+    const confirmed = window.confirm(
+      t("management.classes.deletePaidWarmupConfirm")
+    );
     if (!confirmed) return;
 
     setIsSaving(true);
@@ -315,7 +321,7 @@ function DayClassesPage() {
     if (status === "draft") {
       event.preventDefault();
       alert(
-        "Cette classe n’est pas prête pour le scoring. Complète d’abord le setup avec un pattern et des runs."
+        t("management.classes.scoringNotReady")
       );
     }
   };
@@ -324,7 +330,7 @@ function DayClassesPage() {
     const officialData = getClassOfficialData(item.id, item);
 
     if (!officialData.isSecretariatValidated) {
-      alert("Le PDF officiel sera disponible après validation du secrétariat.");
+      alert(t("management.classes.pdfAfterValidation"));
       return;
     }
 
@@ -335,7 +341,7 @@ function DayClassesPage() {
     );
 
     const pdf = generateScorePdf({
-      associationName: association?.name || "Association",
+      associationName: association?.name || t("common.association"),
       associationLogoDataUrl: association?.logoDataUrl || null,
       eventName: officialData.eventName || "",
       eventDate: officialData.eventDate || "",
@@ -354,7 +360,7 @@ function DayClassesPage() {
     const fileName = buildScorePdfFileName({
       associationAbbreviation: association?.shortName || "ASSOC",
       showName: officialData.eventName || "show",
-      className: item?.name || "classe",
+      className: item?.name || "class",
       finalizedAt: officialData.finalizedAt || new Date().toISOString(),
     });
 
@@ -370,11 +376,11 @@ function DayClassesPage() {
       <div style={styles.app}>
         <div style={{ marginBottom: 16 }}>
           <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-            ← Retour
+            {t("public.results.back")}
           </button>
         </div>
         <div style={emptyStateStyle}>
-          Ce rôle n’a pas accès à la gestion des classes.
+          {t("management.classes.accessDenied")}
         </div>
       </div>
     );
@@ -384,15 +390,16 @@ function DayClassesPage() {
     <div style={styles.app}>
       <div style={{ marginBottom: 16 }}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          ← Retour
+          {t("public.results.back")}
         </button>
       </div>
 
       <div style={headerWrapStyle}>
         <div>
-          <h1 style={{ marginBottom: 4 }}>{show?.name || "Show"}</h1>
+          <h1 style={{ marginBottom: 4 }}>{show?.name || t("common.show")}</h1>
           <h2 style={{ fontSize: 20, margin: 0, color: "#475569" }}>
-            {day?.label || "Journée"} {day?.date ? `— ${day.date}` : ""}
+            {day?.label || t("management.days.dayFallback")}{" "}
+            {day?.date ? `— ${day.date}` : ""}
           </h2>
         </div>
 
@@ -403,24 +410,24 @@ function DayClassesPage() {
               style={primaryButtonStyle}
               disabled={isSaving}
             >
-              + Ajouter une classe
+              {t("management.classes.addClass")}
             </button>
             <button
               onClick={startCreatePaidWarmup}
               style={secondaryButtonStyle}
               disabled={isSaving}
             >
-              + Ajouter un paid warm up
+              {t("management.classes.addPaidWarmup")}
             </button>
           </div>
         )}
       </div>
 
       {isLoading ? (
-        <div style={emptyStateStyle}>Chargement de la journée…</div>
+        <div style={emptyStateStyle}>{t("management.classes.loadingDay")}</div>
       ) : scheduleItems.length === 0 ? (
         <div style={emptyStateStyle}>
-          Aucune classe ou paid warm up pour cette journée.
+          {t("management.classes.emptyDay")}
         </div>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
@@ -434,20 +441,30 @@ function DayClassesPage() {
                   <div style={cardHeaderStyle}>
                     <div>
                       <div style={cardTitleStyle}>
-                        {warmup.name || "Paid warm up"}
+                        {warmup.name || t("public.results.paidWarmup")}
                       </div>
                       <div style={cardMetaStyle}>
-                        {warmup.durationMinutesPerRider} min/cavalier •{" "}
-                        {formatPaidWarmupDrag(warmup)} • {stats.total} cavalier
-                        {stats.total > 1 ? "s" : ""}
+                        {t("management.classes.minutesPerRider", {
+                          minutes: warmup.durationMinutesPerRider,
+                        })}{" "}
+                        • {formatPaidWarmupDrag(warmup, t)} •{" "}
+                        {t("management.classes.riderCount", {
+                          count: stats.total,
+                        })}
                       </div>
                       <div style={warmupStatsStyle}>
-                        {stats.pending} à venir • {stats.done} passés •{" "}
-                        {stats.noShow} no show • {stats.scratch} scratch
+                        {t("management.classes.warmupStats", {
+                          pending: stats.pending,
+                          done: stats.done,
+                          noShow: stats.noShow,
+                          scratch: stats.scratch,
+                        })}
                       </div>
                     </div>
 
-                    <div style={warmupBadgeStyle}>Paid warm up</div>
+                    <div style={warmupBadgeStyle}>
+                      {t("public.results.paidWarmup")}
+                    </div>
                   </div>
 
                   <div style={actionRowStyle}>
@@ -456,7 +473,7 @@ function DayClassesPage() {
                         to={`/associations/${associationId}/shows/${showId}/days/${dayId}/paid-warmups/${warmup.id}/setup`}
                         style={linkButtonStyle}
                       >
-                        Gérer l’ordre de passage
+                        {t("management.classes.manageWarmupOrder")}
                       </Link>
                     )}
 
@@ -467,7 +484,7 @@ function DayClassesPage() {
                         style={dangerButtonStyle}
                         disabled={isSaving}
                       >
-                        Supprimer
+                        {t("management.classes.delete")}
                       </button>
                     )}
                   </div>
@@ -483,7 +500,7 @@ function DayClassesPage() {
               ? "completed"
               : getClassStatus(item);
 
-            const statusLabel = getClassStatusLabel(status);
+            const statusLabel = getClassStatusLabel(status, t);
             const scoringDisabled = status === "draft";
             const isCompleted = status === "completed";
 
@@ -494,18 +511,21 @@ function DayClassesPage() {
                     <div style={cardHeaderStyle}>
                       <div>
                         <div style={cardTitleStyle}>
-                          {item.name || "Classe sans nom"}{" "}
+                          {item.name || t("management.classes.unnamedClass")}{" "}
                           {item.classCode ? `(${item.classCode})` : ""}
                         </div>
 
                         <div style={cardMetaStyle}>
-                          Pattern{" "}
+                          {t("public.results.pattern")}{" "}
                           {getPatternDisplayName(
                             item.pattern,
                             item.customPattern
                           ) || "—"}{" "}
-                          • Juge {officialData.judgeName || "—"}
-                          {item.arena ? ` • Manège ${item.arena}` : ""}
+                          • {t("public.results.judge")}{" "}
+                          {officialData.judgeName || "—"}
+                          {item.arena
+                            ? ` • ${t("public.results.arena")} ${item.arena}`
+                            : ""}
                         </div>
                       </div>
 
@@ -521,7 +541,7 @@ function DayClassesPage() {
                           to={`/associations/${associationId}/classes/${item.id}/setup`}
                           style={linkButtonStyle}
                         >
-                          Ouvrir setup
+                          {t("management.classes.openSetup")}
                         </Link>
                       )}
 
@@ -536,7 +556,7 @@ function DayClassesPage() {
                           onClick={(event) => handleOpenScoring(event, item)}
                           aria-disabled={scoringDisabled}
                         >
-                          Ouvrir scoring
+                          {t("management.classes.openScoring")}
                         </Link>
                       )}
 
@@ -547,7 +567,7 @@ function DayClassesPage() {
                           onClick={() => handleDownloadOfficialPdf(item)}
                           style={secondaryButtonStyle}
                         >
-                          Télécharger PDF
+                          {t("public.results.downloadPdf")}
                         </button>
                       )}
 
@@ -562,7 +582,7 @@ function DayClassesPage() {
                             style={secondaryButtonStyle}
                             disabled={isCompleted || isSaving}
                           >
-                            Modifier
+                            {t("management.classes.edit")}
                           </button>
 
                           <button
@@ -571,7 +591,7 @@ function DayClassesPage() {
                             style={secondaryButtonStyle}
                             disabled={isSaving}
                           >
-                            Dupliquer
+                            {t("management.classes.duplicate")}
                           </button>
 
                           <button
@@ -580,7 +600,7 @@ function DayClassesPage() {
                             style={dangerButtonStyle}
                             disabled={isSaving}
                           >
-                            Supprimer
+                            {t("management.classes.delete")}
                           </button>
                         </>
                       )}
@@ -590,7 +610,9 @@ function DayClassesPage() {
                   <>
                     <div style={editGridStyle}>
                       <div>
-                        <label style={labelStyle}>Nom</label>
+                        <label style={labelStyle}>
+                          {t("management.classes.nameLabel")}
+                        </label>
                         <input
                           type="text"
                           value={draft.name}
@@ -605,7 +627,9 @@ function DayClassesPage() {
                       </div>
 
                       <div>
-                        <label style={labelStyle}>Code</label>
+                        <label style={labelStyle}>
+                          {t("management.classes.codeLabel")}
+                        </label>
                         <input
                           type="text"
                           value={draft.classCode}
@@ -620,7 +644,9 @@ function DayClassesPage() {
                       </div>
 
                       <div>
-                        <label style={labelStyle}>Manège / arena</label>
+                        <label style={labelStyle}>
+                          {t("management.classes.arenaLabel")}
+                        </label>
                         <input
                           type="text"
                           value={draft.arena}
@@ -630,13 +656,15 @@ function DayClassesPage() {
                               arena: e.target.value,
                             }))
                           }
-                          placeholder="Ex. Manège 1"
+                          placeholder={t("management.classes.arenaPlaceholder")}
                           style={inputStyle}
                         />
                       </div>
 
                       <div>
-                        <label style={labelStyle}>Pattern</label>
+                        <label style={labelStyle}>
+                          {t("public.results.pattern")}
+                        </label>
                         <select
                           value={getPatternSelectValue(draft.pattern)}
                           onChange={(e) =>
@@ -647,7 +675,9 @@ function DayClassesPage() {
                           }
                           style={inputStyle}
                         >
-                          <option value="">Choisir un pattern</option>
+                          <option value="">
+                            {t("management.classes.choosePattern")}
+                          </option>
                           {PATTERN_OPTION_GROUPS.map((group) => (
                             <optgroup key={group.label} label={group.label}>
                               {group.options.map((option) => (
@@ -661,7 +691,7 @@ function DayClassesPage() {
                       </div>
 
                       <div>
-                        <label style={labelStyle}>Juge</label>
+                        <label style={labelStyle}>{t("public.results.judge")}</label>
                         <input
                           type="text"
                           value={draft.judgeName}
@@ -683,7 +713,7 @@ function DayClassesPage() {
                         style={primaryButtonStyle}
                         disabled={isSaving}
                       >
-                        Enregistrer
+                        {t("management.classes.save")}
                       </button>
 
                       <button
@@ -692,7 +722,7 @@ function DayClassesPage() {
                         style={secondaryButtonStyle}
                         disabled={isSaving}
                       >
-                        Annuler
+                        {t("management.classes.cancel")}
                       </button>
                     </div>
                   </>
@@ -849,12 +879,32 @@ const emptyStateStyle = {
   color: "#64748b",
 };
 
-function formatPaidWarmupDrag(warmup) {
-  if (!warmup?.dragInterval) return "Aucun drag planifié";
+function formatPaidWarmupDrag(warmup, t) {
+  if (!warmup?.dragInterval) return t("management.classes.noDragPlanned");
 
-  return `Drag après ${warmup.dragInterval} cavalier${
-    warmup.dragInterval > 1 ? "s" : ""
-  }`;
+  return t("management.classes.dragAfter", {
+    interval: warmup.dragInterval,
+    ridersLabel: t(
+      warmup.dragInterval > 1
+        ? "management.classes.ridersPlural"
+        : "management.classes.riderSingular"
+    ),
+  });
+}
+
+function getClassStatusLabel(status, t) {
+  switch (status) {
+    case "draft":
+      return t("management.classes.statusDraft");
+    case "ready":
+      return t("management.classes.statusReady");
+    case "in_progress":
+      return t("management.classes.statusInProgress");
+    case "completed":
+      return t("management.classes.statusCompleted");
+    default:
+      return "—";
+  }
 }
 
 function statusBadgeStyle(status) {

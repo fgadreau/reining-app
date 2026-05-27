@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "../features/i18n/I18nProvider";
 
 function ManoeuvrePicker({
   position,
@@ -19,6 +20,8 @@ function ManoeuvrePicker({
   getColSpan,
   styles,
 }) {
+  const { t } = useTranslation();
+
   if (
     !activeManoeuvre ||
     typeof activeManoeuvre.manoeuvreIndex !== "number" ||
@@ -52,7 +55,8 @@ function ManoeuvrePicker({
           <div style={styles.inlinePickerBox}>
             <div style={styles.inlineHeader}>
               <strong>
-                Pénalités — Draw {run.draw} — {manoeuvreName}
+                {t("management.scoring.penalties")} —{" "}
+                {t("management.announcer.draw")} {run.draw} — {manoeuvreName}
               </strong>
             </div>
 
@@ -71,7 +75,7 @@ function ManoeuvrePicker({
                 style={styles.clearButton}
                 onClick={() => clearPenaltyCell(run.draw, manoeuvreIndex)}
               >
-                Effacer pénalité manoeuvre
+                {t("management.scoring.clearManeuverPenalty")}
               </button>
             </div>
 
@@ -105,7 +109,8 @@ function ManoeuvrePicker({
         <div style={styles.inlinePickerBox}>
           <div style={styles.inlineHeader}>
             <strong>
-              Score manoeuvre — Draw {run.draw} — {manoeuvreName}
+              {t("management.scoring.maneuverScore")} —{" "}
+              {t("management.announcer.draw")} {run.draw} — {manoeuvreName}
             </strong>
           </div>
 
@@ -127,14 +132,14 @@ function ManoeuvrePicker({
               style={styles.clearButton}
               onClick={() => clearScoreCell(run.draw, manoeuvreIndex)}
             >
-              Effacer score
+              {t("management.scoring.clearScore")}
             </button>
 
             <button
               style={styles.closeButton}
               onClick={() => setActiveManoeuvre(null)}
             >
-              Fermer
+              {t("management.announcer.close")}
             </button>
           </div>
         </div>

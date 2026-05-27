@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import AssociationLogo from "../../components/AssociationLogo";
 import ShareButton from "../../components/ShareButton";
 import { getAssociationWebsiteHref } from "../../features/associations/associationProfile";
+import { useTranslation } from "../../features/i18n/I18nProvider";
 import {
   getPublicAssociationRepository,
   getPublicShowsByAssociationRepository,
@@ -14,6 +15,7 @@ function PublicAssociationShowsPage() {
   const [association, setAssociation] = useState(null);
   const [shows, setShows] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { t } = useTranslation();
 
   useEffect(() => {
     let isMounted = true;
@@ -42,7 +44,7 @@ function PublicAssociationShowsPage() {
     <div style={styles.app}>
       <div style={{ marginBottom: 16 }}>
         <Link to="/public" style={secondaryLinkStyle}>
-          ← Associations
+          {t("public.associationShows.back")}
         </Link>
       </div>
 
@@ -50,11 +52,11 @@ function PublicAssociationShowsPage() {
         <div style={associationHeaderStyle}>
           <AssociationLogo association={association} size={64} />
           <div>
-            <div style={eyebrowStyle}>Vitrine publique</div>
-            <h1 style={titleStyle}>{association?.name || "Association"}</h1>
-            <div style={subtitleStyle}>
-              Shows avec live public ou feuilles de pointage publiées
-            </div>
+            <div style={eyebrowStyle}>{t("public.label")}</div>
+            <h1 style={titleStyle}>
+              {association?.name || t("common.association")}
+            </h1>
+            <div style={subtitleStyle}>{t("public.associationShows.subtitle")}</div>
           </div>
         </div>
         <div style={heroActionsStyle}>
@@ -65,24 +67,20 @@ function PublicAssociationShowsPage() {
               rel="noreferrer"
               style={secondaryLinkStyle}
             >
-              Site web
+              {t("common.website")}
             </a>
           )}
           <ShareButton
             url={`/public/associations/${associationId}`}
-            title={association?.name || "Vitrine publique ShowScore"}
+            title={association?.name || t("public.associationShows.shareTitle")}
           />
         </div>
       </section>
 
       {isLoading ? (
-        <div style={emptyStateStyle}>Chargement des shows…</div>
+        <div style={emptyStateStyle}>{t("public.associationShows.loading")}</div>
       ) : shows.length === 0 ? (
-        <div style={emptyStateStyle}>
-          Aucun show public disponible pour cette association. Il faut au moins
-          une classe avec le live public autorisé ou des feuilles de pointage
-          publiées.
-        </div>
+        <div style={emptyStateStyle}>{t("public.associationShows.empty")}</div>
       ) : (
         <div style={showListStyle}>
           {shows.map((show) => (
@@ -90,13 +88,19 @@ function PublicAssociationShowsPage() {
               <div>
                 <h2 style={cardTitleStyle}>{show.name}</h2>
                 <div style={mutedTextStyle}>
-                  {show.venue || show.location || "Lieu à confirmer"}
+                  {show.venue || show.location || t("public.associationShows.venueTbd")}
                   {show.startDate ? ` · ${show.startDate}` : ""}
                 </div>
                 <div style={badgeRowStyle}>
-                  {show.liveClassCount > 0 && <Badge tone="live">Live</Badge>}
+                  {show.liveClassCount > 0 && (
+                    <Badge tone="live">{t("common.live")}</Badge>
+                  )}
                   {show.publishedClassCount > 0 && (
-                    <Badge>{show.publishedClassCount} classe(s) publiée(s)</Badge>
+                    <Badge>
+                      {t("public.associationShows.publishedClasses", {
+                        count: show.publishedClassCount,
+                      })}
+                    </Badge>
                   )}
                 </div>
               </div>
@@ -105,11 +109,11 @@ function PublicAssociationShowsPage() {
                   to={`/public/associations/${associationId}/shows/${show.id}`}
                   style={primaryLinkStyle}
                 >
-                  Voir le show
+                  {t("public.associationShows.viewShow")}
                 </Link>
                 <ShareButton
                   url={`/public/associations/${associationId}/shows/${show.id}`}
-                  title={show.name || "Vitrine publique ShowScore"}
+                  title={show.name || t("public.associationShows.shareTitle")}
                 />
               </div>
             </article>

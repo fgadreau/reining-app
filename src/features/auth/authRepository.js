@@ -1,4 +1,13 @@
 import { getSupabaseClient, isSupabaseConfigured } from "../cloud/supabaseClient";
+import {
+  LOCAL_TEST_AUTH_CHANGED_EVENT,
+  LOCAL_TEST_EMAIL,
+  LOCAL_TEST_PASSWORD,
+  clearLocalTestSession,
+  isLocalTestAuthAvailable,
+  loadLocalTestSession,
+  saveLocalTestSession,
+} from "./localTestAuth";
 
 export function isAuthAvailable() {
   return isSupabaseConfigured();
@@ -43,6 +52,12 @@ export async function saveUserProfile(user) {
 }
 
 export async function getAuthSession() {
+  const localSession = loadLocalTestSession();
+
+  if (localSession) {
+    return localSession;
+  }
+
   const supabase = getSupabaseClient();
 
   if (!supabase) {
@@ -69,6 +84,14 @@ export async function getAuthUser() {
 }
 
 export async function signInWithEmail({ email, password }) {
+  if (
+    isLocalTestAuthAvailable() &&
+    String(email || "").trim().toLowerCase() === LOCAL_TEST_EMAIL &&
+    password === LOCAL_TEST_PASSWORD
+  ) {
+    return signInWithLocalTestUser();
+  }
+
   const supabase = getSupabaseClient();
 
   if (!supabase) {
@@ -89,6 +112,19 @@ export async function signInWithEmail({ email, password }) {
   }
 
   return data;
+}
+
+export async function signInWithLocalTestUser() {
+  const session = saveLocalTestSession();
+
+  if (!session) {
+    throw new Error("Le login de test local n'est pas disponible ici.");
+  }
+
+  return {
+    session,
+    user: session.user,
+  };
 }
 
 export async function signUpWithEmail({
@@ -136,6 +172,8 @@ export async function signUpWithEmail({
 }
 
 export async function signOut() {
+  clearLocalTestSession();
+
   const supabase = getSupabaseClient();
 
   if (!supabase) {
@@ -150,13 +188,38 @@ export async function signOut() {
 }
 
 export function onAuthStateChange(callback) {
+  const handleLocalTestAuthChange = () => {
+    callback(loadLocalTestSession()?.user || null);
+  };
+
+  if (typeof window !== "undefined") {
+    window.addEventListener(
+      LOCAL_TEST_AUTH_CHANGED_EVENT,
+      handleLocalTestAuthChange
+    );
+  }
+
   const supabase = getSupabaseClient();
 
   if (!supabase) {
-    return () => {};
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener(
+          LOCAL_TEST_AUTH_CHANGED_EVENT,
+          handleLocalTestAuthChange
+        );
+      }
+    };
   }
 
   const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    const localSession = loadLocalTestSession();
+
+    if (localSession?.user) {
+      callback(localSession.user);
+      return;
+    }
+
     if (session?.user) {
       saveUserProfile(session.user);
     }
@@ -165,6 +228,13 @@ export function onAuthStateChange(callback) {
   });
 
   return () => {
+    if (typeof window !== "undefined") {
+      window.removeEventListener(
+        LOCAL_TEST_AUTH_CHANGED_EVENT,
+        handleLocalTestAuthChange
+      );
+    }
+
     data?.subscription?.unsubscribe();
   };
 }

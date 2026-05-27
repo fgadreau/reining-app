@@ -8,7 +8,7 @@ import {
   loadUserProfilesByIdsRepository,
   saveAssociationMembershipRepository,
 } from "../../features/auth/accessRepository";
-import { ASSOCIATION_ROLES, getRoleLabel } from "../../features/auth/accessRoles";
+import { ASSOCIATION_ROLES } from "../../features/auth/accessRoles";
 import {
   buildAssociationInvitationEmail,
   buildAssociationInvitationMailto,
@@ -20,6 +20,7 @@ import {
   loadAssociationInvitationsRepository,
 } from "../../features/auth/invitationRepository";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
+import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
 
 const roleOptions = [
@@ -32,6 +33,7 @@ const roleOptions = [
 function AssociationAccessPage() {
   const { associationId } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const access = useAssociationAccess(associationId);
   const [association, setAssociation] = useState(null);
   const [memberships, setMemberships] = useState([]);
@@ -82,7 +84,7 @@ function AssociationAccessPage() {
     setLastInvitation(null);
 
     if (!nextEmail) {
-      setNotice("Le courriel est requis.");
+      setNotice(t("management.access.emailRequired"));
       return;
     }
 
@@ -105,14 +107,12 @@ function AssociationAccessPage() {
       setInvitations(nextInvitations);
       setIsSaving(false);
       if (!invitation) {
-        setNotice("Impossible de créer l'invitation pour ce courriel.");
+        setNotice(t("management.access.invitationCreateFailed"));
         return;
       }
 
       setLastInvitation(invitation);
-      setNotice(
-        "Utilisateur introuvable pour l'instant. Une invitation a été créée."
-      );
+      setNotice(t("management.access.invitationCreated"));
       setEmail("");
       setRole(ASSOCIATION_ROLES.SECRETARY);
       return;
@@ -137,12 +137,12 @@ function AssociationAccessPage() {
     if (saved) {
       setEmail("");
       setRole(ASSOCIATION_ROLES.SECRETARY);
-      setNotice("Accès ajouté.");
+      setNotice(t("management.access.accessAdded"));
     }
   }
 
   async function handleDelete(membershipId) {
-    const confirmed = window.confirm("Retirer cet accès ?");
+    const confirmed = window.confirm(t("management.access.removeConfirm"));
     if (!confirmed) return;
 
     setIsSaving(true);
@@ -154,7 +154,9 @@ function AssociationAccessPage() {
   }
 
   async function handleCancelInvitation(invitationId) {
-    const confirmed = window.confirm("Annuler cette invitation ?");
+    const confirmed = window.confirm(
+      t("management.access.cancelInvitationConfirm")
+    );
     if (!confirmed) return;
 
     setIsSaving(true);
@@ -177,6 +179,7 @@ function AssociationAccessPage() {
       invitation,
       origin,
       associationName: association?.name,
+      copy: getInvitationEmailCopy(t, association),
     });
   }
 
@@ -187,6 +190,7 @@ function AssociationAccessPage() {
       invitation,
       origin,
       associationName: association?.name,
+      copy: getInvitationEmailCopy(t, association),
     });
   }
 
@@ -194,8 +198,8 @@ function AssociationAccessPage() {
     const invitationEmail = getInvitationEmail(invitation);
 
     return [
-      `À: ${invitationEmail.to}`,
-      `Sujet: ${invitationEmail.subject}`,
+      `${t("management.access.emailTo")}: ${invitationEmail.to}`,
+      `${t("management.access.emailSubjectLabel")}: ${invitationEmail.subject}`,
       "",
       invitationEmail.body,
     ].join("\n");
@@ -206,11 +210,11 @@ function AssociationAccessPage() {
 
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(invitationUrl);
-      setNotice("Lien d'invitation copie.");
+      setNotice(t("management.access.invitationLinkCopied"));
       return;
     }
 
-    window.prompt("Copie ce lien d'invitation:", invitationUrl);
+    window.prompt(t("management.access.invitationLinkPrompt"), invitationUrl);
   }
 
   async function copyInvitationMessage(invitation) {
@@ -219,14 +223,14 @@ function AssociationAccessPage() {
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(message);
-        setNotice("Message d'invitation copié.");
+        setNotice(t("management.access.invitationMessageCopied"));
         return;
       }
     } catch (error) {
       console.error("Erreur copie invitation:", error);
     }
 
-    window.prompt("Copie ce message d'invitation:", message);
+    window.prompt(t("management.access.invitationMessagePrompt"), message);
   }
 
   function openInvitationEmail(invitation) {
@@ -236,27 +240,23 @@ function AssociationAccessPage() {
         "_blank",
         "noopener,noreferrer"
       );
-      setNotice(
-        "Le courriel s'est ouvert dans un nouvel onglet. ShowScore reste ouvert ici."
-      );
+      setNotice(t("management.access.emailOpenedNotice"));
       return;
     } catch (error) {
       console.error("Erreur ouverture invitation:", error);
     }
 
-    setNotice(
-      "Le navigateur a bloqué l'ouverture du courriel. Copie le message d'invitation."
-    );
+    setNotice(t("management.access.emailBlockedNotice"));
   }
 
   if (!access.isConfigured) {
     return (
       <div style={styles.app}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          ← Retour
+          {t("public.results.back")}
         </button>
         <div style={emptyStateStyle}>
-          Les accès utilisateurs sont gérés avec Supabase.
+          {t("management.access.supabaseOnly")}
         </div>
       </div>
     );
@@ -266,10 +266,10 @@ function AssociationAccessPage() {
     return (
       <div style={styles.app}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          ← Retour
+          {t("public.results.back")}
         </button>
         <div style={emptyStateStyle}>
-          Seul un admin peut gérer les accès de cette association.
+          {t("management.access.adminOnly")}
         </div>
       </div>
     );
@@ -279,28 +279,28 @@ function AssociationAccessPage() {
     <div style={styles.app}>
       <div style={{ marginBottom: 16 }}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          ← Retour
+          {t("public.results.back")}
         </button>
       </div>
 
       <section style={headerStyle}>
         <div>
           <div style={eyebrowStyle}>Admin</div>
-          <h1 style={titleStyle}>Accès utilisateurs</h1>
+          <h1 style={titleStyle}>{t("management.access.title")}</h1>
           <div style={subtitleStyle}>
-            {association?.name || "Association"}
+            {association?.name || t("common.association")}
           </div>
         </div>
         <Link to={`/associations/${associationId}/shows`} style={linkButtonStyle}>
-          Shows
+          {t("common.shows")}
         </Link>
       </section>
 
       <section style={cardStyle}>
-        <h2 style={sectionTitleStyle}>Ajouter un accès</h2>
+        <h2 style={sectionTitleStyle}>{t("management.access.addAccess")}</h2>
         <form onSubmit={handleSubmit} style={formStyle}>
           <label style={labelStyle}>
-            <span>Courriel utilisateur</span>
+            <span>{t("management.access.userEmail")}</span>
             <input
               type="email"
               value={email}
@@ -311,7 +311,7 @@ function AssociationAccessPage() {
           </label>
 
           <label style={labelStyle}>
-            <span>Rôle</span>
+            <span>{t("management.access.role")}</span>
             <select
               value={role}
               onChange={(event) => setRole(event.target.value)}
@@ -319,14 +319,14 @@ function AssociationAccessPage() {
             >
               {roleOptions.map((option) => (
                 <option key={option} value={option}>
-                  {getRoleLabel(option)}
+                  {getAssociationRoleLabel(option, t)}
                 </option>
               ))}
             </select>
           </label>
 
           <button type="submit" style={primaryButtonStyle} disabled={isSaving}>
-            Ajouter / inviter
+            {t("management.access.submitInvite")}
           </button>
         </form>
 
@@ -335,7 +335,7 @@ function AssociationAccessPage() {
         {lastInvitation && (
           <div style={invitationBoxStyle}>
             <div style={{ fontWeight: 800, marginBottom: 6 }}>
-              Lien d'invitation
+              {t("management.access.invitationLink")}
             </div>
             <input
               readOnly
@@ -349,21 +349,21 @@ function AssociationAccessPage() {
                 onClick={() => copyInvitationLink(lastInvitation)}
                 style={secondaryButtonStyle}
               >
-                Copier le lien
+                {t("management.access.copyLink")}
               </button>
               <button
                 type="button"
                 onClick={() => copyInvitationMessage(lastInvitation)}
                 style={secondaryButtonStyle}
               >
-                Copier le message
+                {t("management.access.copyMessage")}
               </button>
               <button
                 type="button"
                 onClick={() => openInvitationEmail(lastInvitation)}
                 style={secondaryButtonStyle}
               >
-                Ouvrir le courriel
+                {t("management.access.openEmail")}
               </button>
             </div>
           </div>
@@ -371,21 +371,23 @@ function AssociationAccessPage() {
       </section>
 
       <section style={cardStyle}>
-        <h2 style={sectionTitleStyle}>Accès actifs</h2>
+        <h2 style={sectionTitleStyle}>{t("management.access.activeAccess")}</h2>
 
         {isLoading ? (
-          <div style={softEmptyStyle}>Chargement…</div>
+          <div style={softEmptyStyle}>{t("common.loading")}</div>
         ) : memberships.length === 0 ? (
-          <div style={softEmptyStyle}>Aucun accès pour cette association.</div>
+          <div style={softEmptyStyle}>
+            {t("management.access.noActiveAccess")}
+          </div>
         ) : (
           <div style={tableWrapStyle}>
             <table style={tableStyle}>
               <thead>
                 <tr>
-                  <th style={thStyle}>User ID</th>
-                  <th style={thStyle}>Courriel</th>
-                  <th style={thStyle}>Rôle</th>
-                  <th style={thStyle}>Action</th>
+                  <th style={thStyle}>{t("management.access.userId")}</th>
+                  <th style={thStyle}>{t("management.access.email")}</th>
+                  <th style={thStyle}>{t("management.access.role")}</th>
+                  <th style={thStyle}>{t("management.access.action")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -395,7 +397,9 @@ function AssociationAccessPage() {
                     <td style={tdStyle}>
                       {profilesByUserId[membership.userId]?.email || "—"}
                     </td>
-                    <td style={tdStyle}>{getRoleLabel(membership.role)}</td>
+                    <td style={tdStyle}>
+                      {getAssociationRoleLabel(membership.role, t)}
+                    </td>
                     <td style={tdStyle}>
                       <button
                         type="button"
@@ -403,7 +407,7 @@ function AssociationAccessPage() {
                         style={dangerButtonStyle}
                         disabled={isSaving}
                       >
-                        Retirer
+                        {t("management.access.remove")}
                       </button>
                     </td>
                   </tr>
@@ -415,28 +419,34 @@ function AssociationAccessPage() {
       </section>
 
       <section style={cardStyle}>
-        <h2 style={sectionTitleStyle}>Invitations en attente</h2>
+        <h2 style={sectionTitleStyle}>
+          {t("management.access.pendingInvitations")}
+        </h2>
 
         {isLoading ? (
-          <div style={softEmptyStyle}>Chargement…</div>
+          <div style={softEmptyStyle}>{t("common.loading")}</div>
         ) : invitations.length === 0 ? (
-          <div style={softEmptyStyle}>Aucune invitation en attente.</div>
+          <div style={softEmptyStyle}>
+            {t("management.access.noPendingInvitations")}
+          </div>
         ) : (
           <div style={tableWrapStyle}>
             <table style={tableStyle}>
               <thead>
                 <tr>
-                  <th style={thStyle}>Courriel</th>
-                  <th style={thStyle}>Rôle</th>
-                  <th style={thStyle}>Lien</th>
-                  <th style={thStyle}>Action</th>
+                  <th style={thStyle}>{t("management.access.email")}</th>
+                  <th style={thStyle}>{t("management.access.role")}</th>
+                  <th style={thStyle}>{t("management.access.link")}</th>
+                  <th style={thStyle}>{t("management.access.action")}</th>
                 </tr>
               </thead>
               <tbody>
                 {invitations.map((invitation) => (
                   <tr key={invitation.id}>
                     <td style={tdStyle}>{invitation.email}</td>
-                    <td style={tdStyle}>{getRoleLabel(invitation.role)}</td>
+                    <td style={tdStyle}>
+                      {getAssociationRoleLabel(invitation.role, t)}
+                    </td>
                     <td style={tdStyle}>
                       <div style={compactActionRowStyle}>
                         <button
@@ -444,21 +454,21 @@ function AssociationAccessPage() {
                           onClick={() => copyInvitationLink(invitation)}
                           style={secondaryButtonStyle}
                         >
-                          Copier
+                          {t("management.access.copy")}
                         </button>
                         <button
                           type="button"
                           onClick={() => copyInvitationMessage(invitation)}
                           style={secondaryButtonStyle}
                         >
-                          Message
+                          {t("management.access.message")}
                         </button>
                         <button
                           type="button"
                           onClick={() => openInvitationEmail(invitation)}
                           style={secondaryButtonStyle}
                         >
-                          Courriel
+                          {t("management.access.email")}
                         </button>
                       </div>
                     </td>
@@ -469,7 +479,7 @@ function AssociationAccessPage() {
                         style={dangerButtonStyle}
                         disabled={isSaving}
                       >
-                        Annuler
+                        {t("management.access.cancel")}
                       </button>
                     </td>
                   </tr>
@@ -481,6 +491,34 @@ function AssociationAccessPage() {
       </section>
     </div>
   );
+}
+
+function getAssociationRoleLabel(role, t) {
+  switch (role) {
+    case ASSOCIATION_ROLES.ADMIN:
+      return t("management.access.roleAdmin");
+    case ASSOCIATION_ROLES.SECRETARY:
+      return t("management.access.roleSecretary");
+    case ASSOCIATION_ROLES.SCRIBE:
+      return t("management.access.roleScribe");
+    case ASSOCIATION_ROLES.ANNOUNCER:
+      return t("management.access.roleAnnouncer");
+    default:
+      return role || t("management.access.roleFallback");
+  }
+}
+
+function getInvitationEmailCopy(t, association) {
+  const associationName = association?.name || t("common.association");
+
+  return {
+    associationFallback: t("common.association"),
+    subject: t("management.access.invitationEmailSubject"),
+    bodyIntro: t("management.access.invitationEmailIntro", {
+      associationName,
+    }),
+    bodyAction: t("management.access.invitationEmailAction"),
+  };
 }
 
 const headerStyle = {

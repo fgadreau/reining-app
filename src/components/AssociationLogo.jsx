@@ -1,9 +1,13 @@
 import React from "react";
 import { getAssociationInitials } from "../features/associations/associationProfile";
+import { useTranslation } from "../features/i18n/I18nProvider";
 
 function AssociationLogo({ association, size = 64 }) {
+  const { t } = useTranslation();
   const logoSource = String(association?.logoDataUrl || "").trim();
   const initials = getAssociationInitials(association);
+  const associationName =
+    association?.shortName || association?.name || t("common.association");
   const logoStyle = {
     ...baseLogoStyle,
     width: size,
@@ -16,7 +20,9 @@ function AssociationLogo({ association, size = 64 }) {
     return (
       <img
         src={logoSource}
-        alt={`Logo ${association?.shortName || association?.name || "association"}`}
+        alt={t("management.associations.logoAlt", {
+          associationName,
+        })}
         style={{ ...logoStyle, objectFit: "contain" }}
       />
     );

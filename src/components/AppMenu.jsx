@@ -1,7 +1,9 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
+import LanguageSwitcher from "./LanguageSwitcher";
 import { useAssociationAccess } from "../features/auth/useAssociationAccess";
 import { useAuthUser } from "../features/auth/useAuthUser";
+import { useTranslation } from "../features/i18n/I18nProvider";
 
 function parseContext(pathname) {
   const match = pathname.match(
@@ -17,6 +19,7 @@ function parseContext(pathname) {
 function AppMenu() {
   const location = useLocation();
   const auth = useAuthUser();
+  const { t } = useTranslation();
   const { associationId, showId } = parseContext(location.pathname);
   const access = useAssociationAccess(associationId);
   const isPublicPath = location.pathname.startsWith("/public");
@@ -24,16 +27,16 @@ function AppMenu() {
   const shouldShowGlobalPublicLink = isPublicPath || !showId;
 
   return (
-    <nav style={navStyle} aria-label="Navigation principale">
+    <nav style={navStyle} aria-label={t("nav.main")}>
       <Link to="/" style={linkStyle(location.pathname === "/")}>
-        Accueil
+        {t("nav.home")}
       </Link>
       {shouldShowGlobalPublicLink && (
         <Link
           to="/public"
           style={linkStyle(isPublicPath)}
         >
-          Vitrine publique
+          {t("nav.publicShowcase")}
         </Link>
       )}
 
@@ -42,7 +45,7 @@ function AppMenu() {
           to="/associations"
           style={linkStyle(location.pathname.startsWith("/associations"))}
         >
-          Gestion
+          {t("nav.management")}
         </Link>
       )}
 
@@ -51,7 +54,7 @@ function AppMenu() {
           to={`/associations/${associationId}/shows`}
           style={linkStyle(location.pathname.endsWith("/shows"))}
         >
-          Shows
+          {t("nav.shows")}
         </Link>
       )}
 
@@ -62,7 +65,7 @@ function AppMenu() {
             location.pathname === `/associations/${associationId}/shows/${showId}`
           )}
         >
-          Show
+          {t("nav.show")}
         </Link>
       )}
 
@@ -71,7 +74,7 @@ function AppMenu() {
           to={`/associations/${associationId}/shows/${showId}/time`}
           style={linkStyle(location.pathname.includes("/time"))}
         >
-          Temps des journées
+          {t("nav.dayTiming")}
         </Link>
       )}
 
@@ -80,7 +83,7 @@ function AppMenu() {
           to={`/associations/${associationId}/shows/${showId}/secretariat`}
           style={linkStyle(location.pathname.includes("/secretariat"))}
         >
-          Secrétariat
+          {t("nav.secretariat")}
         </Link>
       )}
 
@@ -89,7 +92,7 @@ function AppMenu() {
           to={`/associations/${associationId}/shows/${showId}/announcer`}
           style={linkStyle(location.pathname.includes("/announcer"))}
         >
-          Annonceur
+          {t("nav.announcer")}
         </Link>
       )}
 
@@ -98,7 +101,7 @@ function AppMenu() {
           to={`/public/associations/${associationId}/shows/${showId}`}
           style={linkStyle(false)}
         >
-          Vitrine publique
+          {t("nav.publicShowcase")}
         </Link>
       )}
 
@@ -107,15 +110,18 @@ function AppMenu() {
           to={`/associations/${associationId}/access`}
           style={linkStyle(location.pathname.includes("/access"))}
         >
-          Accès
+          {t("nav.access")}
         </Link>
       )}
 
       {auth.isConfigured && !auth.isAuthenticated && (
         <Link to="/login" style={linkStyle(location.pathname === "/login")}>
-          Connexion
+          {t("nav.login")}
         </Link>
       )}
+
+      <span style={spacerStyle} />
+      <LanguageSwitcher />
     </nav>
   );
 }
@@ -143,5 +149,10 @@ const linkStyle = (isActive) => ({
   fontWeight: isActive ? 800 : 700,
   textDecoration: "none",
 });
+
+const spacerStyle = {
+  flex: 1,
+  minWidth: 8,
+};
 
 export default AppMenu;

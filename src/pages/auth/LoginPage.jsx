@@ -2,14 +2,21 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   isAuthAvailable,
+  signInWithLocalTestUser,
   signInWithEmail,
   signUpWithEmail,
 } from "../../features/auth/authRepository";
+import {
+  LOCAL_TEST_EMAIL,
+  LOCAL_TEST_PASSWORD,
+  isLocalTestAuthAvailable,
+} from "../../features/auth/localTestAuth";
 import {
   redeemAssociationInvitationRepository,
   redeemPendingAssociationInvitationsRepository,
 } from "../../features/auth/invitationRepository";
 import { useAuthUser } from "../../features/auth/useAuthUser";
+import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
 
 const LEGAL_VERSION = "2026-05-26";
@@ -17,6 +24,7 @@ const LEGAL_VERSION = "2026-05-26";
 function LoginPage() {
   const navigate = useNavigate();
   const auth = useAuthUser();
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get("invite") || "";
   const inviteEmail = searchParams.get("email") || "";
@@ -36,6 +44,7 @@ function LoginPage() {
       authEmailNormalized &&
       inviteEmailNormalized !== authEmailNormalized
   );
+  const canUseLocalTestLogin = isAuthAvailable() && isLocalTestAuthAvailable();
 
   useEffect(() => {
     if (inviteEmail) {
@@ -58,16 +67,16 @@ function LoginPage() {
           token: inviteToken,
           user,
         }),
-        "L'acceptation de l'invitation prend trop de temps. Réessaie dans quelques secondes."
+        t("login.invitationAcceptTimeout")
       );
     }
 
     const redeemed = await withTimeout(
       redeemPendingAssociationInvitationsRepository(user),
-      "La vérification des invitations prend trop de temps. Réessaie dans quelques secondes."
+      t("login.pendingInvitesTimeout")
     );
     return redeemed[0] || null;
-  }, [inviteToken]);
+  }, [inviteToken, t]);
 
   const navigateAfterAuth = useCallback((redeemed) => {
     if (redeemed?.membership?.associationId) {
@@ -85,7 +94,10 @@ function LoginPage() {
 
     if (hasInviteSessionMismatch) {
       setMessage(
-        `Tu es connecté avec ${auth.user.email}, mais cette invitation est pour ${inviteEmail}. Déconnecte-toi, puis ouvre le lien avec le bon compte.`
+        t("login.inviteSessionMismatch", {
+          currentEmail: auth.user.email,
+          inviteEmail,
+        })
       );
       return;
     }
@@ -95,7 +107,7 @@ function LoginPage() {
     async function autoRedeemInvitation() {
       hasTriedAutoRedeemRef.current = true;
       setIsSubmitting(true);
-      setMessage("Acceptation de l'invitation en cours...");
+      setMessage(t("login.acceptingInvitation"));
 
       try {
         const redeemed = await redeemInvitations(auth.user);
@@ -104,7 +116,7 @@ function LoginPage() {
         navigateAfterAuth(redeemed);
       } catch (error) {
         if (!isMounted) return;
-        setMessage(error.message || "Invitation impossible à accepter.");
+        setMessage(error.message || t("login.invitationAcceptFailed"));
       } finally {
         if (isMounted) {
           setIsSubmitting(false);
@@ -124,6 +136,7 @@ function LoginPage() {
     inviteToken,
     navigateAfterAuth,
     redeemInvitations,
+    t,
   ]);
 
   async function handleSubmit(event) {
@@ -131,14 +144,12 @@ function LoginPage() {
     setMessage("");
 
     if (!email.trim() || !password) {
-      setMessage("Entre ton courriel et ton mot de passe.");
+      setMessage(t("login.missingCredentials"));
       return;
     }
 
     if (mode === "signup" && !hasAcceptedLegal) {
-      setMessage(
-        "Tu dois accepter les conditions d'utilisation et la politique de confidentialité pour créer un compte."
-      );
+      setMessage(t("login.legalRequired"));
       return;
     }
 
@@ -147,7 +158,10 @@ function LoginPage() {
     try {
       if (hasInviteSessionMismatch) {
         setMessage(
-          `Tu es connecté avec ${auth.user.email}, mais cette invitation est pour ${inviteEmail}. Déconnecte-toi avant de créer ou accepter ce compte.`
+          t("login.inviteSessionMismatchSubmit", {
+            currentEmail: auth.user.email,
+            inviteEmail,
+          })
         );
         return;
       }
@@ -182,8 +196,8 @@ function LoginPage() {
 
         setMessage(
           inviteToken
-            ? "Compte créé. Vérifie ton courriel. Le lien de confirmation devrait te ramener ici pour accepter l'invitation."
-            : "Compte créé. Vérifie ton courriel, puis reviens te connecter."
+            ? t("login.accountCreatedInvite")
+            : t("login.accountCreated")
         );
       } else {
         const data = await signInWithEmail({
@@ -194,7 +208,21 @@ function LoginPage() {
         navigateAfterAuth(redeemed);
       }
     } catch (error) {
-      setMessage(error.message || "Connexion impossible.");
+      setMessage(error.message || t("login.signInFailed"));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleLocalTestLogin() {
+    setMessage("");
+    setIsSubmitting(true);
+
+    try {
+      await signInWithLocalTestUser();
+      navigate("/associations");
+    } catch (error) {
+      setMessage(error.message || t("login.localTestFailed"));
     } finally {
       setIsSubmitting(false);
     }
@@ -204,37 +232,55 @@ function LoginPage() {
     <div style={styles.app}>
       <div style={{ marginBottom: 16 }}>
         <Link to="/" style={secondaryLinkStyle}>
-          ← Accueil
+          {t("login.backHome")}
         </Link>
       </div>
 
       <section style={cardStyle}>
         <div style={eyebrowStyle}>Supabase</div>
         <h1 style={titleStyle}>
-          {mode === "signup" ? "Créer un accès" : "Connexion"}
+          {mode === "signup" ? t("login.titleSignUp") : t("login.titleSignIn")}
         </h1>
         <p style={subtitleStyle}>
           {inviteToken
-            ? "Crée ton compte ou connecte-toi avec le courriel invité pour rejoindre l'association."
-            : "Connecte le poste du secrétariat ou du scribe pour écrire dans le cloud."}
+            ? t("login.inviteSubtitle")
+            : t("login.defaultSubtitle")}
         </p>
 
         {inviteToken && (
           <div style={inviteNoticeStyle}>
-            Invitation détectée. Utilise le courriel invité pour accepter
-            automatiquement l'accès après la connexion.
+            {t("login.inviteNotice")}
+          </div>
+        )}
+
+        {canUseLocalTestLogin && (
+          <div style={localTestBoxStyle}>
+            <div style={localTestTitleStyle}>{t("login.localTestTitle")}</div>
+            <div style={helperTextStyle}>
+              {t("login.localTestDescription")}
+            </div>
+            <div style={localTestCredentialsStyle}>
+              {LOCAL_TEST_EMAIL} / {LOCAL_TEST_PASSWORD}
+            </div>
+            <button
+              type="button"
+              onClick={handleLocalTestLogin}
+              style={secondaryButtonStyle}
+              disabled={isSubmitting}
+            >
+              {t("login.localTestButton")}
+            </button>
           </div>
         )}
 
         {!isAuthAvailable() ? (
           <div style={warningStyle}>
-            Supabase n’est pas configuré. Ajoute les variables dans `.env.local`,
-            puis redémarre `npm start`.
+            {t("login.supabaseMissing")}
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={formStyle}>
             <label style={labelStyle}>
-              <span>Courriel</span>
+              <span>{t("login.emailLabel")}</span>
               <input
                 type="email"
                 value={email}
@@ -253,18 +299,18 @@ function LoginPage() {
               />
               {hasLockedInviteEmail && (
                 <span style={helperTextStyle}>
-                  Ce courriel vient du lien d'invitation.
+                  {t("login.inviteEmailHelper")}
                 </span>
               )}
             </label>
 
             <label style={labelStyle}>
-              <span>Mot de passe</span>
+              <span>{t("login.passwordLabel")}</span>
               <input
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder="Mot de passe"
+                placeholder={t("login.passwordPlaceholder")}
                 style={inputStyle}
                 autoComplete={
                   mode === "signup" ? "new-password" : "current-password"
@@ -282,19 +328,19 @@ function LoginPage() {
                   }
                 />
                 <span>
-                  J'accepte les{" "}
+                  {t("login.acceptLegalStart")}{" "}
                   <Link to="/terms" style={inlineLinkStyle}>
-                    conditions d'utilisation
+                    {t("login.termsLink")}
                   </Link>
-                  , la{" "}
+                  {t("login.acceptLegalPrivacyJoin")}{" "}
                   <Link to="/privacy" style={inlineLinkStyle}>
-                    politique de confidentialité
+                    {t("login.privacyPolicyLink")}
                   </Link>{" "}
-                  et l'
+                  {t("login.acceptLegalResultsJoin")}
                   <Link to="/results-notice" style={inlineLinkStyle}>
-                    avis sur les résultats
+                    {t("login.resultsNoticeLink")}
                   </Link>
-                  .
+                  {t("login.acceptLegalEnd")}
                 </span>
               </label>
             )}
@@ -307,7 +353,9 @@ function LoginPage() {
                 style={primaryButtonStyle}
                 disabled={isSubmitting}
               >
-                {mode === "signup" ? "Créer le compte" : "Se connecter"}
+                {mode === "signup"
+                  ? t("login.createAccountButton")
+                  : t("login.signInButton")}
               </button>
 
               <button
@@ -320,7 +368,9 @@ function LoginPage() {
                 style={secondaryButtonStyle}
                 disabled={isSubmitting}
               >
-                {mode === "signup" ? "J’ai déjà un compte" : "Créer un compte"}
+                {mode === "signup"
+                  ? t("login.haveAccountButton")
+                  : t("login.createAccountModeButton")}
               </button>
             </div>
           </form>
@@ -329,15 +379,15 @@ function LoginPage() {
 
       <div style={legalLinksStyle}>
         <Link to="/terms" style={inlineLinkStyle}>
-          Conditions d'utilisation
+          {t("home.terms")}
         </Link>
         <span>·</span>
         <Link to="/privacy" style={inlineLinkStyle}>
-          Confidentialité
+          {t("home.privacy")}
         </Link>
         <span>·</span>
         <Link to="/results-notice" style={inlineLinkStyle}>
-          Avis sur les résultats
+          {t("home.resultsNotice")}
         </Link>
       </div>
     </div>
@@ -478,6 +528,28 @@ const inviteNoticeStyle = {
   borderRadius: 8,
   padding: 12,
   marginTop: 16,
+};
+
+const localTestBoxStyle = {
+  border: "1px solid #cbd5e1",
+  background: "#f8fafc",
+  borderRadius: 8,
+  padding: 12,
+  marginTop: 16,
+  display: "grid",
+  gap: 8,
+};
+
+const localTestTitleStyle = {
+  color: "#0f172a",
+  fontWeight: 800,
+};
+
+const localTestCredentialsStyle = {
+  color: "#334155",
+  fontSize: 13,
+  fontWeight: 700,
+  fontFamily: "monospace",
 };
 
 function normalizeEmail(value) {

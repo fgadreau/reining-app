@@ -13,6 +13,7 @@ import {
 } from "../../features/auth/accessRoles";
 import { useAuthUser } from "../../features/auth/useAuthUser";
 import { getCloudSyncStatus } from "../../features/cloud/supabaseStatus";
+import { useTranslation } from "../../features/i18n/I18nProvider";
 import { getPublicAssociationsRepository } from "../../features/publication/publicViewRepository";
 import { appStyles as styles } from "../../styles/appStyles";
 
@@ -23,23 +24,11 @@ const BACK_OFFICE_ROLES = [
   ASSOCIATION_ROLES.ANNOUNCER,
 ];
 
-const ASSOCIATION_WORKFLOW = [
-  {
-    title: "Préparer l’événement",
-    text: "Créez vos shows, journées, classes et patterns au même endroit.",
-  },
-  {
-    title: "Importer les draws",
-    text: "Ajoutez les ordres de passage par CSV, PDF ou saisie manuelle.",
-  },
-  {
-    title: "Enregistrer les pointages",
-    text: "Entrez les scores en direct avec une protection prévue pour les connexions instables en concours.",
-  },
-  {
-    title: "Publier les pointages",
-    text: "Suivez le live, validez les feuilles de pointage et partagez la vitrine publique.",
-  },
+const ASSOCIATION_WORKFLOW_KEYS = [
+  "prepare",
+  "importDraws",
+  "score",
+  "publish",
 ];
 
 const SUPPORTED_DISCIPLINES = [
@@ -54,20 +43,21 @@ const SUPPORTED_DISCIPLINES = [
 ];
 
 const LEGAL_LINKS = [
-  { to: "/terms", label: "Conditions d'utilisation" },
-  { to: "/privacy", label: "Confidentialité" },
-  { to: "/results-notice", label: "Avis sur les résultats" },
+  { to: "/terms", labelKey: "home.terms" },
+  { to: "/privacy", labelKey: "home.privacy" },
+  { to: "/results-notice", labelKey: "home.resultsNotice" },
 ];
 
 function HomePage() {
   const auth = useAuthUser();
+  const { t } = useTranslation();
   const [publicAssociations, setPublicAssociations] = useState([]);
   const [managementAssociations, setManagementAssociations] = useState([]);
   const [memberships, setMemberships] = useState([]);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const cloudStatus = getCloudSyncStatus(auth.user);
-  const isLocalMode = !auth.isConfigured;
+  const isLocalMode = !auth.isConfigured || auth.isLocalTestUser;
   const canLoadManagement = isLocalMode || auth.isAuthenticated;
 
   useEffect(() => {
@@ -83,10 +73,10 @@ function HomePage() {
       ] = await Promise.all([
         getPublicAssociationsRepository(),
         canLoadManagement ? loadAssociationsRepository() : Promise.resolve([]),
-        auth.isConfigured && auth.user?.id
+        auth.isConfigured && !auth.isLocalTestUser && auth.user?.id
           ? loadUserMembershipsRepository(auth.user.id)
           : Promise.resolve([]),
-        auth.isConfigured && auth.user?.id
+        auth.isConfigured && !auth.isLocalTestUser && auth.user?.id
           ? loadIsPlatformAdminRepository()
           : Promise.resolve(false),
       ]);
@@ -104,7 +94,12 @@ function HomePage() {
     return () => {
       isMounted = false;
     };
-  }, [auth.isConfigured, auth.user?.id, canLoadManagement]);
+  }, [
+    auth.isConfigured,
+    auth.isLocalTestUser,
+    auth.user?.id,
+    canLoadManagement,
+  ]);
 
   const visibleManagementAssociations = useMemo(() => {
     const source =
@@ -122,48 +117,38 @@ function HomePage() {
       <section style={heroStyle}>
         <div style={heroContentStyle}>
           <div style={eyebrowStyle}>ShowScore</div>
-          <h1 style={titleStyle}>
-            Pointage en direct pour compétitions équestres jugées
-          </h1>
-          <div style={subtitleStyle}>
-            ShowScore aide les associations de compétitions équestres jugées à
-            préparer les classes, enregistrer les pointages, suivre le
-            déroulement d’une journée et publier les feuilles de pointage au
-            public.
-          </div>
+          <h1 style={titleStyle}>{t("home.title")}</h1>
+          <div style={subtitleStyle}>{t("home.subtitle")}</div>
           <div style={actionRowStyle}>
             <Link to="/public" style={primaryLinkStyle}>
-              Voir la vitrine publique
+              {t("home.viewPublicShowcase")}
             </Link>
             {canLoadManagement ? (
               <Link to="/associations" style={secondaryLinkStyle}>
-                Continuer la gestion
+                {t("home.continueManagement")}
               </Link>
             ) : (
               <Link to="/login" style={secondaryLinkStyle}>
-                Connexion gestionnaire
+                {t("home.managerLogin")}
               </Link>
             )}
           </div>
         </div>
         <div style={statusPanelStyle}>
-          <div style={statusLabelStyle}>Plateforme</div>
+          <div style={statusLabelStyle}>{t("home.platform")}</div>
           <div style={statusValueStyle}>
-            {cloudStatus.configured
+            {cloudStatus.mode === "local-test"
+              ? t("home.platformLocalTest")
+              : cloudStatus.configured
               ? cloudStatus.authenticated
-                ? "Connectée"
-                : "Publique"
-              : "Mode local"}
+                ? t("home.platformConnected")
+                : t("home.platformPublic")
+              : t("home.platformLocal")}
           </div>
-          <div style={statusTextStyle}>
-            Feuilles de pointage publiques, live et outils de gestion du temps
-            pour les associations.
-          </div>
-          <div style={developmentNoticeStyle}>
-            Utilisation gratuite garantie pour 2026, année de développement.
-          </div>
+          <div style={statusTextStyle}>{t("home.platformText")}</div>
+          <div style={developmentNoticeStyle}>{t("home.developmentNotice")}</div>
           <div>
-            <div style={statusLabelStyle}>Disciplines supportées</div>
+            <div style={statusLabelStyle}>{t("home.supportedDisciplines")}</div>
             <div style={disciplineListStyle}>
               {SUPPORTED_DISCIPLINES.map((discipline) => (
                 <span key={discipline} style={disciplinePillStyle}>
@@ -176,11 +161,13 @@ function HomePage() {
       </section>
 
       <section style={workflowGridStyle}>
-        {ASSOCIATION_WORKFLOW.map((item, index) => (
-          <article key={item.title} style={workflowCardStyle}>
+        {ASSOCIATION_WORKFLOW_KEYS.map((key, index) => (
+          <article key={key} style={workflowCardStyle}>
             <div style={stepNumberStyle}>{index + 1}</div>
-            <h2 style={workflowTitleStyle}>{item.title}</h2>
-            <p style={workflowTextStyle}>{item.text}</p>
+            <h2 style={workflowTitleStyle}>
+              {t(`home.workflow.${key}.title`)}
+            </h2>
+            <p style={workflowTextStyle}>{t(`home.workflow.${key}.text`)}</p>
           </article>
         ))}
       </section>
@@ -188,32 +175,27 @@ function HomePage() {
       <section style={cardStyle}>
         <div style={sectionHeaderStyle}>
           <div>
-            <h2 style={sectionTitleStyle}>Vitrine publique disponible</h2>
-            <div style={mutedTextStyle}>
-              Associations avec un live autorisé ou des feuilles de pointage
-              publiées.
-            </div>
+            <h2 style={sectionTitleStyle}>{t("home.publicAvailableTitle")}</h2>
+            <div style={mutedTextStyle}>{t("home.publicAvailableText")}</div>
           </div>
           <Link to="/public" style={smallLinkStyle}>
-            Ouvrir la vitrine
+            {t("home.openPublicShowcase")}
           </Link>
         </div>
 
         {isLoading ? (
-          <div style={emptyStateStyle}>Chargement…</div>
+          <div style={emptyStateStyle}>{t("common.loading")}</div>
         ) : publicAssociations.length === 0 ? (
-          <div style={emptyStateStyle}>
-            Aucun contenu public disponible pour l’instant.
-          </div>
+          <div style={emptyStateStyle}>{t("home.publicEmpty")}</div>
         ) : (
           <div style={associationGridStyle}>
             {publicAssociations.map((association) => (
               <AssociationCard
                 key={association.id}
                 association={association}
-                label="Vitrine publique"
+                label={t("home.publicLabel")}
                 to={`/public/associations/${association.id}`}
-                action="Voir les shows"
+                action={t("home.viewShows")}
               />
             ))}
           </div>
@@ -224,29 +206,25 @@ function HomePage() {
         <section style={cardStyle}>
           <div style={sectionHeaderStyle}>
             <div>
-              <h2 style={sectionTitleStyle}>Espace gestion</h2>
-              <div style={mutedTextStyle}>
-                Associations accessibles avec votre rôle actuel.
-              </div>
+              <h2 style={sectionTitleStyle}>{t("home.managementTitle")}</h2>
+              <div style={mutedTextStyle}>{t("home.managementText")}</div>
             </div>
             <Link to="/associations" style={smallLinkStyle}>
-              Mes associations
+              {t("home.myAssociations")}
             </Link>
           </div>
 
           {isLoading ? (
-            <div style={emptyStateStyle}>Chargement…</div>
+            <div style={emptyStateStyle}>{t("common.loading")}</div>
           ) : visibleManagementAssociations.length === 0 ? (
-            <div style={emptyStateStyle}>
-              Aucune association disponible pour ce compte.
-            </div>
+            <div style={emptyStateStyle}>{t("home.managementEmpty")}</div>
           ) : (
             <div style={associationGridStyle}>
               {visibleManagementAssociations.map((association) => {
                 const roles = isLocalMode
-                  ? ["Local"]
+                  ? [t("home.localRole")]
                   : isPlatformAdmin
-                    ? ["Admin général"]
+                    ? [t("home.platformAdmin")]
                     : getRolesForAssociation(memberships, association.id).map(
                         getRoleLabel
                       );
@@ -255,9 +233,9 @@ function HomePage() {
                   <AssociationCard
                     key={association.id}
                     association={association}
-                    label={roles.join(", ") || "Aucun rôle"}
+                    label={roles.join(", ") || t("home.noRole")}
                     to={`/associations/${association.id}/shows`}
-                    action="Ouvrir"
+                    action={t("home.open")}
                   />
                 );
               })}
@@ -268,15 +246,13 @@ function HomePage() {
 
       <section style={legalPanelStyle}>
         <div>
-          <h2 style={sectionTitleStyle}>Cadre d'utilisation</h2>
-          <div style={mutedTextStyle}>
-            Conditions, confidentialité et avis sur les résultats publics.
-          </div>
+          <h2 style={sectionTitleStyle}>{t("home.legalTitle")}</h2>
+          <div style={mutedTextStyle}>{t("home.legalText")}</div>
         </div>
         <div style={legalLinkRowStyle}>
           {LEGAL_LINKS.map((link) => (
             <Link key={link.to} to={link.to} style={smallLinkStyle}>
-              {link.label}
+              {t(link.labelKey)}
             </Link>
           ))}
         </div>
@@ -286,12 +262,14 @@ function HomePage() {
 }
 
 function AssociationCard({ association, label, to, action }) {
+  const { t } = useTranslation();
+
   return (
     <article style={associationCardStyle}>
       <div>
         <h3 style={associationNameStyle}>{association.name}</h3>
         <div style={mutedTextStyle}>
-          {association.shortName || "Association"} · {label}
+          {association.shortName || t("common.association")} · {label}
         </div>
       </div>
       <Link to={to} style={secondaryLinkStyle}>

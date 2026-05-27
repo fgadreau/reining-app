@@ -24,6 +24,7 @@ import { redeemPendingAssociationInvitationsRepository } from "../../features/au
 import { normalizeAssociationWebsiteUrl } from "../../features/associations/associationProfile";
 import { useAuthUser } from "../../features/auth/useAuthUser";
 import { getCloudSyncStatus } from "../../features/cloud/supabaseStatus";
+import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
 
 const emptyForm = {
@@ -46,17 +47,21 @@ function AssociationsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isAssociationFormOpen, setIsAssociationFormOpen] = useState(false);
   const auth = useAuthUser();
+  const { t } = useTranslation();
   const authUserId = auth.user?.id;
   const authUserEmail = auth.user?.email;
 
   const cloudStatus = getCloudSyncStatus(auth.user);
-  const isLocalMode = !auth.isConfigured;
+  const isLocalMode = !auth.isConfigured || auth.isLocalTestUser;
   const canCreateAssociation = isLocalMode || auth.isAuthenticated;
   const canShowAssociationForm = canCreateAssociation || Boolean(editingId);
   const shouldShowLoginPrompt =
-    auth.isConfigured && !auth.isLoading && !auth.isAuthenticated;
+    auth.isConfigured &&
+    !auth.isLocalTestUser &&
+    !auth.isLoading &&
+    !auth.isAuthenticated;
   const shouldHideAssociationList =
-    auth.isConfigured && !auth.isAuthenticated;
+    auth.isConfigured && !auth.isLocalTestUser && !auth.isAuthenticated;
 
   useEffect(() => {
     let isMounted = true;
@@ -64,11 +69,11 @@ function AssociationsPage() {
     async function load() {
       setIsLoading(true);
 
-      if (auth.isConfigured && auth.isLoading) {
+      if (auth.isConfigured && !auth.isLocalTestUser && auth.isLoading) {
         return;
       }
 
-      if (auth.isConfigured && !authUserId) {
+      if (auth.isConfigured && !auth.isLocalTestUser && !authUserId) {
         if (!isMounted) return;
         setAssociations([]);
         setMemberships([]);
@@ -77,7 +82,7 @@ function AssociationsPage() {
         return;
       }
 
-      if (auth.isConfigured && authUserId) {
+      if (auth.isConfigured && !auth.isLocalTestUser && authUserId) {
         await redeemPendingAssociationInvitationsRepository({
           id: authUserId,
           email: authUserEmail,
@@ -86,10 +91,10 @@ function AssociationsPage() {
 
       const [data, nextMemberships, nextIsPlatformAdmin] = await Promise.all([
         loadAssociationsRepository(),
-        auth.isConfigured && authUserId
+        auth.isConfigured && !auth.isLocalTestUser && authUserId
           ? loadUserMembershipsRepository(authUserId)
           : Promise.resolve([]),
-        auth.isConfigured && authUserId
+        auth.isConfigured && !auth.isLocalTestUser && authUserId
           ? loadIsPlatformAdminRepository()
           : Promise.resolve(false),
       ]);
@@ -106,7 +111,13 @@ function AssociationsPage() {
     return () => {
       isMounted = false;
     };
-  }, [auth.isConfigured, auth.isLoading, authUserEmail, authUserId]);
+  }, [
+    auth.isConfigured,
+    auth.isLoading,
+    auth.isLocalTestUser,
+    authUserEmail,
+    authUserId,
+  ]);
 
   const sortedAssociations = useMemo(() => {
     const visibleAssociations = isLocalMode || isPlatformAdmin
@@ -166,17 +177,17 @@ function AssociationsPage() {
     const websiteUrl = normalizeAssociationWebsiteUrl(form.websiteUrl);
 
     if (!name) {
-      alert("Le nom est requis");
+      alert(t("management.associations.nameRequired"));
       return;
     }
 
     if (!shortName) {
-      alert("Le nom court est requis");
+      alert(t("management.associations.shortNameRequired"));
       return;
     }
 
     if (!timezone) {
-      alert("Le fuseau horaire est requis");
+      alert(t("management.associations.timezoneRequired"));
       return;
     }
 
@@ -200,7 +211,7 @@ function AssociationsPage() {
             association.id === editingId ? nextAssociation : association
           )
         );
-        setNotice("Association enregistrée.");
+        setNotice(t("management.associations.savedNotice"));
       } else {
         const nextAssociation = {
           id: createAssociationId(),
@@ -213,7 +224,7 @@ function AssociationsPage() {
 
         let savedAssociation = null;
 
-        if (auth.isConfigured && auth.user?.id) {
+        if (auth.isConfigured && !auth.isLocalTestUser && auth.user?.id) {
           try {
             savedAssociation =
               await createAssociationWithOwnerRepository(nextAssociation);
@@ -244,15 +255,13 @@ function AssociationsPage() {
         }
 
         setAssociations((current) => [...current, savedAssociation]);
-        setNotice("Association créée. Tu es admin de cette association.");
+        setNotice(t("management.associations.createdNotice"));
       }
 
       resetForm();
     } catch (error) {
-      const message = error?.message || "Création impossible.";
-      setNotice(
-        `Impossible d'enregistrer l'association. ${message} Si Supabase refuse l'accès, exécute docs/supabase-onboarding-access-migration.sql et docs/supabase-association-public-profile-migration.sql.`
-      );
+      const message = error?.message || t("management.associations.createFailed");
+      setNotice(t("management.associations.saveFailed", { message }));
     } finally {
       setIsSaving(false);
     }
@@ -271,7 +280,9 @@ function AssociationsPage() {
   }
 
   async function handleDelete(id) {
-    const confirmDelete = window.confirm("Supprimer cette association ?");
+    const confirmDelete = window.confirm(
+      t("management.associations.deleteConfirm")
+    );
 
     if (!confirmDelete) {
       return;
@@ -292,27 +303,26 @@ function AssociationsPage() {
   return (
     <div style={styles.app}>
       <div style={headerWrapStyle}>
-        <h1>Associations</h1>
+        <h1>{t("management.associations.title")}</h1>
         <span style={syncBadgeStyle(cloudStatus.configured)}>
-          Sync : {getSyncLabel(cloudStatus)}
+          {t("management.sync.label")}: {getSyncLabel(cloudStatus, t)}
         </span>
       </div>
 
       {shouldShowLoginPrompt && (
         <div style={emptyStateStyle}>
           <h2 style={{ marginTop: 0, color: "#111827" }}>
-            Connexion gestionnaire requise
+            {t("management.associations.loginRequiredTitle")}
           </h2>
           <p style={{ marginTop: 0 }}>
-            Connecte-toi pour créer une association, gérer tes événements et
-            accepter tes invitations d'accès.
+            {t("management.associations.loginRequiredText")}
           </p>
           <div style={actionRowStyle}>
             <Link to="/login" style={linkButtonStyle}>
-              Connexion gestionnaire
+              {t("home.managerLogin")}
             </Link>
             <Link to="/public" style={linkButtonStyle}>
-              Vitrine publique
+              {t("nav.publicShowcase")}
             </Link>
           </div>
         </div>
@@ -324,13 +334,12 @@ function AssociationsPage() {
             <div>
               <h2 style={{ margin: 0 }}>
                 {editingId
-                  ? "Modifier une association"
-                  : "Ajouter une association"}
+                  ? t("management.associations.editTitle")
+                  : t("management.associations.addTitle")}
               </h2>
               {!isAssociationFormOpen && !editingId && (
                 <div style={helperTextStyle}>
-                  Ouvre cette section seulement quand tu veux créer une nouvelle
-                  association.
+                  {t("management.associations.collapsedHelp")}
                 </div>
               )}
             </div>
@@ -345,7 +354,7 @@ function AssociationsPage() {
                 }}
                 disabled={isSaving}
               >
-                Ajouter une association
+                {t("management.associations.addAssociation")}
               </button>
             )}
           </div>
@@ -353,7 +362,7 @@ function AssociationsPage() {
           {(isAssociationFormOpen || editingId) && (
             <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
               <label style={{ display: "grid", gap: 6 }}>
-                <span>Nom</span>
+                <span>{t("management.associations.nameLabel")}</span>
                 <input
                   value={form.name}
                   onChange={(e) => handleChange("name", e.target.value)}
@@ -363,7 +372,7 @@ function AssociationsPage() {
               </label>
 
               <label style={{ display: "grid", gap: 6 }}>
-                <span>Nom court</span>
+                <span>{t("management.associations.shortNameLabel")}</span>
                 <input
                   value={form.shortName}
                   onChange={(e) => handleChange("shortName", e.target.value)}
@@ -373,7 +382,7 @@ function AssociationsPage() {
               </label>
 
               <label style={{ display: "grid", gap: 6 }}>
-                <span>Fuseau horaire</span>
+                <span>{t("management.associations.timezoneLabel")}</span>
                 <input
                   value={form.timezone}
                   onChange={(e) => handleChange("timezone", e.target.value)}
@@ -383,7 +392,7 @@ function AssociationsPage() {
               </label>
 
               <label style={{ display: "grid", gap: 6 }}>
-                <span>Site web public</span>
+                <span>{t("management.associations.websiteLabel")}</span>
                 <input
                   value={form.websiteUrl}
                   onChange={(e) => handleChange("websiteUrl", e.target.value)}
@@ -393,11 +402,11 @@ function AssociationsPage() {
               </label>
 
               <label style={{ display: "grid", gap: 6 }}>
-                <span>Logo de l’association</span>
+                <span>{t("management.associations.logoLabel")}</span>
                 <input
                   value={form.logoDataUrl}
                   onChange={(e) => handleChange("logoDataUrl", e.target.value)}
-                  placeholder="URL du logo ou image importée"
+                  placeholder={t("management.associations.logoPlaceholder")}
                   style={inputStyle}
                 />
                 <input
@@ -423,18 +432,20 @@ function AssociationsPage() {
                     onClick={() => handleChange("logoDataUrl", "")}
                     disabled={isSaving}
                   >
-                    Retirer le logo
+                    {t("management.associations.removeLogo")}
                   </button>
                 </div>
               ) : null}
 
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button type="submit" disabled={isSaving}>
-                  {editingId ? "Enregistrer" : "Ajouter"}
+                  {editingId
+                    ? t("management.associations.save")
+                    : t("management.associations.add")}
                 </button>
 
                 <button type="button" onClick={resetForm} disabled={isSaving}>
-                  Annuler
+                  {t("management.associations.cancel")}
                 </button>
               </div>
             </form>
@@ -445,28 +456,31 @@ function AssociationsPage() {
       )}
 
       {isLoading ? (
-        <div style={emptyStateStyle}>Chargement des associations…</div>
+        <div style={emptyStateStyle}>
+          {t("management.associations.loading")}
+        </div>
       ) : shouldHideAssociationList ? null : sortedAssociations.length === 0 ? (
         <div style={emptyStateStyle}>
-          Aucune association de gestion pour ce compte. Crée ta première
-          association pour commencer.
+          {t("management.associations.empty")}
         </div>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
           <label style={searchWrapStyle}>
-            <span style={searchLabelStyle}>Recherche d’association</span>
+            <span style={searchLabelStyle}>
+              {t("management.associations.searchLabel")}
+            </span>
             <input
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Nom court ou nom complet"
+              placeholder={t("management.associations.searchPlaceholder")}
               style={inputStyle}
             />
           </label>
 
           {filteredAssociations.length === 0 ? (
             <div style={emptyStateStyle}>
-              Aucune association ne correspond à cette recherche.
+              {t("management.associations.noSearchResults")}
             </div>
           ) : null}
 
@@ -495,7 +509,7 @@ function AssociationsPage() {
                         rel="noreferrer"
                         style={websiteLinkStyle}
                       >
-                        Site web
+                        {t("common.website")}
                       </a>
                     )}
                   </div>
@@ -503,7 +517,7 @@ function AssociationsPage() {
 
                 <div style={actionRowStyle}>
                   <Link to={`/associations/${association.id}/shows`}>
-                    Ouvrir les shows
+                    {t("management.associations.openShows")}
                   </Link>
 
                   {canManage && (
@@ -513,7 +527,7 @@ function AssociationsPage() {
                         onClick={() => handleEdit(association)}
                         disabled={isSaving}
                       >
-                        Modifier
+                        {t("management.associations.edit")}
                       </button>
 
                       <button
@@ -521,7 +535,7 @@ function AssociationsPage() {
                         onClick={() => handleDelete(association.id)}
                         disabled={isSaving}
                       >
-                        Supprimer
+                        {t("management.associations.delete")}
                       </button>
                     </>
                   )}
@@ -665,10 +679,11 @@ const syncBadgeStyle = (isCloudReady) => ({
   fontSize: 13,
 });
 
-function getSyncLabel(cloudStatus) {
-  if (!cloudStatus.configured) return "Local";
-  if (cloudStatus.authenticated) return "Supabase connecté";
-  return "Supabase non connecté";
+function getSyncLabel(cloudStatus, t) {
+  if (cloudStatus.mode === "local-test") return t("management.sync.localTest");
+  if (!cloudStatus.configured) return t("management.sync.local");
+  if (cloudStatus.authenticated) return t("management.sync.connected");
+  return t("management.sync.disconnected");
 }
 
 export default AssociationsPage;

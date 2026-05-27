@@ -1,5 +1,6 @@
 import React from "react";
 import RunRows from "./RunRows";
+import { useTranslation } from "../features/i18n/I18nProvider";
 
 function ScoreTable({
   headers,
@@ -24,6 +25,7 @@ function ScoreTable({
   isBackNumberLocked,
   styles,
 }) {
+  const { t } = useTranslation();
   const normalizedDragInterval = Number.parseInt(dragInterval, 10);
   const hasDragRows =
     Number.isFinite(normalizedDragInterval) && normalizedDragInterval > 0;
@@ -44,11 +46,17 @@ function ScoreTable({
     const duration = Number.parseInt(dragDurationMinutes, 10);
     const durationLabel =
       Number.isFinite(duration) && duration > 0
-        ? ` • ${duration} min estimées`
+        ? ` • ${t("management.scoring.estimatedMinutes", {
+            minutes: duration,
+          })}`
         : "";
-    const nextRunLabel = nextRun?.draw ? ` • Prochain run #${nextRun.draw}` : "";
+    const nextRunLabel = nextRun?.draw
+      ? ` • ${t("management.scoring.nextRun", { draw: nextRun.draw })}`
+      : "";
 
-    return `Drag de surface après ${completedCount} participant(s)${durationLabel}${nextRunLabel}`;
+    return `${t("management.scoring.dragBreakLabel", {
+      count: completedCount,
+    })}${durationLabel}${nextRunLabel}`;
   };
 
   return (
@@ -56,8 +64,8 @@ function ScoreTable({
       <table style={styles.table}>
         <thead>
           <tr>
-            <th style={styles.th}>Draw</th>
-            <th style={styles.th}>Back #</th>
+            <th style={styles.th}>{t("management.announcer.draw")}</th>
+            <th style={styles.th}>{t("public.results.backNumber")}</th>
             <th style={styles.th}>PEN</th>
 
             {headers.map((header) => (
@@ -66,8 +74,8 @@ function ScoreTable({
               </th>
             ))}
 
-            <th style={styles.th}>PEN TOTAL</th>
-            <th style={styles.th}>SCORE</th>
+            <th style={styles.th}>{t("public.results.totalPenalties")}</th>
+            <th style={styles.th}>{t("public.results.score")}</th>
           </tr>
         </thead>
 

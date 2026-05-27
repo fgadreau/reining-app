@@ -20,11 +20,13 @@ import {
 import { getPatternDisplayName } from "../../features/patterns/patternDefinitions";
 import { getDaysByShowRepository } from "../../features/days/dayRepository";
 import { getShowRepository } from "../../features/shows/showRepository";
+import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
 
 function ShowTimeManagementPage() {
   const { associationId, showId } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const access = useAssociationAccess(associationId);
   const [show, setShow] = useState(null);
   const [daySections, setDaySections] = useState([]);
@@ -168,11 +170,9 @@ function ShowTimeManagementPage() {
     return (
       <div style={styles.app}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          ← Retour
+          {t("public.results.back")}
         </button>
-        <div style={emptyStateStyle}>
-          Ce rôle n’a pas accès à la gestion du temps.
-        </div>
+        <div style={emptyStateStyle}>{t("management.time.accessDenied")}</div>
       </div>
     );
   }
@@ -181,68 +181,75 @@ function ShowTimeManagementPage() {
     <div style={styles.app}>
       <div style={{ marginBottom: 16 }}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          ← Retour
+          {t("public.results.back")}
         </button>
       </div>
 
       <section style={heroStyle}>
         <div>
-          <div style={eyebrowStyle}>Temps des journées</div>
-          <h1 style={titleStyle}>{show?.name || "Show"}</h1>
+          <div style={eyebrowStyle}>{t("nav.dayTiming")}</div>
+          <h1 style={titleStyle}>{show?.name || t("common.show")}</h1>
           <div style={subtitleStyle}>
-            Moyennes par pattern, drags et projections de fin par journée.
+            {t("management.time.subtitle")}
           </div>
         </div>
         <Link
           to={`/associations/${associationId}/shows/${showId}/secretariat`}
           style={linkButtonStyle}
         >
-          Secrétariat
+          {t("nav.secretariat")}
         </Link>
       </section>
 
       <section style={summaryGridStyle}>
-        <SummaryTile label="Journées" value={dayTimingSections.length} />
-        <SummaryTile label="Classes" value={classTimingRows.length} />
         <SummaryTile
-          label="Runs restants"
+          label={t("management.days.title")}
+          value={dayTimingSections.length}
+        />
+        <SummaryTile
+          label={t("management.secretariat.classes")}
+          value={classTimingRows.length}
+        />
+        <SummaryTile
+          label={t("management.time.remainingRuns")}
           value={remainingRuns}
           tone="warn"
         />
         <SummaryTile
-          label="Patterns mesurés"
+          label={t("management.time.measuredPatterns")}
           value={patternStats.length}
           tone="info"
         />
       </section>
 
       {isLoading ? (
-        <div style={emptyStateStyle}>Chargement de la gestion du temps…</div>
+        <div style={emptyStateStyle}>{t("management.time.loading")}</div>
       ) : (
         <>
           <section style={cardStyle}>
             <div style={sectionHeaderStyle}>
               <div>
-                <h2 style={sectionTitleStyle}>Par pattern</h2>
+                <h2 style={sectionTitleStyle}>{t("management.time.byPattern")}</h2>
                 <div style={metaStyle}>
-                  Moyennes globales anonymisées de l’app. Les runs de moins de
-                  2 min 30 sont ignorés.
+                  {t("management.time.globalAveragesHelp")}
                 </div>
               </div>
             </div>
 
             {patternStats.length === 0 ? (
-              <div style={softEmptyStyle}>Aucune donnée de pattern disponible.</div>
+              <div style={softEmptyStyle}>
+                {t("management.time.noPatternData")}
+              </div>
             ) : (
               <div style={tableWrapStyle}>
                 <table style={tableStyle}>
                   <thead>
                     <tr>
-                      <th style={thStyle}>Pattern</th>
-                      <th style={thStyle}>Moyenne/run</th>
-                      <th style={thStyle}>Médiane</th>
-                      <th style={thStyle}>Runs mesurés</th>
-                      <th style={thStyle}>Classes</th>
+                      <th style={thStyle}>{t("public.results.pattern")}</th>
+                      <th style={thStyle}>{t("management.time.averagePerRun")}</th>
+                      <th style={thStyle}>{t("management.time.median")}</th>
+                      <th style={thStyle}>{t("management.time.timedRuns")}</th>
+                      <th style={thStyle}>{t("management.secretariat.classes")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -272,16 +279,16 @@ function ShowTimeManagementPage() {
           <section style={cardStyle}>
             <div style={sectionHeaderStyle}>
               <div>
-                <h2 style={sectionTitleStyle}>Simulateur</h2>
+                <h2 style={sectionTitleStyle}>{t("management.time.simulator")}</h2>
                 <div style={metaStyle}>
-                  Estime une classe avec la moyenne globale du pattern choisi.
+                  {t("management.time.simulatorHelp")}
                 </div>
               </div>
             </div>
 
             <div style={simulatorGridStyle}>
               <label style={labelStyle}>
-                <span>Pattern</span>
+                <span>{t("public.results.pattern")}</span>
                 <select
                   value={simulator.pattern}
                   onChange={(event) =>
@@ -292,7 +299,7 @@ function ShowTimeManagementPage() {
                   }
                   style={inputStyle}
                 >
-                  <option value="">Choisir un pattern</option>
+                  <option value="">{t("management.classes.choosePattern")}</option>
                   {patternStats.map((stat) => (
                     <option key={stat.pattern} value={stat.pattern}>
                       {stat.pattern}
@@ -302,7 +309,7 @@ function ShowTimeManagementPage() {
               </label>
 
               <label style={labelStyle}>
-                <span>Participants</span>
+                <span>{t("management.time.participants")}</span>
                 <input
                   type="number"
                   min="1"
@@ -329,17 +336,17 @@ function ShowTimeManagementPage() {
                   }
                   style={inputStyle}
                 >
-                  <option value="">Aucun drag</option>
+                  <option value="">{t("management.classes.noDragPlanned")}</option>
                   {DRAG_INTERVAL_OPTIONS.map((option) => (
                     <option key={option} value={option}>
-                      Après chaque {option}
+                      {t("management.time.afterEach", { count: option })}
                     </option>
                   ))}
                 </select>
               </label>
 
               <label style={labelStyle}>
-                <span>Durée drag</span>
+                <span>{t("management.time.dragDuration")}</span>
                 <input
                   type="number"
                   min="0"
@@ -357,25 +364,28 @@ function ShowTimeManagementPage() {
 
             <div style={simulationResultStyle}>
               <div style={simulationMetricStyle}>
-                <span style={summaryLabelStyle}>Moyenne/run</span>
+                <span style={summaryLabelStyle}>
+                  {t("management.time.averagePerRun")}
+                </span>
                 <strong>
                   {formatDuration(selectedPatternStats?.averageRunSeconds)}
                 </strong>
               </div>
               <div style={simulationMetricStyle}>
-                <span style={summaryLabelStyle}>Drags</span>
+                <span style={summaryLabelStyle}>{t("management.time.drags")}</span>
                 <strong>{simulation?.dragBreaks ?? "—"}</strong>
               </div>
               <div style={simulationMetricStyle}>
-                <span style={summaryLabelStyle}>Temps total</span>
+                <span style={summaryLabelStyle}>
+                  {t("management.time.totalTime")}
+                </span>
                 <strong>{formatDuration(simulation?.totalSeconds)}</strong>
               </div>
             </div>
 
             {!selectedPatternStats?.averageRunSeconds && (
               <div style={softEmptyStyle}>
-                Ce pattern n’a pas encore assez de runs mesurés pour simuler une
-                durée fiable.
+                {t("management.time.insufficientPatternData")}
               </div>
             )}
           </section>
@@ -383,16 +393,17 @@ function ShowTimeManagementPage() {
           <section style={cardStyle}>
             <div style={sectionHeaderStyle}>
               <div>
-                <h2 style={sectionTitleStyle}>Journées du show</h2>
+                <h2 style={sectionTitleStyle}>{t("management.time.showDays")}</h2>
                 <div style={metaStyle}>
-                  Les classes sans moyenne propre utilisent la moyenne du pattern
-                  globale lorsque disponible.
+                  {t("management.time.showDaysHelp")}
                 </div>
               </div>
             </div>
 
             {dayTimingSections.length === 0 ? (
-              <div style={softEmptyStyle}>Aucune classe pour ce show.</div>
+              <div style={softEmptyStyle}>
+                {t("management.time.noClassForShow")}
+              </div>
             ) : (
               <div style={dayListStyle}>
                 {dayTimingSections.map((section) => (
@@ -400,35 +411,43 @@ function ShowTimeManagementPage() {
                     <div style={dayHeaderStyle}>
                       <div>
                         <h3 style={dayTitleStyle}>
-                          {section.day.label || "Journée"}
+                          {section.day.label || t("management.days.dayFallback")}
                         </h3>
                         <div style={metaStyle}>
-                          {section.day.date || "Date non définie"}
+                          {section.day.date || t("public.results.dateTbd")}
                         </div>
                       </div>
                       <div style={daySummaryStyle}>
-                        <span>{section.summary.remainingRuns} run(s) restant(s)</span>
+                        <span>
+                          {t("management.time.remainingRunsCount", {
+                            count: section.summary.remainingRuns,
+                          })}
+                        </span>
                         <strong>
-                          Fin estimée: {formatClockTime(section.summary.estimatedEndAt)}
+                          {t("management.time.estimatedEnd", {
+                            time: formatClockTime(section.summary.estimatedEndAt),
+                          })}
                         </strong>
                       </div>
                     </div>
 
                     {section.rows.length === 0 ? (
-                      <div style={softEmptyStyle}>Aucune classe pour cette journée.</div>
+                      <div style={softEmptyStyle}>
+                        {t("management.secretariat.noClassesForDay")}
+                      </div>
                     ) : (
                       <div style={tableWrapStyle}>
                         <table style={tableStyle}>
                           <thead>
                             <tr>
-                              <th style={thStyle}>Classe</th>
-                              <th style={thStyle}>Pattern</th>
-                              <th style={thStyle}>Progression</th>
-                              <th style={thStyle}>Moyenne/run</th>
-                              <th style={thStyle}>Drags restants</th>
-                              <th style={thStyle}>Temps restant</th>
-                              <th style={thStyle}>Fin estimée</th>
-                              <th style={thStyle}>Actions</th>
+                              <th style={thStyle}>{t("management.secretariat.class")}</th>
+                              <th style={thStyle}>{t("public.results.pattern")}</th>
+                              <th style={thStyle}>{t("management.time.progress")}</th>
+                              <th style={thStyle}>{t("management.time.averagePerRun")}</th>
+                              <th style={thStyle}>{t("management.time.remainingDrags")}</th>
+                              <th style={thStyle}>{t("management.time.remainingTime")}</th>
+                              <th style={thStyle}>{t("management.time.estimatedEndHeader")}</th>
+                              <th style={thStyle}>{t("management.classSetup.actions")}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -444,7 +463,9 @@ function ShowTimeManagementPage() {
                                 <td style={tdStyle}>
                                   {formatDuration(row.averageRunSeconds)}
                                   {row.usedPatternAverage && (
-                                    <div style={metaStyle}>moyenne pattern</div>
+                                    <div style={metaStyle}>
+                                      {t("management.time.usedPatternAverage")}
+                                    </div>
                                   )}
                                 </td>
                                 <td style={tdStyle}>{row.remainingDragBreaks}</td>
@@ -460,13 +481,13 @@ function ShowTimeManagementPage() {
                                       to={`/associations/${associationId}/classes/${row.classId}/setup`}
                                       style={smallLinkButtonStyle}
                                     >
-                                      Setup
+                                      {t("management.secretariat.setup")}
                                     </Link>
                                     <Link
                                       to={`/associations/${associationId}/scribe/classes/${row.classId}`}
                                       style={smallLinkButtonStyle}
                                     >
-                                      Scoring
+                                      {t("management.secretariat.scoring")}
                                     </Link>
                                   </div>
                                 </td>
@@ -486,10 +507,11 @@ function ShowTimeManagementPage() {
             <section style={cardStyle}>
               <div style={sectionHeaderStyle}>
                 <div>
-                  <h2 style={sectionTitleStyle}>Patterns dans ce show</h2>
+                  <h2 style={sectionTitleStyle}>
+                    {t("management.time.patternsInShow")}
+                  </h2>
                   <div style={metaStyle}>
-                    Lecture locale du show ouvert, utile pour comparer avec les
-                    moyennes globales.
+                    {t("management.time.patternsInShowHelp")}
                   </div>
                 </div>
               </div>
@@ -497,9 +519,9 @@ function ShowTimeManagementPage() {
                 <table style={tableStyle}>
                   <thead>
                     <tr>
-                      <th style={thStyle}>Pattern</th>
-                      <th style={thStyle}>Moyenne/show</th>
-                      <th style={thStyle}>Runs mesurés</th>
+                      <th style={thStyle}>{t("public.results.pattern")}</th>
+                      <th style={thStyle}>{t("management.time.showAverage")}</th>
+                      <th style={thStyle}>{t("management.time.timedRuns")}</th>
                     </tr>
                   </thead>
                   <tbody>

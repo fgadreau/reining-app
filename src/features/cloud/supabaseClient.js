@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { hasLocalTestSession } from "../auth/localTestAuth";
 
 const supabaseUrl = (process.env.REACT_APP_SUPABASE_URL || "").trim();
 const supabaseKey =
@@ -24,6 +25,10 @@ export function isSupabaseConfigured() {
 }
 
 export function getSupabaseClient() {
+  if (hasLocalTestSession()) {
+    return null;
+  }
+
   if (!isSupabaseConfigured()) {
     return null;
   }

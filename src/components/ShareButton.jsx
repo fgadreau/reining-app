@@ -1,7 +1,10 @@
 import React, { useState } from "react";
+import { useTranslation } from "../features/i18n/I18nProvider";
 
-function ShareButton({ url, title = "ShowScore", label = "Partager", style }) {
+function ShareButton({ url, title = "ShowScore", label, style }) {
   const [copied, setCopied] = useState(false);
+  const { t } = useTranslation();
+  const buttonLabel = label || t("common.share");
 
   async function handleShare(event) {
     event.preventDefault();
@@ -20,7 +23,7 @@ function ShareButton({ url, title = "ShowScore", label = "Partager", style }) {
         setCopied(true);
         window.setTimeout(() => setCopied(false), 1800);
       } else {
-        window.prompt("Lien à partager", absoluteUrl);
+        window.prompt(t("common.sharePrompt"), absoluteUrl);
       }
     } catch (error) {
       if (error?.name !== "AbortError") {
@@ -35,7 +38,7 @@ function ShareButton({ url, title = "ShowScore", label = "Partager", style }) {
       onClick={handleShare}
       style={{ ...shareButtonStyle, ...style }}
     >
-      {copied ? "Lien copié" : label}
+      {copied ? t("common.linkCopied") : buttonLabel}
     </button>
   );
 }

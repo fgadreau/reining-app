@@ -17,7 +17,6 @@ import {
 import { getClassRecord } from "../../features/classes/classRecordStorage";
 import {
   getClassStatus,
-  getClassStatusLabel,
 } from "../../features/classes/classStatusSelectors";
 import { hasScoringStarted } from "../../features/scoring/scoringSelectors";
 import { appStyles as styles } from "../../styles/appStyles";
@@ -37,7 +36,6 @@ import {
 } from "../../features/classes/classTiming";
 import {
   PUBLICATION_STATUSES,
-  getPublicationStatusLabel,
   isLivePublicationStatus,
 } from "../../features/publication/publicationRepository";
 import { savePublicationStateRepository } from "../../features/publication/publicationCloudRepository";
@@ -47,6 +45,7 @@ import {
 } from "../../utils/generateScorePdf";
 import { loadAssociations } from "../../features/associations/associationsData";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
+import { useTranslation } from "../../features/i18n/I18nProvider";
 import { getDayById } from "../../features/days/daySelectors";
 import { getShowById } from "../../features/shows/showSelectors";
 import { createId } from "../../utils/createId";
@@ -60,38 +59,38 @@ function isOfficiallyFinalized(record) {
 const PUBLIC_LIVE_STATUS_OPTIONS = [
   {
     value: PUBLICATION_STATUSES.HIDDEN,
-    label: "Masqué",
-    description: "La classe n’apparaît pas en live public.",
+    labelKey: "public.status.hidden",
+    descriptionKey: "management.classSetup.publicHiddenDescription",
   },
   {
     value: PUBLICATION_STATUSES.LIVE_NO_SCORE,
-    label: "Live sans scores",
-    description: "Affiche la classe et les participants sans pointage.",
+    labelKey: "public.status.liveNoScore",
+    descriptionKey: "management.classSetup.publicLiveNoScoreDescription",
   },
   {
     value: PUBLICATION_STATUSES.LIVE_SCORING,
-    label: "Live scores complétés",
-    description: "Affiche seulement le total quand la run est complétée.",
+    labelKey: "public.status.liveScoring",
+    descriptionKey: "management.classSetup.publicLiveScoringDescription",
   },
   {
     value: PUBLICATION_STATUSES.LIVE,
-    label: "Live détaillé",
-    description: "Affiche les scores de manoeuvres et pénalités à mesure.",
+    labelKey: "public.status.live",
+    descriptionKey: "management.classSetup.publicLiveDescription",
   },
 ];
 
-function getPublicationStatusDescription(status) {
+function getPublicationStatusDescription(status, t) {
   const option = PUBLIC_LIVE_STATUS_OPTIONS.find((item) => item.value === status);
 
   if (option) {
-    return option.description;
+    return t(option.descriptionKey);
   }
 
   if (isLivePublicationStatus(status)) {
-    return "Affiche la run en cours, la prochaine et les deux derniers passés dans la vitrine publique.";
+    return t("management.classSetup.publicLiveFallbackDescription");
   }
 
-  return "Choisis comment cette classe apparaît dans la vitrine publique.";
+  return t("management.classSetup.publicChooseDescription");
 }
 
 function normalizeSetupPublicationStatus(status) {
@@ -125,6 +124,7 @@ function ClassSetupPage() {
   const { associationId, classId } = useParams();
   const navigate = useNavigate();
   const access = useAssociationAccess(associationId);
+  const { t } = useTranslation();
 
   const [classData, setClassData] = useState(() => getClassFullData(classId));
   const setupRef = useRef(classData.setup || {});
@@ -190,7 +190,7 @@ function ClassSetupPage() {
       (scoringStarted && !isDrawImported && access.canEditManualDraw));
 
   const classStatus = isFinalized ? "completed" : getClassStatus(classItem);
-  const classStatusLabel = getClassStatusLabel(classStatus);
+  const classStatusLabel = getClassStatusLabel(classStatus, t);
   const customPatternConfig = getCustomPatternConfigForPattern(pattern);
   const normalizedCustomPattern = customPatternConfig
     ? normalizeCustomPattern(customPattern, pattern)
@@ -203,18 +203,16 @@ function ClassSetupPage() {
 
   function showLockedMessage(actionLabel) {
     alert(
-      `${actionLabel} est bloqué parce que le scoring de cette classe a déjà commencé.`
+      t("management.classSetup.lockedActionMessage", { action: actionLabel })
     );
   }
 
   function showFinalizedMessage() {
-    alert("Cette classe est finalisée. Le setup ne peut plus être modifié.");
+    alert(t("management.classSetup.finalizedMessage"));
   }
 
   function showDrawLockedMessage() {
-    alert(
-      "L’ordre de passage est verrouillé parce qu’il provient d’un draw importé."
-    );
+    alert(t("management.classSetup.drawLockedMessage"));
   }
 
   useEffect(() => {
@@ -388,7 +386,7 @@ function ClassSetupPage() {
     }
 
     if (isStructureLocked) {
-      showLockedMessage("L’ajout d’une inscription tardive");
+      showLockedMessage(t("management.classSetup.actionAddLateEntry"));
       return;
     }
 
@@ -414,7 +412,7 @@ function ClassSetupPage() {
     }
 
     if (isStructureLocked) {
-      showLockedMessage("La suppression d’un run");
+      showLockedMessage(t("management.classSetup.actionDeleteRun"));
       return;
     }
 
@@ -444,7 +442,7 @@ function ClassSetupPage() {
     }
 
     if (isStructureLocked) {
-      showLockedMessage("Le réordonnancement des runs");
+      showLockedMessage(t("management.classSetup.actionReorderRuns"));
       return;
     }
 
@@ -471,7 +469,7 @@ function ClassSetupPage() {
     }
 
     if (isStructureLocked) {
-      showLockedMessage("Le réordonnancement des runs");
+      showLockedMessage(t("management.classSetup.actionReorderRuns"));
       return;
     }
 
@@ -498,7 +496,7 @@ function ClassSetupPage() {
     }
 
     if (isStructureLocked) {
-      showLockedMessage("La duplication d’un run");
+      showLockedMessage(t("management.classSetup.actionDuplicateRun"));
       return;
     }
 
@@ -540,7 +538,7 @@ function ClassSetupPage() {
     }
 
     if (isStructureLocked && targetCount < runs.length) {
-      showLockedMessage("La réduction du nombre de runs");
+      showLockedMessage(t("management.classSetup.actionReduceRuns"));
       return;
     }
 
@@ -574,7 +572,7 @@ function ClassSetupPage() {
     }
 
     if (isStructureLocked) {
-      showLockedMessage("La modification du patron custom");
+      showLockedMessage(t("management.classSetup.actionEditCustomPattern"));
       return;
     }
 
@@ -617,7 +615,7 @@ function ClassSetupPage() {
     }
 
     if (isStructureLocked) {
-      showLockedMessage("La modification du patron custom");
+      showLockedMessage(t("management.classSetup.actionEditCustomPattern"));
       return;
     }
 
@@ -645,7 +643,7 @@ function ClassSetupPage() {
     }
 
     if (isStructureLocked) {
-      showLockedMessage("La modification du patron custom");
+      showLockedMessage(t("management.classSetup.actionEditCustomPattern"));
       return;
     }
 
@@ -676,7 +674,7 @@ function ClassSetupPage() {
     const resequencedRuns = importedDraw?.runs || [];
 
     if (!resequencedRuns.length) {
-      setImportMessage("Aucun participant détecté dans cet import.");
+      setImportMessage(t("management.classSetup.importNoParticipants"));
       return;
     }
 
@@ -687,10 +685,17 @@ function ClassSetupPage() {
     if (importedDraw.dragInterval) {
       setDragInterval(String(importedDraw.dragInterval));
       setImportMessage(
-        `${resequencedRuns.length} participant(s) importés. Drag détecté après chaque ${importedDraw.dragInterval} participant(s).`
+        t("management.classSetup.importedWithDrag", {
+          count: resequencedRuns.length,
+          interval: importedDraw.dragInterval,
+        })
       );
     } else {
-      setImportMessage(`${resequencedRuns.length} participant(s) importés.`);
+      setImportMessage(
+        t("management.classSetup.importedParticipants", {
+          count: resequencedRuns.length,
+        })
+      );
     }
   };
 
@@ -703,7 +708,7 @@ function ClassSetupPage() {
     }
 
     if (isStructureLocked) {
-      showLockedMessage("L’import du draw");
+      showLockedMessage(t("management.classSetup.actionImportDraw"));
       return;
     }
 
@@ -719,11 +724,11 @@ function ClassSetupPage() {
     }
 
     if (isStructureLocked) {
-      showLockedMessage("L’import du draw");
+      showLockedMessage(t("management.classSetup.actionImportDraw"));
       return;
     }
 
-    setImportMessage("Lecture du fichier en cours...");
+    setImportMessage(t("management.classSetup.fileReading"));
 
     try {
       const importedDraw = await parseImportedDrawFile(file);
@@ -732,7 +737,7 @@ function ClassSetupPage() {
       console.error("Erreur import draw:", error);
       const details = error?.message ? ` (${error.message})` : "";
       setImportMessage(
-        `Impossible de lire ce fichier${details}. Essaie le CSV ou copie-colle le texte du draw.`
+        t("management.classSetup.fileReadFailed", { details })
       );
     }
   };
@@ -743,7 +748,7 @@ function ClassSetupPage() {
     const record = getClassRecord(classId);
 
     const pdf = generateScorePdf({
-      associationName: association?.name || "Association",
+      associationName: association?.name || t("common.association"),
       associationLogoDataUrl: association?.logoDataUrl || null,
       eventName: show?.name || "",
       eventDate: day?.date || "",
@@ -762,7 +767,7 @@ function ClassSetupPage() {
     const fileName = buildScorePdfFileName({
       associationAbbreviation: association?.shortName || "ASSOC",
       showName: show?.name || "show",
-      className: classItem?.name || "classe",
+      className: classItem?.name || "class",
       finalizedAt:
         record?.official?.finalizedAt ||
         record?.official?.judgeSignedAt ||
@@ -781,11 +786,11 @@ function ClassSetupPage() {
       <div style={styles.app}>
         <div style={{ marginBottom: 16 }}>
           <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-            ← Retour
+            {t("public.results.back")}
           </button>
         </div>
         <div style={emptyStateStyle}>
-          Ce rôle n’a pas accès au setup de classe.
+          {t("management.classSetup.accessDenied")}
         </div>
       </div>
     );
@@ -795,21 +800,21 @@ function ClassSetupPage() {
     <div style={styles.app}>
       <div style={{ marginBottom: 16 }}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          ← Retour
+          {t("public.results.back")}
         </button>
       </div>
 
       <div style={headerRowStyle}>
         <div>
-          <h1 style={titleStyle}>Setup de classe</h1>
+          <h1 style={titleStyle}>{t("management.classSetup.title")}</h1>
           <p style={subtitleStyle}>
-            Prépare l’ordre de passage et les participants avant le scoring.
+            {t("management.classSetup.subtitle")}
           </p>
         </div>
 
         <div style={headerActionsStyle}>
           <div style={statusBadgeStyle(classStatus)}>
-            Statut : {classStatusLabel}
+            {t("management.shows.statusPrefix")}: {classStatusLabel}
           </div>
 
           {isFinalized && canManageSetup && (
@@ -818,7 +823,7 @@ function ClassSetupPage() {
               onClick={handleDownloadOfficialPdf}
               style={primaryButtonStyle}
             >
-              Télécharger le PDF officiel
+              {t("management.classSetup.downloadOfficialPdf")}
             </button>
           )}
         </div>
@@ -826,37 +831,38 @@ function ClassSetupPage() {
 
       {isFinalized && (
         <div style={finalizedBannerStyle}>
-          Cette classe est finalisée. Le setup est maintenant verrouillé.
+          {t("management.classSetup.finalizedBanner")}
         </div>
       )}
 
       {!isFinalized && isStructureLocked && (
         <div style={lockBannerStyle}>
-          Le scoring a déjà commencé pour cette classe. Les modifications
-          structurelles du setup sont verrouillées.
+          {t("management.classSetup.structureLockedBanner")}
         </div>
       )}
 
       {isDrawImported && !isFullyLocked && (
         <div style={drawLockBannerStyle}>
-          L’ordre de passage est verrouillé parce qu’il provient d’un draw importé.
+          {t("management.classSetup.drawLockedMessage")}
         </div>
       )}
 
       {isDrawImported && scoringStarted && access.canScoreAssociation && !canManageSetup && (
         <div style={drawLockBannerStyle}>
-          Draw importé verrouillé pour le scribe après le début du scoring.
+          {t("management.classSetup.scribeDrawLockedBanner")}
         </div>
       )}
 
       <section style={cardStyle}>
         <div style={sectionHeaderStyle}>
-          <h2 style={sectionTitleStyle}>Infos générales</h2>
+          <h2 style={sectionTitleStyle}>
+            {t("management.classSetup.generalInfo")}
+          </h2>
         </div>
 
         <div style={fieldGridStyle}>
           <div>
-            <label style={labelStyle}>Pattern</label>
+            <label style={labelStyle}>{t("public.results.pattern")}</label>
             <select
               value={getPatternSelectValue(pattern)}
               onChange={(e) => {
@@ -870,7 +876,7 @@ function ClassSetupPage() {
                 }
 
                 if (isStructureLocked) {
-                  showLockedMessage("La modification du pattern");
+                  showLockedMessage(t("management.classSetup.actionEditPattern"));
                   return;
                 }
 
@@ -893,7 +899,7 @@ function ClassSetupPage() {
               style={inputStyle}
               disabled={!canManageSetup || isFullyLocked}
             >
-              <option value="">Choisir un pattern</option>
+              <option value="">{t("management.classes.choosePattern")}</option>
               {PATTERN_OPTION_GROUPS.map((group) => (
                 <optgroup key={group.label} label={group.label}>
                   {group.options.map((option) => (
@@ -908,24 +914,28 @@ function ClassSetupPage() {
 
           {canManageSetup && (
             <div>
-              <label style={labelStyle}>Manège / arena</label>
+              <label style={labelStyle}>
+                {t("management.classes.arenaLabel")}
+              </label>
               <input
                 type="text"
                 value={arena}
                 onChange={(e) => setArena(e.target.value)}
-                placeholder="Ex. Manège 1"
+                placeholder={t("management.classes.arenaPlaceholder")}
                 style={inputStyle}
                 disabled={!canManageSetup}
               />
               <div style={helperTextStyle}>
-                Sert à distinguer plusieurs classes live en même temps.
+                {t("management.classSetup.arenaHelper")}
               </div>
             </div>
           )}
 
           {canManageSetup && (
             <div>
-              <label style={labelStyle}>Nombre de runs</label>
+              <label style={labelStyle}>
+                {t("management.classSetup.runCount")}
+              </label>
               <div style={inlineFieldStyle}>
                 <input
                   type="number"
@@ -940,7 +950,7 @@ function ClassSetupPage() {
                   style={buttonStyle}
                   disabled={isFinalized}
                 >
-                  Appliquer
+                  {t("management.classSetup.apply")}
                 </button>
               </div>
             </div>
@@ -948,7 +958,7 @@ function ClassSetupPage() {
 
           {canManageSetup && (
             <div>
-              <label style={labelStyle}>Drag de surface</label>
+              <label style={labelStyle}>{t("public.results.dragSurface")}</label>
               <div style={inlineFieldStyle}>
                 <select
                   value={dragInterval}
@@ -956,10 +966,14 @@ function ClassSetupPage() {
                   style={inputStyle}
                   disabled={isFinalized}
                 >
-                  <option value="">Aucun drag planifié</option>
+                  <option value="">
+                    {t("management.classes.noDragPlanned")}
+                  </option>
                   {DRAG_INTERVAL_OPTIONS.map((option) => (
                     <option key={option} value={option}>
-                      Après chaque {option} participant(s)
+                      {t("management.classSetup.afterEachParticipants", {
+                        count: option,
+                      })}
                     </option>
                   ))}
                 </select>
@@ -970,18 +984,20 @@ function ClassSetupPage() {
                   onChange={(e) => setDragDurationMinutes(e.target.value)}
                   style={smallNumberInputStyle}
                   disabled={isFinalized || !dragInterval}
-                  aria-label="Durée du drag en minutes"
+                  aria-label={t("management.classSetup.dragDurationAria")}
                 />
               </div>
               <div style={helperTextStyle}>
-                Durée estimée d’un drag en minutes.
+                {t("management.classSetup.dragDurationHelper")}
               </div>
             </div>
           )}
 
           {canManageSetup && (
             <div>
-              <label style={labelStyle}>Statut live public</label>
+              <label style={labelStyle}>
+                {t("management.classSetup.publicLiveStatus")}
+              </label>
               <select
                 value={publicationStatus}
                 onChange={(event) => updatePublicationStatus(event.target.value)}
@@ -990,19 +1006,19 @@ function ClassSetupPage() {
               >
                 {PUBLIC_LIVE_STATUS_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {t(option.labelKey)}
                   </option>
                 ))}
                 {isPublicationLocked && (
                   <option value={publicationStatus}>
-                    {getPublicationStatusLabel(publicationStatus)}
+                    {getPublicationStatusLabel(publicationStatus, t)}
                   </option>
                 )}
               </select>
               <div style={helperTextStyle}>
                 {isPublicationLocked
-                  ? "La publication finale se gère au secrétariat."
-                  : getPublicationStatusDescription(publicationStatus)}
+                  ? t("management.classSetup.finalPublicationAtSecretariat")
+                  : getPublicationStatusDescription(publicationStatus, t)}
               </div>
             </div>
           )}
@@ -1015,21 +1031,23 @@ function ClassSetupPage() {
             <div>
               <h2 style={sectionTitleStyle}>{customPatternConfig.name}</h2>
               <p style={helperTextStyle}>
-                Minimum {customPatternConfig.minManeuvers} manoeuvres pour cette
-                discipline.
+                {t("management.classSetup.customPatternMinimum", {
+                  count: customPatternConfig.minManeuvers,
+                })}
               </p>
             </div>
           </div>
 
           {!isCustomPatternComplete && (
             <div style={customPatternWarningStyle}>
-              Complète l’abréviation et la description de chaque manoeuvre avant
-              d’ouvrir le scoring.
+              {t("management.classSetup.customPatternIncomplete")}
             </div>
           )}
 
           <div style={customPatternNameStyle}>
-            <label style={labelStyle}>Nom du patron custom</label>
+            <label style={labelStyle}>
+              {t("management.classSetup.customPatternName")}
+            </label>
             <input
               type="text"
               value={normalizedCustomPattern?.name || ""}
@@ -1046,7 +1064,9 @@ function ClassSetupPage() {
           </div>
 
           <div style={customPatternCountStyle}>
-            <label style={labelStyle}>Nombre d’obstacles/manoeuvres</label>
+            <label style={labelStyle}>
+              {t("management.classSetup.customManeuverCount")}
+            </label>
             <input
               type="number"
               min={customPatternConfig.minManeuvers}
@@ -1063,7 +1083,9 @@ function ClassSetupPage() {
                 <div style={customManeuverIndexStyle}>#{index + 1}</div>
 
                 <div>
-                  <label style={labelStyle}>Abréviation</label>
+                  <label style={labelStyle}>
+                    {t("management.classSetup.abbreviation")}
+                  </label>
                   <input
                     type="text"
                     value={maneuver.abbreviation}
@@ -1081,7 +1103,9 @@ function ClassSetupPage() {
                 </div>
 
                 <div>
-                  <label style={labelStyle}>Description complète</label>
+                  <label style={labelStyle}>
+                    {t("management.classSetup.fullDescription")}
+                  </label>
                   <input
                     type="text"
                     value={maneuver.description}
@@ -1110,12 +1134,12 @@ function ClassSetupPage() {
 
       <section style={cardStyle}>
         <div style={sectionHeaderStyle}>
-          <h2 style={sectionTitleStyle}>Runs</h2>
+          <h2 style={sectionTitleStyle}>{t("management.classSetup.runs")}</h2>
 
           {canManageSetup && (
             <div style={buttonRowStyle}>
               <button onClick={addRun} style={buttonStyle} disabled={isFinalized}>
-                + Ajouter un run
+                {t("management.classSetup.addRun")}
               </button>
 
               <button
@@ -1123,7 +1147,7 @@ function ClassSetupPage() {
                 style={buttonStyle}
                 disabled={isFullyLocked}
               >
-                + Inscription tardive
+                {t("management.classSetup.addLateEntry")}
               </button>
 
               <button
@@ -1134,7 +1158,7 @@ function ClassSetupPage() {
                   }
 
                   if (isStructureLocked) {
-                    showLockedMessage("L’import du draw");
+                    showLockedMessage(t("management.classSetup.actionImportDraw"));
                     return;
                   }
 
@@ -1143,7 +1167,7 @@ function ClassSetupPage() {
                 style={buttonStyle}
                 disabled={isFullyLocked}
               >
-                Importer un draw
+                {t("management.classSetup.importDraw")}
               </button>
             </div>
           )}
@@ -1152,10 +1176,11 @@ function ClassSetupPage() {
         {showImportBox && (
           <div style={importBoxStyle}>
             <p style={helperTextStyle}>
-              Import CSV/PDF :
+              {t("management.classSetup.importFileTitle")}
               <br />
-              les lignes <code>Tractor</code> sont utilisées pour détecter
-              automatiquement l’intervalle de drag.
+              {t("management.classSetup.importFileHelpBefore")}{" "}
+              <code>Tractor</code>{" "}
+              {t("management.classSetup.importFileHelpAfter")}
             </p>
 
             <input
@@ -1170,17 +1195,17 @@ function ClassSetupPage() {
             />
 
             <p style={helperTextStyle}>
-              Copier-coller manuel :
+              {t("management.classSetup.manualPasteTitle")}
               <br />
               <code>draw, backNumber, rider, horse, owner</code>
               <br />
-              Une ligne par run.
+              {t("management.classSetup.oneLinePerRun")}
               <br />
-              Les inscriptions tardives peuvent utiliser un draw négatif
-              (<code>-1</code>, <code>-2</code>, etc.) pour passer avant le draw
-              1.
+              {t("management.classSetup.lateEntryNegativeDrawBefore")} (
+              <code>-1</code>, <code>-2</code>, etc.){" "}
+              {t("management.classSetup.lateEntryNegativeDrawAfter")}
               <br />
-              Exemple :
+              {t("management.classSetup.example")}
               <br />
               <code>1, 101, Félix Gadreau, Smart Spook, Jean Tremblay</code>
             </p>
@@ -1196,7 +1221,7 @@ function ClassSetupPage() {
 
             <div style={buttonRowStyle}>
               <button onClick={importRunsFromText} style={buttonStyle}>
-                Remplacer les runs avec cet import
+                {t("management.classSetup.replaceRunsWithImport")}
               </button>
             </div>
 
@@ -1210,11 +1235,11 @@ function ClassSetupPage() {
           <div style={emptyStateStyle}>
             {canManageSetup ? (
               <>
-                Aucun run pour l’instant. Entre un nombre de runs ou clique sur
-                <strong> Ajouter un run</strong>.
+                {t("management.classSetup.noRunsManager")}{" "}
+                <strong>{t("management.classSetup.addRunPlain")}</strong>.
               </>
             ) : (
-              "Aucun run pour cette classe."
+              t("management.classSetup.noRuns")
             )}
           </div>
         ) : (
@@ -1223,12 +1248,18 @@ function ClassSetupPage() {
               <thead>
                 <tr>
                   <th style={thStyle}>#</th>
-                  <th style={thStyle}>Back #</th>
-                  <th style={thStyle}>Rider</th>
-                  <th style={thStyle}>Horse</th>
-                  <th style={thStyle}>Owner</th>
-                  {canManageSetup && <th style={thStyle}>Ordre</th>}
-                  {canManageSetup && <th style={thStyle}>Actions</th>}
+                  <th style={thStyle}>{t("public.results.backNumber")} #</th>
+                  <th style={thStyle}>{t("management.classSetup.riderColumn")}</th>
+                  <th style={thStyle}>{t("management.classSetup.horseColumn")}</th>
+                  <th style={thStyle}>{t("public.results.owner")}</th>
+                  {canManageSetup && (
+                    <th style={thStyle}>{t("management.days.orderLabel")}</th>
+                  )}
+                  {canManageSetup && (
+                    <th style={thStyle}>
+                      {t("management.classSetup.actions")}
+                    </th>
+                  )}
                 </tr>
               </thead>
 
@@ -1257,7 +1288,7 @@ function ClassSetupPage() {
                         onChange={(e) =>
                           updateRunField(run.id, "rider", e.target.value)
                         }
-                        placeholder="Nom du rider"
+                        placeholder={t("management.classSetup.riderPlaceholder")}
                         style={cellInputStyle}
                         disabled={!canEditRunIdentity}
                       />
@@ -1270,7 +1301,7 @@ function ClassSetupPage() {
                         onChange={(e) =>
                           updateRunField(run.id, "horse", e.target.value)
                         }
-                        placeholder="Nom du cheval"
+                        placeholder={t("management.classSetup.horsePlaceholder")}
                         style={cellInputStyle}
                         disabled={!canEditRunIdentity}
                       />
@@ -1283,7 +1314,7 @@ function ClassSetupPage() {
                         onChange={(e) =>
                           updateRunField(run.id, "owner", e.target.value)
                         }
-                        placeholder="Nom du owner"
+                        placeholder={t("management.classSetup.ownerPlaceholder")}
                         style={cellInputStyle}
                         disabled={!canEditRunIdentity}
                       />
@@ -1318,14 +1349,14 @@ function ClassSetupPage() {
                             style={smallButtonStyle}
                             disabled={isOrderLocked}
                           >
-                            Dupliquer
+                            {t("management.classes.duplicate")}
                           </button>
                           <button
                             onClick={() => deleteRun(run.id)}
                             style={dangerButtonStyle}
                             disabled={isFullyLocked}
                           >
-                            Supprimer
+                            {t("management.classes.delete")}
                           </button>
                         </div>
                       </td>
@@ -1630,6 +1661,41 @@ const helperTextStyle = {
   color: "#555",
   fontSize: "14px",
 };
+
+function getClassStatusLabel(status, t) {
+  switch (status) {
+    case "draft":
+      return t("management.classes.statusDraft");
+    case "ready":
+      return t("management.classes.statusReady");
+    case "in_progress":
+      return t("management.classes.statusInProgress");
+    case "completed":
+      return t("management.classes.statusCompleted");
+    default:
+      return "—";
+  }
+}
+
+function getPublicationStatusLabel(status, t) {
+  switch (status) {
+    case PUBLICATION_STATUSES.LIVE:
+      return t("public.status.live");
+    case PUBLICATION_STATUSES.LIVE_NO_SCORE:
+      return t("public.status.liveNoScore");
+    case PUBLICATION_STATUSES.LIVE_SCORING:
+      return t("public.status.liveScoring");
+    case PUBLICATION_STATUSES.LIVE_FINISHED:
+      return t("public.status.liveFinished");
+    case PUBLICATION_STATUSES.OFFICIAL:
+      return t("public.status.official");
+    case PUBLICATION_STATUSES.PUBLISHED:
+      return t("public.status.published");
+    case PUBLICATION_STATUSES.HIDDEN:
+    default:
+      return t("public.status.hidden");
+  }
+}
 
 function statusBadgeStyle(status) {
   if (status === "completed") {

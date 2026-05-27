@@ -7,6 +7,7 @@ import {
 } from "../../features/days/dayRepository";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import { getCloudSyncStatus } from "../../features/cloud/supabaseStatus";
+import { useTranslation } from "../../features/i18n/I18nProvider";
 import { getShowRepository } from "../../features/shows/showRepository";
 import { appStyles as styles } from "../../styles/appStyles";
 import { createId } from "../../utils/createId";
@@ -14,6 +15,7 @@ import { createId } from "../../utils/createId";
 function ShowDetailPage() {
   const { associationId, showId } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [show, setShow] = useState(null);
   const [days, setDays] = useState([]);
@@ -63,7 +65,7 @@ function ShowDetailPage() {
       associationId,
       showId,
       date: "",
-      label: `Jour ${nextSortOrder}`,
+      label: t("management.days.newDayLabel", { order: nextSortOrder }),
       sortOrder: nextSortOrder,
     };
 
@@ -122,7 +124,7 @@ function ShowDetailPage() {
   };
 
   const handleDeleteDay = async (dayId) => {
-    const confirmed = window.confirm("Supprimer cette journée ?");
+    const confirmed = window.confirm(t("management.days.deleteConfirm"));
     if (!confirmed) return;
 
     setIsSaving(true);
@@ -139,7 +141,7 @@ function ShowDetailPage() {
     <div style={styles.app}>
       <div style={{ marginBottom: 16 }}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          ← Retour
+          {t("public.results.back")}
         </button>
       </div>
 
@@ -152,28 +154,35 @@ function ShowDetailPage() {
           marginBottom: 16,
         }}
       >
-        <h1 style={{ marginTop: 0 }}>{show?.name || "Show"}</h1>
-        <div style={{ fontWeight: 700 }}>{show?.venue || "Lieu"}</div>
+        <h1 style={{ marginTop: 0 }}>{show?.name || t("common.show")}</h1>
+        <div style={{ fontWeight: 700 }}>
+          {show?.venue || t("management.days.venueFallback")}
+        </div>
         <div style={{ color: "#64748b", marginTop: 4 }}>
           {show?.location || ""}
           {show?.startDate ? ` • ${show.startDate}` : ""}
-          {show?.endDate ? ` au ${show.endDate}` : ""}
+          {show?.endDate
+            ? ` ${t("management.shows.dateRangeJoin")} ${show.endDate}`
+            : ""}
         </div>
         <div style={{ color: "#64748b", marginTop: 4 }}>
-          Statut : {show?.status || "—"}
+          {t("management.shows.statusPrefix")}: {formatShowStatus(show?.status, t)}
         </div>
         <div style={{ marginTop: 10 }}>
           <span style={syncBadgeStyle(cloudStatus.configured)}>
-            Sync : {getSyncLabel(cloudStatus)}
+            {t("management.sync.label")}: {getSyncLabel(cloudStatus, t)}
           </span>
           <span style={accessBadgeStyle(access.canManageAssociation)}>
-            Accès : {access.isLoadingAccess ? "chargement…" : access.roleLabel}
+            {t("management.shows.accessLabel")}:{" "}
+            {access.isLoadingAccess
+              ? t("management.shows.accessLoading")
+              : access.roleLabel}
           </span>
         </div>
       </div>
 
       <div style={headerWrapStyle}>
-        <h2 style={{ fontSize: 20, margin: 0 }}>Journées</h2>
+        <h2 style={{ fontSize: 20, margin: 0 }}>{t("management.days.title")}</h2>
 
         <div style={actionRowStyleNoMargin}>
           {access.canAdminAssociation && (
@@ -181,7 +190,7 @@ function ShowDetailPage() {
               to={`/associations/${associationId}/access`}
               style={linkButtonStyle}
             >
-              Accès
+              {t("nav.access")}
             </Link>
           )}
 
@@ -190,7 +199,7 @@ function ShowDetailPage() {
               to={`/associations/${associationId}/shows/${showId}/secretariat`}
               style={linkButtonStyle}
             >
-              Secrétariat
+              {t("nav.secretariat")}
             </Link>
           )}
 
@@ -199,7 +208,7 @@ function ShowDetailPage() {
               to={`/associations/${associationId}/shows/${showId}/time`}
               style={linkButtonStyle}
             >
-              Temps des journées
+              {t("nav.dayTiming")}
             </Link>
           )}
 
@@ -208,7 +217,7 @@ function ShowDetailPage() {
               to={`/associations/${associationId}/shows/${showId}/announcer`}
               style={linkButtonStyle}
             >
-              Annonceur
+              {t("nav.announcer")}
             </Link>
           )}
 
@@ -216,7 +225,7 @@ function ShowDetailPage() {
             to={`/public/associations/${associationId}/shows/${showId}`}
             style={linkButtonStyle}
           >
-            Vitrine publique
+            {t("nav.publicShowcase")}
           </Link>
 
           {access.canManageAssociation && (
@@ -225,16 +234,16 @@ function ShowDetailPage() {
               style={primaryButtonStyle}
               disabled={isSaving}
             >
-              + Ajouter une journée
+              {t("management.days.addDay")}
             </button>
           )}
         </div>
       </div>
 
       {isLoading ? (
-        <div style={emptyStateStyle}>Chargement des journées…</div>
+        <div style={emptyStateStyle}>{t("management.days.loading")}</div>
       ) : days.length === 0 ? (
-        <div style={emptyStateStyle}>Aucune journée pour ce show.</div>
+        <div style={emptyStateStyle}>{t("management.days.empty")}</div>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
           {days.map((day) => {
@@ -244,10 +253,13 @@ function ShowDetailPage() {
               <div key={day.id} style={cardStyle}>
                 {!isEditing ? (
                   <>
-                    <div style={cardTitleStyle}>{day.label || "Journée"}</div>
+                    <div style={cardTitleStyle}>
+                      {day.label || t("management.days.dayFallback")}
+                    </div>
 
                     <div style={cardMetaStyle}>
-                      {day.date || "Date non définie"} • Ordre {day.sortOrder || 1}
+                      {day.date || t("public.results.dateTbd")} •{" "}
+                      {t("management.days.orderPrefix")} {day.sortOrder || 1}
                     </div>
 
                     <div style={actionRowStyle}>
@@ -257,7 +269,7 @@ function ShowDetailPage() {
                           to={`/associations/${associationId}/shows/${showId}/days/${day.id}`}
                           style={linkButtonStyle}
                         >
-                          Ouvrir les classes
+                          {t("management.days.openClasses")}
                         </Link>
                       )}
 
@@ -268,7 +280,7 @@ function ShowDetailPage() {
                             style={secondaryButtonStyle}
                             disabled={isSaving}
                           >
-                            Modifier
+                            {t("management.days.edit")}
                           </button>
 
                           <button
@@ -276,7 +288,7 @@ function ShowDetailPage() {
                             style={dangerButtonStyle}
                             disabled={isSaving}
                           >
-                            Supprimer
+                            {t("management.days.delete")}
                           </button>
                         </>
                       )}
@@ -286,7 +298,9 @@ function ShowDetailPage() {
                   <>
                     <div style={editGridStyle}>
                       <div>
-                        <label style={labelStyle}>Label</label>
+                        <label style={labelStyle}>
+                          {t("management.days.labelLabel")}
+                        </label>
                         <input
                           type="text"
                           value={draft.label}
@@ -298,7 +312,7 @@ function ShowDetailPage() {
                       </div>
 
                       <div>
-                        <label style={labelStyle}>Date</label>
+                        <label style={labelStyle}>{t("management.days.dateLabel")}</label>
                         <input
                           type="date"
                           value={draft.date}
@@ -310,7 +324,7 @@ function ShowDetailPage() {
                       </div>
 
                       <div>
-                        <label style={labelStyle}>Ordre</label>
+                        <label style={labelStyle}>{t("management.days.orderLabel")}</label>
                         <input
                           type="number"
                           min="1"
@@ -332,7 +346,7 @@ function ShowDetailPage() {
                         style={primaryButtonStyle}
                         disabled={isSaving}
                       >
-                        Enregistrer
+                        {t("management.days.save")}
                       </button>
 
                       <button
@@ -340,7 +354,7 @@ function ShowDetailPage() {
                         style={secondaryButtonStyle}
                         disabled={isSaving}
                       >
-                        Annuler
+                        {t("management.days.cancel")}
                       </button>
                     </div>
                   </>
@@ -485,10 +499,17 @@ const accessBadgeStyle = (hasManagementAccess) => ({
   fontSize: 13,
 });
 
-function getSyncLabel(cloudStatus) {
-  if (!cloudStatus.configured) return "Local seulement";
-  if (cloudStatus.authenticated) return "Supabase connecté";
-  return "Connexion requise";
+function formatShowStatus(status, t) {
+  if (status === "active") return t("management.shows.statusActive");
+  if (status === "completed") return t("management.shows.statusCompleted");
+  if (status === "draft") return t("management.shows.statusDraft");
+  return "—";
+}
+
+function getSyncLabel(cloudStatus, t) {
+  if (!cloudStatus.configured) return t("management.sync.local");
+  if (cloudStatus.authenticated) return t("management.sync.connected");
+  return t("management.sync.disconnected");
 }
 
 export default ShowDetailPage;

@@ -4,6 +4,7 @@ import {
   isAuthAvailable,
   onAuthStateChange,
 } from "./authRepository";
+import { isLocalTestUser } from "./localTestAuth";
 
 export function useAuthUser() {
   const [user, setUser] = useState(null);
@@ -45,5 +46,6 @@ export function useAuthUser() {
     isLoading,
     isConfigured: isAuthAvailable(),
     isAuthenticated: Boolean(user),
+    isLocalTestUser: isLocalTestUser(user),
   };
 }

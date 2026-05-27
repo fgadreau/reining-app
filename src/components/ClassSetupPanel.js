@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "../features/i18n/I18nProvider";
 
 function parseBackNumbers(text) {
   return text
@@ -18,6 +19,7 @@ function ClassSetupPanel({
   onAddRun,
   styles,
 }) {
+  const { t } = useTranslation();
   const [localRunCount, setLocalRunCount] = useState(String(runCount || 0));
   const [backNumbersText, setBackNumbersText] = useState("");
 
@@ -53,7 +55,7 @@ function ClassSetupPanel({
           marginBottom: 12,
         }}
       >
-        Entrée de classe
+        {t("management.classPanel.title")}
       </div>
 
       <div
@@ -65,7 +67,9 @@ function ClassSetupPanel({
         }}
       >
         <div>
-          <div style={{ fontSize: 13, marginBottom: 4 }}>Nom de classe</div>
+          <div style={{ fontSize: 13, marginBottom: 4 }}>
+            {t("management.classes.nameLabel")}
+          </div>
           <input
             value={activeClass?.name || ""}
             onChange={(e) => onUpdateClassField("name", e.target.value)}
@@ -80,7 +84,9 @@ function ClassSetupPanel({
         </div>
 
         <div>
-          <div style={{ fontSize: 13, marginBottom: 4 }}>Pattern</div>
+          <div style={{ fontSize: 13, marginBottom: 4 }}>
+            {t("public.results.pattern")}
+          </div>
           <input
             value={activeClass?.pattern || ""}
             onChange={(e) => onUpdateClassField("pattern", e.target.value)}
@@ -95,7 +101,9 @@ function ClassSetupPanel({
         </div>
 
         <div>
-          <div style={{ fontSize: 13, marginBottom: 4 }}>Juge</div>
+          <div style={{ fontSize: 13, marginBottom: 4 }}>
+            {t("public.results.judge")}
+          </div>
           <input
             value={activeClass?.judge || ""}
             onChange={(e) => onUpdateClassField("judge", e.target.value)}
@@ -110,7 +118,9 @@ function ClassSetupPanel({
         </div>
 
         <div>
-          <div style={{ fontSize: 13, marginBottom: 4 }}>Nombre de runs</div>
+          <div style={{ fontSize: 13, marginBottom: 4 }}>
+            {t("management.classSetup.runCount")}
+          </div>
           <div style={{ display: "flex", gap: 8 }}>
             <input
               value={localRunCount}
@@ -128,7 +138,7 @@ function ClassSetupPanel({
               }}
             />
             <button style={styles.resetButton} onClick={applyRunCount}>
-              Appliquer
+              {t("management.classSetup.apply")}
             </button>
           </div>
         </div>
@@ -143,21 +153,21 @@ function ClassSetupPanel({
         }}
       >
         <button style={styles.resetButton} onClick={onAddRun}>
-          Ajouter une run
+          {t("management.classSetup.addRunPlain")}
         </button>
 
         <button style={styles.resetButton} onClick={onRenumberDraws}>
-          Renuméroter draws 1 → n
+          {t("management.classPanel.renumberDraws")}
         </button>
 
         <button style={styles.resetButton} onClick={onClearBackNumbers}>
-          Effacer tous les back numbers
+          {t("management.classPanel.clearBackNumbers")}
         </button>
       </div>
 
       <div>
         <div style={{ fontSize: 13, marginBottom: 4 }}>
-          Préremplir les back numbers
+          {t("management.classPanel.prefillBackNumbers")}
         </div>
 
         <textarea
@@ -177,19 +187,19 @@ function ClassSetupPanel({
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button style={styles.resetButton} onClick={applyBackNumbers}>
-            Appliquer aux runs existantes
+            {t("management.classPanel.applyToExistingRuns")}
           </button>
 
           <button
             style={styles.resetButton}
             onClick={() => setBackNumbersText("")}
           >
-            Vider le champ
+            {t("management.classPanel.clearField")}
           </button>
         </div>
 
         <div style={{ fontSize: 12, color: "#666", marginTop: 8 }}>
-          Tu peux coller un numéro par ligne, ou séparés par virgules / espaces.
+          {t("management.classPanel.backNumbersHelp")}
         </div>
       </div>
     </div>

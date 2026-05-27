@@ -6,7 +6,7 @@ import {
   savePaidWarmupRepository,
 } from "../../features/paidWarmups/paidWarmupRepository";
 import {
-  PAID_WARMUP_STATUS_LABELS,
+  PAID_WARMUP_STATUSES,
   getPaidWarmupStats,
 } from "../../features/paidWarmups/paidWarmupStorage";
 import { parsePaidWarmupEntries } from "../../features/paidWarmups/paidWarmupImport";
@@ -14,12 +14,14 @@ import { DRAG_INTERVAL_OPTIONS } from "../../features/classes/classTiming";
 import { getDayById } from "../../features/days/daySelectors";
 import { getShowById } from "../../features/shows/showSelectors";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
+import { useTranslation } from "../../features/i18n/I18nProvider";
 import { createId } from "../../utils/createId";
 import { appStyles as styles } from "../../styles/appStyles";
 
 function PaidWarmupSetupPage() {
   const { associationId, showId, dayId, paidWarmupId } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const show = getShowById(showId);
   const day = getDayById(dayId);
   const access = useAssociationAccess(associationId);
@@ -114,7 +116,7 @@ function PaidWarmupSetupPage() {
     });
     setWarmup(saved);
     setIsSaving(false);
-    setMessage("Paid warm up enregistré.");
+    setMessage(t("management.paidWarmup.saved"));
   };
 
   const importEntries = async () => {
@@ -122,13 +124,13 @@ function PaidWarmupSetupPage() {
 
     const entries = parsePaidWarmupEntries(pasteText);
     if (entries.length === 0) {
-      setMessage("Aucun cavalier détecté dans le copier-coller.");
+      setMessage(t("management.paidWarmup.noRiderDetected"));
       return;
     }
 
     if (
       warmup.entries.length > 0 &&
-      !window.confirm("Remplacer la liste actuelle de cavaliers ?")
+      !window.confirm(t("management.paidWarmup.replaceConfirm"))
     ) {
       return;
     }
@@ -140,7 +142,11 @@ function PaidWarmupSetupPage() {
 
     setWarmup(nextWarmup);
     await saveWarmup(nextWarmup);
-    setMessage(`${entries.length} cavalier(s) importé(s) dans l’ordre fourni.`);
+    setMessage(
+      t("management.paidWarmup.importedCount", {
+        count: entries.length,
+      })
+    );
   };
 
   const shouldShowDragAfter = (index) => {
@@ -152,7 +158,7 @@ function PaidWarmupSetupPage() {
   if (isLoading) {
     return (
       <div style={styles.app}>
-        <div style={emptyStateStyle}>Chargement du paid warm up…</div>
+        <div style={emptyStateStyle}>{t("management.paidWarmup.loading")}</div>
       </div>
     );
   }
@@ -161,10 +167,10 @@ function PaidWarmupSetupPage() {
     return (
       <div style={styles.app}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          ← Retour
+          {t("public.results.back")}
         </button>
         <div style={{ ...emptyStateStyle, marginTop: 16 }}>
-          Ce rôle n’a pas accès à la gestion des paid warm ups.
+          {t("management.paidWarmup.accessDenied")}
         </div>
       </div>
     );
@@ -174,10 +180,10 @@ function PaidWarmupSetupPage() {
     return (
       <div style={styles.app}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          ← Retour
+          {t("public.results.back")}
         </button>
         <div style={{ ...emptyStateStyle, marginTop: 16 }}>
-          Paid warm up introuvable.
+          {t("management.paidWarmup.notFound")}
         </div>
       </div>
     );
@@ -187,16 +193,19 @@ function PaidWarmupSetupPage() {
     <div style={styles.app}>
       <div style={{ marginBottom: 16 }}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          ← Retour
+          {t("public.results.back")}
         </button>
       </div>
 
       <div style={headerStyle}>
         <div>
-          <div style={eyebrowStyle}>Paid warm up</div>
-          <h1 style={{ margin: "4px 0" }}>{warmup.name || "Paid warm up"}</h1>
+          <div style={eyebrowStyle}>{t("public.results.paidWarmup")}</div>
+          <h1 style={{ margin: "4px 0" }}>
+            {warmup.name || t("public.results.paidWarmup")}
+          </h1>
           <div style={metaStyle}>
-            {show?.name || "Show"} • {day?.label || "Journée"}
+            {show?.name || t("common.show")} •{" "}
+            {day?.label || t("management.days.dayFallback")}
             {day?.date ? ` • ${day.date}` : ""}
           </div>
         </div>
@@ -207,17 +216,19 @@ function PaidWarmupSetupPage() {
           style={primaryButtonStyle}
           disabled={isSaving}
         >
-          {isSaving ? "Enregistrement…" : "Enregistrer"}
+          {isSaving
+            ? t("management.paidWarmup.saving")
+            : t("management.paidWarmup.save")}
         </button>
       </div>
 
       {message && <div style={noticeStyle}>{message}</div>}
 
       <section style={cardStyle}>
-        <h2 style={sectionTitleStyle}>Réglages</h2>
+        <h2 style={sectionTitleStyle}>{t("management.paidWarmup.settings")}</h2>
         <div style={formGridStyle}>
           <div>
-            <label style={labelStyle}>Nom</label>
+            <label style={labelStyle}>{t("management.classes.nameLabel")}</label>
             <input
               type="text"
               value={warmup.name}
@@ -227,7 +238,9 @@ function PaidWarmupSetupPage() {
           </div>
 
           <div>
-            <label style={labelStyle}>Temps par cavalier</label>
+            <label style={labelStyle}>
+              {t("management.paidWarmup.timePerRider")}
+            </label>
             <input
               type="number"
               min="1"
@@ -242,7 +255,7 @@ function PaidWarmupSetupPage() {
           </div>
 
           <div>
-            <label style={labelStyle}>Drag de surface</label>
+            <label style={labelStyle}>{t("public.results.dragSurface")}</label>
             <select
               value={warmup.dragInterval || ""}
               onChange={(event) =>
@@ -254,17 +267,24 @@ function PaidWarmupSetupPage() {
               }
               style={inputStyle}
             >
-              <option value="">Aucun drag planifié</option>
+              <option value="">{t("management.classes.noDragPlanned")}</option>
               {DRAG_INTERVAL_OPTIONS.map((value) => (
                 <option key={value} value={value}>
-                  Après chaque {value} cavalier{value > 1 ? "s" : ""}
+                  {t("management.paidWarmup.dragAfterEachRider", {
+                    count: value,
+                    ridersLabel: t(
+                      value > 1
+                        ? "management.classes.ridersPlural"
+                        : "management.classes.riderSingular"
+                    ),
+                  })}
                 </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label style={labelStyle}>Durée d’un drag</label>
+            <label style={labelStyle}>{t("management.time.dragDuration")}</label>
             <input
               type="number"
               min="0"
@@ -286,7 +306,7 @@ function PaidWarmupSetupPage() {
                 updateWarmup({ isPublicLive: event.target.checked })
               }
             />
-            Autoriser le live public pour ce paid warm up
+            {t("management.paidWarmup.allowPublicLive")}
           </label>
         </div>
       </section>
@@ -294,20 +314,27 @@ function PaidWarmupSetupPage() {
       <section style={cardStyle}>
         <div style={sectionHeaderStyle}>
           <div>
-            <h2 style={sectionTitleStyle}>Cavaliers</h2>
+            <h2 style={sectionTitleStyle}>
+              {t("management.paidWarmup.riders")}
+            </h2>
             <div style={metaStyle}>
-              {stats.total} total • {stats.pending} à venir • {stats.done} passés •{" "}
-              {stats.noShow} no show • {stats.scratch} scratch
+              {t("management.paidWarmup.stats", {
+                total: stats.total,
+                pending: stats.pending,
+                done: stats.done,
+                noShow: stats.noShow,
+                scratch: stats.scratch,
+              })}
             </div>
           </div>
 
           <button type="button" onClick={addEntry} style={secondaryButtonStyle}>
-            + Ajouter un cavalier
+            {t("management.paidWarmup.addRider")}
           </button>
         </div>
 
         <div style={importBoxStyle}>
-          <label style={labelStyle}>Copier-coller Excel / Sheets</label>
+          <label style={labelStyle}>{t("management.paidWarmup.pasteLabel")}</label>
           <textarea
             value={pasteText}
             onChange={(event) => setPasteText(event.target.value)}
@@ -320,23 +347,23 @@ function PaidWarmupSetupPage() {
             style={secondaryButtonStyle}
             disabled={isSaving}
           >
-            Importer dans cet ordre
+            {t("management.paidWarmup.importInOrder")}
           </button>
         </div>
 
         {warmup.entries.length === 0 ? (
           <div style={emptyStateStyle}>
-            Aucun cavalier pour l’instant. Importe une liste ou ajoute un cavalier.
+            {t("management.paidWarmup.emptyEntries")}
           </div>
         ) : (
           <div style={tableWrapStyle}>
             <table style={tableStyle}>
               <thead>
                 <tr>
-                  <th style={thStyle}>Ordre</th>
-                  <th style={thStyle}>Cavalier</th>
-                  <th style={thStyle}>Statut</th>
-                  <th style={thStyle}>Action</th>
+                  <th style={thStyle}>{t("public.results.order")}</th>
+                  <th style={thStyle}>{t("management.paidWarmup.rider")}</th>
+                  <th style={thStyle}>{t("management.shows.statusLabel")}</th>
+                  <th style={thStyle}>{t("management.access.action")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -366,13 +393,11 @@ function PaidWarmupSetupPage() {
                           }
                           style={inputStyle}
                         >
-                          {Object.entries(PAID_WARMUP_STATUS_LABELS).map(
-                            ([value, label]) => (
-                              <option key={value} value={value}>
-                                {label}
-                              </option>
-                            )
-                          )}
+                          {PAID_WARMUP_STATUSES.map((value) => (
+                            <option key={value} value={value}>
+                              {getPaidWarmupStatusLabel(value, t)}
+                            </option>
+                          ))}
                         </select>
                       </td>
                       <td style={tdStyle}>
@@ -381,7 +406,7 @@ function PaidWarmupSetupPage() {
                           onClick={() => removeEntry(entry.id)}
                           style={dangerButtonStyle}
                         >
-                          Retirer
+                          {t("management.access.remove")}
                         </button>
                       </td>
                     </tr>
@@ -389,7 +414,9 @@ function PaidWarmupSetupPage() {
                     {shouldShowDragAfter(index) && (
                       <tr>
                         <td colSpan="4" style={dragRowStyle}>
-                          Drag de surface • {warmup.dragDurationMinutes} min
+                          {t("management.paidWarmup.dragRow", {
+                            minutes: warmup.dragDurationMinutes,
+                          })}
                         </td>
                       </tr>
                     )}
@@ -402,6 +429,20 @@ function PaidWarmupSetupPage() {
       </section>
     </div>
   );
+}
+
+function getPaidWarmupStatusLabel(status, t) {
+  switch (status) {
+    case "done":
+      return t("public.results.paidWarmupStatusDone");
+    case "no_show":
+      return t("public.results.paidWarmupStatusNoShow");
+    case "scratch":
+      return t("public.results.paidWarmupStatusScratch");
+    case "pending":
+    default:
+      return t("public.results.paidWarmupStatusPending");
+  }
 }
 
 const headerStyle = {

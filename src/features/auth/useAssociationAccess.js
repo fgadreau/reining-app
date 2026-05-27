@@ -28,7 +28,7 @@ export function useAssociationAccess(associationId) {
     let isMounted = true;
 
     async function loadMemberships() {
-      if (!auth.isConfigured || !auth.user?.id) {
+      if (!auth.isConfigured || auth.isLocalTestUser || !auth.user?.id) {
         setMemberships([]);
         setIsPlatformAdmin(false);
         setIsLoadingMemberships(false);
@@ -56,17 +56,19 @@ export function useAssociationAccess(associationId) {
       isMounted = false;
       unsubscribeAccessChanges();
     };
-  }, [auth.isConfigured, auth.user?.id, associationId]);
+  }, [auth.isConfigured, auth.isLocalTestUser, auth.user?.id, associationId]);
 
   const associationRoles = useMemo(
     () => getRolesForAssociation(memberships, associationId),
     [memberships, associationId]
   );
 
-  const isLocalMode = !auth.isConfigured;
+  const isLocalMode = !auth.isConfigured || auth.isLocalTestUser;
   const hasPlatformAdminAccess = isPlatformAdmin || isLocalMode;
   const roleLabel = isLocalMode
-    ? "Local sans restriction"
+    ? auth.isLocalTestUser
+      ? "Test local sans restriction"
+      : "Local sans restriction"
     : isPlatformAdmin
       ? "Admin général"
       : associationRoles.length > 0

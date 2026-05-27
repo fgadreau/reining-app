@@ -6,10 +6,12 @@ import {
   isProductionDeployEnvironment,
 } from "../features/cloud/deployEnvironment";
 import { useAuthUser } from "../features/auth/useAuthUser";
+import { useTranslation } from "../features/i18n/I18nProvider";
 
 function CloudAuthBar() {
   const location = useLocation();
   const auth = useAuthUser();
+  const { t } = useTranslation();
   const deployEnvironmentLabel = getDeployEnvironmentLabel();
 
   if (location.pathname.includes("/public")) {
@@ -22,7 +24,7 @@ function CloudAuthBar() {
     try {
       await signOut();
     } catch (error) {
-      alert(error.message || "Impossible de se déconnecter.");
+      alert(error.message || t("auth.logoutFailed"));
     }
   }
 
@@ -34,8 +36,8 @@ function CloudAuthBar() {
             {deployEnvironmentLabel}
           </span>
         )}
-        <span style={badgeStyle("local")}>Mode local</span>
-        <span style={mutedTextStyle}>Supabase non configuré.</span>
+        <span style={badgeStyle("local")}>{t("auth.localMode")}</span>
+        <span style={mutedTextStyle}>{t("auth.supabaseNotConfigured")}</span>
       </div>
     );
   }
@@ -48,8 +50,23 @@ function CloudAuthBar() {
             {deployEnvironmentLabel}
           </span>
         )}
-        <span style={badgeStyle("pending")}>Supabase</span>
-        <span style={mutedTextStyle}>Vérification de la session…</span>
+        <span style={badgeStyle("pending")}>{t("auth.supabase")}</span>
+        <span style={mutedTextStyle}>{t("auth.sessionCheck")}</span>
+      </div>
+    );
+  }
+
+  if (auth.isLocalTestUser) {
+    return (
+      <div style={barStyle}>
+        {deployEnvironmentLabel && (
+          <span style={environmentBadgeStyle()}>{deployEnvironmentLabel}</span>
+        )}
+        <span style={badgeStyle("local")}>{t("auth.localTestMode")}</span>
+        <span style={userTextStyle}>{auth.user?.email}</span>
+        <button type="button" onClick={handleSignOut} style={buttonStyle}>
+          {t("auth.logout")}
+        </button>
       </div>
     );
   }
@@ -62,11 +79,11 @@ function CloudAuthBar() {
             {deployEnvironmentLabel}
           </span>
         )}
-        <span style={badgeStyle("warn")}>Cloud prêt</span>
-        <span style={mutedTextStyle}>Connecte-toi pour écrire dans Supabase.</span>
+        <span style={badgeStyle("warn")}>{t("auth.cloudReady")}</span>
+        <span style={mutedTextStyle}>{t("auth.supabaseWriteHint")}</span>
         {!isLoginPage && (
           <Link to="/login" style={linkStyle}>
-            Connexion
+            {t("auth.login")}
           </Link>
         )}
       </div>
@@ -78,10 +95,10 @@ function CloudAuthBar() {
       {deployEnvironmentLabel && (
         <span style={environmentBadgeStyle()}>{deployEnvironmentLabel}</span>
       )}
-      <span style={badgeStyle("ready")}>Cloud connecté</span>
-      <span style={userTextStyle}>{auth.user?.email || "Utilisateur Supabase"}</span>
+      <span style={badgeStyle("ready")}>{t("auth.cloudConnected")}</span>
+      <span style={userTextStyle}>{auth.user?.email || t("auth.supabaseUser")}</span>
       <button type="button" onClick={handleSignOut} style={buttonStyle}>
-        Déconnexion
+        {t("auth.logout")}
       </button>
     </div>
   );

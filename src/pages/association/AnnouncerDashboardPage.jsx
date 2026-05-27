@@ -6,7 +6,6 @@ import {
   subscribeAnnouncerShowViewRepository,
 } from "../../features/live/liveViewRepository";
 import { formatLiveDataFreshness } from "../../features/live/liveFreshness";
-import { PROVISIONAL_RANKING_NOTE } from "../../features/scoring/provisionalRanking";
 import { savePaidWarmupRepository } from "../../features/paidWarmups/paidWarmupRepository";
 import {
   formatPaidWarmupTimer,
@@ -16,14 +15,16 @@ import {
   startPaidWarmupEntry,
   stopPaidWarmupTimer,
 } from "../../features/paidWarmups/paidWarmupLive";
-import { PAID_WARMUP_STATUS_LABELS } from "../../features/paidWarmups/paidWarmupStorage";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
+import { useTranslation } from "../../features/i18n/I18nProvider";
+import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
 import { getShowById } from "../../features/shows/showSelectors";
 import { appStyles as styles } from "../../styles/appStyles";
 
 function AnnouncerDashboardPage() {
   const { associationId, showId } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const access = useAssociationAccess(associationId);
   const show = getShowById(showId);
   const [liveView, setLiveView] = useState(() => getAnnouncerShowView(showId));
@@ -149,9 +150,9 @@ function AnnouncerDashboardPage() {
     return (
       <div style={styles.app}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          ← Retour
+          {t("public.results.back")}
         </button>
-        <div style={emptyStateStyle}>Show introuvable.</div>
+        <div style={emptyStateStyle}>{t("public.results.showNotFound")}</div>
       </div>
     );
   }
@@ -160,10 +161,10 @@ function AnnouncerDashboardPage() {
     return (
       <div style={styles.app}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          ← Retour
+          {t("public.results.back")}
         </button>
         <div style={emptyStateStyle}>
-          Ce rôle n’a pas accès au tableau annonceur.
+          {t("management.announcer.accessDenied")}
         </div>
       </div>
     );
@@ -173,16 +174,16 @@ function AnnouncerDashboardPage() {
     <div style={styles.app}>
       <div style={{ marginBottom: 16 }}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          ← Retour
+          {t("public.results.back")}
         </button>
       </div>
 
       <section style={heroStyle}>
         <div>
-          <div style={eyebrowStyle}>Annonceur</div>
-          <h1 style={titleStyle}>{show.name || "Show"}</h1>
+          <div style={eyebrowStyle}>{t("nav.announcer")}</div>
+          <h1 style={titleStyle}>{show.name || t("common.show")}</h1>
           <div style={subtitleStyle}>
-            {show.venue || show.location || "Lieu à confirmer"}
+            {show.venue || show.location || t("public.results.venueTbd")}
           </div>
         </div>
         {access.canManageAssociation && (
@@ -190,23 +191,25 @@ function AnnouncerDashboardPage() {
             to={`/associations/${associationId}/shows/${showId}/secretariat`}
             style={linkButtonStyle}
           >
-            Secrétariat
+            {t("nav.secretariat")}
           </Link>
         )}
       </section>
 
       <section style={focusGridStyle}>
-        <FocusPanel title="En piste">
+        <FocusPanel title={t("management.announcer.onCourse")}>
           {liveView.activePaidWarmup?.activeEntry ? (
             <PaidWarmupFocus warmup={liveView.activePaidWarmup} now={now} />
           ) : liveView.activeClasses?.length ? (
             <ActiveClassFocusList classes={liveView.activeClasses} now={now} />
           ) : (
-            <div style={mutedTextStyle}>Aucun run actif.</div>
+            <div style={mutedTextStyle}>
+              {t("management.announcer.noActiveRun")}
+            </div>
           )}
         </FocusPanel>
 
-        <FocusPanel title="Prochain participant">
+        <FocusPanel title={t("public.results.nextParticipant")}>
           {liveView.activePaidWarmup?.nextEntry ? (
             <PaidWarmupEntryFocus
               warmupName={liveView.activePaidWarmup.name}
@@ -215,23 +218,27 @@ function AnnouncerDashboardPage() {
           ) : liveView.activeClasses?.some((classView) => classView.nextRun) ? (
             <NextRunFocusList classes={liveView.activeClasses} now={now} />
           ) : (
-            <div style={mutedTextStyle}>Aucun prochain run.</div>
+            <div style={mutedTextStyle}>
+              {t("management.announcer.noNextRun")}
+            </div>
           )}
         </FocusPanel>
 
-        <FocusPanel title="Deux derniers passés">
+        <FocusPanel title={t("public.results.lastTwoPassed")}>
           {liveView.activePaidWarmup?.lastPassedEntries?.length ? (
             <PaidWarmupRecentEntries warmup={liveView.activePaidWarmup} />
           ) : liveView.recentResults?.length ? (
             <RecentResults results={liveView.recentResults} />
           ) : (
-            <div style={mutedTextStyle}>Aucun passage affichable.</div>
+            <div style={mutedTextStyle}>
+              {t("management.announcer.noRecentRun")}
+            </div>
           )}
         </FocusPanel>
       </section>
 
       {isLoading && (
-        <div style={emptyStateStyle}>Chargement du tableau annonceur…</div>
+        <div style={emptyStateStyle}>{t("management.announcer.loading")}</div>
       )}
 
       <div style={{ display: "grid", gap: 16 }}>
@@ -239,11 +246,15 @@ function AnnouncerDashboardPage() {
           <section key={section.day.id} style={cardStyle}>
             <div style={sectionHeaderStyle}>
               <div>
-                <h2 style={sectionTitleStyle}>{section.day.label || "Journée"}</h2>
+                <h2 style={sectionTitleStyle}>
+                  {section.day.label || t("management.days.dayFallback")}
+                </h2>
                 <div style={mutedTextStyle}>
-                  {section.day.date || "Date non définie"} ·{" "}
-                  {section.classes.length} classe(s) ·{" "}
-                  {(section.paidWarmups || []).length} paid warm up(s)
+                  {section.day.date || t("public.results.dateTbd")} ·{" "}
+                  {t("management.announcer.dayCounts", {
+                    classCount: section.classes.length,
+                    warmupCount: (section.paidWarmups || []).length,
+                  })}
                 </div>
               </div>
             </div>
@@ -251,7 +262,7 @@ function AnnouncerDashboardPage() {
             {section.classes.length === 0 &&
             (section.paidWarmups || []).length === 0 ? (
               <div style={softEmptyStyle}>
-                Aucune classe ou paid warm up pour cette journée.
+                {t("management.classes.emptyDay")}
               </div>
             ) : (
               <div style={classListStyle}>
@@ -319,6 +330,8 @@ function RunFocus({ className, run, compact = false }) {
 }
 
 function ActiveClassFocusList({ classes, now }) {
+  const { t } = useTranslation();
+
   return (
     <div style={focusListStyle}>
       {classes.map((classView) => (
@@ -329,7 +342,9 @@ function ActiveClassFocusList({ classes, now }) {
           />
           <div style={focusBadgeRowStyle}>
             <LiveFreshnessBadge updatedAt={classView.liveUpdatedAt} now={now} />
-            <Badge tone="muted">{classView.publicationStatusLabel}</Badge>
+            <Badge tone="muted">
+              {getPublicationStatusLabel(classView.publicationStatus, t)}
+            </Badge>
           </div>
         </div>
       ))}
@@ -389,13 +404,15 @@ function PaidWarmupEntryFocus({ warmupName, entry }) {
 }
 
 function PaidWarmupRecentEntries({ warmup }) {
+  const { t } = useTranslation();
+
   return (
     <div style={recentListStyle}>
       {warmup.lastPassedEntries.map((entry) => (
         <div key={entry.id} style={recentResultStyle}>
           <PaidWarmupEntryIdentity entry={entry} />
           <div style={mutedTextStyle}>
-            {PAID_WARMUP_STATUS_LABELS[entry.status] || "Passé"}
+            {getPaidWarmupStatusLabel(entry.status, t)}
           </div>
         </div>
       ))}
@@ -431,6 +448,7 @@ function PaidWarmupLiveCard({
   onStopTimer,
   onSetEntryStatus,
 }) {
+  const { t } = useTranslation();
   const remainingSeconds = getPaidWarmupRemainingSeconds(warmup, now);
   const activeEntry = warmup.activeEntry;
   const nextEntry = warmup.nextEntry;
@@ -441,29 +459,38 @@ function PaidWarmupLiveCard({
         <div>
           <div style={classNameStyle}>{warmup.name}</div>
           <div style={mutedTextStyle}>
-            {warmup.durationMinutesPerRider} min/cavalier ·{" "}
+            {t("management.classes.minutesPerRider", {
+              minutes: warmup.durationMinutesPerRider,
+            })}{" "}
+            ·{" "}
             {warmup.dragInterval
-              ? `Drag après ${warmup.dragInterval}`
-              : "Aucun drag planifié"}
+              ? t("management.announcer.dragAfter", {
+                  count: warmup.dragInterval,
+                })
+              : t("management.classes.noDragPlanned")}
           </div>
         </div>
         <div style={badgeStackStyle}>
           <LiveFreshnessBadge updatedAt={warmup.updatedAt} now={now} />
           <Badge tone={activeEntry ? "warn" : "muted"}>
-            {activeEntry ? "Timer actif" : "Paid warm up"}
+            {activeEntry
+              ? t("management.announcer.activeTimer")
+              : t("public.results.paidWarmup")}
           </Badge>
         </div>
       </div>
 
       {warmup.isDragDue && (
         <div style={dragNoticeStyle}>
-          Drag de surface prévu · {warmup.dragDurationMinutes} min
+          {t("management.announcer.dragDue", {
+            minutes: warmup.dragDurationMinutes,
+          })}
         </div>
       )}
 
       <div style={runGridStyle}>
         <div style={runBlockStyle}>
-          <div style={runLabelStyle}>En piste</div>
+          <div style={runLabelStyle}>{t("management.announcer.onCourse")}</div>
           {activeEntry ? (
             <>
               <PaidWarmupEntryIdentity entry={activeEntry} />
@@ -481,19 +508,25 @@ function PaidWarmupLiveCard({
         </div>
 
         <div style={runBlockStyle}>
-          <div style={runLabelStyle}>Prochain</div>
+          <div style={runLabelStyle}>{t("management.announcer.next")}</div>
           {nextEntry ? (
             <PaidWarmupEntryIdentity entry={nextEntry} />
           ) : (
-            <div style={mutedTextStyle}>Aucun cavalier en attente.</div>
+            <div style={mutedTextStyle}>
+              {t("management.announcer.noWaitingRider")}
+            </div>
           )}
         </div>
 
         <div style={runBlockStyle}>
-          <div style={runLabelStyle}>Stats</div>
+          <div style={runLabelStyle}>{t("management.announcer.stats")}</div>
           <div style={mutedTextStyle}>
-            {warmup.stats.total} total · {warmup.stats.done} passés ·{" "}
-            {warmup.stats.noShow} no show · {warmup.stats.scratch} scratch
+            {t("management.announcer.warmupStats", {
+              total: warmup.stats.total,
+              done: warmup.stats.done,
+              noShow: warmup.stats.noShow,
+              scratch: warmup.stats.scratch,
+            })}
           </div>
         </div>
       </div>
@@ -505,7 +538,7 @@ function PaidWarmupLiveCard({
             onClick={() => onStartEntry(warmup, nextEntry.id)}
             style={primaryButtonStyle}
           >
-            Démarrer prochain
+            {t("management.announcer.startNext")}
           </button>
         )}
 
@@ -518,21 +551,21 @@ function PaidWarmupLiveCard({
               }
               style={primaryButtonStyle}
             >
-              Marquer passé
+              {t("management.announcer.markPassed")}
             </button>
             <button
               type="button"
               onClick={() => onResetTimer(warmup)}
               style={secondaryButtonStyle}
             >
-              Repartir timer
+              {t("management.announcer.resetTimer")}
             </button>
             <button
               type="button"
               onClick={() => onStopTimer(warmup)}
               style={secondaryButtonStyle}
             >
-              Arrêter et marquer passé
+              {t("management.announcer.stopAndMarkPassed")}
             </button>
           </>
         )}
@@ -544,14 +577,14 @@ function PaidWarmupLiveCard({
               onClick={() => onSetEntryStatus(warmup, nextEntry.id, "no_show")}
               style={secondaryButtonStyle}
             >
-              No show prochain
+              {t("management.announcer.noShowNext")}
             </button>
             <button
               type="button"
               onClick={() => onSetEntryStatus(warmup, nextEntry.id, "scratch")}
               style={secondaryButtonStyle}
             >
-              Scratch prochain
+              {t("management.announcer.scratchNext")}
             </button>
           </>
         )}
@@ -561,34 +594,49 @@ function PaidWarmupLiveCard({
 }
 
 function PaidWarmupEntryIdentity({ entry }) {
+  const { t } = useTranslation();
+
   return (
     <div>
       <div style={runTitleStyle}>#{entry?.order || "—"}</div>
-      <div style={runNameStyle}>{entry?.rider || "Cavalier —"}</div>
+      <div style={runNameStyle}>
+        {entry?.rider || t("public.results.riderFallback")}
+      </div>
     </div>
   );
 }
 
 function PaidWarmupTimerCue({ warmup, remainingSeconds }) {
+  const { t } = useTranslation();
+
   if (remainingSeconds == null) return null;
 
   if (remainingSeconds <= 0) {
-    return <div style={timerCueStyle("danger")}>Temps terminé</div>;
+    return <div style={timerCueStyle("danger")}>{t("public.results.timeOver")}</div>;
   }
 
   if (remainingSeconds <= 60) {
-    return <div style={timerCueStyle("danger")}>Annonce: il reste 1 minute</div>;
+    return (
+      <div style={timerCueStyle("danger")}>
+        {t("management.announcer.announceOneMinute")}
+      </div>
+    );
   }
 
   if (remainingSeconds <= warmup.durationSeconds / 2) {
-    return <div style={timerCueStyle("warn")}>Annonce: moitié du temps</div>;
+    return (
+      <div style={timerCueStyle("warn")}>
+        {t("management.announcer.announceHalfTime")}
+      </div>
+    );
   }
 
   return null;
 }
 
 function ClassLiveCard({ classView, now, onOpenProvisionalRanking }) {
-  const liveState = getClassLiveState(classView);
+  const { t } = useTranslation();
+  const liveState = getClassLiveState(classView, t);
   const hasProvisionalRanking = classView.provisionalRanking?.length > 0;
 
   return (
@@ -600,24 +648,35 @@ function ClassLiveCard({ classView, now, onOpenProvisionalRanking }) {
             {classView.classCode ? ` (${classView.classCode})` : ""}
           </div>
           <div style={mutedTextStyle}>
-            {classView.arena ? `Manège ${classView.arena} · ` : ""}
-            Pattern {classView.pattern || "—"} · {classView.runCount} run(s)
+            {classView.arena
+              ? `${t("public.results.arena")} ${classView.arena} · `
+              : ""}
+            {t("public.results.pattern")} {classView.pattern || "—"} ·{" "}
+            {t("management.announcer.runCount", {
+              count: classView.runCount,
+            })}
           </div>
         </div>
         <div style={badgeStackStyle}>
           <LiveFreshnessBadge updatedAt={classView.liveUpdatedAt} now={now} />
-          <Badge tone="muted">{classView.publicationStatusLabel}</Badge>
+          <Badge tone="muted">
+            {getPublicationStatusLabel(classView.publicationStatus, t)}
+          </Badge>
           <Badge tone={liveState.tone}>{liveState.label}</Badge>
         </div>
       </div>
       <div style={runGridStyle}>
-        <RunBlock label="Actif" run={classView.activeRun} />
-        <RunBlock label="Prochain" run={classView.nextRun} />
-        <RunBlock label="Dernier score" run={classView.latestScore} showScore />
+        <RunBlock label={t("management.announcer.active")} run={classView.activeRun} />
+        <RunBlock label={t("management.announcer.next")} run={classView.nextRun} />
+        <RunBlock
+          label={t("management.announcer.latestScore")}
+          run={classView.latestScore}
+          showScore
+        />
       </div>
       {classView.lastPassedRuns?.length > 0 && (
         <div style={completedWrapStyle}>
-          <div style={runLabelStyle}>Deux derniers passés</div>
+          <div style={runLabelStyle}>{t("public.results.lastTwoPassed")}</div>
           <RecentResults
             results={classView.lastPassedRuns.map((run) => ({
               classId: classView.classId,
@@ -634,7 +693,7 @@ function ClassLiveCard({ classView, now, onOpenProvisionalRanking }) {
             onClick={() => onOpenProvisionalRanking(classView)}
             style={secondaryButtonStyle}
           >
-            Classement provisoire
+            {t("management.announcer.provisionalRanking")}
           </button>
         </div>
       )}
@@ -642,20 +701,54 @@ function ClassLiveCard({ classView, now, onOpenProvisionalRanking }) {
   );
 }
 
-function getClassLiveState(classView) {
+function getClassLiveState(classView, t) {
   if (classView.activeRun) {
-    return { label: "Live", tone: "warn" };
+    return { label: t("common.live"), tone: "warn" };
   }
 
   if (classView.isComplete || classView.status === "completed") {
-    return { label: "Terminée", tone: "success" };
+    return { label: t("management.classes.statusCompleted"), tone: "success" };
   }
 
   if (classView.scoringStarted && classView.nextRun) {
-    return { label: "En cours", tone: "warn" };
+    return { label: t("management.classes.statusInProgress"), tone: "warn" };
   }
 
-  return { label: "À venir", tone: "muted" };
+  return { label: t("public.results.paidWarmupStatusPending"), tone: "muted" };
+}
+
+function getPaidWarmupStatusLabel(status, t) {
+  switch (status) {
+    case "done":
+      return t("public.results.paidWarmupStatusDone");
+    case "no_show":
+      return t("public.results.paidWarmupStatusNoShow");
+    case "scratch":
+      return t("public.results.paidWarmupStatusScratch");
+    case "pending":
+    default:
+      return t("public.results.paidWarmupStatusPending");
+  }
+}
+
+function getPublicationStatusLabel(status, t) {
+  switch (status) {
+    case PUBLICATION_STATUSES.LIVE:
+      return t("public.status.live");
+    case PUBLICATION_STATUSES.LIVE_NO_SCORE:
+      return t("public.status.liveNoScore");
+    case PUBLICATION_STATUSES.LIVE_SCORING:
+      return t("public.status.liveScoring");
+    case PUBLICATION_STATUSES.LIVE_FINISHED:
+      return t("public.status.liveFinished");
+    case PUBLICATION_STATUSES.OFFICIAL:
+      return t("public.status.official");
+    case PUBLICATION_STATUSES.PUBLISHED:
+      return t("public.status.published");
+    case PUBLICATION_STATUSES.HIDDEN:
+    default:
+      return t("public.status.hidden");
+  }
 }
 
 function RunBlock({ label, run, showScore = false }) {
@@ -676,31 +769,39 @@ function RunBlock({ label, run, showScore = false }) {
 }
 
 function RunNote({ note }) {
+  const { t } = useTranslation();
   const cleanNote = String(note || "").trim();
 
   if (!cleanNote) return null;
 
   return (
     <div style={runNoteStyle}>
-      <div style={runLabelStyle}>Note du juge</div>
+      <div style={runLabelStyle}>{t("public.results.judgeNote")}</div>
       <div style={runNoteTextStyle}>{cleanNote}</div>
     </div>
   );
 }
 
 function RunIdentity({ run }) {
+  const { t } = useTranslation();
+
   return (
     <div>
       <div style={runTitleStyle}>
-        #{run.draw} · Back {run.backNumber || "—"}
+        #{run.draw} · {t("public.results.backNumber")} {run.backNumber || "—"}
       </div>
-      <div style={runNameStyle}>{run.rider || "Rider —"}</div>
-      <div style={mutedTextStyle}>{run.horse || "Horse —"}</div>
+      <div style={runNameStyle}>
+        {run.rider || t("public.results.riderFallback")}
+      </div>
+      <div style={mutedTextStyle}>
+        {run.horse || t("public.results.horseFallback")}
+      </div>
     </div>
   );
 }
 
 function ManoeuvreDetails({ run }) {
+  const { t } = useTranslation();
   const manoeuvres = Array.isArray(run?.manoeuvres) ? run.manoeuvres : [];
 
   if (!manoeuvres.length) {
@@ -713,7 +814,11 @@ function ManoeuvreDetails({ run }) {
         <div key={item.name} style={detailCellStyle}>
           <div style={detailNameStyle}>{item.name}</div>
           <div style={detailScoreStyle}>{item.score || "—"}</div>
-          {item.penalty && <div style={detailPenaltyStyle}>P {item.penalty}</div>}
+          {item.penalty && (
+            <div style={detailPenaltyStyle}>
+              {t("public.results.penaltyPrefix")} {item.penalty}
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -721,6 +826,7 @@ function ManoeuvreDetails({ run }) {
 }
 
 function ProvisionalRankingModal({ classView, onClose }) {
+  const { t } = useTranslation();
   const ranking = classView.provisionalRanking || [];
 
   return (
@@ -728,12 +834,16 @@ function ProvisionalRankingModal({ classView, onClose }) {
       <div style={modalStyle}>
         <div style={modalHeaderStyle}>
           <div>
-            <h2 style={sectionTitleStyle}>Classement provisoire</h2>
+            <h2 style={sectionTitleStyle}>
+              {t("management.announcer.provisionalRanking")}
+            </h2>
             <div style={classNameStyle}>{classView.className}</div>
-            <div style={mutedTextStyle}>{PROVISIONAL_RANKING_NOTE}</div>
+            <div style={mutedTextStyle}>
+              {t("management.announcer.provisionalRankingNote")}
+            </div>
           </div>
           <button type="button" onClick={onClose} style={secondaryButtonStyle}>
-            Fermer
+            {t("management.announcer.close")}
           </button>
         </div>
 
@@ -743,10 +853,15 @@ function ProvisionalRankingModal({ classView, onClose }) {
               <div style={rankingRankStyle}>#{run.rank}</div>
               <div>
                 <div style={runTitleStyle}>
-                  Draw {run.draw || "—"} · Back {run.backNumber || "—"}
+                  {t("management.announcer.draw")} {run.draw || "—"} ·{" "}
+                  {t("public.results.backNumber")} {run.backNumber || "—"}
                 </div>
-                <div style={runNameStyle}>{run.rider || "Rider —"}</div>
-                <div style={mutedTextStyle}>{run.horse || "Horse —"}</div>
+                <div style={runNameStyle}>
+                  {run.rider || t("public.results.riderFallback")}
+                </div>
+                <div style={mutedTextStyle}>
+                  {run.horse || t("public.results.horseFallback")}
+                </div>
               </div>
               <div style={rankingScoreStyle}>{run.scoreTotal || "—"}</div>
             </div>
@@ -762,7 +877,8 @@ function Badge({ children, tone = "muted" }) {
 }
 
 function LiveFreshnessBadge({ updatedAt, now }) {
-  const freshness = formatLiveDataFreshness(updatedAt, now);
+  const { t } = useTranslation();
+  const freshness = formatLiveDataFreshness(updatedAt, now, t);
 
   return (
     <span style={badgeStyle(freshness.tone)}>
