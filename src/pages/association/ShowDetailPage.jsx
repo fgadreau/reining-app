@@ -207,58 +207,6 @@ function ShowDetailPage() {
         <h2 style={{ fontSize: 20, margin: 0 }}>{t("management.days.title")}</h2>
 
         <div style={actionRowStyleNoMargin}>
-          {access.canAdminAssociation && (
-            <Link
-              to={`/associations/${associationId}/access`}
-              style={linkButtonStyle}
-            >
-              {t("nav.access")}
-            </Link>
-          )}
-
-          {access.canManageAssociation && (
-            <Link
-              to={`/associations/${associationId}/shows/${showId}/secretariat`}
-              style={linkButtonStyle}
-            >
-              {t("nav.secretariat")}
-            </Link>
-          )}
-
-          {access.canManageAssociation && (
-            <Link
-              to={`/associations/${associationId}/shows/${showId}/time`}
-              style={linkButtonStyle}
-            >
-              {t("nav.dayTiming")}
-            </Link>
-          )}
-
-          {access.canScoreAssociation && (
-            <Link
-              to={`/associations/${associationId}/shows/${showId}/scribe`}
-              style={linkButtonStyle}
-            >
-              {t("nav.scribe")}
-            </Link>
-          )}
-
-          {access.canAnnounceAssociation && (
-            <Link
-              to={`/associations/${associationId}/shows/${showId}/announcer`}
-              style={linkButtonStyle}
-            >
-              {t("nav.announcer")}
-            </Link>
-          )}
-
-          <Link
-            to={`/public/associations/${associationId}/shows/${showId}`}
-            style={linkButtonStyle}
-          >
-            {t("nav.publicShowcase")}
-          </Link>
-
           {access.canManageAssociation && (
             <button
               onClick={startCreateDay}

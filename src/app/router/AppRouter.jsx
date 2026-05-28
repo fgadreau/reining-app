@@ -2,7 +2,6 @@ import React from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import AppMenu from "../../components/AppMenu";
-import CloudAuthBar from "../../components/CloudAuthBar";
 import AssociationsPage from "../../pages/association/AssociationsPage";
 import AssociationShowPage from "../../pages/association/AssociationShowPage";
 import AssociationAccessPage from "../../pages/association/AssociationAccessPage";
@@ -30,7 +29,6 @@ import {
 function AppRouter() {
   return (
     <BrowserRouter>
-      <CloudAuthBar />
       <AppMenu />
       <Routes>
         <Route path="/" element={<HomePage />} />

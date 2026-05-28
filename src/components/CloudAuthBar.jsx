@@ -8,11 +8,13 @@ import {
 import { useAuthUser } from "../features/auth/useAuthUser";
 import { useTranslation } from "../features/i18n/I18nProvider";
 
-function CloudAuthBar() {
+function CloudAuthBar({ variant = "bar" }) {
   const location = useLocation();
   const auth = useAuthUser();
   const { t } = useTranslation();
   const deployEnvironmentLabel = getDeployEnvironmentLabel();
+  const isInline = variant === "inline";
+  const containerStyle = isInline ? inlineBarStyle : barStyle;
 
   if (location.pathname.includes("/public")) {
     return null;
@@ -30,35 +32,39 @@ function CloudAuthBar() {
 
   if (!auth.isConfigured) {
     return (
-      <div style={barStyle}>
+      <div style={containerStyle}>
         {deployEnvironmentLabel && (
           <span style={environmentBadgeStyle()}>
             {deployEnvironmentLabel}
           </span>
         )}
         <span style={badgeStyle("local")}>{t("auth.localMode")}</span>
-        <span style={mutedTextStyle}>{t("auth.supabaseNotConfigured")}</span>
+        {!isInline && (
+          <span style={mutedTextStyle}>{t("auth.supabaseNotConfigured")}</span>
+        )}
       </div>
     );
   }
 
   if (auth.isLoading) {
     return (
-      <div style={barStyle}>
+      <div style={containerStyle}>
         {deployEnvironmentLabel && (
           <span style={environmentBadgeStyle()}>
             {deployEnvironmentLabel}
           </span>
         )}
         <span style={badgeStyle("pending")}>{t("auth.supabase")}</span>
-        <span style={mutedTextStyle}>{t("auth.sessionCheck")}</span>
+        {!isInline && (
+          <span style={mutedTextStyle}>{t("auth.sessionCheck")}</span>
+        )}
       </div>
     );
   }
 
   if (auth.isLocalTestUser) {
     return (
-      <div style={barStyle}>
+      <div style={containerStyle}>
         {deployEnvironmentLabel && (
           <span style={environmentBadgeStyle()}>{deployEnvironmentLabel}</span>
         )}
@@ -73,14 +79,16 @@ function CloudAuthBar() {
 
   if (!auth.isAuthenticated) {
     return (
-      <div style={barStyle}>
+      <div style={containerStyle}>
         {deployEnvironmentLabel && (
           <span style={environmentBadgeStyle()}>
             {deployEnvironmentLabel}
           </span>
         )}
         <span style={badgeStyle("warn")}>{t("auth.cloudReady")}</span>
-        <span style={mutedTextStyle}>{t("auth.supabaseWriteHint")}</span>
+        {!isInline && (
+          <span style={mutedTextStyle}>{t("auth.supabaseWriteHint")}</span>
+        )}
         {!isLoginPage && (
           <Link to="/login" style={linkStyle}>
             {t("auth.login")}
@@ -91,7 +99,7 @@ function CloudAuthBar() {
   }
 
   return (
-    <div style={barStyle}>
+    <div style={containerStyle}>
       {deployEnvironmentLabel && (
         <span style={environmentBadgeStyle()}>{deployEnvironmentLabel}</span>
       )}
@@ -114,6 +122,14 @@ const barStyle = {
   borderBottom: "1px solid #e2e8f0",
   color: "#0f172a",
   fontFamily: "Arial, sans-serif",
+};
+
+const inlineBarStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  gap: 8,
+  flexWrap: "wrap",
 };
 
 const badgeStyle = (tone) => ({

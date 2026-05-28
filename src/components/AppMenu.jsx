@@ -1,5 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
+import CloudAuthBar from "./CloudAuthBar";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useAssociationAccess } from "../features/auth/useAssociationAccess";
 import { useAuthUser } from "../features/auth/useAuthUser";
@@ -33,7 +34,7 @@ function AppMenu() {
   const associationBasePath = `/associations/${associationId}`;
   const showBasePath = `${associationBasePath}/shows/${showId}`;
   const shouldShowAssociationMenu =
-    associationId && !isPublicPath && canOpenManagement;
+    associationId && !showId && !isPublicPath && canOpenManagement;
   const shouldShowShowMenu = associationId && showId && !isPublicPath;
 
   return (
@@ -58,13 +59,14 @@ function AppMenu() {
           </Link>
         )}
 
-        {auth.isConfigured && !auth.isAuthenticated && (
+        {auth.isConfigured && !auth.isAuthenticated && isPublicPath && (
           <Link to="/login" style={linkStyle(location.pathname === "/login")}>
             {t("nav.login")}
           </Link>
         )}
 
         <span style={spacerStyle} />
+        <CloudAuthBar variant="inline" />
         <LanguageSwitcher />
       </nav>
 
@@ -101,6 +103,13 @@ function AppMenu() {
 
       {shouldShowShowMenu && (
         <nav style={subNavStyle} aria-label={t("nav.competitionMenu")}>
+          <Link
+            to={`${associationBasePath}/shows`}
+            style={backLinkStyle}
+          >
+            {t("nav.backAssociation")}
+          </Link>
+
           {access.canManageAssociation && (
             <Link
               to={showBasePath}
@@ -194,6 +203,11 @@ const subLinkStyle = (isActive) => ({
   padding: "5px 9px",
   fontSize: 14,
 });
+
+const backLinkStyle = {
+  ...subLinkStyle(false),
+  color: "#475569",
+};
 
 const spacerStyle = {
   flex: 1,
