@@ -70,6 +70,7 @@ import {
   buildCombinedJudgeScore,
   classUsesCombinedJudgeScore,
 } from "./features/scoring/multiJudgeScoring";
+import { normalizeClassJudges } from "./features/classes/classJudges";
 import {
   buildMultiJudgeOfficialRuns,
   getJudgeSignatureEntries,
@@ -490,6 +491,21 @@ test("combines retained judge scores without averaging", () => {
     "judge-1",
     "judge-5",
   ]);
+});
+
+test("keeps judge name spaces while editing but trims persisted names", () => {
+  const draftJudges = normalizeClassJudges(
+    {
+      judges: [{ id: "judge-1", name: "Jean Tremblay ", order: 1 }],
+    },
+    { trimNames: false }
+  );
+  const persistedJudges = normalizeClassJudges({
+    judges: draftJudges,
+  });
+
+  expect(draftJudges[0].name).toBe("Jean Tremblay ");
+  expect(persistedJudges[0].name).toBe("Jean Tremblay");
 });
 
 test("builds combined judge PDF rows by draw and keeps signatures", () => {

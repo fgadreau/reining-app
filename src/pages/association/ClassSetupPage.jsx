@@ -127,6 +127,10 @@ function sortRunsByDraw(runs) {
   );
 }
 
+function normalizeEditableJudges(input = {}) {
+  return normalizeClassJudges(input, { trimNames: false });
+}
+
 function ClassSetupPage() {
   const { associationId, classId } = useParams();
   const navigate = useNavigate();
@@ -378,7 +382,7 @@ function ClassSetupPage() {
     }
 
     setJudges((current) =>
-      normalizeClassJudges({
+      normalizeEditableJudges({
         judges: current.map((judge) =>
           judge.id === judgeId ? { ...judge, name } : judge
         ),
@@ -394,7 +398,7 @@ function ClassSetupPage() {
 
     setJudges((current) => {
       if (current.length >= MAX_CLASS_JUDGES) return current;
-      return normalizeClassJudges({
+      return normalizeEditableJudges({
         judges: [...current, createClassJudge(current.length)],
       });
     });
@@ -408,7 +412,7 @@ function ClassSetupPage() {
 
     setJudges((current) => {
       if (current.length <= 1) return current;
-      return normalizeClassJudges({
+      return normalizeEditableJudges({
         judges: current.filter((judge) => judge.id !== judgeId),
       });
     });

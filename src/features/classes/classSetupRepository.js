@@ -6,7 +6,16 @@ import {
   saveClassSetup,
 } from "./classSetupStorage";
 
-function toSetup(row) {
+function hasOwn(value, key) {
+  return Object.prototype.hasOwnProperty.call(value || {}, key);
+}
+
+function toSetup(row, localSetup = {}) {
+  const remoteHasJudges = hasOwn(row, "judges");
+  const fallbackJudges = Array.isArray(localSetup?.judges)
+    ? localSetup.judges
+    : [];
+
   return normalizeClassSetup({
     pattern: row.pattern || "",
     customPattern:
@@ -15,7 +24,10 @@ function toSetup(row) {
         : null,
     runs: Array.isArray(row.runs) ? row.runs : [],
     isDrawImported: Boolean(row.is_draw_imported),
-    judges: Array.isArray(row.judges) ? row.judges : [],
+    judges:
+      remoteHasJudges && Array.isArray(row.judges)
+        ? row.judges
+        : fallbackJudges,
     startedAt: row.started_at || null,
     dragInterval: row.drag_interval || null,
     dragDurationMinutes: row.drag_duration_minutes,
@@ -23,7 +35,7 @@ function toSetup(row) {
     lockedBy: row.locked_by || null,
     finalized: Boolean(row.finalized),
     finalizedAt: row.finalized_at || null,
-    judgeName: row.judge_name || "",
+    judgeName: row.judge_name || localSetup?.judgeName || "",
     judgeSignature: row.judge_signature || null,
     judgeSignedAt: row.judge_signed_at || null,
     finalPdfFileName: row.final_pdf_file_name || null,
@@ -102,7 +114,7 @@ export async function getClassSetupRepository(classId) {
     if (error) throw error;
     if (!data) return localSetup;
 
-    const setup = toSetup(data);
+    const setup = toSetup(data, localSetup);
     saveClassSetup(classId, setup);
     return setup;
   } catch (error) {
