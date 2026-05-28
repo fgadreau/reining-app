@@ -242,13 +242,17 @@ export function buildAnnouncerClassView(classData) {
       classData.status === "completed"
   );
   const activeManoeuvre =
-    classId && !isOfficiallyCompleted ? loadActiveManoeuvre(classId) : null;
+    classId && !isOfficiallyCompleted && !isMultiJudgeLive
+      ? loadActiveManoeuvre(classId)
+      : null;
   const activeRun =
     isOfficiallyCompleted
       ? null
-      : runs.find((run) => run.draw === activeManoeuvre?.draw) ||
-        runs.find((run) => run.isActive) ||
-        null;
+      : isMultiJudgeLive
+        ? runs.find((run) => run.isActive) || null
+        : runs.find((run) => run.draw === activeManoeuvre?.draw) ||
+          runs.find((run) => run.isActive) ||
+          null;
 
   const publicationStatus = classData.publication?.status || "hidden";
   const canShowScores = canShowLatestScore(publicationStatus);

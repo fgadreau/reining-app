@@ -75,6 +75,7 @@ import {
   buildMultiJudgeOfficialRuns,
   getJudgeSignatureEntries,
 } from "./features/scoring/multiJudgeOfficialData";
+import { saveActiveManoeuvre } from "./features/scoring/scoringRepository";
 
 beforeEach(() => {
   localStorage.clear();
@@ -993,6 +994,9 @@ test("multi-judge public live aggregates active run and completed score", () => 
     publication: {
       status: PUBLICATION_STATUSES.LIVE_SCORING,
     },
+    scoringSession: {
+      activeManoeuvre: { draw: 3 },
+    },
     judgeSessions: [
       {
         judgeId: "judge-1",
@@ -1525,6 +1529,10 @@ test("announcer live view exposes active, next, and recent completed runs", () =
 
 test("announcer live view reads multi-judge sessions", () => {
   const scores = getPatternHeaders("1").map(() => "0");
+  saveActiveManoeuvre("class-announcer-multi", {
+    draw: 1,
+    manoeuvreIndex: 0,
+  });
   const classView = buildAnnouncerClassView({
     classItem: {
       id: "class-announcer-multi",

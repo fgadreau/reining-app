@@ -991,19 +991,16 @@ export function buildPublicLiveClassView({
       ? scoringRuns
       : setupRuns;
   const runs = sourceRuns.map((run, index) =>
-        normalizePublicLiveRun(
-          run,
-          index,
-          patternValue,
-          customPattern,
-          { liveScoreDisplayMode }
-        )
-      );
+    normalizePublicLiveRun(run, index, patternValue, customPattern, {
+      liveScoreDisplayMode,
+    })
+  );
 
-  const activeRun =
-    runs.find((run) => run.draw === scoringSession?.activeManoeuvre?.draw) ||
-    runs.find((run) => run.isActive) ||
-    null;
+  const activeRun = isMultiJudgeLive
+    ? runs.find((run) => run.isActive) || null
+    : runs.find((run) => run.draw === scoringSession?.activeManoeuvre?.draw) ||
+      runs.find((run) => run.isActive) ||
+      null;
   const upcomingRuns = findUpcomingRuns(runs, activeRun);
   const nextRun = upcomingRuns[0] || null;
   const secondNextRun = upcomingRuns[1] || null;
