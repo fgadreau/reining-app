@@ -196,57 +196,6 @@ function AnnouncerDashboardPage() {
         )}
       </section>
 
-      <section style={focusGridStyle}>
-        <FocusPanel title={t("management.announcer.onCourse")}>
-          {liveView.activePaidWarmup?.activeEntry ? (
-            <PaidWarmupFocus warmup={liveView.activePaidWarmup} now={now} />
-          ) : liveView.activeClasses?.length ? (
-            <ActiveClassFocusList classes={liveView.activeClasses} now={now} />
-          ) : (
-            <div style={mutedTextStyle}>
-              {t("management.announcer.noActiveRun")}
-            </div>
-          )}
-        </FocusPanel>
-
-        <FocusPanel title={t("management.announcer.waiting")}>
-          {liveView.activePaidWarmup?.nextEntry ? (
-            <PaidWarmupEntryFocus
-              warmupName={liveView.activePaidWarmup.name}
-              entry={liveView.activePaidWarmup.nextEntry}
-            />
-          ) : liveView.activeClasses?.some((classView) => classView.nextRun) ? (
-            <NextRunFocusList classes={liveView.activeClasses} now={now} />
-          ) : (
-            <div style={mutedTextStyle}>
-              {t("management.announcer.noNextRun")}
-            </div>
-          )}
-        </FocusPanel>
-
-        <FocusPanel title={t("management.announcer.inPreparation")}>
-          {liveView.activeClasses?.some((classView) => classView.secondNextRun) ? (
-            <PreparationRunFocusList classes={liveView.activeClasses} now={now} />
-          ) : (
-            <div style={mutedTextStyle}>
-              {t("management.announcer.noPreparationRun")}
-            </div>
-          )}
-        </FocusPanel>
-
-        <FocusPanel title={t("management.announcer.passedWithScores")}>
-          {liveView.activePaidWarmup?.lastPassedEntries?.length ? (
-            <PaidWarmupRecentEntries warmup={liveView.activePaidWarmup} />
-          ) : liveView.recentResults?.length ? (
-            <RecentResults results={liveView.recentResults} />
-          ) : (
-            <div style={mutedTextStyle}>
-              {t("management.announcer.noRecentRun")}
-            </div>
-          )}
-        </FocusPanel>
-      </section>
-
       {isLoading && (
         <div style={emptyStateStyle}>{t("management.announcer.loading")}</div>
       )}
@@ -316,139 +265,6 @@ function getLiveViewClassIds(liveView) {
     .flatMap((section) => section.classes || [])
     .map((classView) => classView.classId)
     .filter(Boolean);
-}
-
-function FocusPanel({ title, children }) {
-  return (
-    <section style={focusPanelStyle}>
-      <h2 style={focusTitleStyle}>{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-function RunFocus({ className, run, compact = false }) {
-  return (
-    <div>
-      <div style={focusClassNameStyle}>{className}</div>
-      {!compact && run.scoreTotal && (
-        <RunScoreDisplay run={run} focus />
-      )}
-      <RunIdentity run={run} />
-    </div>
-  );
-}
-
-function ActiveClassFocusList({ classes, now }) {
-  const { t } = useTranslation();
-
-  return (
-    <div style={focusListStyle}>
-      {classes.map((classView) => (
-        <div key={classView.classId} style={focusListItemStyle}>
-          <RunFocus
-            className={formatClassLocation(classView)}
-            run={classView.activeRun || classView.nextRun}
-          />
-          <div style={focusBadgeRowStyle}>
-            <LiveFreshnessBadge updatedAt={classView.liveUpdatedAt} now={now} />
-            <Badge tone="muted">
-              {getPublicationStatusLabel(classView.publicationStatus, t)}
-            </Badge>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function NextRunFocusList({ classes, now }) {
-  return (
-    <div style={focusListStyle}>
-      {classes
-        .filter((classView) => classView.nextRun)
-        .map((classView) => (
-          <div key={classView.classId} style={focusListItemStyle}>
-            <RunFocus
-              className={formatClassLocation(classView)}
-              run={classView.nextRun}
-              compact
-            />
-            <div style={focusBadgeRowStyle}>
-              <LiveFreshnessBadge updatedAt={classView.liveUpdatedAt} now={now} />
-            </div>
-          </div>
-        ))}
-    </div>
-  );
-}
-
-function PreparationRunFocusList({ classes, now }) {
-  return (
-    <div style={focusListStyle}>
-      {classes
-        .filter((classView) => classView.secondNextRun)
-        .map((classView) => (
-          <div key={classView.classId} style={focusListItemStyle}>
-            <RunFocus
-              className={formatClassLocation(classView)}
-              run={classView.secondNextRun}
-              compact
-            />
-            <div style={focusBadgeRowStyle}>
-              <LiveFreshnessBadge updatedAt={classView.liveUpdatedAt} now={now} />
-            </div>
-          </div>
-        ))}
-    </div>
-  );
-}
-
-function formatClassLocation(classView) {
-  return classView.arena
-    ? `${classView.className} · ${classView.arena}`
-    : classView.className;
-}
-
-function PaidWarmupFocus({ warmup, now }) {
-  const remainingSeconds = getPaidWarmupRemainingSeconds(warmup, now);
-
-  return (
-    <div>
-      <div style={focusClassNameStyle}>{warmup.name}</div>
-      <div style={timerFocusStyle}>
-        {formatPaidWarmupTimer(remainingSeconds)}
-      </div>
-      <PaidWarmupEntryIdentity entry={warmup.activeEntry} />
-      <PaidWarmupTimerCue warmup={warmup} remainingSeconds={remainingSeconds} />
-    </div>
-  );
-}
-
-function PaidWarmupEntryFocus({ warmupName, entry }) {
-  return (
-    <div>
-      <div style={focusClassNameStyle}>{warmupName}</div>
-      <PaidWarmupEntryIdentity entry={entry} />
-    </div>
-  );
-}
-
-function PaidWarmupRecentEntries({ warmup }) {
-  const { t } = useTranslation();
-
-  return (
-    <div style={recentListStyle}>
-      {warmup.lastPassedEntries.map((entry) => (
-        <div key={entry.id} style={recentResultStyle}>
-          <PaidWarmupEntryIdentity entry={entry} />
-          <div style={mutedTextStyle}>
-            {getPaidWarmupStatusLabel(entry.status, t)}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 function RecentResults({ results }) {
@@ -842,20 +658,6 @@ function getOrderStatusTone(status) {
   return "muted";
 }
 
-function getPaidWarmupStatusLabel(status, t) {
-  switch (status) {
-    case "done":
-      return t("public.results.paidWarmupStatusDone");
-    case "no_show":
-      return t("public.results.paidWarmupStatusNoShow");
-    case "scratch":
-      return t("public.results.paidWarmupStatusScratch");
-    case "pending":
-    default:
-      return t("public.results.paidWarmupStatusPending");
-  }
-}
-
 function getPublicationStatusLabel(status, t) {
   switch (status) {
     case PUBLICATION_STATUSES.LIVE:
@@ -906,14 +708,10 @@ function RunBlock({
   );
 }
 
-function RunScoreDisplay({ run, compact = false, focus = false }) {
+function RunScoreDisplay({ run, compact = false }) {
   const { t } = useTranslation();
   const judgeScores = getVisibleJudgeScores(run);
-  const totalStyle = focus
-    ? scoreStyle
-    : compact
-      ? compactScoreStyle
-      : compactScoreStyle;
+  const totalStyle = compact ? compactScoreStyle : compactScoreStyle;
 
   if (judgeScores.length <= 1) {
     return <div style={totalStyle}>{run.scoreTotal || "—"}</div>;
@@ -1151,65 +949,6 @@ const titleStyle = {
 
 const subtitleStyle = {
   color: "#64748b",
-};
-
-const focusGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-  gap: 12,
-  marginBottom: 16,
-};
-
-const focusPanelStyle = {
-  background: "#fff",
-  borderRadius: 12,
-  padding: 16,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  minHeight: 180,
-};
-
-const focusTitleStyle = {
-  margin: "0 0 12px",
-  fontSize: 18,
-};
-
-const focusClassNameStyle = {
-  fontSize: 22,
-  fontWeight: 800,
-  color: "#0f172a",
-};
-
-const focusListStyle = {
-  display: "grid",
-  gap: 10,
-};
-
-const focusListItemStyle = {
-  border: "1px solid #e2e8f0",
-  borderRadius: 8,
-  padding: 10,
-  background: "#f8fafc",
-};
-
-const focusBadgeRowStyle = {
-  display: "flex",
-  gap: 8,
-  flexWrap: "wrap",
-  marginTop: 8,
-};
-
-const scoreStyle = {
-  fontSize: 44,
-  fontWeight: 900,
-  color: "#111827",
-  margin: "8px 0",
-};
-
-const timerFocusStyle = {
-  fontSize: 48,
-  fontWeight: 900,
-  color: "#111827",
-  margin: "8px 0",
 };
 
 const timerInlineStyle = {

@@ -21,10 +21,7 @@ import {
   hasMultiJudgeLiveSetup,
 } from "../scoring/multiJudgeLiveData";
 import { getSupabaseClient } from "../cloud/supabaseClient";
-import {
-  canPublicationStatusShowScores,
-  getPublicationStatusLabel,
-} from "../publication/publicationRepository";
+import { getPublicationStatusLabel } from "../publication/publicationRepository";
 import { loadActiveManoeuvre } from "../scoring/scoringRepository";
 
 const ANNOUNCER_CLASS_REALTIME_TABLES = [
@@ -255,8 +252,7 @@ export function buildAnnouncerClassView(classData) {
           null;
 
   const publicationStatus = classData.publication?.status || "hidden";
-  const canShowScores = canShowLatestScore(publicationStatus);
-  const latestScore = canShowScores ? findLatestRunWithScore(runs) : null;
+  const latestScore = findLatestRunWithScore(runs);
   const upcomingRuns = isOfficiallyCompleted ? [] : findUpcomingRuns(runs, activeRun);
   const nextRun = upcomingRuns[0] || null;
   const secondNextRun = upcomingRuns[1] || null;
@@ -305,10 +301,6 @@ export function buildAnnouncerClassView(classData) {
     lastPassedRuns,
     lastCompletedRuns: lastPassedRuns,
   };
-}
-
-function canShowLatestScore(publicationStatus) {
-  return canPublicationStatusShowScores(publicationStatus);
 }
 
 function findActiveClasses(classes) {

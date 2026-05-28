@@ -1371,7 +1371,7 @@ test("scopes secretary access to attached associations", () => {
   expect(canEditImportedDrawAssociation(memberships, "association-2")).toBe(false);
 });
 
-test("announcer latest score follows publication state", () => {
+test("announcer latest score ignores public publication restrictions", () => {
   const classData = {
     classItem: {
       id: "class-1",
@@ -1390,7 +1390,7 @@ test("announcer latest score follows publication state", () => {
     ],
   };
 
-  expect(buildAnnouncerClassView(classData).latestScore).toBeNull();
+  expect(buildAnnouncerClassView(classData).latestScore.scoreTotal).toBe("72.0");
 
   expect(
     buildAnnouncerClassView({
@@ -1407,8 +1407,8 @@ test("announcer latest score follows publication state", () => {
       publication: {
         status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
       },
-    }).latestScore
-  ).toBeNull();
+    }).latestScore.scoreTotal
+  ).toBe("72.0");
 });
 
 test("announcer live view exposes active, next, and recent completed runs", () => {
@@ -1528,7 +1528,7 @@ test("announcer live view exposes active, next, and recent completed runs", () =
     3,
     2,
   ]);
-  expect(fourthRunActiveView.latestScore).toBeNull();
+  expect(fourthRunActiveView.latestScore.scoreTotal).toBe("70.5");
   expect(fourthRunActiveView.lastPassedRuns[0].scoreTotal).toBe("70.5");
   expect(fourthRunActiveView.lastPassedRuns[0].manoeuvres[1]).toMatchObject({
     score: "+0.5",
