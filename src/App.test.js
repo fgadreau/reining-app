@@ -44,6 +44,8 @@ import {
   buildAssociationInvitationUrl,
 } from "./features/auth/invitationLinks";
 import { getDefaultShowRouteForRoles } from "./features/auth/showRoleRouting";
+import { buildAnalyticsSummary } from "./features/analytics/analyticsRepository";
+import { getPageEventContext } from "./features/analytics/analyticsRouteContext";
 import {
   calculateClassTimingSummary,
   stampRunTiming,
@@ -1412,6 +1414,57 @@ test("routes show entry by a single operational role", () => {
       roles: [ASSOCIATION_ROLES.ADMIN],
     })
   ).toBe("/associations/association-1/shows/show-1");
+});
+
+test("builds analytics route context and summary", () => {
+  expect(
+    getPageEventContext(
+      "/public/associations/association-1/shows/show-1"
+    )
+  ).toMatchObject({
+    associationId: "association-1",
+    showId: "show-1",
+    pageCategory: "public_show",
+    isPublicPath: true,
+  });
+
+  expect(
+    getPageEventContext(
+      "/associations/association-1/scribe/classes/class-1"
+    )
+  ).toMatchObject({
+    associationId: "association-1",
+    classId: "class-1",
+    pageCategory: "scribe_class",
+    isPublicPath: false,
+  });
+
+  const summary = buildAnalyticsSummary([
+    {
+      eventType: "analytics",
+      eventName: "page_view",
+      sessionId: "session-1",
+      path: "/public",
+      metadata: { isPublicPath: true },
+    },
+    {
+      eventType: "analytics",
+      eventName: "page_view",
+      sessionId: "session-1",
+      path: "/associations",
+      metadata: { isPublicPath: false },
+    },
+    {
+      eventType: "audit",
+      eventName: "auth_signup_attempt",
+    },
+  ]);
+
+  expect(summary.pageViewCount).toBe(2);
+  expect(summary.publicPageViewCount).toBe(1);
+  expect(summary.uniqueVisitorCount).toBe(1);
+  expect(summary.accountEventCount).toBe(1);
+  expect(summary.topPages[0]).toEqual({ label: "/associations", count: 1 });
 });
 
 test("announcer latest score ignores public publication restrictions", () => {

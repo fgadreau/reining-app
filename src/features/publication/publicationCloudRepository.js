@@ -1,4 +1,6 @@
 import { getSupabaseClient } from "../cloud/supabaseClient";
+import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
+import { getClassById } from "../classes/classSelectors";
 import {
   deletePublicationState,
   getDefaultPublicationState,
@@ -111,6 +113,7 @@ export async function getPublicationStatesForClassesRepository(classIds) {
 }
 
 export async function savePublicationStateRepository(classId, updates) {
+  const previousState = getPublicationState(classId);
   const nextState = savePublicationState(classId, updates);
   const supabase = getSupabaseClient();
 
@@ -124,6 +127,30 @@ export async function savePublicationStateRepository(classId, updates) {
     } catch (error) {
       console.error("Erreur sauvegarde publication Supabase:", error);
     }
+  }
+
+  if (previousState.status !== nextState.status) {
+    const classItem = getClassById(classId);
+    const eventName =
+      nextState.status === PUBLICATION_STATUSES.PUBLISHED
+        ? "scoresheet_published"
+        : nextState.status === PUBLICATION_STATUSES.HIDDEN
+          ? "scoresheet_hidden"
+          : "publication_status_changed";
+
+    trackEvent({
+      eventName,
+      eventType: APP_EVENT_TYPES.AUDIT,
+      associationId: classItem?.associationId,
+      showId: classItem?.showId,
+      dayId: classItem?.dayId,
+      classId,
+      metadata: {
+        previousStatus: previousState.status,
+        nextStatus: nextState.status,
+        className: classItem?.name || "",
+      },
+    });
   }
 
   return nextState;
@@ -163,4 +190,3 @@ export async function deletePublicationStateRepository(classId) {
 
   deletePublicationState(classId);
 }
-

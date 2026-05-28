@@ -3,8 +3,8 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
 
-const LAST_UPDATED = "26 mai 2026";
-const LAST_UPDATED_EN = "May 26, 2026";
+const LAST_UPDATED = "28 mai 2026";
+const LAST_UPDATED_EN = "May 28, 2026";
 
 const policyNotice =
   "Document de travail fourni pour aider à encadrer l'utilisation de ShowScore. Il ne remplace pas l'avis d'un avocat et devrait être validé avant une utilisation commerciale publique.";
@@ -129,27 +129,34 @@ const privacySections = [
     ],
   },
   {
-    title: "6. Droits et demandes",
+    title: "6. Analytics et journal d'activité",
+    paragraphs: [
+      "ShowScore peut enregistrer des événements d'utilisation, comme les pages consultées, l'ouverture d'un live, les tentatives de connexion ou de création de compte, ainsi que certaines actions de gestion.",
+      "Ces données servent à améliorer le service, diagnostiquer les problèmes, soutenir la sécurité et fournir un journal d'activité limité aux associations concernées.",
+    ],
+  },
+  {
+    title: "7. Droits et demandes",
     paragraphs: [
       "Une personne peut demander l'accès, la correction ou la suppression de renseignements personnels la concernant, sous réserve des limites légales ou opérationnelles applicables.",
       "Les demandes liées aux données d'une compétition devraient d'abord être dirigées vers l'association responsable du show.",
     ],
   },
   {
-    title: "7. Mineurs et renseignements sensibles",
+    title: "8. Mineurs et renseignements sensibles",
     paragraphs: [
       "Les associations devraient limiter les renseignements concernant les mineurs au strict nécessaire pour la compétition.",
       "Les notes de juge ou de scribe ne devraient pas contenir de renseignements médicaux, financiers, familiaux ou autres renseignements sensibles non requis pour le pointage.",
     ],
   },
   {
-    title: "8. Modifications",
+    title: "9. Modifications",
     paragraphs: [
       "Cette politique peut être mise à jour à mesure que ShowScore évolue ou que les exigences légales changent.",
     ],
   },
   {
-    title: "9. Contact",
+    title: "10. Contact",
     paragraphs: [
       "Pour une question de confidentialité, communiquez avec l'administrateur qui vous a donné accès ou avec le canal de support fourni par ShowScore.",
     ],
@@ -310,27 +317,34 @@ const privacySectionsEn = [
     ],
   },
   {
-    title: "6. Rights and requests",
+    title: "6. Analytics and activity log",
+    paragraphs: [
+      "ShowScore may record usage events, such as pages viewed, live views, sign-in or account creation attempts, and certain management actions.",
+      "This data is used to improve the service, diagnose problems, support security, and provide an activity log limited to the associations concerned.",
+    ],
+  },
+  {
+    title: "7. Rights and requests",
     paragraphs: [
       "A person may request access to, correction of, or deletion of personal information about them, subject to applicable legal or operational limits.",
       "Requests related to competition data should first be directed to the association responsible for the show.",
     ],
   },
   {
-    title: "7. Minors and sensitive information",
+    title: "8. Minors and sensitive information",
     paragraphs: [
       "Associations should limit information about minors to what is strictly necessary for the competition.",
       "Judge or scribe notes should not contain medical, financial, family, or other sensitive information that is not required for scoring.",
     ],
   },
   {
-    title: "8. Changes",
+    title: "9. Changes",
     paragraphs: [
       "This policy may be updated as ShowScore evolves or legal requirements change.",
     ],
   },
   {
-    title: "9. Contact",
+    title: "10. Contact",
     paragraphs: [
       "For a privacy question, contact the administrator who gave you access or the support channel provided by ShowScore.",
     ],

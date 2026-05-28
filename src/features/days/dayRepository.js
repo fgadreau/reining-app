@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "../cloud/supabaseClient";
+import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 import { getAllDays, getDayById, getDaysByShowId } from "./daySelectors";
 import { createDay, deleteDay, saveDays, updateDay } from "./dayStorage";
 
@@ -92,6 +93,7 @@ export async function getDayRepository(dayId) {
 
 export async function saveDayRepository(day) {
   const supabase = getSupabaseClient();
+  const isExistingDay = Boolean(getDayById(day.id));
 
   if (supabase) {
     try {
@@ -102,11 +104,26 @@ export async function saveDayRepository(day) {
     }
   }
 
-  return saveDayLocally(day);
+  const savedDay = saveDayLocally(day);
+
+  trackEvent({
+    eventName: isExistingDay ? "day_updated" : "day_created",
+    eventType: APP_EVENT_TYPES.AUDIT,
+    associationId: savedDay.associationId,
+    showId: savedDay.showId,
+    dayId: savedDay.id,
+    metadata: {
+      label: savedDay.label,
+      date: savedDay.date,
+    },
+  });
+
+  return savedDay;
 }
 
 export async function deleteDayRepository(dayId) {
   const supabase = getSupabaseClient();
+  const existingDay = getDayById(dayId);
 
   if (supabase) {
     try {
@@ -118,4 +135,16 @@ export async function deleteDayRepository(dayId) {
   }
 
   deleteDay(dayId);
+
+  trackEvent({
+    eventName: "day_deleted",
+    eventType: APP_EVENT_TYPES.AUDIT,
+    associationId: existingDay?.associationId,
+    showId: existingDay?.showId,
+    dayId,
+    metadata: {
+      label: existingDay?.label || "",
+      date: existingDay?.date || "",
+    },
+  });
 }

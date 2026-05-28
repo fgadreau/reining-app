@@ -2,9 +2,12 @@ import React from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import AppMenu from "../../components/AppMenu";
+import AnalyticsRouteTracker from "../../features/analytics/AnalyticsRouteTracker";
+import PlatformAnalyticsPage from "../../pages/admin/PlatformAnalyticsPage";
 import AssociationsPage from "../../pages/association/AssociationsPage";
 import AssociationShowPage from "../../pages/association/AssociationShowPage";
 import AssociationAccessPage from "../../pages/association/AssociationAccessPage";
+import AssociationActivityPage from "../../pages/association/AssociationActivityPage";
 import AssociationSettingsPage from "../../pages/association/AssociationSettingsPage";
 import ShowDetailPage from "../../pages/association/ShowDetailPage";
 import SecretariatDashboardPage from "../../pages/association/SecretariatDashboardPage";
@@ -29,6 +32,7 @@ import {
 function AppRouter() {
   return (
     <BrowserRouter>
+      <AnalyticsRouteTracker />
       <AppMenu />
       <Routes>
         <Route path="/" element={<HomePage />} />
@@ -37,6 +41,7 @@ function AppRouter() {
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/results-notice" element={<ResultsNoticePage />} />
         <Route path="/public" element={<PublicAssociationsPage />} />
+        <Route path="/admin/analytics" element={<PlatformAnalyticsPage />} />
         <Route
           path="/public/associations/:associationId"
           element={<PublicAssociationShowsPage />}
@@ -53,6 +58,10 @@ function AppRouter() {
         <Route
           path="/associations/:associationId/access"
           element={<AssociationAccessPage />}
+        />
+        <Route
+          path="/associations/:associationId/activity"
+          element={<AssociationActivityPage />}
         />
         <Route
           path="/associations/:associationId/settings"

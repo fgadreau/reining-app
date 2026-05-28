@@ -15,6 +15,10 @@ import {
   redeemAssociationInvitationRepository,
   redeemPendingAssociationInvitationsRepository,
 } from "../../features/auth/invitationRepository";
+import {
+  APP_EVENT_TYPES,
+  trackEvent,
+} from "../../features/analytics/analyticsRepository";
 import { useAuthUser } from "../../features/auth/useAuthUser";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
@@ -156,6 +160,15 @@ function LoginPage() {
     setIsSubmitting(true);
 
     try {
+      trackEvent({
+        eventName: mode === "signup" ? "auth_signup_attempt" : "auth_signin_attempt",
+        eventType: APP_EVENT_TYPES.AUDIT,
+        metadata: {
+          email: normalizeEmail(email),
+          hasInviteToken: Boolean(inviteToken),
+        },
+      });
+
       if (hasInviteSessionMismatch) {
         setMessage(
           t("login.inviteSessionMismatchSubmit", {
@@ -189,6 +202,14 @@ function LoginPage() {
         });
 
         if (data?.session && data?.user) {
+          trackEvent({
+            eventName: "auth_signup_success",
+            eventType: APP_EVENT_TYPES.AUDIT,
+            metadata: {
+              email: normalizeEmail(data.user.email || email),
+              hasInviteToken: Boolean(inviteToken),
+            },
+          });
           const redeemed = await redeemInvitations(data.user);
           navigateAfterAuth(redeemed);
           return;
@@ -199,15 +220,40 @@ function LoginPage() {
             ? t("login.accountCreatedInvite")
             : t("login.accountCreated")
         );
+        trackEvent({
+          eventName: "auth_signup_submitted",
+          eventType: APP_EVENT_TYPES.AUDIT,
+          metadata: {
+            email: normalizeEmail(email),
+            hasInviteToken: Boolean(inviteToken),
+          },
+        });
       } else {
         const data = await signInWithEmail({
           email: email.trim(),
           password,
         });
+        trackEvent({
+          eventName: "auth_signin_success",
+          eventType: APP_EVENT_TYPES.AUDIT,
+          metadata: {
+            email: normalizeEmail(data?.user?.email || email),
+            hasInviteToken: Boolean(inviteToken),
+          },
+        });
         const redeemed = await redeemInvitations(data?.user);
         navigateAfterAuth(redeemed);
       }
     } catch (error) {
+      trackEvent({
+        eventName: mode === "signup" ? "auth_signup_failed" : "auth_signin_failed",
+        eventType: APP_EVENT_TYPES.AUDIT,
+        metadata: {
+          email: normalizeEmail(email),
+          hasInviteToken: Boolean(inviteToken),
+          message: error?.message || "",
+        },
+      });
       setMessage(error.message || t("login.signInFailed"));
     } finally {
       setIsSubmitting(false);
@@ -220,6 +266,13 @@ function LoginPage() {
 
     try {
       await signInWithLocalTestUser();
+      trackEvent({
+        eventName: "auth_local_test_signin",
+        eventType: APP_EVENT_TYPES.AUDIT,
+        metadata: {
+          email: LOCAL_TEST_EMAIL,
+        },
+      });
       navigate("/associations");
     } catch (error) {
       setMessage(error.message || t("login.localTestFailed"));

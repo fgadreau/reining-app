@@ -4,6 +4,7 @@ import {
   saveAssociations,
 } from "./associationsData";
 import { getSupabaseClient } from "../cloud/supabaseClient";
+import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 
 function toAssociation(row) {
   return {
@@ -72,6 +73,9 @@ export async function saveAssociationRepository(association) {
     ...association,
     id: association.id || createAssociationId(),
   };
+  const isExistingAssociation = loadAssociations().some(
+    (item) => item.id === normalized.id
+  );
 
   const supabase = getSupabaseClient();
 
@@ -88,7 +92,21 @@ export async function saveAssociationRepository(association) {
     }
   }
 
-  return saveAssociationLocally(normalized);
+  const savedAssociation = saveAssociationLocally(normalized);
+
+  trackEvent({
+    eventName: isExistingAssociation
+      ? "association_updated"
+      : "association_created",
+    eventType: APP_EVENT_TYPES.AUDIT,
+    associationId: savedAssociation.id,
+    metadata: {
+      name: savedAssociation.name,
+      shortName: savedAssociation.shortName,
+    },
+  });
+
+  return savedAssociation;
 }
 
 export async function createAssociationWithOwnerRepository(association) {
@@ -121,6 +139,17 @@ export async function createAssociationWithOwnerRepository(association) {
 
   const created = data ? toAssociation(data) : normalized;
   saveAssociationLocally(created);
+
+  trackEvent({
+    eventName: "association_created",
+    eventType: APP_EVENT_TYPES.AUDIT,
+    associationId: created.id,
+    metadata: {
+      name: created.name,
+      shortName: created.shortName,
+    },
+  });
+
   return created;
 }
 
@@ -135,6 +164,9 @@ export function isCreateAssociationWithOwnerMissing(error) {
 
 export async function deleteAssociationRepository(associationId) {
   const supabase = getSupabaseClient();
+  const existingAssociation = loadAssociations().find(
+    (item) => item.id === associationId
+  );
 
   if (supabase) {
     try {
@@ -151,4 +183,14 @@ export async function deleteAssociationRepository(associationId) {
 
   const next = loadAssociations().filter((item) => item.id !== associationId);
   saveAssociations(next);
+
+  trackEvent({
+    eventName: "association_deleted",
+    eventType: APP_EVENT_TYPES.AUDIT,
+    associationId,
+    metadata: {
+      name: existingAssociation?.name || "",
+      shortName: existingAssociation?.shortName || "",
+    },
+  });
 }

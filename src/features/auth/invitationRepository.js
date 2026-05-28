@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "../cloud/supabaseClient";
+import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 import { saveAssociationMembershipRepository } from "./accessRepository";
 
 export const INVITATION_STATUSES = {
@@ -103,7 +104,21 @@ export async function createAssociationInvitationRepository({
 
     if (error) throw error;
 
-    return data ? toInvitation(data) : null;
+    const invitation = data ? toInvitation(data) : null;
+
+    if (invitation) {
+      trackEvent({
+        eventName: "invitation_created",
+        eventType: APP_EVENT_TYPES.AUDIT,
+        associationId: invitation.associationId,
+        metadata: {
+          email: invitation.email,
+          role: invitation.role,
+        },
+      });
+    }
+
+    return invitation;
   } catch (error) {
     console.error("Erreur creation invitation Supabase:", error);
     return null;
@@ -118,12 +133,31 @@ export async function cancelAssociationInvitationRepository(invitationId) {
   }
 
   try {
+    const { data: existing } = await supabase
+      .from("association_invitations")
+      .select("*")
+      .eq("id", invitationId)
+      .maybeSingle();
+
     const { error } = await supabase
       .from("association_invitations")
       .update({ status: INVITATION_STATUSES.CANCELLED })
       .eq("id", invitationId);
 
     if (error) throw error;
+
+    if (existing) {
+      const invitation = toInvitation(existing);
+      trackEvent({
+        eventName: "invitation_cancelled",
+        eventType: APP_EVENT_TYPES.AUDIT,
+        associationId: invitation.associationId,
+        metadata: {
+          email: invitation.email,
+          role: invitation.role,
+        },
+      });
+    }
   } catch (error) {
     console.error("Erreur annulation invitation Supabase:", error);
   }
@@ -165,6 +199,17 @@ async function acceptAssociationInvitation(invitation, user) {
   if (updateError) {
     throw updateError;
   }
+
+  trackEvent({
+    eventName: "invitation_accepted",
+    eventType: APP_EVENT_TYPES.AUDIT,
+    associationId: invitation.associationId,
+    metadata: {
+      email: invitation.email,
+      role: invitation.role,
+      acceptedBy: user.id,
+    },
+  });
 
   return {
     invitation: updated ? toInvitation(updated) : invitation,

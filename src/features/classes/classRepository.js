@@ -43,6 +43,7 @@ import {
   getPublicationStatesForClassesRepository,
 } from "../publication/publicationCloudRepository";
 import { getSupabaseClient } from "../cloud/supabaseClient";
+import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 import { buildPatternTimingStats } from "./classTimeAnalytics";
 import { MIN_MEASURED_RUN_SECONDS } from "./classTiming";
 import { getPatternDisplayName } from "../patterns/patternDefinitions";
@@ -371,6 +372,7 @@ export function createClassItem(newClass) {
 
 export async function saveClassItemRepository(classItem) {
   const supabase = getSupabaseClient();
+  const isExistingClass = Boolean(getClassById(classItem.id));
 
   if (supabase) {
     try {
@@ -389,10 +391,14 @@ export async function saveClassItemRepository(classItem) {
             .upsert(legacyRow);
 
           if (legacyError) throw legacyError;
-          return saveClassLocally(classItem);
+          const savedLegacyClass = saveClassLocally(classItem);
+          trackClassSaveEvent(savedLegacyClass, isExistingClass);
+          return savedLegacyClass;
         } catch (legacyError) {
           console.error("Erreur sauvegarde classe Supabase:", legacyError);
-          return saveClassLocally(classItem);
+          const savedFallbackClass = saveClassLocally(classItem);
+          trackClassSaveEvent(savedFallbackClass, isExistingClass);
+          return savedFallbackClass;
         }
       }
 
@@ -400,7 +406,9 @@ export async function saveClassItemRepository(classItem) {
     }
   }
 
-  return saveClassLocally(classItem);
+  const savedClass = saveClassLocally(classItem);
+  trackClassSaveEvent(savedClass, isExistingClass);
+  return savedClass;
 }
 
 export function updateClassItem(classId, updates) {
@@ -422,6 +430,7 @@ export function deleteClassCompletely(classId) {
 
 export async function deleteClassCompletelyRepository(classId) {
   const supabase = getSupabaseClient();
+  const existingClass = getClassById(classId);
 
   if (supabase) {
     try {
@@ -435,4 +444,33 @@ export async function deleteClassCompletelyRepository(classId) {
   await deleteClassSetupRepository(classId);
   await deletePublicationStateRepository(classId);
   deleteClass(classId);
+
+  trackEvent({
+    eventName: "class_deleted",
+    eventType: APP_EVENT_TYPES.AUDIT,
+    associationId: existingClass?.associationId,
+    showId: existingClass?.showId,
+    dayId: existingClass?.dayId,
+    classId,
+    metadata: {
+      name: existingClass?.name || "",
+      classCode: existingClass?.classCode || "",
+    },
+  });
+}
+
+function trackClassSaveEvent(classItem, isExistingClass) {
+  trackEvent({
+    eventName: isExistingClass ? "class_updated" : "class_created",
+    eventType: APP_EVENT_TYPES.AUDIT,
+    associationId: classItem.associationId,
+    showId: classItem.showId,
+    dayId: classItem.dayId,
+    classId: classItem.id,
+    metadata: {
+      name: classItem.name,
+      classCode: classItem.classCode,
+      pattern: classItem.pattern,
+    },
+  });
 }

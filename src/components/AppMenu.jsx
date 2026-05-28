@@ -39,6 +39,10 @@ function AppMenu() {
   const shouldShowAssociationMenu =
     associationId && !showId && !isPublicPath && canOpenManagement;
   const shouldShowShowMenu = associationId && showId && !isPublicPath;
+  const canViewPlatformAnalytics =
+    canOpenManagement &&
+    !isPublicPath &&
+    (access.isPlatformAdmin || auth.isLocalTestUser || !auth.isConfigured);
   const associationLabel =
     association?.shortName || association?.name || t("common.association");
 
@@ -85,6 +89,15 @@ function AppMenu() {
           </Link>
         )}
 
+        {canViewPlatformAnalytics && (
+          <Link
+            to="/admin/analytics"
+            style={linkStyle(location.pathname.startsWith("/admin/analytics"))}
+          >
+            {t("nav.analytics")}
+          </Link>
+        )}
+
         {auth.isConfigured && !auth.isAuthenticated && isPublicPath && (
           <Link to="/login" style={linkStyle(location.pathname === "/login")}>
             {t("nav.login")}
@@ -122,6 +135,15 @@ function AppMenu() {
               style={subLinkStyle(location.pathname.includes("/settings"))}
             >
               {t("nav.settings")}
+            </Link>
+          )}
+
+          {access.canManageAssociation && (
+            <Link
+              to={`${associationBasePath}/activity`}
+              style={subLinkStyle(location.pathname.includes("/activity"))}
+            >
+              {t("nav.activity")}
             </Link>
           )}
         </nav>

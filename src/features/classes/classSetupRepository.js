@@ -1,4 +1,6 @@
 import { getSupabaseClient } from "../cloud/supabaseClient";
+import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
+import { getClassById } from "./classSelectors";
 import {
   deleteClassSetup,
   getClassSetup,
@@ -124,6 +126,7 @@ export async function getClassSetupRepository(classId) {
 }
 
 export async function saveClassSetupRepository(classId, setup) {
+  const previousSetup = getClassSetup(classId);
   const normalized = normalizeClassSetup(setup);
   const supabase = getSupabaseClient();
 
@@ -146,9 +149,11 @@ export async function saveClassSetupRepository(classId, setup) {
             );
 
           if (legacyError) throw legacyError;
+          trackClassSetupReadyEvent(classId, previousSetup, normalized);
           return normalized;
         } catch (legacyError) {
           console.error("Erreur sauvegarde setup Supabase:", legacyError);
+          trackClassSetupReadyEvent(classId, previousSetup, normalized);
           return normalized;
         }
       }
@@ -160,9 +165,11 @@ export async function saveClassSetupRepository(classId, setup) {
             .upsert(toSetupRow(classId, normalized, { includeJudges: false }));
 
           if (legacyError) throw legacyError;
+          trackClassSetupReadyEvent(classId, previousSetup, normalized);
           return normalized;
         } catch (legacyError) {
           console.error("Erreur sauvegarde setup Supabase:", legacyError);
+          trackClassSetupReadyEvent(classId, previousSetup, normalized);
           return normalized;
         }
       }
@@ -174,9 +181,11 @@ export async function saveClassSetupRepository(classId, setup) {
             .upsert(toSetupRow(classId, normalized, { includePlanning: false }));
 
           if (legacyError) throw legacyError;
+          trackClassSetupReadyEvent(classId, previousSetup, normalized);
           return normalized;
         } catch (legacyError) {
           console.error("Erreur sauvegarde setup Supabase:", legacyError);
+          trackClassSetupReadyEvent(classId, previousSetup, normalized);
           return normalized;
         }
       }
@@ -185,6 +194,7 @@ export async function saveClassSetupRepository(classId, setup) {
     }
   }
 
+  trackClassSetupReadyEvent(classId, previousSetup, normalized);
   return normalized;
 }
 
@@ -205,4 +215,34 @@ export async function deleteClassSetupRepository(classId) {
   }
 
   deleteClassSetup(classId);
+}
+
+function isSetupReady(setup) {
+  return Boolean(
+    setup?.pattern &&
+      Array.isArray(setup?.runs) &&
+      setup.runs.length > 0
+  );
+}
+
+function trackClassSetupReadyEvent(classId, previousSetup, nextSetup) {
+  if (isSetupReady(previousSetup) || !isSetupReady(nextSetup)) {
+    return;
+  }
+
+  const classItem = getClassById(classId);
+
+  trackEvent({
+    eventName: "class_setup_ready",
+    eventType: APP_EVENT_TYPES.AUDIT,
+    associationId: classItem?.associationId,
+    showId: classItem?.showId,
+    dayId: classItem?.dayId,
+    classId,
+    metadata: {
+      pattern: nextSetup.pattern,
+      runCount: nextSetup.runs.length,
+      judgeCount: Array.isArray(nextSetup.judges) ? nextSetup.judges.length : 1,
+    },
+  });
 }

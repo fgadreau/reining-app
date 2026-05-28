@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "../cloud/supabaseClient";
+import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 
 export const ACCESS_MEMBERSHIPS_CHANGED_EVENT =
   "reining:association-memberships-changed";
@@ -105,6 +106,16 @@ export async function saveAssociationMembershipRepository(
     if (error) throw error;
 
     notifyAccessMembershipsChanged();
+
+    trackEvent({
+      eventName: "membership_saved",
+      eventType: APP_EVENT_TYPES.AUDIT,
+      associationId: membership.associationId,
+      metadata: {
+        targetUserId: membership.userId,
+        role: membership.role,
+      },
+    });
 
     return data ? toMembership(data) : null;
   } catch (error) {
@@ -221,6 +232,12 @@ export async function deleteAssociationMembershipRepository(membershipId) {
   }
 
   try {
+    const { data: membershipData } = await supabase
+      .from("association_memberships")
+      .select("*")
+      .eq("id", membershipId)
+      .maybeSingle();
+
     const { error } = await supabase
       .from("association_memberships")
       .delete()
@@ -229,6 +246,19 @@ export async function deleteAssociationMembershipRepository(membershipId) {
     if (error) throw error;
 
     notifyAccessMembershipsChanged();
+
+    if (membershipData) {
+      const membership = toMembership(membershipData);
+      trackEvent({
+        eventName: "membership_deleted",
+        eventType: APP_EVENT_TYPES.AUDIT,
+        associationId: membership.associationId,
+        metadata: {
+          targetUserId: membership.userId,
+          role: membership.role,
+        },
+      });
+    }
   } catch (error) {
     console.error("Erreur suppression accès Supabase:", error);
   }

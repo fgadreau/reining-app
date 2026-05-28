@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "../cloud/supabaseClient";
+import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 import {
   getAllShows,
   getShowById,
@@ -109,6 +110,7 @@ export async function getShowRepository(showId) {
 
 export async function saveShowRepository(show) {
   const supabase = getSupabaseClient();
+  const isExistingShow = Boolean(getShowById(show.id));
 
   if (supabase) {
     try {
@@ -119,11 +121,25 @@ export async function saveShowRepository(show) {
     }
   }
 
-  return saveShowLocally(show);
+  const savedShow = saveShowLocally(show);
+
+  trackEvent({
+    eventName: isExistingShow ? "show_updated" : "show_created",
+    eventType: APP_EVENT_TYPES.AUDIT,
+    associationId: savedShow.associationId,
+    showId: savedShow.id,
+    metadata: {
+      name: savedShow.name,
+      status: savedShow.status,
+    },
+  });
+
+  return savedShow;
 }
 
 export async function deleteShowRepository(showId) {
   const supabase = getSupabaseClient();
+  const existingShow = getShowById(showId);
 
   if (supabase) {
     try {
@@ -135,4 +151,14 @@ export async function deleteShowRepository(showId) {
   }
 
   deleteShow(showId);
+
+  trackEvent({
+    eventName: "show_deleted",
+    eventType: APP_EVENT_TYPES.AUDIT,
+    associationId: existingShow?.associationId,
+    showId,
+    metadata: {
+      name: existingShow?.name || "",
+    },
+  });
 }
