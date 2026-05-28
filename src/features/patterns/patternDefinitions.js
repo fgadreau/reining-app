@@ -579,14 +579,10 @@ export const PATTERN_OPTION_GROUPS = [
   },
   {
     label: "Ranch Riding",
-    options: RANCH_RIDING_PATTERNS.map(({ id, name }) => ({ id, name })),
-  },
-  {
-    label: "Small Fry Ranch Riding",
-    options: SMALL_FRY_RANCH_RIDING_PATTERNS.map(({ id, name }) => ({
-      id,
-      name,
-    })),
+    options: [
+      ...RANCH_RIDING_PATTERNS,
+      ...SMALL_FRY_RANCH_RIDING_PATTERNS,
+    ].map(({ id, name }) => ({ id, name })),
   },
   {
     label: "Western Riding",

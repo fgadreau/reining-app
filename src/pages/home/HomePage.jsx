@@ -34,7 +34,6 @@ const ASSOCIATION_WORKFLOW_KEYS = [
 const SUPPORTED_DISCIPLINES = [
   "Reining",
   "Ranch Riding",
-  "Small Fry Ranch Riding",
   "Western Riding",
   "Trail / Obstacle Western",
   "Western Horsemanship",
