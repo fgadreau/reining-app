@@ -408,6 +408,8 @@ export const translations = {
           "Mode local temporaire: la réservation n’a pas été confirmée dans Supabase.",
         judgeClaimMissingUser:
           "Connecte-toi avec ton propre compte scribe pour réserver cette feuille.",
+        judgeClaimSyncError:
+          "La feuille n’a pas pu être réservée dans Supabase. Recharge et réessaie, ou demande au secrétariat de vérifier la réservation.",
         judgeFinalizedSuccess:
           "Feuille du juge finalisée avec signature. Le PDF du juge a été généré.",
         judgeNameLabel: "Nom du juge",
@@ -531,6 +533,8 @@ export const translations = {
           "Affiche les scores de manoeuvres et pénalités à mesure.",
         publicLiveFallbackDescription:
           "Affiche la run en cours, la prochaine et les deux derniers passés dans la vitrine publique.",
+        publicLiveMultiJudgeLimited:
+          "Le live détaillé est désactivé en multi-juges. Utilise live scores complétés.",
         publicLiveNoScoreDescription:
           "Affiche la classe et les participants sans pointage.",
         publicLiveScoringDescription:
@@ -1234,6 +1238,8 @@ export const translations = {
           "Temporary local mode: the reservation was not confirmed in Supabase.",
         judgeClaimMissingUser:
           "Sign in with your own scribe account to reserve this sheet.",
+        judgeClaimSyncError:
+          "The sheet could not be reserved in Supabase. Reload and try again, or ask the secretariat to verify the reservation.",
         judgeFinalizedSuccess:
           "Judge sheet finalized with signature. The judge PDF has been generated.",
         judgeNameLabel: "Judge name",
@@ -1357,6 +1363,8 @@ export const translations = {
           "Shows maneuver scores and penalties as they are entered.",
         publicLiveFallbackDescription:
           "Shows the active run, next participant, and last two completed runs in the public showcase.",
+        publicLiveMultiJudgeLimited:
+          "Detailed live is disabled for multi-judge classes. Use completed live scores.",
         publicLiveNoScoreDescription:
           "Shows the class and participants without scores.",
         publicLiveScoringDescription:

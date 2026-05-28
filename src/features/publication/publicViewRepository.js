@@ -957,10 +957,6 @@ export function buildPublicLiveClassView({
     return null;
   }
 
-  const liveScoreDisplayMode = getLiveScoreDisplayMode(publicationStatus);
-  const showScores = liveScoreDisplayMode !== LIVE_SCORE_DISPLAY_MODES.HIDDEN;
-  const showScoreDetails =
-    liveScoreDisplayMode === LIVE_SCORE_DISPLAY_MODES.FULL_DETAILS;
   const scoringRuns = Array.isArray(scoringSession?.runs)
     ? scoringSession.runs
     : [];
@@ -971,6 +967,17 @@ export function buildPublicLiveClassView({
     judges: setup?.judges,
     judgeSessions,
   });
+  const requestedLiveScoreDisplayMode = getLiveScoreDisplayMode(
+    publicationStatus
+  );
+  const liveScoreDisplayMode =
+    isMultiJudgeLive &&
+    requestedLiveScoreDisplayMode === LIVE_SCORE_DISPLAY_MODES.FULL_DETAILS
+      ? LIVE_SCORE_DISPLAY_MODES.COMPLETED_TOTAL
+      : requestedLiveScoreDisplayMode;
+  const showScores = liveScoreDisplayMode !== LIVE_SCORE_DISPLAY_MODES.HIDDEN;
+  const showScoreDetails =
+    liveScoreDisplayMode === LIVE_SCORE_DISPLAY_MODES.FULL_DETAILS;
   const sourceRuns = isMultiJudgeLive
     ? buildMultiJudgeLiveRuns({
         setupRuns,

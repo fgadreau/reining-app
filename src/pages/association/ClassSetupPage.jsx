@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   getClassFullData,
@@ -104,6 +104,29 @@ function normalizeSetupPublicationStatus(status) {
   return status === PUBLICATION_STATUSES.LIVE_FINISHED
     ? PUBLICATION_STATUSES.LIVE_SCORING
     : status || PUBLICATION_STATUSES.HIDDEN;
+}
+
+function normalizePublicationStatusForJudges(status, judges) {
+  const normalizedStatus = normalizeSetupPublicationStatus(status);
+  const judgeCount = Array.isArray(judges) ? judges.length : 1;
+
+  if (judgeCount > 1 && normalizedStatus === PUBLICATION_STATUSES.LIVE) {
+    return PUBLICATION_STATUSES.LIVE_SCORING;
+  }
+
+  return normalizedStatus;
+}
+
+function getPublicLiveStatusOptions(judges) {
+  const judgeCount = Array.isArray(judges) ? judges.length : 1;
+
+  if (judgeCount <= 1) {
+    return PUBLIC_LIVE_STATUS_OPTIONS;
+  }
+
+  return PUBLIC_LIVE_STATUS_OPTIONS.filter(
+    (option) => option.value !== PUBLICATION_STATUSES.LIVE
+  );
 }
 
 function getRunDrawNumber(run, index = 0) {
@@ -270,7 +293,10 @@ function ClassSetupPage() {
         String(nextSetup.dragDurationMinutes || DEFAULT_DRAG_DURATION_MINUTES)
       );
       setPublicationStatus(
-        normalizeSetupPublicationStatus(resolvedData.publication?.status)
+        normalizePublicationStatusForJudges(
+          resolvedData.publication?.status,
+          nextJudges
+        )
       );
       setIsFinalized(isOfficiallyFinalized(nextRecord));
       setRunCountInput(String(nextRuns.length));
@@ -418,13 +444,17 @@ function ClassSetupPage() {
     });
   };
 
-  const updatePublicationStatus = async (nextStatus) => {
+  const updatePublicationStatus = useCallback(async (nextStatus) => {
     if (!canManageSetup || !hasLoadedSetup || isPublicationLocked) {
       return;
     }
 
+    const normalizedNextStatus = normalizePublicationStatusForJudges(
+      nextStatus,
+      judges
+    );
     const savedPublication = await savePublicationStateRepository(classId, {
-      status: nextStatus,
+      status: normalizedNextStatus,
       publishedAt: null,
       publishedBy: null,
     });
@@ -438,7 +468,35 @@ function ClassSetupPage() {
           }
         : currentData
     );
-  };
+  }, [
+    canManageSetup,
+    classId,
+    hasLoadedSetup,
+    isPublicationLocked,
+    judges,
+  ]);
+
+  useEffect(() => {
+    if (!hasLoadedSetup || !canManageSetup || isPublicationLocked) {
+      return;
+    }
+
+    const normalizedStatus = normalizePublicationStatusForJudges(
+      publicationStatus,
+      judges
+    );
+
+    if (normalizedStatus !== publicationStatus) {
+      updatePublicationStatus(normalizedStatus);
+    }
+  }, [
+    judges,
+    publicationStatus,
+    hasLoadedSetup,
+    canManageSetup,
+    isPublicationLocked,
+    updatePublicationStatus,
+  ]);
 
   const addRun = () => {
     if (!canManageSetup) return;
@@ -1079,7 +1137,7 @@ function ClassSetupPage() {
                 style={inputStyle}
                 disabled={isPublicationLocked}
               >
-                {PUBLIC_LIVE_STATUS_OPTIONS.map((option) => (
+                {getPublicLiveStatusOptions(judges).map((option) => (
                   <option key={option.value} value={option.value}>
                     {t(option.labelKey)}
                   </option>
@@ -1093,7 +1151,10 @@ function ClassSetupPage() {
               <div style={helperTextStyle}>
                 {isPublicationLocked
                   ? t("management.classSetup.finalPublicationAtSecretariat")
-                  : getPublicationStatusDescription(publicationStatus, t)}
+                  : judges.length > 1 &&
+                      publicationStatus === PUBLICATION_STATUSES.LIVE_SCORING
+                    ? t("management.classSetup.publicLiveMultiJudgeLimited")
+                    : getPublicationStatusDescription(publicationStatus, t)}
               </div>
             </div>
           )}

@@ -65,6 +65,14 @@ function sessionClaimedByOther(session, user) {
   );
 }
 
+function sessionClaimedByUser(session, user) {
+  return Boolean(
+    session?.claimedBy &&
+      user?.id &&
+      String(session.claimedBy) === String(user.id)
+  );
+}
+
 async function fetchRemoteJudgeScoringSession(classId, judge) {
   const supabase = getSupabaseClient();
 
@@ -166,17 +174,17 @@ export async function claimJudgeScoringSessionRepository({
     };
   }
 
-  if (sessionClaimedByOther(localSession, user)) {
-    return {
-      ok: false,
-      reason: "claimed",
-      session: localSession,
-    };
-  }
-
   const supabase = getSupabaseClient();
 
   if (!supabase) {
+    if (sessionClaimedByOther(localSession, user)) {
+      return {
+        ok: false,
+        reason: "claimed-by-other",
+        session: localSession,
+      };
+    }
+
     const nextLocalSession = saveJudgeScoringSessionLocal(classId, judge.id, {
       ...localSession,
       ...claimPayload,
@@ -195,7 +203,7 @@ export async function claimJudgeScoringSessionRepository({
     if (sessionClaimedByOther(remoteSession, user)) {
       return {
         ok: false,
-        reason: "claimed",
+        reason: "claimed-by-other",
         session: remoteSession,
       };
     }
@@ -225,7 +233,7 @@ export async function claimJudgeScoringSessionRepository({
         return {
           ok: !sessionClaimedByOther(claimedSession, user),
           reason: sessionClaimedByOther(claimedSession, user)
-            ? "claimed"
+            ? "claimed-by-other"
             : null,
           session: claimedSession,
         };
@@ -255,16 +263,47 @@ export async function claimJudgeScoringSessionRepository({
     return { ok: true, session };
   } catch (error) {
     console.error("Erreur réservation session juge Supabase:", error);
-    const nextLocalSession = saveJudgeScoringSessionLocal(classId, judge.id, {
-      ...localSession,
-      ...claimPayload,
-      judgeName: localSession.judgeName || judge.name || "",
-    });
+
+    try {
+      const remoteSession = await fetchRemoteJudgeScoringSession(classId, judge);
+
+      if (sessionClaimedByOther(remoteSession, user)) {
+        return {
+          ok: false,
+          reason: "claimed-by-other",
+          session: remoteSession,
+        };
+      }
+
+      if (sessionClaimedByUser(remoteSession, user)) {
+        saveJudgeScoringSessionLocal(classId, judge.id, remoteSession);
+        return {
+          ok: true,
+          session: remoteSession,
+        };
+      }
+    } catch (reloadError) {
+      console.error("Erreur relecture session juge Supabase:", reloadError);
+    }
+
+    if (sessionClaimedByUser(localSession, user)) {
+      const nextLocalSession = saveJudgeScoringSessionLocal(classId, judge.id, {
+        ...localSession,
+        ...claimPayload,
+        judgeName: localSession.judgeName || judge.name || "",
+      });
+
+      return {
+        ok: true,
+        session: nextLocalSession,
+        isLocalFallback: true,
+      };
+    }
 
     return {
-      ok: true,
-      session: nextLocalSession,
-      isLocalFallback: true,
+      ok: false,
+      reason: "sync-error",
+      session: localSession,
     };
   }
 }
@@ -287,13 +326,24 @@ export async function saveJudgeScoringSessionRepository({
   }
 
   try {
-    const { data, error } = await supabase
-      .from("judge_scoring_sessions")
-      .upsert(toJudgeScoringSessionRow(next))
-      .select("*")
-      .maybeSingle();
+    const saveQuery = next.claimedBy
+      ? supabase
+          .from("judge_scoring_sessions")
+          .update(toJudgeScoringSessionRow(next))
+          .eq("class_id", next.classId)
+          .eq("judge_id", next.judgeId)
+          .or(`claimed_by.is.null,claimed_by.eq.${next.claimedBy}`)
+      : supabase
+          .from("judge_scoring_sessions")
+          .upsert(toJudgeScoringSessionRow(next));
+
+    const { data, error } = await saveQuery.select("*").maybeSingle();
 
     if (error) throw error;
+    if (!data) {
+      const remoteSession = await fetchRemoteJudgeScoringSession(classId, judge);
+      return remoteSession || next;
+    }
 
     const saved = toJudgeScoringSession(data, { classId, judge });
     saveJudgeScoringSessionLocal(classId, judge.id, saved);

@@ -1055,6 +1055,67 @@ test("multi-judge public live aggregates active run and completed score", () => 
   ]);
 });
 
+test("multi-judge public live disables detailed scoring and sums two judges", () => {
+  const scores = getPatternHeaders("1").map(() => "0");
+  const classView = buildPublicLiveClassView({
+    classItem: {
+      id: "class-live-multi-two",
+      name: "Open Futurity",
+      pattern: "1",
+    },
+    setup: {
+      pattern: "1",
+      judges: [
+        { id: "judge-1", name: "Judge A", order: 1 },
+        { id: "judge-2", name: "Judge B", order: 2 },
+      ],
+      runs: [
+        { id: "run-1", draw: 1, backNumber: "101", rider: "Rider 1" },
+        { id: "run-2", draw: 2, backNumber: "202", rider: "Rider 2" },
+      ],
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE,
+    },
+    judgeSessions: [
+      {
+        judgeId: "judge-1",
+        activeManoeuvre: { draw: 2 },
+        runs: [
+          {
+            id: "run-1",
+            draw: 1,
+            backNumber: "101",
+            scores,
+            penalties: [],
+            scoreTotal: "70.0",
+          },
+        ],
+      },
+      {
+        judgeId: "judge-2",
+        activeManoeuvre: { draw: 2 },
+        runs: [
+          {
+            id: "run-1",
+            draw: 1,
+            backNumber: "101",
+            scores,
+            penalties: [],
+            scoreTotal: "71.0",
+          },
+        ],
+      },
+    ],
+  });
+
+  expect(classView.showScores).toBe(true);
+  expect(classView.showScoreDetails).toBe(false);
+  expect(classView.activeRun.draw).toBe(2);
+  expect(classView.latestScore.scoreTotal).toBe("141.0");
+  expect(classView.lastPassedRuns[0].manoeuvres[0].score).toBe("");
+});
+
 test("public live without scores keeps runs visible and hides scoring details", () => {
   const classView = buildPublicLiveClassView({
     classItem: {

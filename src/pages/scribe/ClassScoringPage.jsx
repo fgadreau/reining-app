@@ -481,7 +481,7 @@ function ClassScoringPage() {
       const session = result.session;
       setActiveJudgeSession(session);
       setJudgeClaimState({
-        status: result.ok ? "claimed" : result.reason || "claimed",
+        status: result.ok ? "claimed" : result.reason || "claim-error",
         session,
         isLocalFallback: result.isLocalFallback || false,
       });
@@ -630,9 +630,16 @@ function ClassScoringPage() {
             judgeName: activeJudgeName,
           },
         }).then((session) => {
+          const isClaimedByOther = Boolean(
+            session?.claimedBy &&
+              auth.user?.id &&
+              String(session.claimedBy) !== String(auth.user.id)
+          );
+
           setActiveJudgeSession(session);
           setJudgeClaimState((current) => ({
             ...current,
+            status: isClaimedByOther ? "claimed-by-other" : current.status,
             session,
           }));
         });
@@ -655,6 +662,7 @@ function ClassScoringPage() {
     activeJudgeName,
     activeJudgeSession,
     activeManoeuvre,
+    auth.user?.id,
     classId,
     isMultiJudgeMode,
     judgeClaimState.status,
@@ -1504,14 +1512,18 @@ function ClassScoringPage() {
                 {t("management.scoring.judgeClaimMissingUser")}
               </div>
             )}
+            {judgeClaimState.status === "sync-error" && (
+              <div style={warningTextStyle}>
+                {t("management.scoring.judgeClaimSyncError")}
+              </div>
+            )}
             {judgeClaimState.status === "claimed" &&
               judgeClaimState.isLocalFallback && (
                 <div style={warningTextStyle}>
                   {t("management.scoring.judgeClaimLocalFallback")}
                 </div>
               )}
-            {judgeClaimState.status === "claimed" ? null : judgeClaimState.status ===
-              "loading" ? null : judgeClaimState.status === "missing-user" ? null : (
+            {judgeClaimState.status === "claimed-by-other" && (
               <div style={warningTextStyle}>
                 {t("management.scoring.judgeClaimedConflict", {
                   email: judgeClaimState.session?.claimedByEmail || "—",
