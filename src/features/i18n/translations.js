@@ -161,7 +161,7 @@ export const translations = {
         latestScore: "Dernier score",
         loading: "Chargement du tableau annonceur...",
         markPassed: "Marquer passé",
-        inPreparation: "En préparation",
+        inPreparation: "En attente",
         next: "Prochain",
         noActiveRun: "Aucun run actif.",
         noNextRun: "Aucun prochain run.",
@@ -182,7 +182,7 @@ export const translations = {
         stopAndMarkPassed: "Arrêter et marquer passé",
         warmupStats:
           "Total: {{total}} · Passés: {{done}} · No show: {{noShow}} · Scratch: {{scratch}}",
-        waiting: "En attente",
+        waiting: "En préparation",
       },
       access: {
         accessAdded: "Accès ajouté.",
@@ -993,7 +993,7 @@ export const translations = {
         latestScore: "Latest score",
         loading: "Loading announcer dashboard...",
         markPassed: "Mark done",
-        inPreparation: "Preparing",
+        inPreparation: "In the hole",
         next: "Next",
         noActiveRun: "No active run.",
         noNextRun: "No next run.",
@@ -1001,7 +1001,7 @@ export const translations = {
         noRecentRun: "No displayable pass.",
         noShowNext: "No show next",
         noWaitingRider: "No rider waiting.",
-        onCourse: "In the pen",
+        onCourse: "In the arena",
         passedWithScores: "Completed with scores",
         provisionalRanking: "Provisional ranking",
         provisionalRankingNote:
@@ -1014,7 +1014,7 @@ export const translations = {
         stopAndMarkPassed: "Stop and mark done",
         warmupStats:
           "Total: {{total}} · Done: {{done}} · No show: {{noShow}} · Scratch: {{scratch}}",
-        waiting: "Waiting",
+        waiting: "On deck",
       },
       access: {
         accessAdded: "Access added.",
@@ -1618,7 +1618,7 @@ export const translations = {
         noSheets:
           "No official score sheet has been published yet. Public live appears here only if a class in the show is enabled in setup.",
         officialScoresheet: "Official score sheet",
-        onCourse: "In the pen",
+        onCourse: "In the arena",
         oneMinute: "1 minute remaining",
         order: "Order",
         orderOfGo: "Order of go",
@@ -1642,11 +1642,11 @@ export const translations = {
         secondNextParticipant: "Second next participant",
         showNotFound: "Show not found.",
         siteTitle: "Public score sheets",
-        statusOnCourse: "In the pen",
+        statusOnCourse: "In the arena",
         statusPassed: "Completed",
-        statusPreparation: "Preparing",
+        statusPreparation: "On deck",
         statusUpcoming: "Upcoming",
-        statusWaiting: "Waiting",
+        statusWaiting: "In the hole",
         timeOver: "Time is up",
         timingNote:
           "Estimate adjusted from recorded real times and planned drags.",

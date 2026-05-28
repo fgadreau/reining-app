@@ -958,8 +958,8 @@ test("public live view exposes active, next, and last passed runs", () => {
     "passed",
     "passed",
     "active",
-    "waiting",
     "preparation",
+    "waiting",
   ]);
   expect(classView.passedRuns.map((run) => run.draw)).toEqual([3, 2, 1]);
   expect(classView.lastPassedRuns.map((run) => run.draw)).toEqual([3, 2]);
@@ -1060,7 +1060,7 @@ test("multi-judge public live aggregates active run and completed score", () => 
   expect(classView.orderRuns.map((run) => run.liveOrderStatus)).toEqual([
     "passed",
     "active",
-    "waiting",
+    "preparation",
   ]);
 });
 
@@ -1213,8 +1213,8 @@ test("public live view uses setup order before scoring starts", () => {
   expect(classView.nextRun.draw).toBe(1);
   expect(classView.secondNextRun.draw).toBe(2);
   expect(classView.orderRuns.map((run) => run.liveOrderStatus)).toEqual([
-    "waiting",
     "preparation",
+    "waiting",
     "upcoming",
   ]);
 });
@@ -1472,8 +1472,8 @@ test("announcer live view exposes active, next, and recent completed runs", () =
   expect(classView.orderRuns.map((run) => run.liveOrderStatus)).toEqual([
     "passed",
     "active",
-    "waiting",
     "preparation",
+    "waiting",
   ]);
   expect(classView.passedRuns.map((run) => run.draw)).toEqual([1]);
   expect(classView.lastPassedRuns.map((run) => run.draw)).toEqual([1]);

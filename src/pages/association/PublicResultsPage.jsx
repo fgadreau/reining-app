@@ -512,6 +512,7 @@ function PublicLivePanel({ classView, now }) {
   const secondNextRun = classView.secondNextRun;
   const showScores = classView.showScores !== false;
   const showScoreDetails = showScores && classView.showScoreDetails !== false;
+  const showLastPassedBlock = showScoreDetails || !showScores;
   const canShowRunScore = (run) =>
     showScores && Boolean(String(run?.scoreTotal || "").trim());
   const publicationLabel = getPublicPublicationStatusLabel(
@@ -606,36 +607,36 @@ function PublicLivePanel({ classView, now }) {
               )}
             </div>
             <LiveRunBlock
-              label={t("public.results.nextParticipant")}
               run={nextRun}
-              showDetails={showScoreDetails}
-              statusLabel={t("public.results.statusWaiting")}
-              status="waiting"
-            />
-            <LiveRunBlock
-              label={t("public.results.secondNextParticipant")}
-              run={secondNextRun}
               showDetails={showScoreDetails}
               statusLabel={t("public.results.statusPreparation")}
               status="preparation"
             />
-            <div style={liveBlockStyle}>
-              <div style={runLabelStyle}>{t("public.results.lastTwoPassed")}</div>
-              {classView.lastPassedRuns?.length ? (
-                <div style={{ display: "grid", gap: 8 }}>
-                  {classView.lastPassedRuns.map((run) => (
-                    <LiveRunCard
-                      key={run.id || run.draw}
-                      run={run}
-                      showScore={canShowRunScore(run)}
-                      showDetails={showScoreDetails}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div style={mutedTextStyle}>—</div>
-              )}
-            </div>
+            <LiveRunBlock
+              run={secondNextRun}
+              showDetails={showScoreDetails}
+              statusLabel={t("public.results.statusWaiting")}
+              status="waiting"
+            />
+            {showLastPassedBlock && (
+              <div style={liveBlockStyle}>
+                <div style={runLabelStyle}>{t("public.results.lastTwoPassed")}</div>
+                {classView.lastPassedRuns?.length ? (
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {classView.lastPassedRuns.map((run) => (
+                      <LiveRunCard
+                        key={run.id || run.draw}
+                        run={run}
+                        showScore={canShowRunScore(run)}
+                        showDetails={showScoreDetails}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div style={mutedTextStyle}>—</div>
+                )}
+              </div>
+            )}
           </div>
 
           <PublicLiveOrderTable
@@ -835,7 +836,7 @@ function LiveRunBlock({
   return (
     <div style={liveBlockStyle}>
       <div style={liveBlockHeaderStyle}>
-        <div style={runLabelStyle}>{label}</div>
+        {label && <div style={runLabelStyle}>{label}</div>}
         {run && statusLabel && (
           <span style={orderStatusBadgeStyle(status)}>{statusLabel}</span>
         )}

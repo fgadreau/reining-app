@@ -1250,8 +1250,8 @@ function buildLiveRunOrder({ runs, activeRun, nextRun, secondNextRun }) {
 
 function getLiveRunOrderStatus({ run, activeRun, nextRun, secondNextRun }) {
   if (isSameRun(run, activeRun)) return "active";
-  if (isSameRun(run, nextRun)) return "waiting";
-  if (isSameRun(run, secondNextRun)) return "preparation";
+  if (isSameRun(run, nextRun)) return "preparation";
+  if (isSameRun(run, secondNextRun)) return "waiting";
   if (runIsPassed(run)) return "passed";
   return "upcoming";
 }

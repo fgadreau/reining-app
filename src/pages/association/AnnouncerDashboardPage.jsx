@@ -728,12 +728,14 @@ function ClassLiveCard({ classView, now, onOpenProvisionalRanking }) {
               run={classView.activeRun}
             />
             <RunBlock
-              label={t("management.announcer.waiting")}
               run={classView.nextRun}
+              statusLabel={t("public.results.statusPreparation")}
+              status="preparation"
             />
             <RunBlock
-              label={t("management.announcer.inPreparation")}
               run={classView.secondNextRun}
+              statusLabel={t("public.results.statusWaiting")}
+              status="waiting"
             />
             <RunBlock
               label={t("management.announcer.latestScore")}
@@ -874,10 +876,23 @@ function getPublicationStatusLabel(status, t) {
   }
 }
 
-function RunBlock({ label, run, showScore = false }) {
+function RunBlock({
+  label,
+  run,
+  showScore = false,
+  statusLabel = null,
+  status = "waiting",
+}) {
   return (
     <div style={runBlockStyle}>
-      <div style={runLabelStyle}>{label}</div>
+      {(label || (run && statusLabel)) && (
+        <div style={liveBlockHeaderStyle}>
+          {label && <div style={runLabelStyle}>{label}</div>}
+          {run && statusLabel && (
+            <Badge tone={getOrderStatusTone(status)}>{statusLabel}</Badge>
+          )}
+        </div>
+      )}
       {run ? (
         <>
           <RunIdentity run={run} />
@@ -1382,6 +1397,15 @@ const runBlockStyle = {
   borderRadius: 8,
   padding: 10,
   minHeight: 92,
+};
+
+const liveBlockHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 8,
+  flexWrap: "wrap",
+  marginBottom: 8,
 };
 
 const dragNoticeStyle = {
