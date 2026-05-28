@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import AssociationLogo from "./AssociationLogo";
 import CloudAuthBar from "./CloudAuthBar";
 import LanguageSwitcher from "./LanguageSwitcher";
+import { getAssociationRepository } from "../features/associations/associationRepository";
 import { useAssociationAccess } from "../features/auth/useAssociationAccess";
 import { useAuthUser } from "../features/auth/useAuthUser";
 import { useTranslation } from "../features/i18n/I18nProvider";
@@ -22,6 +24,7 @@ function AppMenu() {
   const auth = useAuthUser();
   const { t } = useTranslation();
   const { associationId, showId } = parseContext(location.pathname);
+  const [association, setAssociation] = useState(null);
   const access = useAssociationAccess(associationId);
   const isPublicPath = location.pathname.startsWith("/public");
   const canOpenManagement = !auth.isConfigured || auth.isAuthenticated;
@@ -36,6 +39,29 @@ function AppMenu() {
   const shouldShowAssociationMenu =
     associationId && !showId && !isPublicPath && canOpenManagement;
   const shouldShowShowMenu = associationId && showId && !isPublicPath;
+  const associationLabel =
+    association?.shortName || association?.name || t("common.association");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAssociation() {
+      if (!associationId || isPublicPath) {
+        setAssociation(null);
+        return;
+      }
+
+      const nextAssociation = await getAssociationRepository(associationId);
+      if (!isMounted) return;
+      setAssociation(nextAssociation);
+    }
+
+    loadAssociation();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [associationId, isPublicPath]);
 
   return (
     <div style={menuShellStyle}>
@@ -103,6 +129,14 @@ function AppMenu() {
 
       {shouldShowShowMenu && (
         <nav style={subNavStyle} aria-label={t("nav.competitionMenu")}>
+          <div
+            style={associationContextStyle}
+            title={association?.name || associationLabel}
+          >
+            <AssociationLogo association={association} size={28} />
+            <span style={associationNameStyle}>{associationLabel}</span>
+          </div>
+
           <Link
             to={`${associationBasePath}/shows`}
             style={backLinkStyle}
@@ -195,6 +229,25 @@ const subNavStyle = {
   padding: "6px 16px",
   background: "#fff",
   borderTop: "1px solid #e2e8f0",
+};
+
+const associationContextStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  minHeight: 34,
+  maxWidth: 280,
+  paddingRight: 8,
+  marginRight: 2,
+  borderRight: "1px solid #e2e8f0",
+};
+
+const associationNameStyle = {
+  color: "#0f172a",
+  fontWeight: 900,
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
 };
 
 const subLinkStyle = (isActive) => ({
