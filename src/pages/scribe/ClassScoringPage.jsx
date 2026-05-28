@@ -266,20 +266,14 @@ function ClassScoringPage() {
     [classItem?.judgeName, classSetup?.judgeName, classSetup?.judges]
   );
   const isMultiJudgeMode = classJudges.length > 1;
-  const [activeJudgeId, setActiveJudgeId] = useState(
-    () => classJudges[0]?.id || "judge-1"
-  );
+  const [activeJudgeId, setActiveJudgeId] = useState("");
   const activeJudgeIndex = classJudges.findIndex(
     (judge) => judge.id === activeJudgeId
   );
   const activeJudge =
-    classJudges[activeJudgeIndex >= 0 ? activeJudgeIndex : 0] ||
-    classJudges[0];
+    activeJudgeIndex >= 0 ? classJudges[activeJudgeIndex] : null;
   const activeJudgeName = activeJudge
-    ? getJudgeDisplayName(
-        activeJudge,
-        activeJudgeIndex >= 0 ? activeJudgeIndex : 0
-      )
+    ? getJudgeDisplayName(activeJudge, activeJudgeIndex)
     : "";
   const legacyAssignedJudgeName = String(
     classSetup?.judgeName || classItem?.judgeName || ""
@@ -426,14 +420,20 @@ function ClassScoringPage() {
       );
 
       setClassData(nextData);
-      setActiveJudgeId((currentJudgeId) =>
-        nextJudges.some((judge) => judge.id === currentJudgeId)
+      setActiveJudgeId((currentJudgeId) => {
+        if (!nextIsMultiJudgeMode) {
+          return nextJudges[0]?.id || "judge-1";
+        }
+
+        return nextJudges.some((judge) => judge.id === currentJudgeId)
           ? currentJudgeId
-          : nextJudges[0]?.id || "judge-1"
-      );
+          : "";
+      });
       setRuns(nextRuns);
       lastPersistedRunsRef.current = JSON.stringify(nextRuns);
-      setActiveManoeuvre(nextIsCompleted ? null : nextActiveManoeuvre);
+      setActiveManoeuvre(
+        nextIsCompleted || nextIsMultiJudgeMode ? null : nextActiveManoeuvre
+      );
       setScoringSyncStatus(getScoringRunsSyncStatus(classId));
       setHasLoadedSession(!nextIsMultiJudgeMode);
     }
@@ -446,13 +446,39 @@ function ClassScoringPage() {
   }, [classId]);
 
   useEffect(() => {
-    if (!classJudges.some((judge) => judge.id === activeJudgeId)) {
-      setActiveJudgeId(classJudges[0]?.id || "judge-1");
+    if (isMultiJudgeMode) {
+      if (
+        activeJudgeId &&
+        !classJudges.some((judge) => judge.id === activeJudgeId)
+      ) {
+        setActiveJudgeId("");
+      }
+      return;
     }
-  }, [activeJudgeId, classJudges]);
+
+    if (!activeJudgeId && classJudges[0]?.id) {
+      setActiveJudgeId(classJudges[0].id);
+    }
+  }, [activeJudgeId, classJudges, isMultiJudgeMode]);
 
   useEffect(() => {
-    if (!isMultiJudgeMode || !activeJudge?.id) return undefined;
+    if (isMultiJudgeMode && !activeJudgeId) {
+      setIsJudgePickerOpen(true);
+    }
+  }, [activeJudgeId, isMultiJudgeMode]);
+
+  useEffect(() => {
+    if (!isMultiJudgeMode) return undefined;
+
+    if (!activeJudge?.id) {
+      setActiveJudgeSession(null);
+      setJudgeClaimState({ status: "idle", session: null });
+      setActiveManoeuvre(null);
+      setJudgeName("");
+      setJudgeSignature(null);
+      setHasLoadedSession(true);
+      return undefined;
+    }
 
     let isMounted = true;
 
@@ -1100,11 +1126,13 @@ function ClassScoringPage() {
     const nextIndex = classJudges.findIndex((judge) => judge.id === judgeId);
     const nextJudge = classJudges[nextIndex];
     const nextJudgeName = getJudgeDisplayName(nextJudge, nextIndex);
-    const confirmed = window.confirm(
-      t("management.scoring.confirmJudgeChange", {
-        judgeName: nextJudgeName,
-      })
-    );
+    const confirmed =
+      !activeJudgeId ||
+      window.confirm(
+        t("management.scoring.confirmJudgeChange", {
+          judgeName: nextJudgeName,
+        })
+      );
 
     if (!confirmed) return;
 
@@ -1479,11 +1507,14 @@ function ClassScoringPage() {
         </div>
       )}
 
-      {!isCompleted && !hasPendingVideoReview && !canFinalize && (
-        <div style={warningBannerStyle}>
-          {t("management.scoring.incompleteBanner")}
-        </div>
-      )}
+      {!isCompleted &&
+        !hasPendingVideoReview &&
+        !canFinalize &&
+        (!isMultiJudgeMode || judgeClaimState.status === "claimed") && (
+          <div style={warningBannerStyle}>
+            {t("management.scoring.incompleteBanner")}
+          </div>
+        )}
 
       {isMultiJudgeMode && (
         <section style={judgeSessionCardStyle}>
@@ -1491,7 +1522,14 @@ function ClassScoringPage() {
             <div style={judgeSessionLabelStyle}>
               {t("management.scoring.scoringForJudge")}
             </div>
-            <h2 style={judgeSessionTitleStyle}>{activeJudgeName}</h2>
+            <h2 style={judgeSessionTitleStyle}>
+              {activeJudgeName || t("management.scoring.noJudgeSelected")}
+            </h2>
+            {!activeJudgeId && (
+              <div style={helperTextStyle}>
+                {t("management.scoring.selectJudgeBeforeClaim")}
+              </div>
+            )}
             {judgeClaimState.status === "claimed" && (
               <div style={helperTextStyle}>
                 {t("management.scoring.judgeClaimedBy", {
@@ -1538,7 +1576,9 @@ function ClassScoringPage() {
               onClick={() => setIsJudgePickerOpen((current) => !current)}
               style={secondaryButtonStyle}
             >
-              {t("management.scoring.changeJudge")}
+              {activeJudgeId
+                ? t("management.scoring.changeJudge")
+                : t("management.scoring.selectJudge")}
             </button>
           </div>
 
