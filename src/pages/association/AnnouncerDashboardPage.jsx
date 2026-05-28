@@ -332,7 +332,7 @@ function RunFocus({ className, run, compact = false }) {
     <div>
       <div style={focusClassNameStyle}>{className}</div>
       {!compact && run.scoreTotal && (
-        <div style={scoreStyle}>{run.scoreTotal || "—"}</div>
+        <RunScoreDisplay run={run} focus />
       )}
       <RunIdentity run={run} />
     </div>
@@ -461,7 +461,7 @@ function RecentResults({ results }) {
               <div style={classNameStyle}>{className}</div>
               <RunIdentity run={run} />
             </div>
-            <div style={compactScoreStyle}>{run.scoreTotal || "—"}</div>
+            <RunScoreDisplay run={run} compact />
           </div>
           <RunNote note={run.note} />
           <ManoeuvreDetails run={run} />
@@ -794,9 +794,7 @@ function AnnouncerOrderList({ runs }) {
             <Badge tone={getOrderStatusTone(run.liveOrderStatus)}>
               {getAnnouncerRunOrderStatusLabel(run.liveOrderStatus, t)}
             </Badge>
-            <div style={announcerOrderScoreStyle}>
-              {run.scoreTotal || "—"}
-            </div>
+            <RunScoreDisplay run={run} compact />
           </div>
         ))}
       </div>
@@ -883,13 +881,54 @@ function RunBlock({ label, run, showScore = false }) {
       {run ? (
         <>
           <RunIdentity run={run} />
-          {showScore && <div style={compactScoreStyle}>{run.scoreTotal || "—"}</div>}
+          {showScore && <RunScoreDisplay run={run} compact />}
           <RunNote note={run.note} />
         </>
       ) : (
         <div style={mutedTextStyle}>—</div>
       )}
     </div>
+  );
+}
+
+function RunScoreDisplay({ run, compact = false, focus = false }) {
+  const { t } = useTranslation();
+  const judgeScores = getVisibleJudgeScores(run);
+  const totalStyle = focus
+    ? scoreStyle
+    : compact
+      ? compactScoreStyle
+      : compactScoreStyle;
+
+  if (judgeScores.length <= 1) {
+    return <div style={totalStyle}>{run.scoreTotal || "—"}</div>;
+  }
+
+  return (
+    <div style={compact ? judgeScoreCompactWrapStyle : judgeScoreWrapStyle}>
+      <div style={compact ? judgeScoreCompactListStyle : judgeScoreListStyle}>
+        {judgeScores.map((judgeScore, index) => (
+          <span
+            key={judgeScore.judgeId || `${judgeScore.judgeName}-${index}`}
+            style={compact ? judgeScoreCompactItemStyle : judgeScoreItemStyle}
+          >
+            <span style={judgeScoreNameStyle}>
+              {judgeScore.judgeName || t("public.results.judge")}
+            </span>{" "}
+            <span style={judgeScoreValueStyle}>{judgeScore.scoreTotal}</span>
+          </span>
+        ))}
+      </div>
+      <div style={totalStyle}>
+        {t("public.results.totalScore")}: {run.scoreTotal || "—"}
+      </div>
+    </div>
+  );
+}
+
+function getVisibleJudgeScores(run) {
+  return (Array.isArray(run?.judgeScores) ? run.judgeScores : []).filter(
+    (judgeScore) => String(judgeScore?.scoreTotal ?? "").trim()
   );
 }
 
@@ -1172,6 +1211,62 @@ const compactScoreStyle = {
   marginTop: 8,
 };
 
+const judgeScoreWrapStyle = {
+  display: "grid",
+  gap: 8,
+  marginTop: 8,
+};
+
+const judgeScoreListStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 6,
+};
+
+const judgeScoreItemStyle = {
+  display: "inline-flex",
+  gap: 4,
+  alignItems: "baseline",
+  border: "1px solid #cbd5e1",
+  borderRadius: 8,
+  padding: "5px 8px",
+  background: "#fff",
+};
+
+const judgeScoreNameStyle = {
+  color: "#475569",
+  fontSize: 12,
+  fontWeight: 800,
+};
+
+const judgeScoreValueStyle = {
+  color: "#111827",
+  fontWeight: 900,
+};
+
+const judgeScoreCompactWrapStyle = {
+  display: "grid",
+  gap: 3,
+  minWidth: 150,
+  textAlign: "right",
+};
+
+const judgeScoreCompactListStyle = {
+  display: "flex",
+  gap: 4,
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
+};
+
+const judgeScoreCompactItemStyle = {
+  display: "inline-flex",
+  gap: 3,
+  alignItems: "baseline",
+  color: "#475569",
+  fontSize: 11,
+  fontWeight: 800,
+};
+
 const runNoteStyle = {
   border: "1px solid #cbd5e1",
   borderRadius: 8,
@@ -1337,14 +1432,6 @@ const announcerOrderDrawStyle = {
 const announcerOrderIdentityStyle = {
   flex: "1 1 220px",
   minWidth: 0,
-};
-
-const announcerOrderScoreStyle = {
-  minWidth: 64,
-  textAlign: "right",
-  fontSize: 20,
-  fontWeight: 900,
-  color: "#111827",
 };
 
 const runLabelStyle = {

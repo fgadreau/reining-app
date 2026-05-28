@@ -1052,6 +1052,11 @@ test("multi-judge public live aggregates active run and completed score", () => 
   expect(classView.activeRun.draw).toBe(2);
   expect(classView.nextRun.draw).toBe(3);
   expect(classView.latestScore.scoreTotal).toBe("213.0");
+  expect(classView.latestScore.judgeScores).toEqual([
+    { judgeId: "judge-1", judgeName: "Judge A", scoreTotal: "70.0" },
+    { judgeId: "judge-2", judgeName: "Judge B", scoreTotal: "71.0" },
+    { judgeId: "judge-3", judgeName: "Judge C", scoreTotal: "72.0" },
+  ]);
   expect(classView.orderRuns.map((run) => run.liveOrderStatus)).toEqual([
     "passed",
     "active",
@@ -1117,6 +1122,10 @@ test("multi-judge public live disables detailed scoring and sums two judges", ()
   expect(classView.showScoreDetails).toBe(false);
   expect(classView.activeRun.draw).toBe(2);
   expect(classView.latestScore.scoreTotal).toBe("141.0");
+  expect(classView.latestScore.judgeScores).toEqual([
+    { judgeId: "judge-1", judgeName: "Judge A", scoreTotal: "70.0" },
+    { judgeId: "judge-2", judgeName: "Judge B", scoreTotal: "71.0" },
+  ]);
   expect(classView.lastPassedRuns[0].manoeuvres[0].score).toBe("");
 });
 
@@ -1603,6 +1612,11 @@ test("announcer live view reads multi-judge sessions", () => {
 
   expect(classView.activeRun.draw).toBe(2);
   expect(classView.latestScore.scoreTotal).toBe("213.0");
+  expect(classView.latestScore.judgeScores).toEqual([
+    { judgeId: "judge-1", judgeName: "Judge A", scoreTotal: "70.0" },
+    { judgeId: "judge-2", judgeName: "Judge B", scoreTotal: "71.0" },
+    { judgeId: "judge-3", judgeName: "Judge C", scoreTotal: "72.0" },
+  ]);
   expect(classView.orderRuns.map((run) => run.liveOrderStatus)).toEqual([
     "passed",
     "active",

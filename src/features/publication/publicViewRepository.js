@@ -1083,6 +1083,15 @@ function normalizePublicLiveRun(
   const scoreTotal = run.scoreTotal ?? "";
   const penTotal = run.penTotal ?? "";
   const note = run.note || "";
+  const judgeScores = Array.isArray(run.judgeScores)
+    ? run.judgeScores
+        .map((judgeScore) => ({
+          judgeId: judgeScore?.judgeId || "",
+          judgeName: judgeScore?.judgeName || "",
+          scoreTotal: judgeScore?.scoreTotal ?? "",
+        }))
+        .filter((judgeScore) => String(judgeScore.scoreTotal).trim())
+    : [];
 
   return {
     id: run.id,
@@ -1092,6 +1101,7 @@ function normalizePublicLiveRun(
     horse: run.horse || "",
     owner: run.owner || "",
     scoreTotal: showScores ? scoreTotal : "",
+    judgeScores: showScores ? judgeScores : [],
     penTotal: showScoreDetails ? penTotal : "",
     note: showScoreDetails ? note : "",
     hasScore: showScores && runHasScore({ scoreTotal }),

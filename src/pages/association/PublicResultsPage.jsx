@@ -884,9 +884,11 @@ function PublicLiveOrderTable({ runs, showScores }) {
             <span style={orderStatusBadgeStyle(run.liveOrderStatus)}>
               {getPublicRunOrderStatusLabel(run.liveOrderStatus, t)}
             </span>
-            <div style={orderScoreStyle}>
-              {showScores && run.scoreTotal ? run.scoreTotal : "—"}
-            </div>
+            {showScores && run.scoreTotal ? (
+              <LiveRunScore run={run} compact />
+            ) : (
+              <div style={orderScoreStyle}>—</div>
+            )}
           </div>
         ))}
       </div>
@@ -906,7 +908,7 @@ function LiveRunCard({ run, showScore = true, showDetails = true }) {
       <div style={mutedTextStyle}>
         {run.horse || t("public.results.horseFallback")}
       </div>
-      {showScore && <div style={liveScoreStyle}>{run.scoreTotal || "—"}</div>}
+      {showScore && <LiveRunScore run={run} />}
       {showDetails && (
         <>
           <PublicRunNote note={run.note} />
@@ -914,6 +916,46 @@ function LiveRunCard({ run, showScore = true, showDetails = true }) {
         </>
       )}
     </div>
+  );
+}
+
+function LiveRunScore({ run, compact = false }) {
+  const { t } = useTranslation();
+  const judgeScores = getVisibleJudgeScores(run);
+
+  if (judgeScores.length <= 1) {
+    return (
+      <div style={compact ? orderScoreStyle : liveScoreStyle}>
+        {run.scoreTotal || "—"}
+      </div>
+    );
+  }
+
+  return (
+    <div style={compact ? judgeScoreCompactWrapStyle : judgeScoreWrapStyle}>
+      <div style={compact ? judgeScoreCompactListStyle : judgeScoreListStyle}>
+        {judgeScores.map((judgeScore, index) => (
+          <span
+            key={judgeScore.judgeId || `${judgeScore.judgeName}-${index}`}
+            style={compact ? judgeScoreCompactItemStyle : judgeScoreItemStyle}
+          >
+            <span style={judgeScoreNameStyle}>
+              {judgeScore.judgeName || t("public.results.judge")}
+            </span>{" "}
+            <span style={judgeScoreValueStyle}>{judgeScore.scoreTotal}</span>
+          </span>
+        ))}
+      </div>
+      <div style={compact ? orderScoreStyle : liveScoreStyle}>
+        {t("public.results.totalScore")}: {run.scoreTotal || "—"}
+      </div>
+    </div>
+  );
+}
+
+function getVisibleJudgeScores(run) {
+  return (Array.isArray(run?.judgeScores) ? run.judgeScores : []).filter(
+    (judgeScore) => String(judgeScore?.scoreTotal ?? "").trim()
   );
 }
 
@@ -1311,6 +1353,62 @@ const liveScoreStyle = {
   fontSize: 28,
   fontWeight: 900,
   marginTop: 8,
+};
+
+const judgeScoreWrapStyle = {
+  display: "grid",
+  gap: 8,
+  marginTop: 8,
+};
+
+const judgeScoreListStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 6,
+};
+
+const judgeScoreItemStyle = {
+  display: "inline-flex",
+  gap: 4,
+  alignItems: "baseline",
+  border: "1px solid #cbd5e1",
+  borderRadius: 8,
+  padding: "5px 8px",
+  background: "#f8fafc",
+};
+
+const judgeScoreNameStyle = {
+  color: "#475569",
+  fontSize: 12,
+  fontWeight: 800,
+};
+
+const judgeScoreValueStyle = {
+  color: "#111827",
+  fontWeight: 900,
+};
+
+const judgeScoreCompactWrapStyle = {
+  display: "grid",
+  gap: 3,
+  minWidth: 150,
+  textAlign: "right",
+};
+
+const judgeScoreCompactListStyle = {
+  display: "flex",
+  gap: 4,
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
+};
+
+const judgeScoreCompactItemStyle = {
+  display: "inline-flex",
+  gap: 3,
+  alignItems: "baseline",
+  color: "#475569",
+  fontSize: 11,
+  fontWeight: 800,
 };
 
 const runNotePublicStyle = {

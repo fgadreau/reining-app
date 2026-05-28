@@ -320,6 +320,15 @@ function findActiveClasses(classes) {
 function normalizeRunForAnnouncer(run, index, headers) {
   const scores = Array.isArray(run.scores) ? run.scores : [];
   const penalties = Array.isArray(run.penalties) ? run.penalties : [];
+  const judgeScores = Array.isArray(run.judgeScores)
+    ? run.judgeScores
+        .map((judgeScore) => ({
+          judgeId: judgeScore?.judgeId || "",
+          judgeName: judgeScore?.judgeName || "",
+          scoreTotal: judgeScore?.scoreTotal ?? "",
+        }))
+        .filter((judgeScore) => String(judgeScore.scoreTotal).trim())
+    : [];
 
   return {
     id: run.id,
@@ -329,6 +338,7 @@ function normalizeRunForAnnouncer(run, index, headers) {
     horse: run.horse || "",
     owner: run.owner || "",
     scoreTotal: run.scoreTotal ?? "",
+    judgeScores,
     penTotal: run.penTotal ?? "",
     note: run.note || "",
     status: run.status || "",
