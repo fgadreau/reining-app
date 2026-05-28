@@ -136,6 +136,7 @@ create table if not exists public.class_setups (
   pattern text,
   custom_pattern jsonb,
   runs jsonb not null default '[]'::jsonb,
+  judges jsonb not null default '[{"id":"judge-1","name":"","order":1}]'::jsonb,
   is_draw_imported boolean not null default false,
   started_at timestamptz,
   drag_interval integer,
@@ -163,12 +164,32 @@ add column if not exists drag_duration_minutes integer not null default 8;
 alter table public.class_setups
 add column if not exists custom_pattern jsonb;
 
+alter table public.class_setups
+add column if not exists judges jsonb not null default '[{"id":"judge-1","name":"","order":1}]'::jsonb;
+
 create table if not exists public.scoring_sessions (
   class_id text primary key references public.classes(id) on delete cascade,
   runs jsonb not null default '[]'::jsonb,
   active_manoeuvre jsonb,
   started_at timestamptz,
   updated_at timestamptz not null default now()
+);
+
+create table if not exists public.judge_scoring_sessions (
+  class_id text not null references public.classes(id) on delete cascade,
+  judge_id text not null,
+  judge_name text,
+  claimed_by text,
+  claimed_by_email text,
+  claimed_at timestamptz,
+  runs jsonb not null default '[]'::jsonb,
+  active_manoeuvre jsonb,
+  judge_signature text,
+  finalized boolean not null default false,
+  finalized_at timestamptz,
+  judge_signed_at timestamptz,
+  updated_at timestamptz not null default now(),
+  primary key (class_id, judge_id)
 );
 
 create table if not exists public.official_results (
@@ -261,6 +282,11 @@ create trigger scoring_sessions_set_updated_at
 before update on public.scoring_sessions
 for each row execute function public.set_updated_at();
 
+drop trigger if exists judge_scoring_sessions_set_updated_at on public.judge_scoring_sessions;
+create trigger judge_scoring_sessions_set_updated_at
+before update on public.judge_scoring_sessions
+for each row execute function public.set_updated_at();
+
 drop trigger if exists official_results_set_updated_at on public.official_results;
 create trigger official_results_set_updated_at
 before update on public.official_results
@@ -282,6 +308,7 @@ alter table public.classes enable row level security;
 alter table public.paid_warmups enable row level security;
 alter table public.class_setups enable row level security;
 alter table public.scoring_sessions enable row level security;
+alter table public.judge_scoring_sessions enable row level security;
 alter table public.official_results enable row level security;
 alter table public.publication_states enable row level security;
 
@@ -949,6 +976,28 @@ create policy "Scoring roles can delete scoring sessions"
 on public.scoring_sessions for delete to authenticated
 using (public.current_user_can_score_class(class_id));
 
+-- Judge scoring session policies.
+drop policy if exists "Members can read judge scoring sessions" on public.judge_scoring_sessions;
+create policy "Members can read judge scoring sessions"
+on public.judge_scoring_sessions for select to authenticated
+using (public.current_user_can_read_class(class_id));
+
+drop policy if exists "Scoring roles can insert judge scoring sessions" on public.judge_scoring_sessions;
+create policy "Scoring roles can insert judge scoring sessions"
+on public.judge_scoring_sessions for insert to authenticated
+with check (public.current_user_can_score_class(class_id));
+
+drop policy if exists "Scoring roles can update judge scoring sessions" on public.judge_scoring_sessions;
+create policy "Scoring roles can update judge scoring sessions"
+on public.judge_scoring_sessions for update to authenticated
+using (public.current_user_can_score_class(class_id))
+with check (public.current_user_can_score_class(class_id));
+
+drop policy if exists "Managers can delete judge scoring sessions" on public.judge_scoring_sessions;
+create policy "Managers can delete judge scoring sessions"
+on public.judge_scoring_sessions for delete to authenticated
+using (public.current_user_can_manage_class(class_id));
+
 -- Official result policies.
 drop policy if exists "Authenticated users can manage official results" on public.official_results;
 drop policy if exists "Members can read official results" on public.official_results;
@@ -1054,6 +1103,7 @@ begin
       'classes',
       'class_setups',
       'scoring_sessions',
+      'judge_scoring_sessions',
       'official_results',
       'publication_states'
     ] loop

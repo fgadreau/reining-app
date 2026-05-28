@@ -7,6 +7,11 @@ import {
   getClassesForDayRepository,
 } from "../../features/classes/classRepository";
 import {
+  getJudgeDisplayName,
+  normalizeClassJudges,
+} from "../../features/classes/classJudges";
+import {
+  downloadJudgeScorePdf,
   downloadOfficialScorePdf,
   getOfficialPdfFileName,
 } from "../../features/classes/officialPdfService";
@@ -17,6 +22,16 @@ import {
   unpublishClassRepository,
 } from "../../features/publication/publicationCloudRepository";
 import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
+import {
+  loadJudgeScoringSessionsForClassRepository,
+  releaseJudgeScoringSessionRepository,
+} from "../../features/scoring/judgeScoringSessionRepository";
+import {
+  buildMultiJudgeOfficialRuns,
+  getJudgeSheetSummary,
+  getLatestTimestamp,
+  runHasScoringData,
+} from "../../features/scoring/multiJudgeOfficialData";
 import { getShowById } from "../../features/shows/showSelectors";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
@@ -48,7 +63,27 @@ function SecretariatDashboardPage() {
         days.map(async (day) => {
           const classes = await getClassesForDayRepository(day.id);
           const classRows = await Promise.all(
-            classes.map((classItem) => getClassFullDataRepository(classItem.id))
+            classes.map(async (classItem) => {
+              const classData = await getClassFullDataRepository(classItem.id);
+              const judges = normalizeClassJudges({
+                judges: classData?.setup?.judges,
+                judgeName:
+                  classData?.setup?.judgeName || classData?.classItem?.judgeName,
+              });
+              const judgeSessions =
+                judges.length > 1
+                  ? await loadJudgeScoringSessionsForClassRepository(
+                      classItem.id,
+                      judges
+                    )
+                  : [];
+
+              return {
+                ...classData,
+                judges,
+                judgeSessions,
+              };
+            })
           );
 
           return {
@@ -98,12 +133,51 @@ function SecretariatDashboardPage() {
     }
   };
 
+  const handleDownloadJudgePdf = async (classData, judge) => {
+    const judgeSummary = getJudgeSheetSummary(classData);
+    const judgeRow = judgeSummary.rows.find((row) => row.judge.id === judge.id);
+
+    try {
+      await downloadJudgeScorePdf({
+        association,
+        classData,
+        judge: judgeRow?.judge || judge,
+        judgeSession: judgeRow?.session,
+      });
+    } catch (error) {
+      alert(error.message || t("management.secretariat.judgePdfFailed"));
+    }
+  };
+
   const handleValidateOfficial = async (classData) => {
     try {
-      await validateOfficialResultRepository({ classData });
+      await validateOfficialResultRepository({
+        classData: prepareClassDataForValidation(classData, t),
+      });
       refresh();
     } catch (error) {
       alert(error.message || t("management.secretariat.validationFailed"));
+    }
+  };
+
+  const handleReleaseJudgeSession = async (classData, judge) => {
+    const judgeSummary = getJudgeSheetSummary(classData);
+    const judgeRow = judgeSummary.rows.find((row) => row.judge.id === judge.id);
+    const judgeName = judgeRow?.displayName || getJudgeDisplayName(judge);
+    const confirmed = window.confirm(
+      t("management.secretariat.releaseJudgeConfirm", { judgeName })
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await releaseJudgeScoringSessionRepository({
+        classId: classData?.classItem?.id,
+        judge,
+      });
+      refresh();
+    } catch (error) {
+      alert(error.message || t("management.secretariat.releaseJudgeFailed"));
     }
   };
 
@@ -228,7 +302,9 @@ function SecretariatDashboardPage() {
                           associationId={associationId}
                           classData={classData}
                           onDownloadOfficialPdf={handleDownloadOfficialPdf}
+                          onDownloadJudgePdf={handleDownloadJudgePdf}
                           onValidateOfficial={handleValidateOfficial}
+                          onReleaseJudgeSession={handleReleaseJudgeSession}
                           onPublish={handlePublish}
                           onUnpublish={handleUnpublish}
                           canManage={access.canManageAssociation}
@@ -251,7 +327,9 @@ function ClassRow({
   associationId,
   classData,
   onDownloadOfficialPdf,
+  onDownloadJudgePdf,
   onValidateOfficial,
+  onReleaseJudgeSession,
   onPublish,
   onUnpublish,
   canManage,
@@ -264,24 +342,23 @@ function ClassRow({
   const publication = classData.publication;
   const scoringRuns = classData.scoringRuns || [];
   const classId = classItem?.id;
+  const judgeSummary = getJudgeSheetSummary(classData);
+  const isMultiJudge = judgeSummary.isMultiJudge;
   const finalPdfFileName = getOfficialPdfFileName(classData);
   const hasOfficialPdf = Boolean(finalPdfFileName);
-  const isSigned = Boolean(official?.isFinalized);
+  const isSigned = isMultiJudge
+    ? judgeSummary.allSigned
+    : Boolean(official?.isFinalized);
   const isValidated = Boolean(official?.isSecretariatValidated);
   const officialPdfReady = isValidated && hasOfficialPdf;
 
   const setupReady = Boolean((setup?.pattern || classItem?.pattern) && setup?.runs?.length);
-  const scoringStarted = scoringRuns.some((run) => {
-    const scores = Array.isArray(run?.scores) ? run.scores : [];
-    const penalties = Array.isArray(run?.penalties) ? run.penalties : [];
-    return (
-      run?.isActive ||
-      scores.some((value) => String(value || "").trim()) ||
-      penalties.some((value) => String(value || "").trim())
-    );
-  });
-  const scoringComplete =
-    classData.status === "completed" || isSigned || isValidated;
+  const scoringStarted = isMultiJudge
+    ? judgeSummary.anyStarted
+    : scoringRuns.some(runHasScoringData);
+  const scoringComplete = isMultiJudge
+    ? judgeSummary.allSigned || isValidated
+    : classData.status === "completed" || isSigned || isValidated;
   const scoringBadge = scoringComplete
     ? { label: t("management.secretariat.scoringCompleted"), tone: "success" }
     : scoringStarted
@@ -310,6 +387,60 @@ function ClassRow({
       </td>
       <td style={tdStyle}>
         <Badge tone={scoringBadge.tone}>{scoringBadge.label}</Badge>
+        {isMultiJudge && (
+          <div style={judgeStatusListStyle}>
+            <div style={judgeStatusTitleStyle}>
+              {t("management.secretariat.judgeSheets")}
+            </div>
+            {judgeSummary.rows.map((row) => (
+              <div key={row.judge.id} style={judgeStatusRowStyle}>
+                <div style={judgeStatusTextStyle}>
+                  <span style={judgeStatusNameStyle}>{row.displayName}</span>
+                  {row.session?.claimedByEmail && (
+                    <span style={judgeStatusMetaStyle}>
+                      {t("management.secretariat.judgeReservedBy", {
+                        email: row.session.claimedByEmail,
+                      })}
+                    </span>
+                  )}
+                </div>
+                <div style={judgeStatusActionsStyle}>
+                  <Badge
+                    tone={
+                      row.signed ? "success" : row.started ? "warn" : "muted"
+                    }
+                  >
+                    {row.signed
+                      ? t("management.secretariat.judgeSigned")
+                      : row.started
+                        ? t("management.secretariat.judgeInProgress")
+                        : t("management.secretariat.judgeNotStarted")}
+                  </Badge>
+                  {canManage && row.signed && (
+                    <button
+                      type="button"
+                      onClick={() => onDownloadJudgePdf(classData, row.judge)}
+                      style={tinyButtonStyle}
+                    >
+                      {t("management.secretariat.judgePdf")}
+                    </button>
+                  )}
+                  {canManage &&
+                    row.session?.claimedBy &&
+                    !row.signed && (
+                      <button
+                        type="button"
+                        onClick={() => onReleaseJudgeSession(classData, row.judge)}
+                        style={tinyButtonStyle}
+                      >
+                        {t("management.secretariat.releaseJudge")}
+                      </button>
+                    )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </td>
       <td style={tdStyle}>
         <Badge tone={isValidated ? "success" : isSigned ? "warn" : "muted"}>
@@ -326,15 +457,24 @@ function ClassRow({
             })}
           </div>
         )}
+        {isMultiJudge && !isSigned && !isValidated && (
+          <div style={metaStyle}>
+            {t("management.secretariat.multiJudgeValidationBlocked")}
+          </div>
+        )}
       </td>
       <td style={tdStyle}>
         <div style={{ display: "grid", gap: 6 }}>
           <Badge tone={officialPdfReady ? "success" : isSigned ? "warn" : "muted"}>
-            {officialPdfReady
-              ? t("management.secretariat.pdfGenerated")
-              : isSigned && !isValidated
-                ? t("management.secretariat.pdfValidationRequired")
-                : t("management.secretariat.pdfToGenerate")}
+            {isMultiJudge && officialPdfReady
+              ? t("management.secretariat.combinedPdfGenerated")
+              : isMultiJudge && isValidated
+                ? t("management.secretariat.multiJudgePdfPending")
+              : officialPdfReady
+                ? t("management.secretariat.pdfGenerated")
+                : isSigned && !isValidated
+                  ? t("management.secretariat.pdfValidationRequired")
+                  : t("management.secretariat.pdfToGenerate")}
           </Badge>
           {officialPdfReady && finalPdfFileName && (
             <div style={fileNameStyle} title={finalPdfFileName}>
@@ -388,9 +528,11 @@ function ClassRow({
                 style={smallButtonStyle}
                 disabled={!isValidated}
               >
-                {officialPdfReady
-                  ? t("public.results.downloadPdf")
-                  : t("management.secretariat.generatePdf")}
+                {isMultiJudge
+                  ? t("management.secretariat.combinedPdf")
+                  : officialPdfReady
+                    ? t("public.results.downloadPdf")
+                    : t("management.secretariat.generatePdf")}
               </button>
               {officialPdfReady && (
                 <button
@@ -447,16 +589,24 @@ function buildSummary(classRows) {
     (summary, classData) => {
       const status = classData.status;
       const publicationStatus = classData.publication?.status;
-      const isSigned = Boolean(classData.official?.isFinalized);
+      const judgeSummary = getJudgeSheetSummary(classData);
+      const isSigned = judgeSummary.isMultiJudge
+        ? judgeSummary.allSigned
+        : Boolean(classData.official?.isFinalized);
       const isValidated = Boolean(classData.official?.isSecretariatValidated);
+      const isInProgress = judgeSummary.isMultiJudge
+        ? judgeSummary.anyStarted && !judgeSummary.allSigned
+        : status === "in_progress";
 
       summary.total += 1;
       if (status === "draft") summary.draft += 1;
       if (status === "ready") summary.ready += 1;
-      if (status === "in_progress") summary.inProgress += 1;
+      if (isInProgress) summary.inProgress += 1;
       if (isSigned && !isValidated) summary.signed += 1;
       if (isValidated) summary.validated += 1;
-      if (isValidated && getOfficialPdfFileName(classData)) summary.pdfReady += 1;
+      if (isValidated && getOfficialPdfFileName(classData)) {
+        summary.pdfReady += 1;
+      }
       if (publicationStatus === "published") summary.published += 1;
       return summary;
     },
@@ -471,6 +621,35 @@ function buildSummary(classRows) {
       published: 0,
     }
   );
+}
+
+function prepareClassDataForValidation(classData, t) {
+  const judgeSummary = getJudgeSheetSummary(classData);
+
+  if (!judgeSummary.isMultiJudge) {
+    return classData;
+  }
+
+  const signedAt = getLatestTimestamp(
+    judgeSummary.rows.map(
+      (row) => row.session?.judgeSignedAt || row.session?.finalizedAt
+    )
+  );
+
+  return {
+    ...classData,
+    official: {
+      ...classData.official,
+      judgeName: t("management.secretariat.multiJudgeOfficialName"),
+      judgeSignature: null,
+      isFinalized: judgeSummary.allSigned,
+      finalizedAt: signedAt,
+      judgeSignedAt: signedAt,
+      judgeSessions: judgeSummary.rows.map((row) => row.session),
+      multiJudgeFinalized: judgeSummary.allSigned,
+    },
+    scoringRuns: buildMultiJudgeOfficialRuns(classData, judgeSummary.rows),
+  };
 }
 
 function getClassStatusLabel(status, t) {
@@ -636,6 +815,54 @@ const metaStyle = {
   fontSize: 13,
 };
 
+const judgeStatusListStyle = {
+  display: "grid",
+  gap: 8,
+  marginTop: 10,
+  minWidth: 300,
+};
+
+const judgeStatusTitleStyle = {
+  color: "#64748b",
+  fontSize: 12,
+  fontWeight: 800,
+  textTransform: "uppercase",
+  letterSpacing: 0,
+};
+
+const judgeStatusRowStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 8,
+  alignItems: "center",
+  padding: "8px 0",
+  borderTop: "1px solid #e2e8f0",
+};
+
+const judgeStatusTextStyle = {
+  display: "grid",
+  gap: 2,
+  minWidth: 0,
+};
+
+const judgeStatusNameStyle = {
+  fontWeight: 700,
+  color: "#111827",
+};
+
+const judgeStatusMetaStyle = {
+  color: "#64748b",
+  fontSize: 12,
+};
+
+const judgeStatusActionsStyle = {
+  display: "flex",
+  gap: 6,
+  alignItems: "center",
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
+};
+
 const fileNameStyle = {
   color: "#64748b",
   fontSize: 12,
@@ -691,6 +918,12 @@ const smallButtonStyle = {
   background: "#fff",
   color: "#111827",
   cursor: "pointer",
+};
+
+const tinyButtonStyle = {
+  ...smallButtonStyle,
+  padding: "5px 8px",
+  fontSize: 12,
 };
 
 const smallPrimaryButtonStyle = {

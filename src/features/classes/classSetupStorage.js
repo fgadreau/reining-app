@@ -4,6 +4,7 @@ import {
   normalizeDragDurationMinutes,
   normalizeDragInterval,
 } from "./classTiming";
+import { getPrimaryJudgeName, normalizeClassJudges } from "./classJudges";
 import { normalizeCustomPattern } from "../patterns/patternDefinitions";
 
 const STORAGE_KEY = "reining_class_setup_v1";
@@ -99,11 +100,14 @@ export function resequenceRuns(runs) {
 
 function normalizeSetup(setup = {}) {
   const pattern = setup.pattern ?? "";
+  const judges = normalizeClassJudges(setup);
+  const judgeName = getPrimaryJudgeName({ judges, judgeName: setup.judgeName });
 
   return {
     ...setup,
     pattern,
     customPattern: normalizeCustomPattern(setup.customPattern, pattern),
+    judges,
     runs: Array.isArray(setup.runs) ? setup.runs.map(normalizeRun) : [],
     isDrawImported: Boolean(setup.isDrawImported),
     startedAt: setup.startedAt ?? null,
@@ -113,7 +117,7 @@ function normalizeSetup(setup = {}) {
     ),
     finalized: Boolean(setup.finalized),
     finalizedAt: setup.finalizedAt ?? null,
-    judgeName: setup.judgeName ?? "",
+    judgeName,
     judgeSignature: setup.judgeSignature ?? null,
     judgeSignedAt: setup.judgeSignedAt ?? null,
     finalPdf: setup.finalPdf ?? null,

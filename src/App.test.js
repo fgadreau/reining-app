@@ -66,6 +66,14 @@ import {
 } from "./features/patterns/patternDefinitions";
 import { getScoringOptionsForPattern } from "./features/scoring/scoringOptions";
 import { buildProvisionalRanking } from "./features/scoring/provisionalRanking";
+import {
+  buildCombinedJudgeScore,
+  classUsesCombinedJudgeScore,
+} from "./features/scoring/multiJudgeScoring";
+import {
+  buildMultiJudgeOfficialRuns,
+  getJudgeSignatureEntries,
+} from "./features/scoring/multiJudgeOfficialData";
 
 beforeEach(() => {
   localStorage.clear();
@@ -458,6 +466,156 @@ test("builds public SEO titles and descriptions", () => {
     "Classique de printemps | Association Reining Quebec | ShowScore"
   );
   expect(showSeo.description).toContain("Classique de printemps");
+});
+
+test("combines retained judge scores without averaging", () => {
+  expect(classUsesCombinedJudgeScore("1")).toBe(true);
+  expect(classUsesCombinedJudgeScore("TRAIL_CUSTOM")).toBe(false);
+
+  const combined = buildCombinedJudgeScore([
+    { judgeId: "judge-1", scoreTotal: "70.0" },
+    { judgeId: "judge-2", scoreTotal: "71.0" },
+    { judgeId: "judge-3", scoreTotal: "72.0" },
+    { judgeId: "judge-4", scoreTotal: "73.0" },
+    { judgeId: "judge-5", scoreTotal: "74.0" },
+  ]);
+
+  expect(combined.scoreTotal).toBe("216.0");
+  expect(combined.retainedJudges.map((judge) => judge.judgeId)).toEqual([
+    "judge-2",
+    "judge-3",
+    "judge-4",
+  ]);
+  expect(combined.droppedJudges.map((judge) => judge.judgeId)).toEqual([
+    "judge-1",
+    "judge-5",
+  ]);
+});
+
+test("builds combined judge PDF rows by draw and keeps signatures", () => {
+  const classData = {
+    setup: {
+      judgeName: "Legacy judge",
+      judges: [
+        { id: "judge-1", name: "Judge A", order: 1 },
+        { id: "judge-2", name: "Judge B", order: 2 },
+        { id: "judge-3", name: "Judge C", order: 3 },
+      ],
+      runs: [
+        { id: "run-1", draw: 1, backNumber: "101", rider: "Rider 1" },
+        { id: "run-2", draw: 2, backNumber: "202", rider: "Rider 2" },
+      ],
+    },
+    judgeSessions: [
+      {
+        judgeId: "judge-1",
+        judgeName: "Judge A",
+        judgeSignature: "data:image/png;base64,a",
+        judgeSignedAt: "2026-01-01T10:00:00.000Z",
+        finalized: true,
+        runs: [
+          { id: "run-1", draw: 1, scoreTotal: "70.0" },
+          { id: "run-2", draw: 2, scoreTotal: "71.0" },
+        ],
+      },
+      {
+        judgeId: "judge-2",
+        judgeName: "Judge B",
+        judgeSignature: "data:image/png;base64,b",
+        judgeSignedAt: "2026-01-01T10:01:00.000Z",
+        finalized: true,
+        runs: [
+          { id: "run-1", draw: 1, scoreTotal: "69.5" },
+          { id: "run-2", draw: 2, scoreTotal: "70.5" },
+        ],
+      },
+      {
+        judgeId: "judge-3",
+        judgeName: "Judge C",
+        judgeSignature: "data:image/png;base64,c",
+        judgeSignedAt: "2026-01-01T10:02:00.000Z",
+        finalized: true,
+        runs: [
+          { id: "run-1", draw: 1, scoreTotal: "71.0" },
+          { id: "run-2", draw: 2, scoreTotal: "72.0" },
+        ],
+      },
+    ],
+  };
+
+  const runs = buildMultiJudgeOfficialRuns(classData);
+  expect(runs.map((run) => `${run.draw}:${run.judgeName}:${run.scoreTotal}`))
+    .toEqual([
+      "1:Judge A:70.0",
+      "1:Judge B:69.5",
+      "1:Judge C:71.0",
+      "2:Judge A:71.0",
+      "2:Judge B:70.5",
+      "2:Judge C:72.0",
+    ]);
+
+  expect(getJudgeSignatureEntries(classData)).toMatchObject([
+    { judgeName: "Judge A", judgeSignature: "data:image/png;base64,a" },
+    { judgeName: "Judge B", judgeSignature: "data:image/png;base64,b" },
+    { judgeName: "Judge C", judgeSignature: "data:image/png;base64,c" },
+  ]);
+});
+
+test("public scoresheets keep judge names on combined judge rows", () => {
+  const classView = buildPublicClassView({
+    classItem: {
+      id: "class-multi-public",
+      name: "Open Reining",
+      pattern: "R1",
+    },
+    setup: {
+      pattern: "R1",
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.PUBLISHED,
+      publishedAt: "2026-05-24T14:00:00.000Z",
+    },
+    official: {
+      isSecretariatValidated: true,
+      judgeName: "Multi-juges",
+      officialRuns: [
+        {
+          id: "run-1",
+          draw: 1,
+          judgeId: "judge-2",
+          judgeName: "Judge B",
+          judgeOrder: 2,
+          backNumber: "101",
+          scoreTotal: "70.0",
+        },
+        {
+          id: "run-1",
+          draw: 1,
+          judgeId: "judge-1",
+          judgeName: "Judge A",
+          judgeOrder: 1,
+          backNumber: "101",
+          scoreTotal: "71.0",
+        },
+        {
+          id: "run-2",
+          draw: 2,
+          judgeId: "judge-1",
+          judgeName: "Judge A",
+          judgeOrder: 1,
+          backNumber: "202",
+          scoreTotal: "72.0",
+        },
+      ],
+    },
+    scoringRuns: [],
+  });
+
+  expect(classView.isMultiJudge).toBe(true);
+  expect(classView.judgeNames).toEqual(["Judge A", "Judge B"]);
+  expect(
+    classView.runs.map((run) => `${run.draw}:${run.judgeName}:${run.scoreTotal}`)
+  ).toEqual(["1:Judge A:71.0", "1:Judge B:70.0", "2:Judge A:72.0"]);
 });
 
 test("parses imported draw rows in draw order", () => {

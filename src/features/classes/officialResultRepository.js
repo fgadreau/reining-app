@@ -172,12 +172,19 @@ export async function validateOfficialResultRepository({
 }) {
   const classId = classData?.classItem?.id;
   const official = classData?.official || {};
+  const judgeSessions = Array.isArray(official.judgeSessions)
+    ? official.judgeSessions
+    : [];
+  const hasSignedJudgeSheets =
+    Boolean(official.multiJudgeFinalized) &&
+    judgeSessions.length > 0 &&
+    judgeSessions.every((session) => session?.finalized && session?.judgeSignature);
 
   if (!classId) {
     throw new Error("Classe introuvable.");
   }
 
-  if (!official.isFinalized || !official.judgeSignature) {
+  if ((!official.isFinalized || !official.judgeSignature) && !hasSignedJudgeSheets) {
     throw new Error("La classe doit être signée par le juge avant validation.");
   }
 

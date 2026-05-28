@@ -15,6 +15,7 @@ function toSetup(row) {
         : null,
     runs: Array.isArray(row.runs) ? row.runs : [],
     isDrawImported: Boolean(row.is_draw_imported),
+    judges: Array.isArray(row.judges) ? row.judges : [],
     startedAt: row.started_at || null,
     dragInterval: row.drag_interval || null,
     dragDurationMinutes: row.drag_duration_minutes,
@@ -33,6 +34,7 @@ function toSetupRow(classId, setup, options = {}) {
   const normalized = normalizeClassSetup(setup);
   const includePlanning = options.includePlanning !== false;
   const includeCustomPattern = options.includeCustomPattern !== false;
+  const includeJudges = options.includeJudges !== false;
   const row = {
     class_id: classId,
     pattern: normalized.pattern || null,
@@ -58,6 +60,10 @@ function toSetupRow(classId, setup, options = {}) {
     row.custom_pattern = normalized.customPattern || null;
   }
 
+  if (includeJudges) {
+    row.judges = normalized.judges || [];
+  }
+
   return row;
 }
 
@@ -72,6 +78,10 @@ function isPlanningColumnMissingError(error) {
 
 function isCustomPatternColumnMissingError(error) {
   return String(error?.message || "").includes("custom_pattern");
+}
+
+function isJudgesColumnMissingError(error) {
+  return String(error?.message || "").includes("judges");
 }
 
 export async function getClassSetupRepository(classId) {
@@ -122,6 +132,20 @@ export async function saveClassSetupRepository(classId, setup) {
             .upsert(
               toSetupRow(classId, normalized, { includeCustomPattern: false })
             );
+
+          if (legacyError) throw legacyError;
+          return normalized;
+        } catch (legacyError) {
+          console.error("Erreur sauvegarde setup Supabase:", legacyError);
+          return normalized;
+        }
+      }
+
+      if (isJudgesColumnMissingError(error)) {
+        try {
+          const { error: legacyError } = await supabase
+            .from("class_setups")
+            .upsert(toSetupRow(classId, normalized, { includeJudges: false }));
 
           if (legacyError) throw legacyError;
           return normalized;

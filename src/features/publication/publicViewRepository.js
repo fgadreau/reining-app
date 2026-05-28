@@ -859,6 +859,13 @@ export function buildPublicClassView(classData) {
     patternValue,
     customPattern
   );
+  const judgeNames = Array.from(
+    new Set(
+      runs
+        .map((run) => String(run.judgeName || "").trim())
+        .filter(Boolean)
+    )
+  );
 
   return {
     classId: classItem?.id,
@@ -873,7 +880,9 @@ export function buildPublicClassView(classData) {
       "",
     publishedAt: publication.publishedAt,
     finalizedAt: official.finalizedAt,
-    judgeName: official.judgeName,
+    judgeName: judgeNames.length === 1 ? judgeNames[0] : official.judgeName,
+    judgeNames,
+    isMultiJudge: judgeNames.length > 1,
     runs,
   };
 }
@@ -1213,6 +1222,9 @@ function normalizePublicRun(run, index, pattern = "", customPattern = null) {
     rider: run.rider || "",
     horse: run.horse || "",
     owner: run.owner || "",
+    judgeId: run.judgeId || "",
+    judgeName: run.judgeName || "",
+    judgeOrder: getPublicRunJudgeOrder(run, index),
     scoreTotal: run.scoreTotal ?? "",
     penTotal: run.penTotal ?? "",
     note: run.note || "",
@@ -1233,10 +1245,40 @@ function compareRunsByDraw(a, b) {
     return aDraw - bDraw;
   }
 
-  return String(a.draw || "").localeCompare(String(b.draw || ""));
+  if (!Number.isFinite(aDraw) || !Number.isFinite(bDraw)) {
+    const drawComparison = String(a.draw || "").localeCompare(String(b.draw || ""));
+    if (drawComparison !== 0) {
+      return drawComparison;
+    }
+  }
+
+  const aJudgeOrder = Number(a.judgeOrder);
+  const bJudgeOrder = Number(b.judgeOrder);
+  if (
+    Number.isFinite(aJudgeOrder) &&
+    Number.isFinite(bJudgeOrder) &&
+    aJudgeOrder !== bJudgeOrder
+  ) {
+    return aJudgeOrder - bJudgeOrder;
+  }
+
+  return String(a.judgeName || "").localeCompare(String(b.judgeName || ""));
 }
 
 function parsePublicScore(value) {
   const parsed = Number.parseFloat(String(value ?? ""));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getPublicRunJudgeOrder(run, fallbackIndex = 0) {
+  const explicitOrder = Number(run?.judgeOrder);
+
+  if (Number.isFinite(explicitOrder)) {
+    return explicitOrder;
+  }
+
+  const judgeIdMatch = String(run?.judgeId || "").match(/(\d+)$/);
+  const judgeIdOrder = judgeIdMatch ? Number(judgeIdMatch[1]) : null;
+
+  return Number.isFinite(judgeIdOrder) ? judgeIdOrder : fallbackIndex + 1;
 }

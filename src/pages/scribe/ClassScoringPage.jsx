@@ -7,6 +7,10 @@ import {
   getClassFullDataRepository,
   saveSetupForClassRepository,
 } from "../../features/classes/classRepository";
+import {
+  getJudgeDisplayName,
+  normalizeClassJudges,
+} from "../../features/classes/classJudges";
 import { getClassSetup } from "../../features/classes/classSetupStorage";
 import {
   finalizeClassWithJudge,
@@ -17,6 +21,7 @@ import {
 } from "../../features/classes/classStatusSelectors";
 import { loadAssociations } from "../../features/associations/associationsData";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
+import { useAuthUser } from "../../features/auth/useAuthUser";
 import { getDayById } from "../../features/days/daySelectors";
 import { getShowById } from "../../features/shows/showSelectors";
 import {
@@ -41,12 +46,17 @@ import {
   SCORING_SYNC_STATUS,
 } from "../../features/scoring/scoringRepository";
 import {
+  claimJudgeScoringSessionRepository,
+  saveJudgeScoringSessionRepository,
+} from "../../features/scoring/judgeScoringSessionRepository";
+import {
   calculateClassTimingSummary,
   formatClockTime,
   formatDuration,
   stampRunTiming,
 } from "../../features/classes/classTiming";
 import {
+  buildJudgeScorePdfFileName,
   buildScorePdfFileName,
   generateScorePdf,
 } from "../../utils/generateScorePdf";
@@ -242,13 +252,41 @@ function ClassScoringPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const access = useAssociationAccess(associationId);
+  const auth = useAuthUser();
 
   const [classData, setClassData] = useState(() => getClassFullData(classId));
   const classItem = classData?.classItem;
   const classSetup = classData?.setup;
-  const assignedJudgeName = String(
+  const classJudges = useMemo(
+    () =>
+      normalizeClassJudges({
+        judges: classSetup?.judges,
+        judgeName: classSetup?.judgeName || classItem?.judgeName,
+      }),
+    [classItem?.judgeName, classSetup?.judgeName, classSetup?.judges]
+  );
+  const isMultiJudgeMode = classJudges.length > 1;
+  const [activeJudgeId, setActiveJudgeId] = useState(
+    () => classJudges[0]?.id || "judge-1"
+  );
+  const activeJudgeIndex = classJudges.findIndex(
+    (judge) => judge.id === activeJudgeId
+  );
+  const activeJudge =
+    classJudges[activeJudgeIndex >= 0 ? activeJudgeIndex : 0] ||
+    classJudges[0];
+  const activeJudgeName = activeJudge
+    ? getJudgeDisplayName(
+        activeJudge,
+        activeJudgeIndex >= 0 ? activeJudgeIndex : 0
+      )
+    : "";
+  const legacyAssignedJudgeName = String(
     classSetup?.judgeName || classItem?.judgeName || ""
   ).trim();
+  const assignedJudgeName = isMultiJudgeMode
+    ? activeJudgeName
+    : legacyAssignedJudgeName;
   const day = getDayById(classItem?.dayId);
   const show = getShowById(classItem?.showId);
 
@@ -257,12 +295,20 @@ function ClassScoringPage() {
     return allAssociations.find((item) => item.id === associationId) || null;
   }, [associationId]);
 
-  const isCompleted = Boolean(
+  const isClassCompleted = Boolean(
     classSetup?.finalized ||
       classSetup?.judgeSignedAt ||
       classItem?.finalized ||
       classItem?.judgeSignedAt
   );
+  const [activeJudgeSession, setActiveJudgeSession] = useState(null);
+  const [judgeClaimState, setJudgeClaimState] = useState({
+    status: "idle",
+    session: null,
+  });
+  const [isJudgePickerOpen, setIsJudgePickerOpen] = useState(false);
+  const isActiveJudgeCompleted = Boolean(activeJudgeSession?.finalized);
+  const isCompleted = isMultiJudgeMode ? isActiveJudgeCompleted : isClassCompleted;
   const isSecretariatValidated = Boolean(
     classData?.official?.isSecretariatValidated
   );
@@ -304,7 +350,10 @@ function ClassScoringPage() {
   const maneuverCount = headers.length;
   const hasRailAdjustment = patternHasRailAdjustment(patternValue, customPattern);
   const isDrawImported = Boolean(classSetup?.isDrawImported);
-  const canEditBackNumbers = !isCompleted && !isDrawImported;
+  const canEditBackNumbers =
+    !isCompleted &&
+    !isDrawImported &&
+    (!isMultiJudgeMode || judgeClaimState.status === "claimed");
 
   const [runs, setRuns] = useState(() =>
     loadRunsForClass(classId, maneuverCount, scoringCalculationOptions)
@@ -336,6 +385,11 @@ function ClassScoringPage() {
 
       const nextClassItem = nextData?.classItem;
       const nextSetup = nextData?.setup || {};
+      const nextJudges = normalizeClassJudges({
+        judges: nextSetup?.judges,
+        judgeName: nextSetup?.judgeName || nextClassItem?.judgeName,
+      });
+      const nextIsMultiJudgeMode = nextJudges.length > 1;
       const nextPatternValue = nextSetup.pattern || nextClassItem?.pattern || "";
       const nextCustomPattern =
         nextSetup.customPattern || nextClassItem?.customPattern || null;
@@ -359,7 +413,7 @@ function ClassScoringPage() {
       );
       const nextRuns = mergeScoringRuns(
         baseRuns,
-        nextData?.scoringRuns || [],
+        nextIsMultiJudgeMode ? [] : nextData?.scoringRuns || [],
         nextManeuverCount,
         nextScoringCalculationOptions
       );
@@ -372,11 +426,16 @@ function ClassScoringPage() {
       );
 
       setClassData(nextData);
+      setActiveJudgeId((currentJudgeId) =>
+        nextJudges.some((judge) => judge.id === currentJudgeId)
+          ? currentJudgeId
+          : nextJudges[0]?.id || "judge-1"
+      );
       setRuns(nextRuns);
       lastPersistedRunsRef.current = JSON.stringify(nextRuns);
       setActiveManoeuvre(nextIsCompleted ? null : nextActiveManoeuvre);
       setScoringSyncStatus(getScoringRunsSyncStatus(classId));
-      setHasLoadedSession(true);
+      setHasLoadedSession(!nextIsMultiJudgeMode);
     }
 
     loadClassData();
@@ -387,6 +446,85 @@ function ClassScoringPage() {
   }, [classId]);
 
   useEffect(() => {
+    if (!classJudges.some((judge) => judge.id === activeJudgeId)) {
+      setActiveJudgeId(classJudges[0]?.id || "judge-1");
+    }
+  }, [activeJudgeId, classJudges]);
+
+  useEffect(() => {
+    if (!isMultiJudgeMode || !activeJudge?.id) return undefined;
+
+    let isMounted = true;
+
+    async function loadAndClaimJudgeSession() {
+      setHasLoadedSession(false);
+      setJudgeClaimState({ status: "loading", session: null });
+
+      if (auth.isLoading) {
+        return;
+      }
+
+      if (!auth.user?.id) {
+        setJudgeClaimState({ status: "missing-user", session: null });
+        setHasLoadedSession(true);
+        return;
+      }
+
+      const result = await claimJudgeScoringSessionRepository({
+        classId,
+        judge: activeJudge,
+        user: auth.user,
+      });
+
+      if (!isMounted) return;
+
+      const session = result.session;
+      setActiveJudgeSession(session);
+      setJudgeClaimState({
+        status: result.ok ? "claimed" : result.reason || "claimed",
+        session,
+        isLocalFallback: result.isLocalFallback || false,
+      });
+
+      const baseRuns = buildBaseRunsFromSetup(
+        classId,
+        maneuverCount,
+        scoringCalculationOptions
+      );
+      const nextRuns = mergeScoringRuns(
+        baseRuns,
+        session?.runs || [],
+        maneuverCount,
+        scoringCalculationOptions
+      );
+
+      setRuns(nextRuns);
+      lastPersistedRunsRef.current = JSON.stringify(nextRuns);
+      setActiveManoeuvre(session?.activeManoeuvre || null);
+      setJudgeName(session?.judgeName || activeJudgeName);
+      setJudgeSignature(session?.judgeSignature || null);
+      setHasLoadedSession(true);
+    }
+
+    loadAndClaimJudgeSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    activeJudge,
+    activeJudgeName,
+    auth.isLoading,
+    auth.user,
+    classId,
+    isMultiJudgeMode,
+    maneuverCount,
+    scoringCalculationOptions,
+  ]);
+
+  useEffect(() => {
+    if (isMultiJudgeMode) return;
+
     const nextRuns = loadRunsForClass(
       classId,
       maneuverCount,
@@ -418,7 +556,13 @@ function ClassScoringPage() {
     } else {
       setActiveManoeuvre((prev) => (prev ? null : prev));
     }
-  }, [classId, maneuverCount, scoringCalculationOptions, isCompleted]);
+  }, [
+    classId,
+    maneuverCount,
+    scoringCalculationOptions,
+    isCompleted,
+    isMultiJudgeMode,
+  ]);
 
   useEffect(() => {
     const setupRuns = Array.isArray(classSetup?.runs) ? classSetup.runs : [];
@@ -470,6 +614,35 @@ function ClassScoringPage() {
 
     lastPersistedRunsRef.current = serializedRuns;
 
+    if (isMultiJudgeMode) {
+      if (judgeClaimState.status !== "claimed" || !activeJudge?.id) {
+        return;
+      }
+
+      const timer = window.setTimeout(() => {
+        saveJudgeScoringSessionRepository({
+          classId,
+          judge: activeJudge,
+          updates: {
+            ...activeJudgeSession,
+            runs,
+            activeManoeuvre,
+            judgeName: activeJudgeName,
+          },
+        }).then((session) => {
+          setActiveJudgeSession(session);
+          setJudgeClaimState((current) => ({
+            ...current,
+            session,
+          }));
+        });
+      }, SCORING_SYNC_DEBOUNCE_MS);
+
+      return () => {
+        window.clearTimeout(timer);
+      };
+    }
+
     saveScoringRunsRepository(classId, runs, {
       debounceMs: SCORING_SYNC_DEBOUNCE_MS,
       onStatusChange: setScoringSyncStatus,
@@ -477,7 +650,17 @@ function ClassScoringPage() {
       .catch(() => {
         setScoringSyncStatus(SCORING_SYNC_STATUS.PENDING);
       });
-  }, [classId, runs, hasLoadedSession]);
+  }, [
+    activeJudge,
+    activeJudgeName,
+    activeJudgeSession,
+    activeManoeuvre,
+    classId,
+    isMultiJudgeMode,
+    judgeClaimState.status,
+    runs,
+    hasLoadedSession,
+  ]);
 
   useEffect(() => {
     let isMounted = true;
@@ -511,13 +694,26 @@ function ClassScoringPage() {
 
   useEffect(() => {
     if (!hasLoadedSession) return;
+    if (isMultiJudgeMode) {
+      return;
+    }
+
     saveActiveManoeuvreRepository(classId, activeManoeuvre);
-  }, [classId, activeManoeuvre, hasLoadedSession]);
+  }, [activeManoeuvre, classId, isMultiJudgeMode, hasLoadedSession]);
 
   useEffect(() => {
     setJudgeName(assignedJudgeName);
-    setJudgeSignature(classSetup?.judgeSignature || null);
-  }, [assignedJudgeName, classSetup?.judgeSignature]);
+    setJudgeSignature(
+      isMultiJudgeMode
+        ? activeJudgeSession?.judgeSignature || null
+        : classSetup?.judgeSignature || null
+    );
+  }, [
+    activeJudgeSession?.judgeSignature,
+    assignedJudgeName,
+    classSetup?.judgeSignature,
+    isMultiJudgeMode,
+  ]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -555,7 +751,13 @@ function ClassScoringPage() {
     ]
   );
   const hasBlockingScoringSync = isScoringSyncBlockingStatus(scoringSyncStatus);
-  const canSignClass = canFinalize && !hasBlockingScoringSync;
+  const canUseActiveJudgeSession =
+    !isMultiJudgeMode || judgeClaimState.status === "claimed";
+  const canEditScores = !isCompleted && canUseActiveJudgeSession;
+  const canSignClass =
+    canFinalize &&
+    canUseActiveJudgeSession &&
+    (isMultiJudgeMode || !hasBlockingScoringSync);
   const provisionalRanking = useMemo(() => buildProvisionalRanking(runs), [runs]);
   const canShowProvisionalRanking =
     hasRailAdjustment &&
@@ -625,7 +827,7 @@ function ClassScoringPage() {
   };
 
   const updateRunNote = (draw, newValue) => {
-    if (isCompleted) return;
+    if (!canEditScores) return;
 
     setRuns((prevRuns) =>
       prevRuns.map((run) =>
@@ -649,7 +851,7 @@ function ClassScoringPage() {
   };
 
   const updateScoreCell = (draw, manoeuvreIndex, newValue) => {
-    if (isCompleted) return;
+    if (!canEditScores) return;
 
     const changedAt = new Date().toISOString();
     if (String(newValue || "").trim()) {
@@ -694,12 +896,12 @@ function ClassScoringPage() {
   };
 
   const clearScoreCell = (draw, manoeuvreIndex) => {
-    if (isCompleted) return;
+    if (!canEditScores) return;
     updateScoreCell(draw, manoeuvreIndex, "");
   };
 
   const addPenaltyToken = (draw, manoeuvreIndex, token) => {
-    if (isCompleted) return;
+    if (!canEditScores) return;
     if (penaltyDisabledIndexSet.has(manoeuvreIndex)) return;
 
     const changedAt = new Date().toISOString();
@@ -761,7 +963,7 @@ function ClassScoringPage() {
   };
 
   const toggleSpecialPenalty = (draw, manoeuvreIndex, token) => {
-    if (isCompleted) return;
+    if (!canEditScores) return;
     if (penaltyDisabledIndexSet.has(manoeuvreIndex)) return;
 
     const changedAt = new Date().toISOString();
@@ -816,7 +1018,7 @@ function ClassScoringPage() {
   };
 
   const clearPenaltyCell = (draw, manoeuvreIndex) => {
-    if (isCompleted) return;
+    if (!canEditScores) return;
     if (penaltyDisabledIndexSet.has(manoeuvreIndex)) return;
 
     const changedAt = new Date().toISOString();
@@ -859,7 +1061,7 @@ function ClassScoringPage() {
   };
 
   const setActiveManoeuvreWithRun = (value) => {
-    if (isCompleted) return;
+    if (!canEditScores) return;
 
     setActiveManoeuvre(value);
 
@@ -879,6 +1081,31 @@ function ClassScoringPage() {
         isActive: run.draw === value.draw,
       }))
     );
+  };
+
+  const requestJudgeChange = (judgeId) => {
+    if (judgeId === activeJudgeId) {
+      setIsJudgePickerOpen(false);
+      return;
+    }
+
+    const nextIndex = classJudges.findIndex((judge) => judge.id === judgeId);
+    const nextJudge = classJudges[nextIndex];
+    const nextJudgeName = getJudgeDisplayName(nextJudge, nextIndex);
+    const confirmed = window.confirm(
+      t("management.scoring.confirmJudgeChange", {
+        judgeName: nextJudgeName,
+      })
+    );
+
+    if (!confirmed) return;
+
+    setShowFinalizeBox(false);
+    setActiveManoeuvre(null);
+    setActiveJudgeSession(null);
+    setJudgeClaimState({ status: "idle", session: null });
+    setActiveJudgeId(judgeId);
+    setIsJudgePickerOpen(false);
   };
 
   const handleDownloadOfficialPdf = () => {
@@ -991,7 +1218,7 @@ function ClassScoringPage() {
   };
 
   const handleFinalizeScoring = async () => {
-    if (isCompleted) return;
+    if (isCompleted || !canUseActiveJudgeSession) return;
 
     if (hasPendingVideoReview) {
       alert(t("management.scoring.finalizeVideoReview"));
@@ -1018,6 +1245,67 @@ function ClassScoringPage() {
 
     if (!judgeSignature) {
       alert(t("management.scoring.judgeSignatureRequired"));
+      return;
+    }
+
+    if (isMultiJudgeMode) {
+      const finalizedAt = new Date().toISOString();
+
+      try {
+        const session = await saveJudgeScoringSessionRepository({
+          classId,
+          judge: activeJudge,
+          updates: {
+            ...activeJudgeSession,
+            runs,
+            activeManoeuvre: null,
+            judgeName: signingJudgeName,
+            judgeSignature,
+            finalized: true,
+            finalizedAt,
+            judgeSignedAt: finalizedAt,
+          },
+        });
+
+        const pdf = generateScorePdf({
+          associationName: association?.name || "Association",
+          associationLogoDataUrl: association?.logoDataUrl || null,
+          eventName: show?.name || "",
+          eventDate: day?.date || "",
+          classItem,
+          classSetup: {
+            ...classSetup,
+            judgeName: signingJudgeName,
+            judgeSignature,
+            finalizedAt,
+            judgeSignedAt: finalizedAt,
+          },
+          runs,
+          headers,
+        });
+
+        const fileName = buildJudgeScorePdfFileName({
+          associationAbbreviation: association?.shortName || "ASSOC",
+          showName: show?.name || "show",
+          className: classItem?.name || "classe",
+          judgeName: signingJudgeName,
+          finalizedAt,
+        });
+
+        pdf.save(fileName);
+        setActiveJudgeSession(session);
+        setJudgeClaimState((current) => ({
+          ...current,
+          session,
+        }));
+        setShowFinalizeBox(false);
+        setActiveManoeuvre(null);
+
+        alert(t("management.scoring.judgeFinalizedSuccess"));
+      } catch (error) {
+        alert(error.message || t("management.scoring.finalizeFailed"));
+      }
+
       return;
     }
 
@@ -1090,10 +1378,8 @@ function ClassScoringPage() {
               patternValue
                 ? `${t("public.results.pattern")} ${patternValue}`
                 : "",
-              classSetup?.judgeName || classItem?.judgeName
-                ? `${t("public.results.judge")} ${
-                    classSetup?.judgeName || classItem?.judgeName
-                  }`
+              assignedJudgeName
+                ? `${t("public.results.judge")} ${assignedJudgeName}`
                 : "",
               t("management.scoring.runCount", { count: runCount }),
               activeRunDraw != null
@@ -1189,6 +1475,85 @@ function ClassScoringPage() {
         <div style={warningBannerStyle}>
           {t("management.scoring.incompleteBanner")}
         </div>
+      )}
+
+      {isMultiJudgeMode && (
+        <section style={judgeSessionCardStyle}>
+          <div>
+            <div style={judgeSessionLabelStyle}>
+              {t("management.scoring.scoringForJudge")}
+            </div>
+            <h2 style={judgeSessionTitleStyle}>{activeJudgeName}</h2>
+            {judgeClaimState.status === "claimed" && (
+              <div style={helperTextStyle}>
+                {t("management.scoring.judgeClaimedBy", {
+                  email:
+                    judgeClaimState.session?.claimedByEmail ||
+                    auth.user?.email ||
+                    "—",
+                })}
+              </div>
+            )}
+            {judgeClaimState.status === "loading" && (
+              <div style={helperTextStyle}>
+                {t("management.scoring.judgeClaimLoading")}
+              </div>
+            )}
+            {judgeClaimState.status === "missing-user" && (
+              <div style={warningTextStyle}>
+                {t("management.scoring.judgeClaimMissingUser")}
+              </div>
+            )}
+            {judgeClaimState.status === "claimed" &&
+              judgeClaimState.isLocalFallback && (
+                <div style={warningTextStyle}>
+                  {t("management.scoring.judgeClaimLocalFallback")}
+                </div>
+              )}
+            {judgeClaimState.status === "claimed" ? null : judgeClaimState.status ===
+              "loading" ? null : judgeClaimState.status === "missing-user" ? null : (
+              <div style={warningTextStyle}>
+                {t("management.scoring.judgeClaimedConflict", {
+                  email: judgeClaimState.session?.claimedByEmail || "—",
+                })}
+              </div>
+            )}
+          </div>
+
+          <div style={judgeSessionActionsStyle}>
+            <button
+              type="button"
+              onClick={() => setIsJudgePickerOpen((current) => !current)}
+              style={secondaryButtonStyle}
+            >
+              {t("management.scoring.changeJudge")}
+            </button>
+          </div>
+
+          {isJudgePickerOpen && (
+            <div style={judgePickerStyle}>
+              <div style={helperTextStyle}>
+                {t("management.scoring.chooseJudge")}
+              </div>
+              <div style={judgePickerGridStyle}>
+                {classJudges.map((judge, index) => (
+                  <button
+                    key={judge.id}
+                    type="button"
+                    onClick={() => requestJudgeChange(judge.id)}
+                    style={
+                      judge.id === activeJudgeId
+                        ? selectedJudgeButtonStyle
+                        : secondaryButtonStyle
+                    }
+                  >
+                    {getJudgeDisplayName(judge, index)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
       )}
 
       {showFinalizeBox && !isCompleted && (
@@ -1335,7 +1700,7 @@ function ClassScoringPage() {
         clearPenaltyCell={clearPenaltyCell}
         updateBackNumber={updateBackNumber}
         updateRunNote={updateRunNote}
-        isLocked={isCompleted}
+        isLocked={!canEditScores}
         isBackNumberLocked={!canEditBackNumbers}
         styles={styles}
       />
@@ -1541,6 +1906,62 @@ const warningBannerStyle = {
   background: "#eff6ff",
   border: "1px solid #93c5fd",
   color: "#1d4ed8",
+};
+
+const judgeSessionCardStyle = {
+  border: "1px solid #cbd5e1",
+  borderRadius: "10px",
+  padding: "14px",
+  background: "#f8fafc",
+  marginBottom: "16px",
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr) auto",
+  gap: "12px",
+  alignItems: "start",
+};
+
+const judgeSessionLabelStyle = {
+  color: "#64748b",
+  fontSize: "12px",
+  fontWeight: 800,
+  textTransform: "uppercase",
+  letterSpacing: 0,
+};
+
+const judgeSessionTitleStyle = {
+  margin: "2px 0",
+  fontSize: "22px",
+};
+
+const judgeSessionActionsStyle = {
+  display: "flex",
+  gap: "8px",
+  justifyContent: "flex-end",
+  flexWrap: "wrap",
+};
+
+const judgePickerStyle = {
+  gridColumn: "1 / -1",
+  display: "grid",
+  gap: "8px",
+};
+
+const judgePickerGridStyle = {
+  display: "flex",
+  gap: "8px",
+  flexWrap: "wrap",
+};
+
+const selectedJudgeButtonStyle = {
+  ...primaryButtonStyle,
+  cursor: "default",
+};
+
+const warningTextStyle = {
+  fontSize: "13px",
+  lineHeight: 1.4,
+  color: "#9a3412",
+  fontWeight: 700,
 };
 
 const finalizeCardStyle = {

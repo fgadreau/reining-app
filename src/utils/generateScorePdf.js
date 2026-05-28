@@ -100,6 +100,24 @@ export function buildScorePdfFileName({
   return `${assoc}-${show}-${classPart}-${ts}.pdf`;
 }
 
+export function buildJudgeScorePdfFileName({
+  associationAbbreviation,
+  showName,
+  className,
+  judgeName,
+  finalizedAt,
+}) {
+  const baseFileName = buildScorePdfFileName({
+    associationAbbreviation,
+    showName,
+    className,
+    finalizedAt,
+  });
+  const judgePart = sanitizeFilePart(judgeName || "judge");
+
+  return baseFileName.replace(/\.pdf$/i, `-${judgePart}.pdf`);
+}
+
 export function generateScorePdf({
   associationName,
   associationLogoDataUrl,
@@ -109,6 +127,8 @@ export function generateScorePdf({
   classSetup,
   runs,
   headers,
+  showRunJudgeName = false,
+  titleSuffix = "",
 }) {
   const doc = new jsPDF({
     orientation: "portrait",
@@ -197,6 +217,13 @@ export function generateScorePdf({
     return lines.length * lineHeight;
   }
 
+  function buildWrappedLines(lines, maxWidth, fontSize = 6.4) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(fontSize);
+
+    return lines.flatMap((line) => doc.splitTextToSize(safeText(line), maxWidth));
+  }
+
   function drawCell(x, yPos, w, h, text = "", options = {}) {
     doc.rect(x, yPos, w, h);
 
@@ -232,8 +259,8 @@ export function generateScorePdf({
   function drawRunBlock(run) {
     const startX = marginLeft;
     const startY = y;
-    const noteText = getRunNote(run);
-    const noteH = getRunNoteHeight(run);
+    const extraLines = getRunExtraLines(run);
+    const extraH = getRunExtraHeight(run);
 
     drawCell(startX, startY, drawW, runBlockH, run.draw || "", {
       fontStyle: "bold",
@@ -293,40 +320,80 @@ export function generateScorePdf({
       );
     }
 
-    if (noteText) {
+    if (extraLines.length) {
       const noteY = startY + runBlockH;
-      const noteLines = doc.splitTextToSize(
-        `Judge note / Note du juge: ${noteText}`,
-        fullTableW - 4
-      );
+      const noteLines = buildWrappedLines(extraLines, fullTableW - 4, 6.4);
 
-      doc.rect(startX, noteY, fullTableW, noteH);
+      doc.rect(startX, noteY, fullTableW, extraH);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(6.4);
       doc.text(noteLines, startX + 2, noteY + 3.5);
     }
 
-    y += runBlockH + noteH;
+    y += runBlockH + extraH;
   }
 
-  function getRunNoteHeight(run) {
+  function getRunExtraLines(run) {
     const noteText = getRunNote(run);
+    const judgeName = safeText(run?.judgeName).trim();
+    const lines = [];
 
-    if (!noteText) return 0;
+    if (showRunJudgeName && judgeName) {
+      lines.push(`Judge / Juge: ${judgeName}`);
+    }
+
+    if (noteText) {
+      lines.push(`Judge note / Note du juge: ${noteText}`);
+    }
+
+    return lines;
+  }
+
+  function getRunExtraHeight(run) {
+    const extraLines = getRunExtraLines(run);
+
+    if (!extraLines.length) return 0;
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.4);
 
-    const lines = doc.splitTextToSize(
-      `Judge note / Note du juge: ${noteText}`,
-      fullTableW - 4
-    );
+    const lines = buildWrappedLines(extraLines, fullTableW - 4, 6.4);
 
     return Math.max(6, lines.length * 3.2 + 3);
   }
 
   function getRunBlockHeight(run) {
-    return runBlockH + getRunNoteHeight(run);
+    return runBlockH + getRunExtraHeight(run);
+  }
+
+  function getSignatureEntries() {
+    const configuredSignatures = Array.isArray(classSetup?.judgeSignatures)
+      ? classSetup.judgeSignatures
+      : [];
+
+    if (configuredSignatures.length) {
+      return configuredSignatures.map((entry) => ({
+        judgeName: entry?.judgeName || "",
+        judgeSignature: entry?.judgeSignature || null,
+        finalizedAt: entry?.finalizedAt || entry?.judgeSignedAt || null,
+      }));
+    }
+
+    return [
+      {
+        judgeName: classSetup?.judgeName || "",
+        judgeSignature: classSetup?.judgeSignature || null,
+        finalizedAt: classSetup?.finalizedAt || classSetup?.judgeSignedAt || null,
+      },
+    ];
+  }
+
+  function getSignatureFooterHeight() {
+    const signatureCount = getSignatureEntries().length;
+
+    if (signatureCount <= 1) return 14;
+
+    return Math.ceil(signatureCount / 2) * 12 + 10;
   }
 
   function drawPageHeader() {
@@ -346,15 +413,22 @@ export function generateScorePdf({
 
     doc.setFont("times", "bold");
     doc.setFontSize(11);
-    drawText(
-      `${associationName || "Association"} Score Card / Feuille de pointage`,
+    drawFittedText(
+      `${associationName || "Association"} Score Card / Feuille de pointage${
+        titleSuffix ? ` - ${titleSuffix}` : ""
+      }`,
       hasLogo ? marginLeft + 18 : marginLeft,
-      y + 4
+      y + 4,
+      fullTableW - (hasLogo ? 70 : 52),
+      { fontSize: 11 }
     );
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    drawText(`Judge: ${classSetup?.judgeName || ""}`, pageWidth - 48, y + 4);
+    drawFittedText(`Judge: ${classSetup?.judgeName || ""}`, pageWidth - 8, y + 4, 46, {
+      align: "right",
+      fontSize: 8,
+    });
 
     y += 9;
 
@@ -431,48 +505,72 @@ export function generateScorePdf({
     y += headerH;
   }
 
-  function drawSignatureFooter() {
-  const footerY = pageHeight - 14;
-  const appCreditY = pageHeight - 5;
-  const finalizedText = formatFinalizedText(
-    classSetup?.finalizedAt || classSetup?.judgeSignedAt || ""
-  );
+  function drawSignatureImage(signature, x, yPos, w, h) {
+    if (!signature) return;
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-
-  drawText("Judge Signature", marginLeft, footerY);
-  doc.line(marginLeft + 18, footerY, marginLeft + 78, footerY);
-
-  if (classSetup?.judgeSignature) {
     try {
-      const imageFormat = getImageFormatFromDataUrl(classSetup.judgeSignature);
-      doc.addImage(
-        classSetup.judgeSignature,
-        imageFormat,
-        marginLeft + 22,
-        footerY - 8,
-        28,
-        9
-      );
+      const imageFormat = getImageFormatFromDataUrl(signature);
+      doc.addImage(signature, imageFormat, x, yPos, w, h);
     } catch (error) {
       console.error("Erreur ajout signature au PDF:", error);
     }
   }
 
-  drawText(`Finalized: ${finalizedText}`, pageWidth - 58, footerY);
+  function drawSignatureFooter() {
+    const signatures = getSignatureEntries();
+    const footerHeight = getSignatureFooterHeight();
+    const appCreditY = pageHeight - 5;
 
-  doc.setFontSize(6.8);
-  doc.setTextColor(100, 116, 139);
-  drawText("Generated by ShowScore.app", pageWidth / 2, appCreditY, {
-    align: "center",
-  });
-  doc.setTextColor(0, 0, 0);
-}
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+
+    if (signatures.length <= 1) {
+      const entry = signatures[0] || {};
+      const footerY = pageHeight - 14;
+      const finalizedText = formatFinalizedText(entry.finalizedAt || "");
+
+      drawText("Judge Signature", marginLeft, footerY);
+      doc.line(marginLeft + 18, footerY, marginLeft + 78, footerY);
+      drawSignatureImage(entry.judgeSignature, marginLeft + 22, footerY - 8, 28, 9);
+      drawText(`Finalized: ${finalizedText}`, pageWidth - 58, footerY);
+    } else {
+      const footerTop = pageHeight - footerHeight;
+      const columnGap = 6;
+      const columnW = (fullTableW - columnGap) / 2;
+
+      signatures.forEach((entry, index) => {
+        const column = index % 2;
+        const row = Math.floor(index / 2);
+        const x = marginLeft + column * (columnW + columnGap);
+        const lineY = footerTop + row * 12 + 8;
+        const finalizedText = formatFinalizedText(entry.finalizedAt || "");
+
+        drawFittedText(
+          `Judge / Juge: ${entry.judgeName || ""}`,
+          x,
+          lineY - 5,
+          columnW,
+          { fontSize: 6.8 }
+        );
+        doc.line(x, lineY, x + columnW, lineY);
+        drawSignatureImage(entry.judgeSignature, x + 23, lineY - 7.5, 25, 8);
+        drawFittedText(`Finalized: ${finalizedText}`, x, lineY + 3.2, columnW, {
+          fontSize: 5.8,
+        });
+      });
+    }
+
+    doc.setFontSize(6.8);
+    doc.setTextColor(100, 116, 139);
+    drawText("Generated by ShowScore.app", pageWidth / 2, appCreditY, {
+      align: "center",
+    });
+    doc.setTextColor(0, 0, 0);
+  }
 
   drawPageHeader();
 
-  const maxYBeforeFooter = pageHeight - 18;
+  const maxYBeforeFooter = pageHeight - getSignatureFooterHeight() - 4;
 
   runs.forEach((run, index) => {
     if (y + getRunBlockHeight(run) > maxYBeforeFooter) {

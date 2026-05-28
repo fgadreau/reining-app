@@ -1,5 +1,12 @@
 import { getPatternHeaders } from "../patterns/patternDefinitions";
 import {
+  buildMultiJudgeOfficialRuns,
+  getJudgeSheetSummary,
+  getJudgeSignatureEntries,
+  getLatestTimestamp,
+} from "../scoring/multiJudgeOfficialData";
+import {
+  buildJudgeScorePdfFileName,
   buildScorePdfFileName,
   generateScorePdf,
 } from "../../utils/generateScorePdf";
@@ -18,6 +25,8 @@ export function getOfficialPdfFileName(classData) {
 export function buildOfficialScorePdf({ association, classData, fileName }) {
   const classItem = classData?.classItem;
   const official = classData?.official || {};
+  const judgeSummary = getJudgeSheetSummary(classData);
+  const isMultiJudge = judgeSummary.isMultiJudge;
   const patternValue =
     official.patternValue || classData?.setup?.pattern || classItem?.pattern || "";
   const customPattern =
@@ -29,6 +38,23 @@ export function buildOfficialScorePdf({ association, classData, fileName }) {
   const officialRuns = Array.isArray(official.officialRuns)
     ? official.officialRuns
     : [];
+  const runs = isMultiJudge
+    ? officialRuns.length > 0
+      ? officialRuns
+      : buildMultiJudgeOfficialRuns(classData, judgeSummary.rows)
+    : officialRuns.length > 0
+      ? officialRuns
+      : Array.isArray(classData?.scoringRuns)
+        ? classData.scoringRuns
+        : [];
+  const judgeSignatures = isMultiJudge
+    ? getJudgeSignatureEntries(classData, judgeSummary.rows)
+    : null;
+  const multiJudgeSignedAt = isMultiJudge
+    ? getLatestTimestamp(
+        judgeSignatures.map((entry) => entry.judgeSignedAt || entry.finalizedAt)
+      )
+    : null;
 
   const pdf = generateScorePdf({
     associationName: association?.name || "Association",
@@ -38,18 +64,19 @@ export function buildOfficialScorePdf({ association, classData, fileName }) {
     classItem,
     classSetup: {
       ...official.setup,
-      judgeName: official.judgeName,
-      judgeSignature: official.judgeSignature,
-      finalizedAt: official.finalizedAt,
-      judgeSignedAt: official.judgeSignedAt,
+      ...classData?.setup,
+      judgeName: isMultiJudge
+        ? official.judgeName || "Multi-juges"
+        : official.judgeName,
+      judgeSignature: isMultiJudge ? null : official.judgeSignature,
+      judgeSignatures,
+      finalizedAt: official.finalizedAt || multiJudgeSignedAt,
+      judgeSignedAt: official.judgeSignedAt || multiJudgeSignedAt,
     },
-    runs:
-      officialRuns.length > 0
-        ? officialRuns
-        : Array.isArray(classData?.scoringRuns)
-          ? classData.scoringRuns
-          : [],
+    runs,
     headers,
+    showRunJudgeName: isMultiJudge,
+    titleSuffix: isMultiJudge ? "Combined / Combiné" : "",
   });
 
   const nextFileName =
@@ -57,14 +84,85 @@ export function buildOfficialScorePdf({ association, classData, fileName }) {
     buildScorePdfFileName({
       associationAbbreviation: association?.shortName || "ASSOC",
       showName: official.eventName || "show",
-      className: classItem?.name || "classe",
-      finalizedAt: official.finalizedAt || new Date().toISOString(),
+      className: isMultiJudge
+        ? `${classItem?.name || "classe"}-combined`
+        : classItem?.name || "classe",
+      finalizedAt:
+        official.finalizedAt || multiJudgeSignedAt || new Date().toISOString(),
     });
 
   return {
     pdf,
     fileName: nextFileName,
   };
+}
+
+export function buildJudgeScorePdf({
+  association,
+  classData,
+  judge,
+  judgeSession,
+}) {
+  const classItem = classData?.classItem;
+  const official = classData?.official || {};
+  const setup = classData?.setup || {};
+  const patternValue = setup?.pattern || classItem?.pattern || "";
+  const customPattern = setup?.customPattern || classItem?.customPattern || null;
+  const headers = getPatternHeaders(patternValue, customPattern);
+  const judgeName = judgeSession?.judgeName || judge?.name || "";
+  const finalizedAt =
+    judgeSession?.finalizedAt || judgeSession?.judgeSignedAt || new Date().toISOString();
+
+  const pdf = generateScorePdf({
+    associationName: association?.name || "Association",
+    associationLogoDataUrl: association?.logoDataUrl || null,
+    eventName: official.eventName || "",
+    eventDate: official.eventDate || "",
+    classItem,
+    classSetup: {
+      ...setup,
+      judgeName,
+      judgeSignature: judgeSession?.judgeSignature || null,
+      finalizedAt,
+      judgeSignedAt: judgeSession?.judgeSignedAt || finalizedAt,
+    },
+    runs: Array.isArray(judgeSession?.runs) ? judgeSession.runs : [],
+    headers,
+  });
+
+  const fileName = buildJudgeScorePdfFileName({
+    associationAbbreviation: association?.shortName || "ASSOC",
+    showName: official.eventName || "show",
+    className: classItem?.name || "classe",
+    judgeName,
+    finalizedAt,
+  });
+
+  return {
+    pdf,
+    fileName,
+  };
+}
+
+export function downloadJudgeScorePdf({
+  association,
+  classData,
+  judge,
+  judgeSession,
+}) {
+  if (!judgeSession?.finalized || !judgeSession?.judgeSignature) {
+    throw new Error("La feuille de ce juge doit être signée avant le PDF.");
+  }
+
+  const { pdf, fileName } = buildJudgeScorePdf({
+    association,
+    classData,
+    judge,
+    judgeSession,
+  });
+
+  pdf.save(fileName);
+  return fileName;
 }
 
 export async function downloadOfficialScorePdf({
@@ -84,6 +182,12 @@ export async function downloadOfficialScorePdf({
     classData,
     fileName: regenerateFileName ? null : existingFileName,
   });
+  const judgeSummary = getJudgeSheetSummary(classData);
+  const officialRuns = judgeSummary.isMultiJudge
+    ? buildMultiJudgeOfficialRuns(classData, judgeSummary.rows)
+    : Array.isArray(classData?.scoringRuns)
+      ? classData.scoringRuns
+      : [];
 
   pdf.save(fileName);
   await saveFinalPdfFileName(classData.classItem?.id, fileName);
@@ -96,9 +200,7 @@ export async function downloadOfficialScorePdf({
       classData?.classItem?.customPattern ||
       classData?.official?.customPattern ||
       null,
-    officialRuns: Array.isArray(classData?.scoringRuns)
-      ? classData.scoringRuns
-      : [],
+    officialRuns,
   });
 
   return fileName;

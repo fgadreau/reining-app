@@ -318,6 +318,9 @@ function PublicClassResults({ association, show, classView, isOpen, onToggle }) 
     const headers = getHeadersForPublicClass(classView);
     const pdfRuns = classView.runs.map((run) => ({
       ...run,
+      judgeId: run.judgeId,
+      judgeName: run.judgeName,
+      judgeOrder: run.judgeOrder,
       scores: run.manoeuvres.map((manoeuvre) => manoeuvre.score || ""),
       penalties: run.manoeuvres.map((manoeuvre) => manoeuvre.penalty || ""),
     }));
@@ -337,6 +340,8 @@ function PublicClassResults({ association, show, classView, isOpen, onToggle }) 
       },
       runs: pdfRuns,
       headers,
+      showRunJudgeName: Boolean(classView.isMultiJudge),
+      titleSuffix: classView.isMultiJudge ? "Combined / Combiné" : "",
     });
     const fileName = buildScorePdfFileName({
       associationAbbreviation: association?.shortName || "ASSOC",
@@ -374,9 +379,7 @@ function PublicClassResults({ association, show, classView, isOpen, onToggle }) 
             {classView.arena
               ? ` · ${t("public.results.arena")} ${classView.arena}`
               : ""}
-            {classView.judgeName
-              ? ` · ${t("public.results.judge")} ${classView.judgeName}`
-              : ""}
+            {getPublicJudgeLabel(classView, t)}
           </div>
         </div>
         <div style={classActionsStyle}>
@@ -414,9 +417,13 @@ function PublicClassResults({ association, show, classView, isOpen, onToggle }) 
             <div style={softEmptyStyle}>{t("public.results.noRunSearchResults")}</div>
           ) : (
             <div style={scoresheetListStyle}>
-              {filteredRuns.map((run) => (
+              {filteredRuns.map((run, index) => (
                 <PublicScoresheetRun
-                  key={run.id || `${run.draw}-${run.backNumber}`}
+                  key={
+                    run.id
+                      ? `${run.id}-${run.judgeId || run.judgeName || index}`
+                      : `${run.draw}-${run.backNumber}-${run.judgeId || index}`
+                  }
                   run={run}
                 />
               ))}
@@ -436,6 +443,18 @@ function getHeadersForPublicClass(classView) {
   }
 
   return firstRun.manoeuvres.map((manoeuvre) => manoeuvre.name);
+}
+
+function getPublicJudgeLabel(classView, t) {
+  if (classView.judgeNames?.length > 1) {
+    return ` · ${t("public.results.judges")} ${classView.judgeNames.join(", ")}`;
+  }
+
+  if (classView.judgeName) {
+    return ` · ${t("public.results.judge")} ${classView.judgeName}`;
+  }
+
+  return "";
 }
 
 function PublicScoresheetRun({ run }) {
@@ -458,6 +477,11 @@ function PublicScoresheetRun({ run }) {
           {run.owner && (
             <div style={mutedTextStyle}>
               {t("public.results.owner")}: {run.owner}
+            </div>
+          )}
+          {run.judgeName && (
+            <div style={judgeLineStyle}>
+              {t("public.results.judge")}: {run.judgeName}
             </div>
           )}
         </div>
@@ -943,7 +967,7 @@ function filterRunsBySearch(runs, query) {
   }
 
   return runs.filter((run) =>
-    [run.backNumber, run.rider, run.horse]
+    [run.backNumber, run.rider, run.horse, run.judgeName]
       .map(normalizeSearchText)
       .some((value) => value.includes(normalizedQuery))
   );
@@ -1269,6 +1293,18 @@ const runTitleStyle = {
 const runNameStyle = {
   fontWeight: 800,
   marginTop: 4,
+};
+
+const judgeLineStyle = {
+  display: "inline-flex",
+  marginTop: 6,
+  padding: "4px 8px",
+  borderRadius: 999,
+  border: "1px solid #cbd5e1",
+  background: "#f8fafc",
+  color: "#334155",
+  fontSize: 12,
+  fontWeight: 800,
 };
 
 const liveScoreStyle = {

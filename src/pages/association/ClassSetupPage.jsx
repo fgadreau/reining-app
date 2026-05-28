@@ -11,6 +11,13 @@ import {
   resequenceRuns,
 } from "../../features/classes/classSetupStorage";
 import {
+  MAX_CLASS_JUDGES,
+  createClassJudge,
+  getJudgeDisplayName,
+  getPrimaryJudgeName,
+  normalizeClassJudges,
+} from "../../features/classes/classJudges";
+import {
   parseImportedDraw,
   parseImportedDrawFile,
 } from "../../features/classes/classSetupImport";
@@ -152,6 +159,12 @@ function ClassSetupPage() {
     )
   );
   const [arena, setArena] = useState(classItem?.arena || "");
+  const [judges, setJudges] = useState(() =>
+    normalizeClassJudges({
+      judges: classSetup?.judges,
+      judgeName: classSetup?.judgeName || classItem?.judgeName,
+    })
+  );
   const [runs, setRuns] = useState(classSetup?.runs || []);
   const [isDrawImported, setIsDrawImported] = useState(
     Boolean(classSetup?.isDrawImported)
@@ -233,6 +246,10 @@ function ClassSetupPage() {
         nextPattern
       );
       const nextRuns = nextSetup.runs || [];
+      const nextJudges = normalizeClassJudges({
+        judges: nextSetup.judges,
+        judgeName: nextSetup.judgeName || nextClassItem?.judgeName,
+      });
 
       if (!isMounted) return;
 
@@ -241,6 +258,7 @@ function ClassSetupPage() {
       setPattern(nextPattern);
       setCustomPattern(nextCustomPattern);
       setArena(nextClassItem?.arena || "");
+      setJudges(nextJudges);
       setRuns(nextRuns);
       setIsDrawImported(Boolean(nextSetup.isDrawImported));
       setDragInterval(String(nextSetup.dragInterval || ""));
@@ -280,10 +298,17 @@ function ClassSetupPage() {
       const nextCustomPattern = getCustomPatternConfigForPattern(pattern)
         ? normalizeCustomPattern(customPattern, pattern)
         : null;
+      const normalizedJudges = normalizeClassJudges({
+        judges,
+        judgeName: classItem?.judgeName,
+      });
+      const primaryJudgeName = getPrimaryJudgeName({ judges: normalizedJudges });
       const savedSetup = await saveSetupForClassRepository(classId, {
         ...setupRef.current,
         pattern,
         customPattern: nextCustomPattern,
+        judges: normalizedJudges,
+        judgeName: primaryJudgeName,
         runs,
         isDrawImported,
         dragInterval: dragInterval || null,
@@ -296,6 +321,7 @@ function ClassSetupPage() {
         classItem?.id &&
         (classItem.pattern !== pattern ||
           String(classItem.arena || "") !== String(arena || "") ||
+          String(classItem.judgeName || "") !== String(primaryJudgeName || "") ||
           JSON.stringify(classItem.customPattern || null) !==
             JSON.stringify(classCustomPattern));
 
@@ -306,6 +332,7 @@ function ClassSetupPage() {
           ...classItem,
           pattern,
           arena,
+          judgeName: primaryJudgeName,
           customPattern: classCustomPattern,
         });
       }
@@ -334,6 +361,7 @@ function ClassSetupPage() {
     pattern,
     customPattern,
     arena,
+    judges,
     runs,
     isDrawImported,
     dragInterval,
@@ -342,6 +370,49 @@ function ClassSetupPage() {
     canManageSetup,
     classItem,
   ]);
+
+  const updateJudgeName = (judgeId, name) => {
+    if (!canManageSetup || isFullyLocked) {
+      if (isFinalized) showFinalizedMessage();
+      return;
+    }
+
+    setJudges((current) =>
+      normalizeClassJudges({
+        judges: current.map((judge) =>
+          judge.id === judgeId ? { ...judge, name } : judge
+        ),
+      })
+    );
+  };
+
+  const addJudge = () => {
+    if (!canManageSetup || isFullyLocked) {
+      if (isFinalized) showFinalizedMessage();
+      return;
+    }
+
+    setJudges((current) => {
+      if (current.length >= MAX_CLASS_JUDGES) return current;
+      return normalizeClassJudges({
+        judges: [...current, createClassJudge(current.length)],
+      });
+    });
+  };
+
+  const removeJudge = (judgeId) => {
+    if (!canManageSetup || isFullyLocked) {
+      if (isFinalized) showFinalizedMessage();
+      return;
+    }
+
+    setJudges((current) => {
+      if (current.length <= 1) return current;
+      return normalizeClassJudges({
+        judges: current.filter((judge) => judge.id !== judgeId),
+      });
+    });
+  };
 
   const updatePublicationStatus = async (nextStatus) => {
     if (!canManageSetup || !hasLoadedSetup || isPublicationLocked) {
@@ -1025,6 +1096,69 @@ function ClassSetupPage() {
         </div>
       </section>
 
+      <section style={cardStyle}>
+        <div style={sectionHeaderStyle}>
+          <div>
+            <h2 style={sectionTitleStyle}>
+              {t("management.classSetup.judgesTitle")}
+            </h2>
+            <p style={helperTextStyle}>
+              {t("management.classSetup.judgesHelper")}
+            </p>
+          </div>
+
+          {canManageSetup && (
+            <button
+              type="button"
+              onClick={addJudge}
+              style={buttonStyle}
+              disabled={isFullyLocked || judges.length >= MAX_CLASS_JUDGES}
+            >
+              {t("management.classSetup.addJudge")}
+            </button>
+          )}
+        </div>
+
+        <div style={judgeListStyle}>
+          {judges.map((judge, index) => (
+            <div key={judge.id} style={judgeRowStyle}>
+              <div style={judgeIndexStyle}>{index + 1}</div>
+              <div>
+                <label style={labelStyle}>
+                  {t("management.classSetup.judgeName", {
+                    number: index + 1,
+                  })}
+                </label>
+                <input
+                  type="text"
+                  value={judge.name}
+                  onChange={(event) => updateJudgeName(judge.id, event.target.value)}
+                  placeholder={getJudgeDisplayName(judge, index)}
+                  style={inputStyle}
+                  disabled={!canManageSetup || isFullyLocked}
+                />
+              </div>
+              {canManageSetup && judges.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeJudge(judge.id)}
+                  style={secondaryButtonStyle}
+                  disabled={isFullyLocked}
+                >
+                  {t("management.classSetup.removeJudge")}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {isStructureLocked && !isFinalized && (
+          <div style={helperTextStyle}>
+            {t("management.classSetup.judgesLockedHelper")}
+          </div>
+        )}
+      </section>
+
       {isSelectedCustomPattern && (
         <section style={cardStyle}>
           <div style={sectionHeaderStyle}>
@@ -1451,6 +1585,29 @@ const fieldGridStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
   gap: "16px",
+};
+
+const judgeListStyle = {
+  display: "grid",
+  gap: 10,
+};
+
+const judgeRowStyle = {
+  display: "grid",
+  gridTemplateColumns: "44px minmax(220px, 1fr) auto",
+  gap: 10,
+  alignItems: "end",
+};
+
+const judgeIndexStyle = {
+  minHeight: 42,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: 8,
+  background: "#f1f5f9",
+  color: "#334155",
+  fontWeight: 800,
 };
 
 const customPatternCountStyle = {

@@ -6,6 +6,12 @@ import {
   saveClassItemRepository,
   saveSetupForClassRepository,
 } from "../../features/classes/classRepository";
+import {
+  MAX_CLASS_JUDGES,
+  createClassJudge,
+  getPrimaryJudgeName,
+  normalizeClassJudges,
+} from "../../features/classes/classJudges";
 import { getClassSetupRepository } from "../../features/classes/classSetupRepository";
 import {
   deletePaidWarmupRepository,
@@ -64,8 +70,35 @@ function DayClassesPage() {
     classCode: "",
     arena: "",
     pattern: "",
-    judgeName: "",
+    judgeCount: 1,
   });
+
+  function resetDraft() {
+    return {
+      name: "",
+      classCode: "",
+      arena: "",
+      pattern: "",
+      judgeCount: 1,
+    };
+  }
+
+  function buildJudgesForCount(source, judgeCount) {
+    const count = Math.min(
+      Math.max(Number.parseInt(judgeCount, 10) || 1, 1),
+      MAX_CLASS_JUDGES
+    );
+    const normalizedSource = normalizeClassJudges(
+      Array.isArray(source) ? { judges: source } : source
+    );
+    const nextJudges = normalizedSource.slice(0, count);
+
+    while (nextJudges.length < count) {
+      nextJudges.push(createClassJudge(nextJudges.length));
+    }
+
+    return normalizeClassJudges({ judges: nextJudges });
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -90,6 +123,7 @@ function DayClassesPage() {
   }, [dayId]);
 
   const startCreateClass = async () => {
+    const judges = buildJudgesForCount([], 1);
     const newClass = {
       id: createId("class"),
       dayId,
@@ -109,6 +143,10 @@ function DayClassesPage() {
 
     setIsSaving(true);
     await saveClassItemRepository(newClass);
+    await saveSetupForClassRepository(newClass.id, {
+      judges,
+      judgeName: getPrimaryJudgeName({ judges }),
+    });
     setClasses((current) => [...current, newClass]);
     setIsSaving(false);
 
@@ -118,7 +156,7 @@ function DayClassesPage() {
       classCode: newClass.classCode,
       arena: newClass.arena,
       pattern: newClass.pattern,
-      judgeName: newClass.judgeName,
+      judgeCount: judges.length,
     });
   };
 
@@ -146,32 +184,41 @@ function DayClassesPage() {
     );
   };
 
-  const startEditClass = (item) => {
+  const startEditClass = async (item) => {
     setEditingId(item.id);
+    const setup = await getClassSetupRepository(item.id);
+    const judges = normalizeClassJudges({
+      judges: setup?.judges,
+      judgeName: setup?.judgeName || item.judgeName,
+    });
+
     setDraft({
       name: item.name || "",
       classCode: item.classCode || "",
       arena: item.arena || "",
       pattern: item.pattern || "",
-      judgeName: item.judgeName || "",
+      judgeCount: judges.length,
     });
   };
 
   const cancelEdit = () => {
     setEditingId(null);
-    setDraft({
-      name: "",
-      classCode: "",
-      arena: "",
-      pattern: "",
-      judgeName: "",
-    });
+    setDraft(resetDraft());
   };
 
   const saveEdit = async () => {
     if (!editingId) return;
 
     const currentClass = classes.find((item) => item.id === editingId);
+    const currentSetup = await getClassSetupRepository(editingId);
+    const judges = buildJudgesForCount(
+      {
+        judges: currentSetup?.judges,
+        judgeName: currentSetup?.judgeName || currentClass?.judgeName,
+      },
+      draft.judgeCount
+    );
+    const primaryJudgeName = getPrimaryJudgeName({ judges });
     const customPatternConfig = getCustomPatternConfigForPattern(draft.pattern);
     const customPattern = customPatternConfig
       ? normalizeCustomPattern(
@@ -186,7 +233,7 @@ function DayClassesPage() {
       arena: draft.arena,
       pattern: draft.pattern,
       customPattern,
-      judgeName: draft.judgeName,
+      judgeName: primaryJudgeName,
       showId,
       associationId,
       showName: show?.name || "",
@@ -196,6 +243,13 @@ function DayClassesPage() {
 
     setIsSaving(true);
     await saveClassItemRepository(nextClass);
+    await saveSetupForClassRepository(editingId, {
+      ...currentSetup,
+      pattern: currentSetup?.pattern || draft.pattern,
+      customPattern: currentSetup?.customPattern || customPattern,
+      judges,
+      judgeName: primaryJudgeName,
+    });
     setClasses((current) =>
       current.map((item) => (item.id === editingId ? nextClass : item))
     );
@@ -691,18 +745,27 @@ function DayClassesPage() {
                       </div>
 
                       <div>
-                        <label style={labelStyle}>{t("public.results.judge")}</label>
-                        <input
-                          type="text"
-                          value={draft.judgeName}
+                        <label style={labelStyle}>
+                          {t("management.classes.judgeCountLabel")}
+                        </label>
+                        <select
+                          value={draft.judgeCount}
                           onChange={(e) =>
                             setDraft((prev) => ({
                               ...prev,
-                              judgeName: e.target.value,
+                              judgeCount: Number(e.target.value),
                             }))
                           }
                           style={inputStyle}
-                        />
+                        >
+                          {Array.from({ length: MAX_CLASS_JUDGES }, (_, index) => (
+                            <option key={index + 1} value={index + 1}>
+                              {t("management.classes.judgeCountOption", {
+                                count: index + 1,
+                              })}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
 
