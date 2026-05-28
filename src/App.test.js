@@ -16,6 +16,10 @@ import {
   translate,
 } from "./features/i18n/i18n";
 import {
+  buildAssociationPublicSeo,
+  buildShowPublicSeo,
+} from "./features/seo/publicSeo";
+import {
   getPublicationState,
   publishClass,
   PUBLICATION_STATUSES,
@@ -432,6 +436,28 @@ test("detects and translates the interface language", () => {
     "Active live feeds in the showcase: 2"
   );
   expect(translate("en", "missing.key")).toBe("missing.key");
+});
+
+test("builds public SEO titles and descriptions", () => {
+  const t = (key, params) => translate("fr", key, params);
+  const associationSeo = buildAssociationPublicSeo({
+    association: { name: "Association Reining Quebec" },
+    t,
+  });
+  const showSeo = buildShowPublicSeo({
+    association: { name: "Association Reining Quebec" },
+    show: { name: "Classique de printemps" },
+    t,
+  });
+
+  expect(associationSeo.title).toBe(
+    "Association Reining Quebec | Shows publics | ShowScore"
+  );
+  expect(associationSeo.description).toContain("Association Reining Quebec");
+  expect(showSeo.title).toBe(
+    "Classique de printemps | Association Reining Quebec | ShowScore"
+  );
+  expect(showSeo.description).toContain("Classique de printemps");
 });
 
 test("parses imported draw rows in draw order", () => {

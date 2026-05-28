@@ -1,11 +1,17 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import AssociationLogo from "../../components/AssociationLogo";
+import PublicAppInstallPrompt from "../../components/PublicAppInstallPrompt";
+import SeoMeta from "../../components/SeoMeta";
 import ShareButton from "../../components/ShareButton";
 import { getAssociationWebsiteHref } from "../../features/associations/associationProfile";
 import { filterAssociationsBySearch } from "../../features/associations/associationSearch";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { getPublicAssociationsRepository } from "../../features/publication/publicViewRepository";
+import {
+  buildAssociationPublicSeo,
+  buildPublicDirectorySeo,
+} from "../../features/seo/publicSeo";
 import { appStyles as styles } from "../../styles/appStyles";
 
 function PublicAssociationsPage() {
@@ -36,9 +42,17 @@ function PublicAssociationsPage() {
     () => filterAssociationsBySearch(associations, searchQuery),
     [associations, searchQuery]
   );
+  const seo = useMemo(() => buildPublicDirectorySeo(t), [t]);
 
   return (
     <div style={styles.app}>
+      <SeoMeta
+        title={seo.title}
+        description={seo.description}
+        canonicalPath="/public"
+      />
+      <PublicAppInstallPrompt />
+
       <section style={heroStyle}>
         <div>
           <div style={eyebrowStyle}>{t("public.label")}</div>
@@ -73,43 +87,51 @@ function PublicAssociationsPage() {
             </div>
           ) : (
             <div style={gridStyle}>
-              {filteredAssociations.map((association) => (
-                <article key={association.id} style={cardStyle}>
-                  <div style={associationHeaderStyle}>
-                    <AssociationLogo association={association} size={56} />
-                    <div>
-                      <h2 style={cardTitleStyle}>{association.name}</h2>
-                      <div style={mutedTextStyle}>
-                        {association.shortName || t("common.association")}
-                        {association.timezone ? ` · ${association.timezone}` : ""}
+              {filteredAssociations.map((association) => {
+                const associationSeo = buildAssociationPublicSeo({
+                  association,
+                  t,
+                });
+
+                return (
+                  <article key={association.id} style={cardStyle}>
+                    <div style={associationHeaderStyle}>
+                      <AssociationLogo association={association} size={56} />
+                      <div>
+                        <h2 style={cardTitleStyle}>{association.name}</h2>
+                        <div style={mutedTextStyle}>
+                          {association.shortName || t("common.association")}
+                          {association.timezone ? ` · ${association.timezone}` : ""}
+                        </div>
+                        {getAssociationWebsiteHref(association) && (
+                          <a
+                            href={getAssociationWebsiteHref(association)}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={websiteLinkStyle}
+                          >
+                            {t("common.website")}
+                          </a>
+                        )}
                       </div>
-                      {getAssociationWebsiteHref(association) && (
-                        <a
-                          href={getAssociationWebsiteHref(association)}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={websiteLinkStyle}
-                        >
-                          {t("common.website")}
-                        </a>
-                      )}
                     </div>
-                  </div>
-                  <div style={cardActionsStyle}>
-                    <Link
-                      to={`/public/associations/${association.id}`}
-                      style={primaryLinkStyle}
-                    >
-                      {t("public.associations.viewShows")}
-                    </Link>
-                    <ShareButton
-                      url={`/public/associations/${association.id}`}
-                      title={association.name || t("public.associationShows.shareTitle")}
-                      style={secondaryButtonStyle}
-                    />
-                  </div>
-                </article>
-              ))}
+                    <div style={cardActionsStyle}>
+                      <Link
+                        to={`/public/associations/${association.id}`}
+                        style={primaryLinkStyle}
+                      >
+                        {t("public.associations.viewShows")}
+                      </Link>
+                      <ShareButton
+                        url={`/public/associations/${association.id}`}
+                        title={associationSeo.title}
+                        text={associationSeo.description}
+                        style={secondaryButtonStyle}
+                      />
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </div>

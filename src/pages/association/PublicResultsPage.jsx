@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import AssociationLogo from "../../components/AssociationLogo";
+import PublicAppInstallPrompt from "../../components/PublicAppInstallPrompt";
+import SeoMeta from "../../components/SeoMeta";
 import ShareButton from "../../components/ShareButton";
 import {
   getPublicAssociationRepository,
@@ -20,6 +22,7 @@ import { getAssociationWebsiteHref } from "../../features/associations/associati
 import { getShowById } from "../../features/shows/showSelectors";
 import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
 import { useTranslation } from "../../features/i18n/I18nProvider";
+import { buildShowPublicSeo } from "../../features/seo/publicSeo";
 import {
   buildScorePdfFileName,
   generateScorePdf,
@@ -45,6 +48,11 @@ function PublicResultsPage() {
       ? [publicView.liveClass]
       : [];
   const hasLiveClass = Boolean(liveClasses.length || publicView.livePaidWarmup);
+  const canonicalPublicPath = `/public/associations/${associationId}/shows/${showId}`;
+  const seo = useMemo(
+    () => buildShowPublicSeo({ association, show, t }),
+    [association, show, t]
+  );
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -146,6 +154,15 @@ function PublicResultsPage() {
   if (!show && !isLoading) {
     return (
       <div style={styles.app}>
+        <SeoMeta
+          title={seo.title}
+          description={seo.description}
+          canonicalPath={canonicalPublicPath}
+          imageUrl={association?.logoDataUrl}
+          robots={isPublicRoute ? "index,follow" : "noindex,follow"}
+        />
+        {isPublicRoute && <PublicAppInstallPrompt />}
+
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
           {t("public.results.back")}
         </button>
@@ -156,6 +173,15 @@ function PublicResultsPage() {
 
   return (
     <div style={styles.app}>
+      <SeoMeta
+        title={seo.title}
+        description={seo.description}
+        canonicalPath={canonicalPublicPath}
+        imageUrl={association?.logoDataUrl}
+        robots={isPublicRoute ? "index,follow" : "noindex,follow"}
+      />
+      {isPublicRoute && <PublicAppInstallPrompt />}
+
       <div style={{ marginBottom: 16 }}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
           {t("public.results.back")}
@@ -187,7 +213,8 @@ function PublicResultsPage() {
           )}
           <ShareButton
             url={`/public/associations/${associationId}/shows/${showId}`}
-            title={show?.name || t("public.associationShows.shareTitle")}
+            title={seo.title}
+            text={seo.description}
           />
           {isPublicRoute ? (
             <Link to={`/public/associations/${associationId}`} style={linkButtonStyle}>

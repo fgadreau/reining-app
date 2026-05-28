@@ -1,6 +1,7 @@
 {
   "short_name": "ShowScore",
   "name": "ShowScore App",
+  "description": "Public live scores and official score sheets for reining shows.",
   "icons": [
     {
       "src": "favicon.ico",
@@ -8,7 +9,8 @@
       "sizes": "1254x1254"
     }
   ],
-  "start_url": ".",
+  "start_url": "/public",
+  "scope": "/",
   "display": "standalone",
   "theme_color": "#111827",
   "background_color": "#ffffff"

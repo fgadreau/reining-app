@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useTranslation } from "../features/i18n/I18nProvider";
 
-function ShareButton({ url, title = "ShowScore", label, style }) {
+function ShareButton({ url, title = "ShowScore", text, label, style }) {
   const [copied, setCopied] = useState(false);
   const { t } = useTranslation();
   const buttonLabel = label || t("common.share");
@@ -14,10 +14,16 @@ function ShareButton({ url, title = "ShowScore", label, style }) {
 
     try {
       if (navigator.share) {
-        await navigator.share({
+        const shareData = {
           title,
           url: absoluteUrl,
-        });
+        };
+
+        if (text) {
+          shareData.text = text;
+        }
+
+        await navigator.share(shareData);
       } else if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(absoluteUrl);
         setCopied(true);

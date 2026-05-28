@@ -11,6 +11,11 @@ import {
 import { filterAssociationsBySearch } from "../../features/associations/associationSearch";
 import { createAssociationId } from "../../features/associations/associationsData";
 import {
+  getAssociationTimezoneOptions,
+  getDetectedTimezone,
+  normalizeAssociationTimezone,
+} from "../../features/associations/timezones";
+import {
   loadIsPlatformAdminRepository,
   loadUserMembershipsRepository,
   saveAssociationMembershipRepository,
@@ -27,17 +32,19 @@ import { getCloudSyncStatus } from "../../features/cloud/supabaseStatus";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
 
-const emptyForm = {
-  name: "",
-  shortName: "",
-  timezone: "America/Montreal",
-  logoDataUrl: "",
-  websiteUrl: "",
-};
+function createEmptyForm() {
+  return {
+    name: "",
+    shortName: "",
+    timezone: getDetectedTimezone(),
+    logoDataUrl: "",
+    websiteUrl: "",
+  };
+}
 
 function AssociationsPage() {
   const [associations, setAssociations] = useState([]);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(() => createEmptyForm());
   const [editingId, setEditingId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -48,6 +55,15 @@ function AssociationsPage() {
   const [isAssociationFormOpen, setIsAssociationFormOpen] = useState(false);
   const auth = useAuthUser();
   const { t } = useTranslation();
+  const detectedTimezone = useMemo(() => getDetectedTimezone(), []);
+  const timezoneOptions = useMemo(() => getAssociationTimezoneOptions(), []);
+  const formTimezoneOptions = useMemo(() => {
+    if (!form.timezone || timezoneOptions.includes(form.timezone)) {
+      return timezoneOptions;
+    }
+
+    return [form.timezone, ...timezoneOptions];
+  }, [form.timezone, timezoneOptions]);
   const authUserId = auth.user?.id;
   const authUserEmail = auth.user?.email;
 
@@ -147,7 +163,7 @@ function AssociationsPage() {
   }
 
   function resetForm() {
-    setForm(emptyForm);
+    setForm(createEmptyForm());
     setEditingId(null);
     setIsAssociationFormOpen(false);
   }
@@ -172,7 +188,7 @@ function AssociationsPage() {
 
     const name = form.name.trim();
     const shortName = form.shortName.trim();
-    const timezone = form.timezone.trim();
+    const timezone = normalizeAssociationTimezone(form.timezone);
     const logoDataUrl = form.logoDataUrl.trim();
     const websiteUrl = normalizeAssociationWebsiteUrl(form.websiteUrl);
 
@@ -273,7 +289,7 @@ function AssociationsPage() {
     setForm({
       name: association.name || "",
       shortName: association.shortName || "",
-      timezone: association.timezone || "America/Montreal",
+      timezone: association.timezone || detectedTimezone,
       logoDataUrl: association.logoDataUrl || "",
       websiteUrl: association.websiteUrl || "",
     });
@@ -348,7 +364,7 @@ function AssociationsPage() {
               <button
                 type="button"
                 onClick={() => {
-                  setForm(emptyForm);
+                  setForm(createEmptyForm());
                   setEditingId(null);
                   setIsAssociationFormOpen(true);
                 }}
@@ -383,12 +399,32 @@ function AssociationsPage() {
 
               <label style={{ display: "grid", gap: 6 }}>
                 <span>{t("management.associations.timezoneLabel")}</span>
-                <input
-                  value={form.timezone}
-                  onChange={(e) => handleChange("timezone", e.target.value)}
-                  placeholder="America/Montreal"
-                  style={inputStyle}
-                />
+                <div style={timezoneRowStyle}>
+                  <select
+                    value={form.timezone}
+                    onChange={(e) => handleChange("timezone", e.target.value)}
+                    style={{ ...inputStyle, flex: "1 1 260px" }}
+                  >
+                    {formTimezoneOptions.map((timezone) => (
+                      <option key={timezone} value={timezone}>
+                        {timezone}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => handleChange("timezone", detectedTimezone)}
+                    disabled={isSaving}
+                    style={timezoneButtonStyle}
+                  >
+                    {t("management.associations.timezoneAuto")}
+                  </button>
+                </div>
+                <span style={helperTextStyle}>
+                  {t("management.associations.timezoneDetected", {
+                    timezone: detectedTimezone,
+                  })}
+                </span>
               </label>
 
               <label style={{ display: "grid", gap: 6 }}>
@@ -599,6 +635,23 @@ const inputStyle = {
   borderRadius: 10,
   border: "1px solid #cbd5e1",
   boxSizing: "border-box",
+};
+
+const timezoneRowStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
+const timezoneButtonStyle = {
+  padding: "10px 12px",
+  borderRadius: 8,
+  border: "1px solid #cbd5e1",
+  background: "#fff",
+  color: "#111827",
+  cursor: "pointer",
+  fontWeight: 700,
 };
 
 const fileInputStyle = {

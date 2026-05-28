@@ -11,7 +11,8 @@ export const translations = {
       sessionCheck: "Vérification de la session...",
       supabase: "Supabase",
       supabaseNotConfigured: "Supabase non configuré.",
-      supabaseWriteHint: "Connecte-toi pour écrire dans Supabase.",
+      supabaseWriteHint:
+        "Connecte-toi pour accéder aux options admin d’association.",
       supabaseUser: "Utilisateur Supabase",
     },
     common: {
@@ -272,6 +273,8 @@ export const translations = {
         searchPlaceholder: "Nom court ou nom complet",
         shortNameLabel: "Nom court",
         shortNameRequired: "Le nom court est requis",
+        timezoneAuto: "Détecter automatiquement",
+        timezoneDetected: "Fuseau détecté: {{timezone}}",
         timezoneLabel: "Fuseau horaire",
         timezoneRequired: "Le fuseau horaire est requis",
         title: "Associations",
@@ -657,6 +660,29 @@ export const translations = {
       title: "Page non trouvée",
     },
     public: {
+      appPrompt: {
+        install: "Installer",
+        installText:
+          "Ajoute ShowScore à l’écran d’accueil pour y revenir rapidement pendant le show.",
+        installTitle: "Installer ShowScore",
+        iosInstallText:
+          "Sur iPhone ou iPad, ajoute ShowScore à l’écran d’accueil depuis le menu de partage.",
+        later: "Plus tard",
+        reload: "Recharger",
+        updateText: "Une nouvelle version de ShowScore est prête.",
+        updateTitle: "Mise à jour disponible",
+      },
+      seo: {
+        associationDescription:
+          "Shows publics, live et feuilles de pointage officielles publiées pour {{associationName}} dans ShowScore.",
+        associationTitle: "{{associationName}} | Shows publics | ShowScore",
+        directoryDescription:
+          "Consulte les shows publics, le live, l’ordre de passage et les feuilles de pointage officielles publiées dans ShowScore.",
+        directoryTitle: "ShowScore | Vitrine publique",
+        showDescription:
+          "Live public, ordre de passage et feuilles de pointage officielles pour {{showName}} par {{associationName}}.",
+        showTitle: "{{showName}} | {{associationName}} | ShowScore",
+      },
       associationShows: {
         back: "← Associations",
         empty:
@@ -773,7 +799,7 @@ export const translations = {
       sessionCheck: "Checking session...",
       supabase: "Supabase",
       supabaseNotConfigured: "Supabase is not configured.",
-      supabaseWriteHint: "Sign in to write to Supabase.",
+      supabaseWriteHint: "Sign in to access association admin options.",
       supabaseUser: "Supabase user",
     },
     common: {
@@ -1030,6 +1056,8 @@ export const translations = {
         searchPlaceholder: "Short name or full name",
         shortNameLabel: "Short name",
         shortNameRequired: "The short name is required",
+        timezoneAuto: "Detect automatically",
+        timezoneDetected: "Detected timezone: {{timezone}}",
         timezoneLabel: "Timezone",
         timezoneRequired: "The timezone is required",
         title: "Associations",
@@ -1415,6 +1443,29 @@ export const translations = {
       title: "Page not found",
     },
     public: {
+      appPrompt: {
+        install: "Install",
+        installText:
+          "Add ShowScore to your home screen for quick access during the show.",
+        installTitle: "Install ShowScore",
+        iosInstallText:
+          "On iPhone or iPad, add ShowScore to the home screen from the share menu.",
+        later: "Later",
+        reload: "Reload",
+        updateText: "A new version of ShowScore is ready.",
+        updateTitle: "Update available",
+      },
+      seo: {
+        associationDescription:
+          "Public shows, live feed, and official score sheets published for {{associationName}} in ShowScore.",
+        associationTitle: "{{associationName}} | Public shows | ShowScore",
+        directoryDescription:
+          "Browse public shows, live feeds, order of go, and official score sheets published in ShowScore.",
+        directoryTitle: "ShowScore | Public showcase",
+        showDescription:
+          "Public live feed, order of go, and official score sheets for {{showName}} by {{associationName}}.",
+        showTitle: "{{showName}} | {{associationName}} | ShowScore",
+      },
       associationShows: {
         back: "← Associations",
         empty:

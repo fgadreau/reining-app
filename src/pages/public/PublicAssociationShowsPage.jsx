@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import AssociationLogo from "../../components/AssociationLogo";
+import PublicAppInstallPrompt from "../../components/PublicAppInstallPrompt";
+import SeoMeta from "../../components/SeoMeta";
 import ShareButton from "../../components/ShareButton";
 import { getAssociationWebsiteHref } from "../../features/associations/associationProfile";
 import { useTranslation } from "../../features/i18n/I18nProvider";
@@ -8,6 +10,10 @@ import {
   getPublicAssociationRepository,
   getPublicShowsByAssociationRepository,
 } from "../../features/publication/publicViewRepository";
+import {
+  buildAssociationPublicSeo,
+  buildShowPublicSeo,
+} from "../../features/seo/publicSeo";
 import { appStyles as styles } from "../../styles/appStyles";
 
 function PublicAssociationShowsPage() {
@@ -40,8 +46,21 @@ function PublicAssociationShowsPage() {
     };
   }, [associationId]);
 
+  const seo = useMemo(
+    () => buildAssociationPublicSeo({ association, t }),
+    [association, t]
+  );
+
   return (
     <div style={styles.app}>
+      <SeoMeta
+        title={seo.title}
+        description={seo.description}
+        canonicalPath={`/public/associations/${associationId}`}
+        imageUrl={association?.logoDataUrl}
+      />
+      <PublicAppInstallPrompt />
+
       <div style={{ marginBottom: 16 }}>
         <Link to="/public" style={secondaryLinkStyle}>
           {t("public.associationShows.back")}
@@ -72,7 +91,8 @@ function PublicAssociationShowsPage() {
           )}
           <ShareButton
             url={`/public/associations/${associationId}`}
-            title={association?.name || t("public.associationShows.shareTitle")}
+            title={seo.title}
+            text={seo.description}
           />
         </div>
       </section>
@@ -83,41 +103,48 @@ function PublicAssociationShowsPage() {
         <div style={emptyStateStyle}>{t("public.associationShows.empty")}</div>
       ) : (
         <div style={showListStyle}>
-          {shows.map((show) => (
-            <article key={show.id} style={cardStyle}>
-              <div>
-                <h2 style={cardTitleStyle}>{show.name}</h2>
-                <div style={mutedTextStyle}>
-                  {show.venue || show.location || t("public.associationShows.venueTbd")}
-                  {show.startDate ? ` · ${show.startDate}` : ""}
+          {shows.map((show) => {
+            const showSeo = buildShowPublicSeo({ association, show, t });
+
+            return (
+              <article key={show.id} style={cardStyle}>
+                <div>
+                  <h2 style={cardTitleStyle}>{show.name}</h2>
+                  <div style={mutedTextStyle}>
+                    {show.venue ||
+                      show.location ||
+                      t("public.associationShows.venueTbd")}
+                    {show.startDate ? ` · ${show.startDate}` : ""}
+                  </div>
+                  <div style={badgeRowStyle}>
+                    {show.liveClassCount > 0 && (
+                      <Badge tone="live">{t("common.live")}</Badge>
+                    )}
+                    {show.publishedClassCount > 0 && (
+                      <Badge>
+                        {t("public.associationShows.publishedClasses", {
+                          count: show.publishedClassCount,
+                        })}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-                <div style={badgeRowStyle}>
-                  {show.liveClassCount > 0 && (
-                    <Badge tone="live">{t("common.live")}</Badge>
-                  )}
-                  {show.publishedClassCount > 0 && (
-                    <Badge>
-                      {t("public.associationShows.publishedClasses", {
-                        count: show.publishedClassCount,
-                      })}
-                    </Badge>
-                  )}
+                <div style={cardActionsStyle}>
+                  <Link
+                    to={`/public/associations/${associationId}/shows/${show.id}`}
+                    style={primaryLinkStyle}
+                  >
+                    {t("public.associationShows.viewShow")}
+                  </Link>
+                  <ShareButton
+                    url={`/public/associations/${associationId}/shows/${show.id}`}
+                    title={showSeo.title}
+                    text={showSeo.description}
+                  />
                 </div>
-              </div>
-              <div style={cardActionsStyle}>
-                <Link
-                  to={`/public/associations/${associationId}/shows/${show.id}`}
-                  style={primaryLinkStyle}
-                >
-                  {t("public.associationShows.viewShow")}
-                </Link>
-                <ShareButton
-                  url={`/public/associations/${associationId}/shows/${show.id}`}
-                  title={show.name || t("public.associationShows.shareTitle")}
-                />
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
     </div>
