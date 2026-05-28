@@ -1296,6 +1296,23 @@ using (
   )
 );
 
+drop policy if exists "Anyone can read live judge scoring sessions" on public.judge_scoring_sessions;
+create policy "Anyone can read live judge scoring sessions"
+on public.judge_scoring_sessions for select to anon, authenticated
+using (
+  exists (
+    select 1
+    from public.publication_states ps
+    where ps.class_id = judge_scoring_sessions.class_id
+      and ps.status in (
+        'live',
+        'live_no_score',
+        'live_scoring',
+        'live_finished'
+      )
+  )
+);
+
 create or replace function public.public_show_timing_summary(
   target_show_id text,
   min_duration_seconds integer default 60

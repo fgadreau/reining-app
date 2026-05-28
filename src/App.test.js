@@ -969,6 +969,92 @@ test("public live view exposes active, next, and last passed runs", () => {
   expect(classView.lastPassedRuns[0].note).toBe("Penalty note.");
 });
 
+test("multi-judge public live aggregates active run and completed score", () => {
+  const scores = getPatternHeaders("1").map(() => "0");
+  const classView = buildPublicLiveClassView({
+    classItem: {
+      id: "class-live-multi",
+      name: "Open Futurity",
+      pattern: "1",
+    },
+    setup: {
+      pattern: "1",
+      judges: [
+        { id: "judge-1", name: "Judge A", order: 1 },
+        { id: "judge-2", name: "Judge B", order: 2 },
+        { id: "judge-3", name: "Judge C", order: 3 },
+      ],
+      runs: [
+        { id: "run-1", draw: 1, backNumber: "101", rider: "Rider 1" },
+        { id: "run-2", draw: 2, backNumber: "202", rider: "Rider 2" },
+        { id: "run-3", draw: 3, backNumber: "303", rider: "Rider 3" },
+      ],
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE_SCORING,
+    },
+    judgeSessions: [
+      {
+        judgeId: "judge-1",
+        activeManoeuvre: { draw: 2 },
+        updatedAt: "2026-01-01T10:02:00.000Z",
+        runs: [
+          {
+            id: "run-1",
+            draw: 1,
+            backNumber: "101",
+            scores,
+            penalties: [],
+            scoreTotal: "70.0",
+            completedAt: "2026-01-01T10:00:00.000Z",
+          },
+        ],
+      },
+      {
+        judgeId: "judge-2",
+        activeManoeuvre: { draw: 2 },
+        updatedAt: "2026-01-01T10:03:00.000Z",
+        runs: [
+          {
+            id: "run-1",
+            draw: 1,
+            backNumber: "101",
+            scores,
+            penalties: [],
+            scoreTotal: "71.0",
+            completedAt: "2026-01-01T10:01:00.000Z",
+          },
+        ],
+      },
+      {
+        judgeId: "judge-3",
+        activeManoeuvre: { draw: 2 },
+        updatedAt: "2026-01-01T10:04:00.000Z",
+        runs: [
+          {
+            id: "run-1",
+            draw: 1,
+            backNumber: "101",
+            scores,
+            penalties: [],
+            scoreTotal: "72.0",
+            completedAt: "2026-01-01T10:02:00.000Z",
+          },
+        ],
+      },
+    ],
+  });
+
+  expect(classView.activeRun.draw).toBe(2);
+  expect(classView.nextRun.draw).toBe(3);
+  expect(classView.latestScore.scoreTotal).toBe("213.0");
+  expect(classView.orderRuns.map((run) => run.liveOrderStatus)).toEqual([
+    "passed",
+    "active",
+    "waiting",
+  ]);
+});
+
 test("public live without scores keeps runs visible and hides scoring details", () => {
   const classView = buildPublicLiveClassView({
     classItem: {
@@ -1374,6 +1460,84 @@ test("announcer live view exposes active, next, and recent completed runs", () =
     score: "+0.5",
     penalty: "2",
   });
+});
+
+test("announcer live view reads multi-judge sessions", () => {
+  const scores = getPatternHeaders("1").map(() => "0");
+  const classView = buildAnnouncerClassView({
+    classItem: {
+      id: "class-announcer-multi",
+      name: "Open",
+      pattern: "1",
+    },
+    setup: {
+      pattern: "1",
+      judges: [
+        { id: "judge-1", name: "Judge A", order: 1 },
+        { id: "judge-2", name: "Judge B", order: 2 },
+        { id: "judge-3", name: "Judge C", order: 3 },
+      ],
+      runs: [
+        { id: "run-1", draw: 1, backNumber: "101", rider: "Rider 1" },
+        { id: "run-2", draw: 2, backNumber: "202", rider: "Rider 2" },
+      ],
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE_SCORING,
+    },
+    scoringRuns: [],
+    judgeSessions: [
+      {
+        judgeId: "judge-1",
+        activeManoeuvre: { draw: 2 },
+        runs: [
+          {
+            id: "run-1",
+            draw: 1,
+            backNumber: "101",
+            scores,
+            penalties: [],
+            scoreTotal: "70.0",
+          },
+        ],
+      },
+      {
+        judgeId: "judge-2",
+        activeManoeuvre: { draw: 2 },
+        runs: [
+          {
+            id: "run-1",
+            draw: 1,
+            backNumber: "101",
+            scores,
+            penalties: [],
+            scoreTotal: "71.0",
+          },
+        ],
+      },
+      {
+        judgeId: "judge-3",
+        activeManoeuvre: { draw: 2 },
+        runs: [
+          {
+            id: "run-1",
+            draw: 1,
+            backNumber: "101",
+            scores,
+            penalties: [],
+            scoreTotal: "72.0",
+          },
+        ],
+      },
+    ],
+  });
+
+  expect(classView.activeRun.draw).toBe(2);
+  expect(classView.latestScore.scoreTotal).toBe("213.0");
+  expect(classView.orderRuns.map((run) => run.liveOrderStatus)).toEqual([
+    "passed",
+    "active",
+  ]);
 });
 
 test("builds invitation links for invited users", () => {

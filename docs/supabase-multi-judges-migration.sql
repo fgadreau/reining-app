@@ -33,6 +33,23 @@ create policy "Members can read judge scoring sessions"
 on public.judge_scoring_sessions for select to authenticated
 using (public.current_user_can_read_class(class_id));
 
+drop policy if exists "Anyone can read live judge scoring sessions" on public.judge_scoring_sessions;
+create policy "Anyone can read live judge scoring sessions"
+on public.judge_scoring_sessions for select to anon, authenticated
+using (
+  exists (
+    select 1
+    from public.publication_states ps
+    where ps.class_id = judge_scoring_sessions.class_id
+      and ps.status in (
+        'live',
+        'live_no_score',
+        'live_scoring',
+        'live_finished'
+      )
+  )
+);
+
 drop policy if exists "Scoring roles can insert judge scoring sessions" on public.judge_scoring_sessions;
 create policy "Scoring roles can insert judge scoring sessions"
 on public.judge_scoring_sessions for insert to authenticated

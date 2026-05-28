@@ -15,6 +15,11 @@ import {
   patternHasRailAdjustment,
 } from "../patterns/patternDefinitions";
 import { buildProvisionalRanking } from "../scoring/provisionalRanking";
+import {
+  buildMultiJudgeLiveRuns,
+  getMultiJudgeLiveUpdatedAt,
+  hasMultiJudgeLiveSetup,
+} from "../scoring/multiJudgeLiveData";
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import {
   canPublicationStatusShowScores,
@@ -24,6 +29,7 @@ import { loadActiveManoeuvre } from "../scoring/scoringRepository";
 
 const ANNOUNCER_CLASS_REALTIME_TABLES = [
   "scoring_sessions",
+  "judge_scoring_sessions",
   "class_setups",
   "publication_states",
   "official_results",
@@ -209,7 +215,22 @@ export function buildAnnouncerClassView(classData) {
     classData.setup?.customPattern || classItem?.customPattern || null;
   const headers = getPatternHeaders(pattern, customPattern);
   const hasRailAdjustment = patternHasRailAdjustment(pattern, customPattern);
-  const sourceRuns = scoringRuns.length > 0 ? scoringRuns : setupRuns;
+  const isMultiJudgeLive = hasMultiJudgeLiveSetup({
+    judges: classData.setup?.judges,
+    judgeSessions: classData.judgeSessions,
+  });
+  const sourceRuns = isMultiJudgeLive
+    ? buildMultiJudgeLiveRuns({
+        setupRuns,
+        judgeSessions: classData.judgeSessions,
+        judges: classData.setup?.judges,
+        pattern,
+        customPattern,
+        headers,
+      })
+    : scoringRuns.length > 0
+      ? scoringRuns
+      : setupRuns;
   const runs = sourceRuns.map((run, index) =>
     normalizeRunForAnnouncer(run, index, headers)
   );
@@ -261,7 +282,10 @@ export function buildAnnouncerClassView(classData) {
     publicationStatus,
     publicationStatusLabel: getPublicationStatusLabel(publicationStatus),
     liveUpdatedAt:
-      classData.scoringSession?.updatedAt || getLatestRunActivityAt(runs) || null,
+      classData.scoringSession?.updatedAt ||
+      getMultiJudgeLiveUpdatedAt(classData.judgeSessions) ||
+      getLatestRunActivityAt(runs) ||
+      null,
     runCount: runs.length,
     scoringStarted,
     isComplete,
@@ -309,6 +333,7 @@ function normalizeRunForAnnouncer(run, index, headers) {
     completedAt: run.completedAt || null,
     scores,
     penalties,
+    isComplete: Boolean(run.isComplete),
     isReview: String(run.scoreTotal ?? "").trim() === "Review",
     manoeuvres: headers.map((name, manoeuvreIndex) => ({
       name,

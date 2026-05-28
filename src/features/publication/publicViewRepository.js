@@ -22,6 +22,12 @@ import {
   getPatternHeaders,
   getPatternManeuverDescription,
 } from "../patterns/patternDefinitions";
+import { normalizeJudgeScoringSession } from "../scoring/judgeScoringSessionStorage";
+import {
+  buildMultiJudgeLiveRuns,
+  getMultiJudgeLiveUpdatedAt,
+  hasMultiJudgeLiveSetup,
+} from "../scoring/multiJudgeLiveData";
 import {
   LIVE_SCORE_DISPLAY_MODES,
   PUBLICATION_STATUSES,
@@ -132,9 +138,31 @@ function toClassSetup(row) {
         ? row.custom_pattern
         : null,
     runs: Array.isArray(row.runs) ? row.runs : [],
+    judges: Array.isArray(row.judges) ? row.judges : [],
     dragInterval: row.drag_interval || null,
     dragDurationMinutes: row.drag_duration_minutes,
   };
+}
+
+function toJudgeScoringSession(row) {
+  return normalizeJudgeScoringSession({
+    classId: row.class_id,
+    judgeId: row.judge_id,
+    judgeName: row.judge_name || "",
+    claimedBy: row.claimed_by || null,
+    claimedByEmail: row.claimed_by_email || null,
+    claimedAt: row.claimed_at || null,
+    runs: Array.isArray(row.runs) ? row.runs : [],
+    activeManoeuvre:
+      row.active_manoeuvre && typeof row.active_manoeuvre === "object"
+        ? row.active_manoeuvre
+        : null,
+    judgeSignature: row.judge_signature || null,
+    finalized: Boolean(row.finalized),
+    finalizedAt: row.finalized_at || null,
+    judgeSignedAt: row.judge_signed_at || null,
+    updatedAt: row.updated_at || null,
+  });
 }
 
 function toPaidWarmup(row) {
@@ -180,6 +208,7 @@ export function getPublicShowView(showId) {
         setup: classData.setup,
         publication: classData.publication,
         scoringSession: classData.scoringSession,
+        judgeSessions: classData.judgeSessions,
       });
 
       if (liveClass) {
@@ -255,6 +284,7 @@ export async function getPublicShowViewRepository(showId) {
             setup: classData.setup,
             publication: classData.publication,
             scoringSession: classData.scoringSession,
+            judgeSessions: classData.judgeSessions,
           });
 
           if (liveClass) {
@@ -366,7 +396,12 @@ export function subscribePublicShowViewRepository(showId, classIds, onChange) {
   );
 
   uniqueClassIds.forEach((classId) => {
-    ["official_results", "scoring_sessions", "class_setups"].forEach((table) => {
+    [
+      "official_results",
+      "scoring_sessions",
+      "judge_scoring_sessions",
+      "class_setups",
+    ].forEach((table) => {
       channel.on(
         "postgres_changes",
         {
@@ -448,8 +483,13 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
           return { day, classes: [] };
         }
 
-        const [publicationResult, officialResult, scoringResult, setupResult] =
-          await Promise.all([
+        const [
+          publicationResult,
+          officialResult,
+          scoringResult,
+          judgeScoringResult,
+          setupResult,
+        ] = await Promise.all([
             supabase
               .from("publication_states")
               .select("*")
@@ -463,6 +503,10 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
               .select("*")
               .in("class_id", classIds),
             supabase
+              .from("judge_scoring_sessions")
+              .select("*")
+              .in("class_id", classIds),
+            supabase
               .from("class_setups")
               .select("*")
               .in("class_id", classIds),
@@ -472,6 +516,12 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
         if (officialResult.error) throw officialResult.error;
         if (scoringResult.error) {
           console.error("Erreur chargement live public Supabase:", scoringResult.error);
+        }
+        if (judgeScoringResult.error) {
+          console.error(
+            "Erreur chargement live juges public Supabase:",
+            judgeScoringResult.error
+          );
         }
         if (setupResult.error) {
           console.error("Erreur chargement setup public Supabase:", setupResult.error);
@@ -495,6 +545,12 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
             toScoringSession(row),
           ])
         );
+        const judgeScoringByClassId = new Map();
+        (judgeScoringResult.data || []).forEach((row) => {
+          const current = judgeScoringByClassId.get(row.class_id) || [];
+          current.push(toJudgeScoringSession(row));
+          judgeScoringByClassId.set(row.class_id, current);
+        });
         const setupByClassId = new Map(
           (setupResult.data || []).map((row) => [row.class_id, toClassSetup(row)])
         );
@@ -507,6 +563,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
             setup,
             publication,
             scoringSession: scoringByClassId.get(classItem.id),
+            judgeSessions: judgeScoringByClassId.get(classItem.id) || [],
           });
 
           if (liveClass) {
@@ -892,6 +949,7 @@ export function buildPublicLiveClassView({
   setup,
   publication,
   scoringSession,
+  judgeSessions = [],
 }) {
   const publicationStatus = publication?.status || PUBLICATION_STATUSES.HIDDEN;
 
@@ -907,13 +965,30 @@ export function buildPublicLiveClassView({
     ? scoringSession.runs
     : [];
   const setupRuns = Array.isArray(setup?.runs) ? setup.runs : [];
-  const sourceRuns = scoringRuns.length > 0 ? scoringRuns : setupRuns;
+  const patternValue = setup?.pattern || classItem?.pattern || "";
+  const customPattern = setup?.customPattern || classItem?.customPattern || null;
+  const isMultiJudgeLive = hasMultiJudgeLiveSetup({
+    judges: setup?.judges,
+    judgeSessions,
+  });
+  const sourceRuns = isMultiJudgeLive
+    ? buildMultiJudgeLiveRuns({
+        setupRuns,
+        judgeSessions,
+        judges: setup?.judges,
+        pattern: patternValue,
+        customPattern,
+        headers: getPatternHeaders(patternValue, customPattern),
+      })
+    : scoringRuns.length > 0
+      ? scoringRuns
+      : setupRuns;
   const runs = sourceRuns.map((run, index) =>
         normalizePublicLiveRun(
           run,
           index,
-          setup?.pattern || classItem?.pattern || "",
-          setup?.customPattern || classItem?.customPattern || null,
+          patternValue,
+          customPattern,
           { liveScoreDisplayMode }
         )
       );
@@ -950,14 +1025,16 @@ export function buildPublicLiveClassView({
     showScores,
     showScoreDetails,
     liveUpdatedAt:
-      scoringSession?.updatedAt || getLatestRunActivityAt(runs) || null,
+      scoringSession?.updatedAt ||
+      getMultiJudgeLiveUpdatedAt(judgeSessions) ||
+      getLatestRunActivityAt(runs) ||
+      null,
     pattern:
       getPatternDisplayName(
-        setup?.pattern || classItem?.pattern || "",
-        setup?.customPattern || classItem?.customPattern || null
+        patternValue,
+        customPattern
       ) ||
-      setup?.pattern ||
-      classItem?.pattern ||
+      patternValue ||
       "",
     activeRun,
     nextRun,
@@ -983,14 +1060,16 @@ function normalizePublicLiveRun(
   const headers = getPatternHeaders(pattern, customPattern);
   const liveScoreDisplayMode =
     options.liveScoreDisplayMode || LIVE_SCORE_DISPLAY_MODES.FULL_DETAILS;
-  const isComplete = isScoredRunComplete(
-    {
-      ...run,
-      scores,
-      penalties,
-    },
-    headers.length
-  );
+  const isComplete =
+    Boolean(run?.isComplete) ||
+    isScoredRunComplete(
+      {
+        ...run,
+        scores,
+        penalties,
+      },
+      headers.length
+    );
   const showScoreDetails =
     liveScoreDisplayMode === LIVE_SCORE_DISPLAY_MODES.FULL_DETAILS;
   const showScores =

@@ -27,6 +27,13 @@ import {
   loadScoringSessionRepository,
 } from "../scoring/scoringRepository";
 import {
+  loadJudgeScoringSessionsForClassLocal,
+} from "../scoring/judgeScoringSessionStorage";
+import {
+  loadJudgeScoringSessionsForClassRepository,
+} from "../scoring/judgeScoringSessionRepository";
+import { normalizeClassJudges } from "./classJudges";
+import {
   deletePublicationState,
   getPublicationState,
 } from "../publication/publicationRepository";
@@ -139,6 +146,14 @@ export function getClassFullData(classId) {
     updatedAt: getLatestRunActivityAt(scoringRuns),
   };
   const publication = getPublicationState(classId);
+  const judges = normalizeClassJudges({
+    judges: setup?.judges,
+    judgeName: setup?.judgeName || classItem?.judgeName,
+  });
+  const judgeSessions =
+    judges.length > 1
+      ? loadJudgeScoringSessionsForClassLocal(classId, judges)
+      : [];
 
   return {
     classItem,
@@ -147,6 +162,8 @@ export function getClassFullData(classId) {
     official,
     publication,
     scoringSession,
+    judges,
+    judgeSessions,
     scoringRuns,
     status: official.isFinalized ? "completed" : getClassStatus(classItem),
   };
@@ -276,6 +293,14 @@ export async function getClassFullDataRepository(classId) {
   const officialResult = await getOfficialResultRepository(classId);
   const official = getClassOfficialData(classId, classItem, officialResult);
   const scoringSession = await loadScoringSessionRepository(classId);
+  const judges = normalizeClassJudges({
+    judges: setup?.judges,
+    judgeName: setup?.judgeName || classItem?.judgeName,
+  });
+  const judgeSessions =
+    judges.length > 1
+      ? await loadJudgeScoringSessionsForClassRepository(classId, judges)
+      : [];
 
   return {
     classItem,
@@ -284,6 +309,8 @@ export async function getClassFullDataRepository(classId) {
     official,
     publication,
     scoringSession,
+    judges,
+    judgeSessions,
     scoringRuns: scoringSession.runs,
     status: official.isFinalized ? "completed" : getClassStatus(classItem),
   };
