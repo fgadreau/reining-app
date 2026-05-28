@@ -87,6 +87,15 @@ function AppMenu() {
         </Link>
       )}
 
+      {associationId && showId && !isPublicPath && access.canScoreAssociation && (
+        <Link
+          to={`/associations/${associationId}/shows/${showId}/scribe`}
+          style={linkStyle(location.pathname.includes("/scribe"))}
+        >
+          {t("nav.scribe")}
+        </Link>
+      )}
+
       {associationId && showId && !isPublicPath && access.canAnnounceAssociation && (
         <Link
           to={`/associations/${associationId}/shows/${showId}/announcer`}

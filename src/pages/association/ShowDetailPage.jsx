@@ -6,6 +6,7 @@ import {
   saveDayRepository,
 } from "../../features/days/dayRepository";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
+import { getDefaultShowRouteForRoles } from "../../features/auth/showRoleRouting";
 import { getCloudSyncStatus } from "../../features/cloud/supabaseStatus";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { getShowRepository } from "../../features/shows/showRepository";
@@ -53,6 +54,27 @@ function ShowDetailPage() {
       isMounted = false;
     };
   }, [showId]);
+
+  useEffect(() => {
+    if (access.isLoadingAccess) return;
+
+    const targetPath = getDefaultShowRouteForRoles({
+      associationId,
+      showId,
+      roles: access.associationRoles,
+    });
+    const currentPath = `/associations/${associationId}/shows/${showId}`;
+
+    if (targetPath !== currentPath) {
+      navigate(targetPath, { replace: true });
+    }
+  }, [
+    access.associationRoles,
+    access.isLoadingAccess,
+    associationId,
+    navigate,
+    showId,
+  ]);
 
   const startCreateDay = async () => {
     const nextSortOrder =
@@ -209,6 +231,15 @@ function ShowDetailPage() {
               style={linkButtonStyle}
             >
               {t("nav.dayTiming")}
+            </Link>
+          )}
+
+          {access.canScoreAssociation && (
+            <Link
+              to={`/associations/${associationId}/shows/${showId}/scribe`}
+              style={linkButtonStyle}
+            >
+              {t("nav.scribe")}
             </Link>
           )}
 

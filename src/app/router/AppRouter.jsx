@@ -9,6 +9,7 @@ import AssociationAccessPage from "../../pages/association/AssociationAccessPage
 import ShowDetailPage from "../../pages/association/ShowDetailPage";
 import SecretariatDashboardPage from "../../pages/association/SecretariatDashboardPage";
 import AnnouncerDashboardPage from "../../pages/association/AnnouncerDashboardPage";
+import ShowScribePage from "../../pages/association/ShowScribePage";
 import PublicResultsPage from "../../pages/association/PublicResultsPage";
 import PublicAssociationsPage from "../../pages/public/PublicAssociationsPage";
 import PublicAssociationShowsPage from "../../pages/public/PublicAssociationShowsPage";
@@ -69,6 +70,10 @@ function AppRouter() {
         <Route
           path="/associations/:associationId/shows/:showId/announcer"
           element={<AnnouncerDashboardPage />}
+        />
+        <Route
+          path="/associations/:associationId/shows/:showId/scribe"
+          element={<ShowScribePage />}
         />
         <Route
           path="/associations/:associationId/shows/:showId/public"

@@ -43,6 +43,7 @@ import {
   buildAssociationInvitationEmail,
   buildAssociationInvitationUrl,
 } from "./features/auth/invitationLinks";
+import { getDefaultShowRouteForRoles } from "./features/auth/showRoleRouting";
 import {
   calculateClassTimingSummary,
   stampRunTiming,
@@ -1369,6 +1370,48 @@ test("scopes secretary access to attached associations", () => {
   expect(canScoreAssociation(memberships, "association-2")).toBe(true);
   expect(canEditManualDrawAssociation(memberships, "association-2")).toBe(true);
   expect(canEditImportedDrawAssociation(memberships, "association-2")).toBe(false);
+});
+
+test("routes show entry by a single operational role", () => {
+  const baseArgs = {
+    associationId: "association-1",
+    showId: "show-1",
+  };
+
+  expect(
+    getDefaultShowRouteForRoles({
+      ...baseArgs,
+      roles: [ASSOCIATION_ROLES.SCRIBE],
+    })
+  ).toBe("/associations/association-1/shows/show-1/scribe");
+
+  expect(
+    getDefaultShowRouteForRoles({
+      ...baseArgs,
+      roles: [ASSOCIATION_ROLES.ANNOUNCER],
+    })
+  ).toBe("/associations/association-1/shows/show-1/announcer");
+
+  expect(
+    getDefaultShowRouteForRoles({
+      ...baseArgs,
+      roles: [ASSOCIATION_ROLES.SECRETARY],
+    })
+  ).toBe("/associations/association-1/shows/show-1/secretariat");
+
+  expect(
+    getDefaultShowRouteForRoles({
+      ...baseArgs,
+      roles: [ASSOCIATION_ROLES.SCRIBE, ASSOCIATION_ROLES.ANNOUNCER],
+    })
+  ).toBe("/associations/association-1/shows/show-1");
+
+  expect(
+    getDefaultShowRouteForRoles({
+      ...baseArgs,
+      roles: [ASSOCIATION_ROLES.ADMIN],
+    })
+  ).toBe("/associations/association-1/shows/show-1");
 });
 
 test("announcer latest score ignores public publication restrictions", () => {
