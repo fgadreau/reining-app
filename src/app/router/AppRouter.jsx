@@ -6,6 +6,7 @@ import CloudAuthBar from "../../components/CloudAuthBar";
 import AssociationsPage from "../../pages/association/AssociationsPage";
 import AssociationShowPage from "../../pages/association/AssociationShowPage";
 import AssociationAccessPage from "../../pages/association/AssociationAccessPage";
+import AssociationSettingsPage from "../../pages/association/AssociationSettingsPage";
 import ShowDetailPage from "../../pages/association/ShowDetailPage";
 import SecretariatDashboardPage from "../../pages/association/SecretariatDashboardPage";
 import AnnouncerDashboardPage from "../../pages/association/AnnouncerDashboardPage";
@@ -54,6 +55,10 @@ function AppRouter() {
         <Route
           path="/associations/:associationId/access"
           element={<AssociationAccessPage />}
+        />
+        <Route
+          path="/associations/:associationId/settings"
+          element={<AssociationSettingsPage />}
         />
         <Route
           path="/associations/:associationId/shows/:showId"

@@ -263,7 +263,7 @@ export const translations = {
         nameLabel: "Nom",
         nameRequired: "Le nom est requis",
         noSearchResults: "Aucune association ne correspond à cette recherche.",
-        openShows: "Ouvrir les shows",
+        openShows: "Ouvrir les compétitions",
         removeLogo: "Retirer le logo",
         save: "Enregistrer",
         saveFailed:
@@ -279,6 +279,17 @@ export const translations = {
         timezoneRequired: "Le fuseau horaire est requis",
         title: "Associations",
         websiteLabel: "Site web public",
+      },
+      associationSettings: {
+        accessDenied:
+          "Ce rôle n’a pas accès aux réglages de l’association.",
+        loading: "Chargement des réglages...",
+        notFound: "Association introuvable.",
+        save: "Enregistrer les réglages",
+        savedNotice: "Réglages enregistrés.",
+        saving: "Enregistrement...",
+        subtitle: "Infos publiques et préférences de l’association",
+        title: "Réglages de l’association",
       },
       days: {
         addDay: "+ Ajouter une journée",
@@ -705,7 +716,11 @@ export const translations = {
     nav: {
       access: "Accès",
       announcer: "Annonceur",
-      dayTiming: "Temps des journées",
+      association: "Association",
+      associationMenu: "Menu association",
+      competitionMenu: "Menu compétition",
+      competitions: "Compétitions",
+      dayTiming: "Gestion du temps",
       home: "Accueil",
       login: "Connexion",
       main: "Navigation principale",
@@ -713,8 +728,10 @@ export const translations = {
       publicShowcase: "Vitrine publique",
       secretariat: "Secrétariat",
       scribe: "Scribe",
+      settings: "Réglages",
       show: "Show",
       shows: "Shows",
+      users: "Utilisateurs",
     },
     notFound: {
       backAssociations: "Retour aux associations",
@@ -1109,7 +1126,7 @@ export const translations = {
         nameLabel: "Name",
         nameRequired: "The name is required",
         noSearchResults: "No association matches this search.",
-        openShows: "Open shows",
+        openShows: "Open competitions",
         removeLogo: "Remove logo",
         save: "Save",
         saveFailed:
@@ -1125,6 +1142,17 @@ export const translations = {
         timezoneRequired: "The timezone is required",
         title: "Associations",
         websiteLabel: "Public website",
+      },
+      associationSettings: {
+        accessDenied:
+          "This role does not have access to association settings.",
+        loading: "Loading settings...",
+        notFound: "Association not found.",
+        save: "Save settings",
+        savedNotice: "Settings saved.",
+        saving: "Saving...",
+        subtitle: "Public details and association preferences",
+        title: "Association settings",
       },
       days: {
         addDay: "+ Add day",
@@ -1551,7 +1579,11 @@ export const translations = {
     nav: {
       access: "Access",
       announcer: "Announcer",
-      dayTiming: "Day timing",
+      association: "Association",
+      associationMenu: "Association menu",
+      competitionMenu: "Competition menu",
+      competitions: "Competitions",
+      dayTiming: "Time management",
       home: "Home",
       login: "Sign in",
       main: "Main navigation",
@@ -1559,8 +1591,10 @@ export const translations = {
       publicShowcase: "Public showcase",
       secretariat: "Secretariat",
       scribe: "Scribe",
+      settings: "Settings",
       show: "Show",
       shows: "Shows",
+      users: "Users",
     },
     notFound: {
       backAssociations: "Back to associations",

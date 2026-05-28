@@ -24,116 +24,138 @@ function AppMenu() {
   const access = useAssociationAccess(associationId);
   const isPublicPath = location.pathname.startsWith("/public");
   const canOpenManagement = !auth.isConfigured || auth.isAuthenticated;
-  const shouldShowGlobalPublicLink = isPublicPath || !showId;
+  const publicShowcasePath =
+    associationId && showId
+      ? `/public/associations/${associationId}/shows/${showId}`
+      : associationId
+        ? `/public/associations/${associationId}`
+        : "/public";
+  const associationBasePath = `/associations/${associationId}`;
+  const showBasePath = `${associationBasePath}/shows/${showId}`;
+  const shouldShowAssociationMenu =
+    associationId && !isPublicPath && canOpenManagement;
+  const shouldShowShowMenu = associationId && showId && !isPublicPath;
 
   return (
-    <nav style={navStyle} aria-label={t("nav.main")}>
-      <Link to="/" style={linkStyle(location.pathname === "/")}>
-        {t("nav.home")}
-      </Link>
-      {shouldShowGlobalPublicLink && (
+    <div style={menuShellStyle}>
+      <nav style={navStyle} aria-label={t("nav.main")}>
+        <Link to="/" style={linkStyle(location.pathname === "/")}>
+          {t("nav.home")}
+        </Link>
         <Link
-          to="/public"
+          to={publicShowcasePath}
           style={linkStyle(isPublicPath)}
         >
           {t("nav.publicShowcase")}
         </Link>
-      )}
 
-      {canOpenManagement && (
-        <Link
-          to="/associations"
-          style={linkStyle(location.pathname.startsWith("/associations"))}
-        >
-          {t("nav.management")}
-        </Link>
-      )}
+        {canOpenManagement && (
+          <Link
+            to="/associations"
+            style={linkStyle(location.pathname.startsWith("/associations"))}
+          >
+            {t("nav.association")}
+          </Link>
+        )}
 
-      {associationId && !isPublicPath && (
-        <Link
-          to={`/associations/${associationId}/shows`}
-          style={linkStyle(location.pathname.endsWith("/shows"))}
-        >
-          {t("nav.shows")}
-        </Link>
-      )}
+        {auth.isConfigured && !auth.isAuthenticated && (
+          <Link to="/login" style={linkStyle(location.pathname === "/login")}>
+            {t("nav.login")}
+          </Link>
+        )}
 
-      {associationId && showId && !isPublicPath && (
-        <Link
-          to={`/associations/${associationId}/shows/${showId}`}
-          style={linkStyle(
-            location.pathname === `/associations/${associationId}/shows/${showId}`
+        <span style={spacerStyle} />
+        <LanguageSwitcher />
+      </nav>
+
+      {shouldShowAssociationMenu && (
+        <nav style={subNavStyle} aria-label={t("nav.associationMenu")}>
+          <Link
+            to={`${associationBasePath}/shows`}
+            style={subLinkStyle(
+              location.pathname.startsWith(`${associationBasePath}/shows`)
+            )}
+          >
+            {t("nav.competitions")}
+          </Link>
+
+          {access.canAdminAssociation && (
+            <Link
+              to={`${associationBasePath}/access`}
+              style={subLinkStyle(location.pathname.includes("/access"))}
+            >
+              {t("nav.users")}
+            </Link>
           )}
-        >
-          {t("nav.show")}
-        </Link>
+
+          {access.canManageAssociation && (
+            <Link
+              to={`${associationBasePath}/settings`}
+              style={subLinkStyle(location.pathname.includes("/settings"))}
+            >
+              {t("nav.settings")}
+            </Link>
+          )}
+        </nav>
       )}
 
-      {associationId && showId && !isPublicPath && access.canManageAssociation && (
-        <Link
-          to={`/associations/${associationId}/shows/${showId}/time`}
-          style={linkStyle(location.pathname.includes("/time"))}
-        >
-          {t("nav.dayTiming")}
-        </Link>
-      )}
+      {shouldShowShowMenu && (
+        <nav style={subNavStyle} aria-label={t("nav.competitionMenu")}>
+          {access.canManageAssociation && (
+            <Link
+              to={showBasePath}
+              style={subLinkStyle(location.pathname === showBasePath)}
+            >
+              {t("nav.management")}
+            </Link>
+          )}
 
-      {associationId && showId && !isPublicPath && access.canManageAssociation && (
-        <Link
-          to={`/associations/${associationId}/shows/${showId}/secretariat`}
-          style={linkStyle(location.pathname.includes("/secretariat"))}
-        >
-          {t("nav.secretariat")}
-        </Link>
-      )}
+          {access.canManageAssociation && (
+            <Link
+              to={`${showBasePath}/secretariat`}
+              style={subLinkStyle(location.pathname.includes("/secretariat"))}
+            >
+              {t("nav.secretariat")}
+            </Link>
+          )}
 
-      {associationId && showId && !isPublicPath && access.canScoreAssociation && (
-        <Link
-          to={`/associations/${associationId}/shows/${showId}/scribe`}
-          style={linkStyle(location.pathname.includes("/scribe"))}
-        >
-          {t("nav.scribe")}
-        </Link>
-      )}
+          {access.canAnnounceAssociation && (
+            <Link
+              to={`${showBasePath}/announcer`}
+              style={subLinkStyle(location.pathname.includes("/announcer"))}
+            >
+              {t("nav.announcer")}
+            </Link>
+          )}
 
-      {associationId && showId && !isPublicPath && access.canAnnounceAssociation && (
-        <Link
-          to={`/associations/${associationId}/shows/${showId}/announcer`}
-          style={linkStyle(location.pathname.includes("/announcer"))}
-        >
-          {t("nav.announcer")}
-        </Link>
-      )}
+          {access.canScoreAssociation && (
+            <Link
+              to={`${showBasePath}/scribe`}
+              style={subLinkStyle(location.pathname.includes("/scribe"))}
+            >
+              {t("nav.scribe")}
+            </Link>
+          )}
 
-      {associationId && showId && !isPublicPath && (
-        <Link
-          to={`/public/associations/${associationId}/shows/${showId}`}
-          style={linkStyle(false)}
-        >
-          {t("nav.publicShowcase")}
-        </Link>
+          {access.canManageAssociation && (
+            <Link
+              to={`${showBasePath}/time`}
+              style={subLinkStyle(location.pathname.includes("/time"))}
+            >
+              {t("nav.dayTiming")}
+            </Link>
+          )}
+        </nav>
       )}
-
-      {associationId && !isPublicPath && access.canAdminAssociation && (
-        <Link
-          to={`/associations/${associationId}/access`}
-          style={linkStyle(location.pathname.includes("/access"))}
-        >
-          {t("nav.access")}
-        </Link>
-      )}
-
-      {auth.isConfigured && !auth.isAuthenticated && (
-        <Link to="/login" style={linkStyle(location.pathname === "/login")}>
-          {t("nav.login")}
-        </Link>
-      )}
-
-      <span style={spacerStyle} />
-      <LanguageSwitcher />
-    </nav>
+    </div>
   );
 }
+
+const menuShellStyle = {
+  fontFamily: "Arial, sans-serif",
+  background: "#f8fafc",
+  borderBottom: "1px solid #e2e8f0",
+};
 
 const navStyle = {
   display: "flex",
@@ -141,9 +163,6 @@ const navStyle = {
   gap: 8,
   flexWrap: "wrap",
   padding: "8px 16px",
-  background: "#f8fafc",
-  borderBottom: "1px solid #e2e8f0",
-  fontFamily: "Arial, sans-serif",
 };
 
 const linkStyle = (isActive) => ({
@@ -157,6 +176,23 @@ const linkStyle = (isActive) => ({
   color: "#0f172a",
   fontWeight: isActive ? 800 : 700,
   textDecoration: "none",
+});
+
+const subNavStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
+  flexWrap: "wrap",
+  padding: "6px 16px",
+  background: "#fff",
+  borderTop: "1px solid #e2e8f0",
+};
+
+const subLinkStyle = (isActive) => ({
+  ...linkStyle(isActive),
+  minHeight: 30,
+  padding: "5px 9px",
+  fontSize: 14,
 });
 
 const spacerStyle = {
