@@ -104,6 +104,12 @@ Tests:
 
 - Jest via `react-scripts test`
 - Tests centralises surtout dans `src/App.test.js`
+- Playwright E2E via `npm run test:e2e`
+- Robot visuel local via `npm run test:e2e:visible`
+- Robot demo lente via `npm run test:e2e:demo`
+- Robot video via `npm run test:e2e:record`
+- Demo produit A a Z via `npm run test:e2e:product-demo`
+- Video demo produit HD via `npm run test:e2e:product-demo:record`
 
 PWA:
 
@@ -1277,9 +1283,62 @@ Build:
 npm run build
 ```
 
+Robot E2E Playwright:
+
+```bash
+npm run test:e2e
+```
+
+Robot E2E visible:
+
+```bash
+npm run test:e2e:visible
+```
+
+Robot E2E demo lente:
+
+```bash
+npm run test:e2e:demo
+```
+
+Robot E2E avec video:
+
+```bash
+npm run test:e2e:record
+```
+
+Demo produit A a Z:
+
+```bash
+npm run test:e2e:product-demo
+```
+
+Video demo produit HD:
+
+```bash
+npm run test:e2e:product-demo:record
+```
+
+Le robot visible ouvre un vrai Chromium, genere un show local a 5 juges,
+ouvre l'onglet Scribe, force le choix du juge avant claim, puis ouvre la
+vitrine live et verifie les scores par juge + le total combine. Les donnees
+sont semees dans un profil navigateur Playwright, donc elles ne modifient pas
+les donnees du navigateur normal.
+
+`npm run test:e2e:record` sauvegarde aussi une video WebM stable ici:
+`test-results/show-robot-demo.webm`. Le dossier `test-results` est ignore par
+Git.
+
+`npm run test:e2e:product-demo:record` cree une demo plus filmable et plus
+complete: association, show, journee, classe, setup, import de draw, scoring
+simule et vitrine live detaillee. La video est forcee en 1920x1080 et sauvegardee
+dans `test-results/show-score-product-demo.webm`.
+
 Note:
 
 - Le build CRA peut echouer une fois si process tue/OOM dans sandbox. Relancer avant de conclure.
+- Si le build manque de memoire, relancer avec `NODE_OPTIONS=--max-old-space-size=4096 npm run build`.
+- Playwright demarre l'app sur `127.0.0.1:3010` par defaut.
 
 Manual QA minimum:
 
@@ -1342,7 +1401,8 @@ Manual QA Supabase:
 13. Le fallback local peut masquer un bug cloud.
 14. La navigation a ete travaillee; ne pas rajouter un troisieme etage visible sans bonne raison.
 15. Les pages public/mobile sont importantes.
-16. Les tests sont dans `App.test.js`; ajouter tests pour logique pure.
+16. Les tests unitaires historiques sont dans `App.test.js`; ajouter tests pour logique pure.
+17. Le robot Playwright principal est dans `tests/e2e/show-robot.spec.js`.
 17. Les styles sont inline; rester coherent.
 18. La politique de confidentialite existe, mais n'est pas un avis legal final.
 19. L'application est maintenant en phase QA, pas en phase "ajouter grosses features".
