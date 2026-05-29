@@ -29,7 +29,7 @@
     "test:e2e:demo": "E2E_SHOW_STEPS=1 E2E_SLOW_MO=2200 E2E_STEP_PAUSE=8000 playwright test --headed --project=chromium",
     "test:e2e:record": "E2E_SHOW_STEPS=1 E2E_SLOW_MO=2200 E2E_STEP_PAUSE=8000 E2E_RECORD_VIDEO=1 E2E_VIEWPORT_WIDTH=1920 E2E_VIEWPORT_HEIGHT=1080 E2E_VIDEO_WIDTH=1920 E2E_VIDEO_HEIGHT=1080 playwright test --headed --project=chromium",
     "test:e2e:product-demo": "E2E_INCLUDE_DEMOS=1 E2E_SHOW_STEPS=1 E2E_SLOW_MO=900 E2E_STEP_PAUSE=3500 E2E_TIMEOUT=180000 playwright test tests/e2e/product-demo.demo.spec.js --headed --project=chromium",
-    "test:e2e:product-demo:record": "E2E_INCLUDE_DEMOS=1 E2E_SHOW_STEPS=1 E2E_SLOW_MO=1600 E2E_STEP_PAUSE=6000 E2E_TIMEOUT=300000 E2E_RECORD_VIDEO=1 E2E_VIDEO_FILE=show-score-product-demo.webm E2E_VIEWPORT_WIDTH=1920 E2E_VIEWPORT_HEIGHT=1080 E2E_VIDEO_WIDTH=1920 E2E_VIDEO_HEIGHT=1080 playwright test tests/e2e/product-demo.demo.spec.js --headed --project=chromium",
+    "test:e2e:product-demo:record": "E2E_INCLUDE_DEMOS=1 E2E_DEMO_PACING=1 E2E_SHOW_STEPS=1 E2E_SLOW_MO=150 E2E_STEP_PAUSE=2500 E2E_TIMEOUT=300000 E2E_RECORD_VIDEO=1 E2E_VIDEO_FILE=show-score-product-demo.webm E2E_VIEWPORT_WIDTH=1920 E2E_VIEWPORT_HEIGHT=1080 E2E_VIDEO_WIDTH=1920 E2E_VIDEO_HEIGHT=1080 playwright test tests/e2e/product-demo.demo.spec.js --project=chromium",
     "test:e2e:ui": "playwright test --ui",
     "eject": "react-scripts eject"
   },

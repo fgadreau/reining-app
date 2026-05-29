@@ -1,10 +1,17 @@
 import { getClassSetup } from "./classSetupStorage";
 import { hasScoringStarted } from "../scoring/scoringSelectors";
-import { isCustomPatternReady } from "../patterns/patternDefinitions";
+import {
+  isCustomPatternReady,
+  isNoPatternValue,
+} from "../patterns/patternDefinitions";
 
 function hasValidPattern(setup, classItem) {
   const pattern = setup?.pattern || classItem?.pattern;
   const customPattern = setup?.customPattern || classItem?.customPattern || null;
+
+  if (isNoPatternValue(pattern)) {
+    return true;
+  }
 
   return Boolean(pattern) && isCustomPatternReady(pattern, customPattern);
 }
@@ -41,8 +48,9 @@ export function getClassStatus(classItem) {
   const patternOk = hasValidPattern(setup, classItem);
   const runsOk = hasRuns(setup);
   const scoringStarted = hasScoringStarted(classItem.id);
+  const isScheduleOnly = isNoPatternValue(setup?.pattern || classItem?.pattern);
 
-  if (!patternOk || !runsOk) {
+  if (!patternOk || (!isScheduleOnly && !runsOk)) {
     return "draft";
   }
 

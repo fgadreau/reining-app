@@ -5,6 +5,8 @@ import {
   getAnnouncerShowViewRepository,
   subscribeAnnouncerShowViewRepository,
 } from "../../features/live/liveViewRepository";
+import { saveClassScheduleDetailsRepository } from "../../features/classes/classSetupRepository";
+import { normalizeClassScheduleDetails } from "../../features/classes/classSchedule";
 import { formatLiveDataFreshness } from "../../features/live/liveFreshness";
 import { savePaidWarmupRepository } from "../../features/paidWarmups/paidWarmupRepository";
 import {
@@ -55,6 +57,11 @@ function AnnouncerDashboardPage() {
 
   const savePaidWarmupUpdate = useCallback(async (nextWarmup) => {
     await savePaidWarmupRepository(nextWarmup);
+    await refreshLiveViewNow();
+  }, [refreshLiveViewNow]);
+
+  const saveScheduleDetailsUpdate = useCallback(async (classId, details) => {
+    await saveClassScheduleDetailsRepository(classId, details);
     await refreshLiveViewNow();
   }, [refreshLiveViewNow]);
 
@@ -231,6 +238,7 @@ function AnnouncerDashboardPage() {
                     classView={classView}
                     now={now}
                     onOpenProvisionalRanking={setRankingClass}
+                    onSaveScheduleDetails={saveScheduleDetailsUpdate}
                   />
                 ))}
                 {(section.paidWarmups || []).map((warmup) => (
@@ -265,6 +273,233 @@ function getLiveViewClassIds(liveView) {
     .flatMap((section) => section.classes || [])
     .map((classView) => classView.classId)
     .filter(Boolean);
+}
+
+function ScheduleOnlyAnnouncerPanel({ classView, draft, onChange, onSave }) {
+  const { t } = useTranslation();
+  const normalizedDraft = normalizeClassScheduleDetails(draft);
+  const currentDetails = normalizeClassScheduleDetails(classView.scheduleDetails);
+  const details = getScheduleDetailsParts(currentDetails, t);
+  const sectionCount = Number.parseInt(normalizedDraft.sectionCount, 10) || 0;
+  const completedSectionCount = normalizedDraft.completedSectionCount || 0;
+  const nextSectionNumber = completedSectionCount + 1;
+  const canCompleteNextSection =
+    sectionCount > 0 && completedSectionCount < sectionCount;
+  const allSectionsCompleted =
+    sectionCount > 0 && completedSectionCount >= sectionCount;
+
+  function updateField(field, value) {
+    onChange(normalizeClassScheduleDetails({
+      ...normalizedDraft,
+      [field]: value,
+    }));
+  }
+
+  function saveNextDetails(updates) {
+    const nextDetails = normalizeClassScheduleDetails({
+      ...normalizedDraft,
+      ...updates,
+    });
+    onChange(nextDetails);
+    onSave(nextDetails);
+  }
+
+  return (
+    <div style={scheduleOnlyPanelStyle}>
+      <div>
+        <div style={runLabelStyle}>{t("public.results.classInProgress")}</div>
+        <div style={classNameStyle}>{classView.className}</div>
+        <div style={scheduleProgressStyle}>
+          {getScheduleProgressLabel(currentDetails, t)}
+        </div>
+        {details.length ? (
+          <div style={scheduleDetailListStyle}>
+            {details.map((detail) => (
+              <span key={detail} style={scheduleDetailStyle}>
+                {detail}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div style={mutedTextStyle}>{t("public.results.scheduleOnly")}</div>
+        )}
+      </div>
+
+      <div style={scheduleEditorGridStyle}>
+        <div>
+          <label style={formLabelStyle}>
+            {t("management.classSetup.completedSectionCount")}
+          </label>
+          <input
+            type="number"
+            min="0"
+            max={normalizedDraft.sectionCount || undefined}
+            value={normalizedDraft.completedSectionCount || ""}
+            onChange={(event) =>
+              updateField("completedSectionCount", event.target.value)
+            }
+            style={formInputStyle}
+          />
+        </div>
+      </div>
+
+      <label style={checkboxLabelStyle}>
+        <input
+          type="checkbox"
+          checked={Boolean(normalizedDraft.hasFinal)}
+          onChange={(event) =>
+            updateField("hasFinal", event.target.checked)
+          }
+        />
+        {t("management.classSetup.hasFinal")}
+      </label>
+
+      <div style={scheduleActionGridStyle}>
+        <button
+          type="button"
+          onClick={() =>
+            saveNextDetails({
+              completedSectionCount: nextSectionNumber,
+              isCompleted: false,
+              completedAt: null,
+            })
+          }
+          style={secondaryButtonStyle}
+          disabled={!canCompleteNextSection || normalizedDraft.isCompleted}
+        >
+          {t("management.announcer.markSectionComplete", {
+            number: nextSectionNumber,
+          })}
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
+            saveNextDetails({
+              completedSectionCount: Math.max(completedSectionCount - 1, 0),
+              finalCompleted: false,
+              isCompleted: false,
+              completedAt: null,
+            })
+          }
+          style={secondaryButtonStyle}
+          disabled={completedSectionCount <= 0}
+        >
+          {t("management.announcer.undoSectionComplete")}
+        </button>
+
+        {normalizedDraft.hasFinal && (
+          <button
+            type="button"
+            onClick={() =>
+              saveNextDetails({
+                finalCompleted: true,
+                isCompleted: false,
+                completedAt: null,
+              })
+            }
+            style={secondaryButtonStyle}
+            disabled={
+              normalizedDraft.finalCompleted ||
+              normalizedDraft.isCompleted ||
+              (sectionCount > 0 && !allSectionsCompleted)
+            }
+          >
+            {t("management.announcer.markFinalComplete")}
+          </button>
+        )}
+
+        {!normalizedDraft.isCompleted ? (
+          <button
+            type="button"
+            onClick={() =>
+              saveNextDetails({
+                isCompleted: true,
+                completedAt: new Date().toISOString(),
+              })
+            }
+            style={primaryButtonStyle}
+          >
+            {t("management.announcer.markClassComplete")}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() =>
+              saveNextDetails({
+                isCompleted: false,
+                completedAt: null,
+              })
+            }
+            style={secondaryButtonStyle}
+          >
+            {t("management.announcer.reopenClass")}
+          </button>
+        )}
+      </div>
+
+      <div style={scheduleEditorGridStyle}>
+        <div>
+          <label style={formLabelStyle}>
+            {t("management.classSetup.participantCount")}
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={normalizedDraft.participantCount || ""}
+            onChange={(event) =>
+              updateField("participantCount", event.target.value)
+            }
+            style={formInputStyle}
+          />
+        </div>
+        <div>
+          <label style={formLabelStyle}>
+            {t("management.classSetup.sectionCount")}
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={normalizedDraft.sectionCount || ""}
+            onChange={(event) => updateField("sectionCount", event.target.value)}
+            style={formInputStyle}
+          />
+        </div>
+        <div>
+          <label style={formLabelStyle}>
+            {t("management.classSetup.sectionSize")}
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={normalizedDraft.sectionSize || ""}
+            onChange={(event) => updateField("sectionSize", event.target.value)}
+            style={formInputStyle}
+          />
+        </div>
+      </div>
+
+      <label style={formLabelStyle}>
+        {t("management.classSetup.scheduleNote")}
+      </label>
+      <textarea
+        value={normalizedDraft.note || ""}
+        onChange={(event) => updateField("note", event.target.value)}
+        placeholder={t("management.classSetup.scheduleNotePlaceholder")}
+        style={formTextareaStyle}
+      />
+
+      <div style={actionRowStyle}>
+        <button
+          type="button"
+          onClick={() => onSave(normalizedDraft)}
+          style={primaryButtonStyle}
+        >
+          {t("management.classSetup.saveScheduleDetails")}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function RecentResults({ results }) {
@@ -481,12 +716,25 @@ function PaidWarmupTimerCue({ warmup, remainingSeconds }) {
   return null;
 }
 
-function ClassLiveCard({ classView, now, onOpenProvisionalRanking }) {
+function ClassLiveCard({
+  classView,
+  now,
+  onOpenProvisionalRanking,
+  onSaveScheduleDetails,
+}) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
+  const [scheduleDraft, setScheduleDraft] = useState(
+    classView.scheduleDetails || {}
+  );
   const liveState = getClassLiveState(classView, t);
   const hasProvisionalRanking = classView.provisionalRanking?.length > 0;
+  const isScheduleOnly = Boolean(classView.isScheduleOnly);
   const cardDetailsId = `announcer-live-details-${classView.classId || "class"}`;
+
+  useEffect(() => {
+    setScheduleDraft(classView.scheduleDetails || {});
+  }, [classView.scheduleDetails]);
 
   function toggleCard() {
     setIsOpen((current) => !current);
@@ -518,10 +766,15 @@ function ClassLiveCard({ classView, now, onOpenProvisionalRanking }) {
             {classView.arena
               ? `${t("public.results.arena")} ${classView.arena} · `
               : ""}
-            {t("public.results.pattern")} {classView.pattern || "—"} ·{" "}
-            {t("management.announcer.runCount", {
-              count: classView.runCount,
-            })}
+            {isScheduleOnly
+              ? getScheduleDetailsSummary(classView.scheduleDetails, t) ||
+                t("public.results.scheduleOnly")
+              : `${t("public.results.pattern")} ${classView.pattern || "—"} · ${t(
+                  "management.announcer.runCount",
+                  {
+                    count: classView.runCount,
+                  }
+                )}`}
           </div>
         </div>
         <div style={badgeStackStyle}>
@@ -538,48 +791,61 @@ function ClassLiveCard({ classView, now, onOpenProvisionalRanking }) {
 
       {!isOpen ? null : (
         <div id={cardDetailsId}>
-          <div style={runGridStyle}>
-            <RunBlock
-              label={t("management.announcer.active")}
-              run={classView.activeRun}
+          {isScheduleOnly ? (
+            <ScheduleOnlyAnnouncerPanel
+              classView={classView}
+              draft={scheduleDraft}
+              onChange={setScheduleDraft}
+              onSave={(details) =>
+                onSaveScheduleDetails(classView.classId, details)
+              }
             />
-            <RunBlock
-              run={classView.nextRun}
-              statusLabel={t("public.results.statusPreparation")}
-              status="preparation"
-            />
-            <RunBlock
-              run={classView.secondNextRun}
-              statusLabel={t("public.results.statusWaiting")}
-              status="waiting"
-            />
-            <RunBlock
-              label={t("management.announcer.latestScore")}
-              run={classView.latestScore}
-              showScore
-            />
-          </div>
-
-          {classView.orderRuns?.length > 0 && (
-            <AnnouncerOrderList runs={classView.orderRuns} />
-          )}
-
-          {classView.passedRuns?.length > 0 && (
-            <div style={completedWrapStyle}>
-              <div style={runLabelStyle}>
-                {t("management.announcer.passedWithScores")}
+          ) : (
+            <>
+              <div style={runGridStyle}>
+                <RunBlock
+                  label={t("management.announcer.active")}
+                  run={classView.activeRun}
+                />
+                <RunBlock
+                  run={classView.nextRun}
+                  statusLabel={t("public.results.statusPreparation")}
+                  status="preparation"
+                />
+                <RunBlock
+                  run={classView.secondNextRun}
+                  statusLabel={t("public.results.statusWaiting")}
+                  status="waiting"
+                />
+                <RunBlock
+                  label={t("management.announcer.latestScore")}
+                  run={classView.latestScore}
+                  showScore
+                />
               </div>
-              <RecentResults
-                results={classView.passedRuns.map((run) => ({
-                  classId: classView.classId,
-                  className: classView.className,
-                  run,
-                }))}
-              />
-            </div>
+
+              {classView.orderRuns?.length > 0 && (
+                <AnnouncerOrderList runs={classView.orderRuns} />
+              )}
+
+              {classView.passedRuns?.length > 0 && (
+                <div style={completedWrapStyle}>
+                  <div style={runLabelStyle}>
+                    {t("management.announcer.passedWithScores")}
+                  </div>
+                  <RecentResults
+                    results={classView.passedRuns.map((run) => ({
+                      classId: classView.classId,
+                      className: classView.className,
+                      run,
+                    }))}
+                  />
+                </div>
+              )}
+            </>
           )}
 
-          {hasProvisionalRanking && (
+          {!isScheduleOnly && hasProvisionalRanking && (
             <div style={actionRowStyle}>
               <button
                 type="button"
@@ -621,12 +887,16 @@ function AnnouncerOrderList({ runs }) {
 }
 
 function getClassLiveState(classView, t) {
-  if (classView.activeRun) {
-    return { label: t("common.live"), tone: "warn" };
-  }
-
   if (classView.isComplete || classView.status === "completed") {
     return { label: t("management.classes.statusCompleted"), tone: "success" };
+  }
+
+  if (classView.isScheduleOnly) {
+    return { label: t("public.results.classInProgress"), tone: "warn" };
+  }
+
+  if (classView.activeRun) {
+    return { label: t("common.live"), tone: "warn" };
   }
 
   if (classView.scoringStarted && classView.nextRun) {
@@ -634,6 +904,103 @@ function getClassLiveState(classView, t) {
   }
 
   return { label: t("public.results.paidWarmupStatusPending"), tone: "muted" };
+}
+
+function getScheduleDetailsSummary(details, t) {
+  return getScheduleDetailsParts(details, t).join(" · ");
+}
+
+function getScheduleDetailsParts(details = {}, t) {
+  const parts = [];
+  const completedSectionCount = Number.parseInt(
+    details.completedSectionCount,
+    10
+  );
+  const sectionCount = Number.parseInt(details.sectionCount, 10) || 0;
+  const isFinalInProgress =
+    details.hasFinal &&
+    !details.finalCompleted &&
+    !details.isCompleted &&
+    sectionCount > 0 &&
+    completedSectionCount >= sectionCount;
+
+  if (details.participantCount) {
+    parts.push(
+      t("public.results.participantCount", {
+        count: details.participantCount,
+      })
+    );
+  }
+
+  if (details.sectionCount && details.sectionSize) {
+    parts.push(
+      t("public.results.sectionSummary", {
+        sectionCount: details.sectionCount,
+        sectionSize: details.sectionSize,
+      })
+    );
+  } else if (details.sectionCount) {
+    parts.push(
+      t("public.results.sectionCount", {
+        count: details.sectionCount,
+      })
+    );
+  }
+
+  if (Number.isFinite(completedSectionCount) && completedSectionCount > 0) {
+    parts.push(
+      t("public.results.sectionsCompleted", {
+        count: completedSectionCount,
+      })
+    );
+  }
+
+  if (details.hasFinal) {
+    parts.push(
+      details.finalCompleted
+        ? t("public.results.finalCompleted")
+        : isFinalInProgress
+          ? t("public.results.finalInProgress")
+          : t("public.results.finalPlanned")
+    );
+  }
+
+  if (details.isCompleted) {
+    parts.push(t("management.classes.statusCompleted"));
+  }
+
+  if (String(details.note || "").trim()) {
+    parts.push(String(details.note).trim());
+  }
+
+  return parts;
+}
+
+function getScheduleProgressLabel(details = {}, t) {
+  const completedSectionCount =
+    Number.parseInt(details.completedSectionCount, 10) || 0;
+  const sectionCount = Number.parseInt(details.sectionCount, 10) || 0;
+
+  if (details.isCompleted) {
+    return t("management.classes.statusCompleted");
+  }
+
+  if (details.hasFinal && details.finalCompleted) {
+    return t("public.results.finalCompleted");
+  }
+
+  if (details.hasFinal && sectionCount > 0 && completedSectionCount >= sectionCount) {
+    return t("public.results.finalInProgress");
+  }
+
+  if (completedSectionCount > 0 && sectionCount > 0) {
+    return t("public.results.sectionProgress", {
+      completed: completedSectionCount,
+      total: sectionCount,
+    });
+  }
+
+  return t("public.results.classInProgress");
 }
 
 function getAnnouncerRunOrderStatusLabel(status, t) {
@@ -1136,6 +1503,83 @@ const runBlockStyle = {
   borderRadius: 8,
   padding: 10,
   minHeight: 92,
+};
+
+const scheduleOnlyPanelStyle = {
+  background: "#f8fafc",
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  padding: 12,
+};
+
+const scheduleDetailListStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 8,
+  marginTop: 10,
+};
+
+const scheduleDetailStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  border: "1px solid #cbd5e1",
+  borderRadius: 8,
+  padding: "6px 9px",
+  background: "#fff",
+  color: "#334155",
+  fontWeight: 800,
+};
+
+const scheduleProgressStyle = {
+  color: "#1d4ed8",
+  fontWeight: 900,
+  marginTop: 6,
+};
+
+const scheduleEditorGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+  gap: 10,
+  marginTop: 12,
+  marginBottom: 10,
+};
+
+const scheduleActionGridStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 8,
+  marginTop: 12,
+};
+
+const checkboxLabelStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  color: "#334155",
+  fontWeight: 800,
+  marginTop: 10,
+};
+
+const formLabelStyle = {
+  display: "block",
+  marginBottom: 5,
+  color: "#334155",
+  fontWeight: 800,
+  fontSize: 13,
+};
+
+const formInputStyle = {
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "9px 10px",
+  borderRadius: 8,
+  border: "1px solid #cbd5e1",
+};
+
+const formTextareaStyle = {
+  ...formInputStyle,
+  minHeight: 76,
+  resize: "vertical",
 };
 
 const liveBlockHeaderStyle = {

@@ -33,6 +33,7 @@ import {
   getPatternDisplayName,
   getPatternHeaders,
   getPatternSelectValue,
+  isNoPatternValue,
   normalizeCustomPattern,
   PATTERN_OPTION_GROUPS,
 } from "../../features/patterns/patternDefinitions";
@@ -45,6 +46,8 @@ import { getClassOfficialData } from "../../features/classes/classOfficialData";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
 import { createId } from "../../utils/createId";
+import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
+import { savePublicationStateRepository } from "../../features/publication/publicationCloudRepository";
 
 function DayClassesPage() {
   const { associationId, showId, dayId } = useParams();
@@ -146,6 +149,11 @@ function DayClassesPage() {
     await saveSetupForClassRepository(newClass.id, {
       judges,
       judgeName: getPrimaryJudgeName({ judges }),
+    });
+    await savePublicationStateRepository(newClass.id, {
+      status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+      publishedAt: null,
+      publishedBy: null,
     });
     setClasses((current) => [...current, newClass]);
     setIsSaving(false);
@@ -326,6 +334,11 @@ function DayClassesPage() {
 
       const savedClass = await saveClassItemRepository(newClass);
       await saveSetupForClassRepository(savedClass.id, newSetup);
+      await savePublicationStateRepository(savedClass.id, {
+        status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+        publishedAt: null,
+        publishedBy: null,
+      });
 
       setClasses((current) => [...current, savedClass]);
     } finally {
@@ -367,6 +380,12 @@ function DayClassesPage() {
   }, [classes, paidWarmups]);
 
   const handleOpenScoring = (event, item) => {
+    if (isNoPatternValue(item?.pattern)) {
+      event.preventDefault();
+      alert(t("management.classes.noPatternNoScoring"));
+      return;
+    }
+
     const officialData = getClassOfficialData(item.id, item);
     const status = officialData.isFinalized
       ? "completed"
@@ -555,7 +574,8 @@ function DayClassesPage() {
               : getClassStatus(item);
 
             const statusLabel = getClassStatusLabel(status, t);
-            const scoringDisabled = status === "draft";
+            const isScheduleOnly = isNoPatternValue(item.pattern);
+            const scoringDisabled = status === "draft" || isScheduleOnly;
             const isCompleted = status === "completed";
 
             return (
@@ -575,8 +595,10 @@ function DayClassesPage() {
                             item.pattern,
                             item.customPattern
                           ) || "—"}{" "}
-                          • {t("public.results.judge")}{" "}
-                          {officialData.judgeName || "—"}
+                          {!isScheduleOnly &&
+                            `• ${t("public.results.judge")} ${
+                              officialData.judgeName || "—"
+                            }`}
                           {item.arena
                             ? ` • ${t("public.results.arena")} ${item.arena}`
                             : ""}

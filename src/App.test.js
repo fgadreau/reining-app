@@ -59,8 +59,10 @@ import {
 import {
   isCustomPatternReady,
   normalizeCustomPattern,
+  getPatternDisplayName,
   getPatternHeaders,
   getPatternManeuverDescription,
+  NO_PATTERN_ID,
   TRAIL_CUSTOM_PATTERN_ID,
   WESTERN_HORSEMANSHIP_CUSTOM_PATTERN_ID,
   SHOWMANSHIP_CUSTOM_PATTERN_ID,
@@ -1300,6 +1302,103 @@ test("public live class remains visible without scoring session runs", () => {
     nextRun: null,
     latestScore: null,
   });
+});
+
+test("supports schedule-only classes without scoring patterns", () => {
+  expect(getPatternDisplayName(NO_PATTERN_ID)).toBe("Sans patron");
+  expect(getPatternHeaders(NO_PATTERN_ID)).toEqual([]);
+
+  const classView = buildPublicLiveClassView({
+    classItem: {
+      id: "class-schedule-only",
+      name: "Leadline",
+      pattern: NO_PATTERN_ID,
+      arena: "Main arena",
+    },
+    setup: {
+      pattern: NO_PATTERN_ID,
+      scheduleDetails: {
+        participantCount: "30",
+        sectionCount: "3",
+        sectionSize: "10",
+        completedSectionCount: 2,
+        hasFinal: true,
+        finalCompleted: false,
+        isCompleted: false,
+        note: "Finale à la suite",
+      },
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+    },
+    scoringSession: {
+      activeManoeuvre: { draw: 1 },
+      runs: [{ draw: 1, rider: "Should not display" }],
+    },
+  });
+
+  expect(classView).toMatchObject({
+    isScheduleOnly: true,
+    showScores: false,
+    activeRun: null,
+    nextRun: null,
+    runCount: 30,
+      scheduleDetails: {
+        participantCount: "30",
+        sectionCount: "3",
+        sectionSize: "10",
+        completedSectionCount: 2,
+        hasFinal: true,
+        finalCompleted: false,
+        isCompleted: false,
+        note: "Finale à la suite",
+      },
+  });
+
+  const announcerView = buildAnnouncerClassView({
+    classItem: {
+      id: "class-schedule-only",
+      name: "Leadline",
+      pattern: NO_PATTERN_ID,
+    },
+    setup: classView,
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+    },
+    scoringRuns: [{ draw: 1, rider: "Should not display" }],
+  });
+
+  expect(announcerView).toMatchObject({
+    isScheduleOnly: true,
+    runCount: 30,
+    isComplete: false,
+    activeRun: null,
+    latestScore: null,
+  });
+
+  const completedPublicView = buildPublicLiveClassView({
+    classItem: {
+      id: "class-schedule-only",
+      name: "Leadline",
+      pattern: NO_PATTERN_ID,
+    },
+    setup: {
+      pattern: NO_PATTERN_ID,
+      scheduleDetails: {
+        participantCount: "30",
+        sectionCount: "3",
+        completedSectionCount: 3,
+        hasFinal: true,
+        finalCompleted: true,
+        isCompleted: true,
+      },
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+    },
+  });
+
+  expect(completedPublicView).toBeNull();
 });
 
 test("public live view exposes a drag break before the next run", () => {

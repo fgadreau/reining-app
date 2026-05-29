@@ -10,8 +10,13 @@ import { getPaidWarmupsByDayId } from "../paidWarmups/paidWarmupStorage";
 import { getPaidWarmupsForDayRepository } from "../paidWarmups/paidWarmupRepository";
 import { buildPaidWarmupLiveView } from "../paidWarmups/paidWarmupLive";
 import {
+  hasClassScheduleDetails,
+  normalizeClassScheduleDetails,
+} from "../classes/classSchedule";
+import {
   getPatternDisplayName,
   getPatternHeaders,
+  isNoPatternValue,
   patternHasRailAdjustment,
 } from "../patterns/patternDefinitions";
 import { buildProvisionalRanking } from "../scoring/provisionalRanking";
@@ -210,6 +215,10 @@ export function buildAnnouncerClassView(classData) {
   const pattern = classData.setup?.pattern || classItem?.pattern || "";
   const customPattern =
     classData.setup?.customPattern || classItem?.customPattern || null;
+  const isScheduleOnly = isNoPatternValue(pattern);
+  const scheduleDetails = normalizeClassScheduleDetails(
+    classData.setup?.scheduleDetails
+  );
   const headers = getPatternHeaders(pattern, customPattern);
   const hasRailAdjustment = patternHasRailAdjustment(pattern, customPattern);
   const isMultiJudgeLive = hasMultiJudgeLiveSetup({
@@ -252,6 +261,39 @@ export function buildAnnouncerClassView(classData) {
           null;
 
   const publicationStatus = classData.publication?.status || "hidden";
+
+  if (isScheduleOnly) {
+    return {
+      classId,
+      className: classItem?.name || "Classe",
+      classCode: classItem?.classCode || "",
+      arena: classItem?.arena || "",
+      pattern: getPatternDisplayName(pattern, customPattern) || "",
+      headers,
+      status: classData.status,
+      publicationStatus,
+      publicationStatusLabel: getPublicationStatusLabel(publicationStatus),
+      liveUpdatedAt: classData.setup?.updatedAt || null,
+      runCount: Number.parseInt(scheduleDetails.participantCount, 10) || 0,
+      scoringStarted: false,
+      isComplete: Boolean(scheduleDetails.isCompleted),
+      isScheduleOnly: true,
+      scheduleDetails,
+      hasScheduleDetails: hasClassScheduleDetails(scheduleDetails),
+      hasRailAdjustment: false,
+      provisionalRanking: [],
+      activeRun: null,
+      nextRun: null,
+      secondNextRun: null,
+      upcomingRuns: [],
+      orderRuns: [],
+      passedRuns: [],
+      latestScore: null,
+      lastPassedRuns: [],
+      lastCompletedRuns: [],
+    };
+  }
+
   const latestScore = findLatestRunWithScore(runs);
   const upcomingRuns = isOfficiallyCompleted ? [] : findUpcomingRuns(runs, activeRun);
   const nextRun = upcomingRuns[0] || null;
@@ -305,7 +347,12 @@ export function buildAnnouncerClassView(classData) {
 
 function findActiveClasses(classes) {
   return classes.filter(
-    (item) => item.activeRun || (item.scoringStarted && item.nextRun)
+    (item) =>
+      item.activeRun ||
+      (item.scoringStarted && item.nextRun) ||
+      (item.isScheduleOnly &&
+        !item.isComplete &&
+        item.publicationStatus === "live_no_score")
   );
 }
 

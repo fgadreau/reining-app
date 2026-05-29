@@ -16,11 +16,16 @@ import {
   buildPatternTimingStats,
   getClassPatternValue,
 } from "../classes/classTimeAnalytics";
+import {
+  hasClassScheduleDetails,
+  normalizeClassScheduleDetails,
+} from "../classes/classSchedule";
 import { MIN_MEASURED_RUN_SECONDS } from "../classes/classTiming";
 import {
   getPatternDisplayName,
   getPatternHeaders,
   getPatternManeuverDescription,
+  isNoPatternValue,
 } from "../patterns/patternDefinitions";
 import { normalizeJudgeScoringSession } from "../scoring/judgeScoringSessionStorage";
 import {
@@ -138,9 +143,11 @@ function toClassSetup(row) {
         ? row.custom_pattern
         : null,
     runs: Array.isArray(row.runs) ? row.runs : [],
+    scheduleDetails: normalizeClassScheduleDetails(row.schedule_details),
     judges: Array.isArray(row.judges) ? row.judges : [],
     dragInterval: row.drag_interval || null,
     dragDurationMinutes: row.drag_duration_minutes,
+    updatedAt: row.updated_at || null,
   };
 }
 
@@ -963,6 +970,43 @@ export function buildPublicLiveClassView({
   const setupRuns = Array.isArray(setup?.runs) ? setup.runs : [];
   const patternValue = setup?.pattern || classItem?.pattern || "";
   const customPattern = setup?.customPattern || classItem?.customPattern || null;
+  const isScheduleOnly = isNoPatternValue(patternValue);
+  const scheduleDetails = normalizeClassScheduleDetails(setup?.scheduleDetails);
+  const scheduleRunCount =
+    Number.parseInt(scheduleDetails.participantCount, 10) || 0;
+
+  if (isScheduleOnly) {
+    if (scheduleDetails.isCompleted) {
+      return null;
+    }
+
+    return {
+      classId: classItem?.id,
+      className: classItem?.name || "Classe",
+      classCode: classItem?.classCode || "",
+      arena: classItem?.arena || "",
+      publicationStatus,
+      showScores: false,
+      showScoreDetails: false,
+      isScheduleOnly: true,
+      isComplete: Boolean(scheduleDetails.isCompleted),
+      scheduleDetails,
+      hasScheduleDetails: hasClassScheduleDetails(scheduleDetails),
+      runCount: scheduleRunCount,
+      liveUpdatedAt: setup?.updatedAt || null,
+      pattern: getPatternDisplayName(patternValue, customPattern) || "",
+      activeRun: null,
+      nextRun: null,
+      secondNextRun: null,
+      upcomingRuns: [],
+      orderRuns: [],
+      passedRuns: [],
+      lastPassedRuns: [],
+      latestScore: null,
+      dragBreak: null,
+    };
+  }
+
   const isMultiJudgeLive = hasMultiJudgeLiveSetup({
     judges: setup?.judges,
     judgeSessions,

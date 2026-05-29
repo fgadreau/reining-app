@@ -26,6 +26,7 @@ import { getDayById } from "../../features/days/daySelectors";
 import { getShowById } from "../../features/shows/showSelectors";
 import {
   getPatternHeaders,
+  isNoPatternValue,
   patternHasRailAdjustment,
 } from "../../features/patterns/patternDefinitions";
 import { getScoringOptionsForPattern } from "../../features/scoring/scoringOptions";
@@ -1393,6 +1394,21 @@ function ClassScoringPage() {
         </div>
         <div style={lockBannerStyle}>
           {t("management.scoring.accessDenied")}
+        </div>
+      </div>
+    );
+  }
+
+  if (isNoPatternValue(patternValue)) {
+    return (
+      <div style={styles.app}>
+        <div style={{ marginBottom: 16 }}>
+          <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
+            {t("public.results.back")}
+          </button>
+        </div>
+        <div style={lockBannerStyle}>
+          {t("management.scoring.noPatternMessage")}
         </div>
       </div>
     );

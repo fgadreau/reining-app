@@ -8,6 +8,7 @@ export const PATTERN_DISCIPLINES = {
   WESTERN_HORSEMANSHIP: "western_horsemanship",
   HUNT_SEAT_EQUITATION: "hunt_seat_equitation",
   SHOWMANSHIP: "showmanship",
+  SCHEDULE: "schedule",
 };
 
 export const RANCH_APPEARANCE_HEADER = "RHA";
@@ -17,6 +18,7 @@ export const WESTERN_HORSEMANSHIP_CUSTOM_PATTERN_ID =
 export const HUNT_SEAT_EQUITATION_CUSTOM_PATTERN_ID =
   "HUNT_SEAT_EQUITATION_CUSTOM";
 export const SHOWMANSHIP_CUSTOM_PATTERN_ID = "SHOWMANSHIP_CUSTOM";
+export const NO_PATTERN_ID = "NO_PATTERN";
 
 export const OVERALL_FORM_EFFECTIVENESS_HEADER = "F&E";
 export const OVERALL_FORM_EFFECTIVENESS_DESCRIPTION =
@@ -543,7 +545,16 @@ const REINING_PATTERNS = Object.entries(REINING_HEADERS).map(
   })
 );
 
+const NO_PATTERN_DEFINITION = {
+  id: NO_PATTERN_ID,
+  name: "Sans patron",
+  discipline: PATTERN_DISCIPLINES.SCHEDULE,
+  isNoPattern: true,
+  maneuvers: [],
+};
+
 const PATTERN_DEFINITIONS = [
+  NO_PATTERN_DEFINITION,
   ...REINING_PATTERNS,
   ...RANCH_RIDING_PATTERNS.map((pattern) => ({
     ...pattern,
@@ -573,6 +584,10 @@ const PATTERN_DEFINITIONS = [
 ];
 
 export const PATTERN_OPTION_GROUPS = [
+  {
+    label: "Horaire",
+    options: [{ id: NO_PATTERN_ID, name: NO_PATTERN_DEFINITION.name }],
+  },
   {
     label: "Reining",
     options: REINING_PATTERNS.map(({ id, name }) => ({ id, name })),
@@ -615,6 +630,15 @@ function simplifyPatternValue(patternValue) {
 export function getPatternKey(patternValue) {
   const key = simplifyPatternValue(patternValue);
   if (!key) return "";
+
+  if (
+    key === NO_PATTERN_ID ||
+    key === "SANS PATRON" ||
+    key === "NO PATTERN" ||
+    key === "NO_PATTERN"
+  ) {
+    return NO_PATTERN_ID;
+  }
 
   if (
     key === TRAIL_CUSTOM_PATTERN_ID ||
@@ -704,6 +728,10 @@ export function getPatternDiscipline(patternValue, customPattern = null) {
   return getPatternDefinition(patternValue)?.discipline || PATTERN_DISCIPLINES.REINING;
 }
 
+export function isNoPatternValue(patternValue) {
+  return getPatternKey(patternValue) === NO_PATTERN_ID;
+}
+
 export function isRanchRidingPattern(patternValue, customPattern = null) {
   return (
     getPatternDiscipline(patternValue, customPattern) ===
@@ -733,6 +761,10 @@ export function isPerformanceCustomPattern(patternValue, customPattern = null) {
 }
 
 export function patternHasRailAdjustment(patternValue, customPattern = null) {
+  if (isNoPatternValue(patternValue)) {
+    return false;
+  }
+
   const discipline = getPatternDiscipline(patternValue, customPattern);
   return Boolean(getCustomPatternConfig(discipline)?.railAdjustment);
 }
@@ -832,6 +864,10 @@ export function isCustomPatternReady(patternValue, customPattern = null) {
 }
 
 export function getPatternHeaders(patternValue, customPattern = null) {
+  if (isNoPatternValue(patternValue)) {
+    return [];
+  }
+
   const custom = normalizeCustomPattern(customPattern, patternValue);
 
   if (custom) {

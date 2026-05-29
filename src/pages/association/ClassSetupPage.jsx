@@ -10,6 +10,7 @@ import {
   createEmptyRun,
   resequenceRuns,
 } from "../../features/classes/classSetupStorage";
+import { normalizeClassScheduleDetails } from "../../features/classes/classSchedule";
 import {
   MAX_CLASS_JUDGES,
   createClassJudge,
@@ -33,6 +34,7 @@ import {
   getPatternHeaders,
   getPatternSelectValue,
   isCustomPatternReady,
+  isNoPatternValue,
   PATTERN_OPTION_GROUPS,
   normalizeCustomPattern,
 } from "../../features/patterns/patternDefinitions";
@@ -117,7 +119,16 @@ function normalizePublicationStatusForJudges(status, judges) {
   return normalizedStatus;
 }
 
-function getPublicLiveStatusOptions(judges) {
+function getPublicLiveStatusOptions(judges, isScheduleOnly = false) {
+  if (isScheduleOnly) {
+    return PUBLIC_LIVE_STATUS_OPTIONS.filter((option) =>
+      [
+        PUBLICATION_STATUSES.HIDDEN,
+        PUBLICATION_STATUSES.LIVE_NO_SCORE,
+      ].includes(option.value)
+    );
+  }
+
   const judgeCount = Array.isArray(judges) ? judges.length : 1;
 
   if (judgeCount <= 1) {
@@ -193,6 +204,9 @@ function ClassSetupPage() {
     })
   );
   const [runs, setRuns] = useState(classSetup?.runs || []);
+  const [scheduleDetails, setScheduleDetails] = useState(() =>
+    normalizeClassScheduleDetails(classSetup?.scheduleDetails)
+  );
   const [isDrawImported, setIsDrawImported] = useState(
     Boolean(classSetup?.isDrawImported)
   );
@@ -236,6 +250,7 @@ function ClassSetupPage() {
     ? normalizeCustomPattern(customPattern, pattern)
     : null;
   const isSelectedCustomPattern = Boolean(customPatternConfig);
+  const isScheduleOnly = isNoPatternValue(pattern);
   const isCustomPatternComplete = isCustomPatternReady(
     pattern,
     normalizedCustomPattern
@@ -287,6 +302,7 @@ function ClassSetupPage() {
       setArena(nextClassItem?.arena || "");
       setJudges(nextJudges);
       setRuns(nextRuns);
+      setScheduleDetails(normalizeClassScheduleDetails(nextSetup.scheduleDetails));
       setIsDrawImported(Boolean(nextSetup.isDrawImported));
       setDragInterval(String(nextSetup.dragInterval || ""));
       setDragDurationMinutes(
@@ -340,6 +356,7 @@ function ClassSetupPage() {
         judges: normalizedJudges,
         judgeName: primaryJudgeName,
         runs,
+        scheduleDetails,
         isDrawImported,
         dragInterval: dragInterval || null,
         dragDurationMinutes,
@@ -393,6 +410,7 @@ function ClassSetupPage() {
     arena,
     judges,
     runs,
+    scheduleDetails,
     isDrawImported,
     dragInterval,
     dragDurationMinutes,
@@ -481,6 +499,15 @@ function ClassSetupPage() {
       return;
     }
 
+    if (
+      isScheduleOnly &&
+      publicationStatus !== PUBLICATION_STATUSES.HIDDEN &&
+      publicationStatus !== PUBLICATION_STATUSES.LIVE_NO_SCORE
+    ) {
+      updatePublicationStatus(PUBLICATION_STATUSES.LIVE_NO_SCORE);
+      return;
+    }
+
     const normalizedStatus = normalizePublicationStatusForJudges(
       publicationStatus,
       judges
@@ -495,6 +522,7 @@ function ClassSetupPage() {
     hasLoadedSetup,
     canManageSetup,
     isPublicationLocked,
+    isScheduleOnly,
     updatePublicationStatus,
   ]);
 
@@ -1015,6 +1043,7 @@ function ClassSetupPage() {
 
                 const nextPattern = e.target.value;
                 const nextConfig = getCustomPatternConfigForPattern(nextPattern);
+                const nextIsScheduleOnly = isNoPatternValue(nextPattern);
 
                 setPattern(nextPattern);
                 setCustomPattern((currentCustomPattern) =>
@@ -1028,6 +1057,9 @@ function ClassSetupPage() {
                       )
                     : null
                 );
+                if (nextIsScheduleOnly) {
+                  updatePublicationStatus(PUBLICATION_STATUSES.LIVE_NO_SCORE);
+                }
               }}
               style={inputStyle}
               disabled={!canManageSetup || isFullyLocked}
@@ -1064,7 +1096,7 @@ function ClassSetupPage() {
             </div>
           )}
 
-          {canManageSetup && (
+          {canManageSetup && !isScheduleOnly && (
             <div>
               <label style={labelStyle}>
                 {t("management.classSetup.runCount")}
@@ -1089,7 +1121,119 @@ function ClassSetupPage() {
             </div>
           )}
 
-          {canManageSetup && (
+          {canManageSetup && isScheduleOnly && (
+            <>
+              <div>
+                <label style={labelStyle}>
+                  {t("management.classSetup.participantCount")}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={scheduleDetails.participantCount}
+                  onChange={(event) =>
+                    setScheduleDetails((current) =>
+                      normalizeClassScheduleDetails({
+                        ...current,
+                        participantCount: event.target.value,
+                      })
+                    )
+                  }
+                  style={inputStyle}
+                  disabled={!canManageSetup || isFinalized}
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>
+                  {t("management.classSetup.sectionCount")}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={scheduleDetails.sectionCount}
+                  onChange={(event) =>
+                    setScheduleDetails((current) =>
+                      normalizeClassScheduleDetails({
+                        ...current,
+                        sectionCount: event.target.value,
+                      })
+                    )
+                  }
+                  style={inputStyle}
+                  disabled={!canManageSetup || isFinalized}
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>
+                  {t("management.classSetup.sectionSize")}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={scheduleDetails.sectionSize}
+                  onChange={(event) =>
+                    setScheduleDetails((current) =>
+                      normalizeClassScheduleDetails({
+                        ...current,
+                        sectionSize: event.target.value,
+                      })
+                    )
+                  }
+                  style={inputStyle}
+                  disabled={!canManageSetup || isFinalized}
+                />
+              </div>
+
+              <div>
+                <label style={checkboxLabelStyle}>
+                  <input
+                    type="checkbox"
+                    checked={scheduleDetails.hasFinal}
+                    onChange={(event) =>
+                      setScheduleDetails((current) =>
+                        normalizeClassScheduleDetails({
+                          ...current,
+                          hasFinal: event.target.checked,
+                          finalCompleted: event.target.checked
+                            ? current.finalCompleted
+                            : false,
+                        })
+                      )
+                    }
+                    disabled={!canManageSetup || isFinalized}
+                  />
+                  {t("management.classSetup.hasFinal")}
+                </label>
+              </div>
+
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={labelStyle}>
+                  {t("management.classSetup.scheduleNote")}
+                </label>
+                <textarea
+                  value={scheduleDetails.note}
+                  onChange={(event) =>
+                    setScheduleDetails((current) =>
+                      normalizeClassScheduleDetails({
+                        ...current,
+                        note: event.target.value,
+                      })
+                    )
+                  }
+                  placeholder={t("management.classSetup.scheduleNotePlaceholder")}
+                  style={textareaStyle}
+                  disabled={!canManageSetup || isFinalized}
+                />
+                <div style={helperTextStyle}>
+                  {t("management.classSetup.scheduleOnlyHelper")}
+                </div>
+              </div>
+            </>
+          )}
+
+          {canManageSetup && !isScheduleOnly && (
             <div>
               <label style={labelStyle}>{t("public.results.dragSurface")}</label>
               <div style={inlineFieldStyle}>
@@ -1137,7 +1281,7 @@ function ClassSetupPage() {
                 style={inputStyle}
                 disabled={isPublicationLocked}
               >
-                {getPublicLiveStatusOptions(judges).map((option) => (
+                {getPublicLiveStatusOptions(judges, isScheduleOnly).map((option) => (
                   <option key={option.value} value={option.value}>
                     {t(option.labelKey)}
                   </option>
@@ -1161,6 +1305,7 @@ function ClassSetupPage() {
         </div>
       </section>
 
+      {!isScheduleOnly && (
       <section style={cardStyle}>
         <div style={sectionHeaderStyle}>
           <div>
@@ -1223,8 +1368,9 @@ function ClassSetupPage() {
           </div>
         )}
       </section>
+      )}
 
-      {isSelectedCustomPattern && (
+      {!isScheduleOnly && isSelectedCustomPattern && (
         <section style={cardStyle}>
           <div style={sectionHeaderStyle}>
             <div>
@@ -1331,6 +1477,7 @@ function ClassSetupPage() {
         </section>
       )}
 
+      {!isScheduleOnly && (
       <section style={cardStyle}>
         <div style={sectionHeaderStyle}>
           <h2 style={sectionTitleStyle}>{t("management.classSetup.runs")}</h2>
@@ -1567,6 +1714,7 @@ function ClassSetupPage() {
           </div>
         )}
       </section>
+      )}
     </div>
   );
 }
@@ -1730,6 +1878,15 @@ const labelStyle = {
   display: "block",
   marginBottom: "6px",
   fontWeight: 600,
+};
+
+const checkboxLabelStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  minHeight: 42,
+  fontWeight: 700,
+  color: "#334155",
 };
 
 const inputStyle = {

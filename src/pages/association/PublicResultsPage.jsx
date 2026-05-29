@@ -507,6 +507,7 @@ function PublicLivePanel({ classView, now }) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const dragBreak = classView.dragBreak?.isActive ? classView.dragBreak : null;
+  const isScheduleOnly = Boolean(classView.isScheduleOnly);
   const dragRemainingSeconds = getDragRemainingSeconds(dragBreak, now);
   const nextRun = dragBreak?.nextRun || classView.nextRun;
   const secondNextRun = classView.secondNextRun;
@@ -552,14 +553,23 @@ function PublicLivePanel({ classView, now }) {
             {classView.arena
               ? `${t("public.results.arena")} ${classView.arena} · `
               : ""}
-            {t("public.results.pattern")} {classView.pattern || "—"}
+            {isScheduleOnly
+              ? getScheduleDetailsSummary(classView.scheduleDetails, t) ||
+                t("public.results.scheduleOnly")
+              : `${t("public.results.pattern")} ${classView.pattern || "—"}`}
           </div>
         </div>
         <div style={badgeStackStyle}>
           <LiveFreshnessBadge updatedAt={classView.liveUpdatedAt} now={now} />
           <Badge>{publicationLabel}</Badge>
           <Badge>
-            {dragBreak ? t("public.results.drag") : t("public.results.inProgress")}
+            {isScheduleOnly
+              ? classView.isComplete
+                ? t("management.classes.statusCompleted")
+                : t("public.results.classInProgress")
+              : dragBreak
+                ? t("public.results.drag")
+                : t("public.results.inProgress")}
           </Badge>
           <span style={toggleIconStyle}>
             {isOpen ? t("public.results.hide") : t("public.results.view")}
@@ -569,21 +579,23 @@ function PublicLivePanel({ classView, now }) {
 
       {!isOpen ? null : (
         <div id={panelDetailsId}>
-          <PublicTimingSummary timing={classView.timing} />
+          {!isScheduleOnly && <PublicTimingSummary timing={classView.timing} />}
 
-          {!showScores && (
+          {isScheduleOnly ? (
+            <ScheduleOnlyLiveDetails classView={classView} />
+          ) : !showScores && (
             <div style={noScoreNoticeStyle}>
               {t("public.results.noScoresNotice")}
             </div>
           )}
 
-          {showScores && !showScoreDetails && (
+          {!isScheduleOnly && showScores && !showScoreDetails && (
             <div style={noScoreNoticeStyle}>
               {t("public.results.completedScoresNotice")}
             </div>
           )}
 
-          {dragBreak && (
+          {!isScheduleOnly && dragBreak && (
             <div style={paidWarmupNoticeStyle}>
               {t("public.results.dragInProgress", {
                 minutes: dragBreak.durationMinutes ?? "—",
@@ -591,61 +603,95 @@ function PublicLivePanel({ classView, now }) {
             </div>
           )}
 
-          <div style={liveGridStyle}>
-            <div style={liveBlockStyle}>
-              <div style={runLabelStyle}>{t("public.results.onCourse")}</div>
-              {dragBreak ? (
-                <PublicDragCard remainingSeconds={dragRemainingSeconds} />
-              ) : classView.activeRun ? (
-                <LiveRunCard
-                  run={classView.activeRun}
-                  showScore={canShowRunScore(classView.activeRun)}
-                  showDetails={showScoreDetails}
-                />
-              ) : (
-                <div style={mutedTextStyle}>—</div>
-              )}
-            </div>
-            <LiveRunBlock
-              run={nextRun}
-              showDetails={showScoreDetails}
-              statusLabel={t("public.results.statusPreparation")}
-              status="preparation"
-            />
-            <LiveRunBlock
-              run={secondNextRun}
-              showDetails={showScoreDetails}
-              statusLabel={t("public.results.statusWaiting")}
-              status="waiting"
-            />
-            {showLastPassedBlock && (
+          {!isScheduleOnly && (
+            <div style={liveGridStyle}>
               <div style={liveBlockStyle}>
-                <div style={runLabelStyle}>{t("public.results.lastTwoPassed")}</div>
-                {classView.lastPassedRuns?.length ? (
-                  <div style={{ display: "grid", gap: 8 }}>
-                    {classView.lastPassedRuns.map((run) => (
-                      <LiveRunCard
-                        key={run.id || run.draw}
-                        run={run}
-                        showScore={canShowRunScore(run)}
-                        showDetails={showScoreDetails}
-                      />
-                    ))}
-                  </div>
+                <div style={runLabelStyle}>{t("public.results.onCourse")}</div>
+                {dragBreak ? (
+                  <PublicDragCard remainingSeconds={dragRemainingSeconds} />
+                ) : classView.activeRun ? (
+                  <LiveRunCard
+                    run={classView.activeRun}
+                    showScore={canShowRunScore(classView.activeRun)}
+                    showDetails={showScoreDetails}
+                  />
                 ) : (
                   <div style={mutedTextStyle}>—</div>
                 )}
               </div>
-            )}
-          </div>
+              <LiveRunBlock
+                run={nextRun}
+                showDetails={showScoreDetails}
+                statusLabel={t("public.results.statusPreparation")}
+                status="preparation"
+              />
+              <LiveRunBlock
+                run={secondNextRun}
+                showDetails={showScoreDetails}
+                statusLabel={t("public.results.statusWaiting")}
+                status="waiting"
+              />
+              {showLastPassedBlock && (
+                <div style={liveBlockStyle}>
+                  <div style={runLabelStyle}>{t("public.results.lastTwoPassed")}</div>
+                  {classView.lastPassedRuns?.length ? (
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {classView.lastPassedRuns.map((run) => (
+                        <LiveRunCard
+                          key={run.id || run.draw}
+                          run={run}
+                          showScore={canShowRunScore(run)}
+                          showDetails={showScoreDetails}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={mutedTextStyle}>—</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
-          <PublicLiveOrderTable
-            runs={classView.orderRuns || []}
-            showScores={showScores}
-          />
+          {!isScheduleOnly && (
+            <PublicLiveOrderTable
+              runs={classView.orderRuns || []}
+              showScores={showScores}
+            />
+          )}
         </div>
       )}
     </section>
+  );
+}
+
+function ScheduleOnlyLiveDetails({ classView }) {
+  const { t } = useTranslation();
+  const details = getScheduleDetailsParts(classView.scheduleDetails, t);
+
+  return (
+    <div style={scheduleOnlyPanelStyle}>
+      <div style={runLabelStyle}>
+        {classView.isComplete
+          ? t("management.classes.statusCompleted")
+          : t("public.results.classInProgress")}
+      </div>
+      <div style={runNameStyle}>{classView.className}</div>
+      <div style={scheduleOnlyProgressStyle}>
+        {getScheduleProgressLabel(classView.scheduleDetails, t)}
+      </div>
+      {details.length ? (
+        <div style={scheduleOnlyDetailListStyle}>
+          {details.map((detail) => (
+            <span key={detail} style={scheduleOnlyDetailStyle}>
+              {detail}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div style={mutedTextStyle}>{t("public.results.scheduleOnly")}</div>
+      )}
+    </div>
   );
 }
 
@@ -1083,6 +1129,103 @@ function getPublicRunOrderStatusLabel(status, t) {
   }
 }
 
+function getScheduleDetailsSummary(details, t) {
+  return getScheduleDetailsParts(details, t).join(" · ");
+}
+
+function getScheduleDetailsParts(details = {}, t) {
+  const parts = [];
+  const completedSectionCount = Number.parseInt(
+    details.completedSectionCount,
+    10
+  );
+  const sectionCount = Number.parseInt(details.sectionCount, 10) || 0;
+  const isFinalInProgress =
+    details.hasFinal &&
+    !details.finalCompleted &&
+    !details.isCompleted &&
+    sectionCount > 0 &&
+    completedSectionCount >= sectionCount;
+
+  if (details.participantCount) {
+    parts.push(
+      t("public.results.participantCount", {
+        count: details.participantCount,
+      })
+    );
+  }
+
+  if (details.sectionCount && details.sectionSize) {
+    parts.push(
+      t("public.results.sectionSummary", {
+        sectionCount: details.sectionCount,
+        sectionSize: details.sectionSize,
+      })
+    );
+  } else if (details.sectionCount) {
+    parts.push(
+      t("public.results.sectionCount", {
+        count: details.sectionCount,
+      })
+    );
+  }
+
+  if (Number.isFinite(completedSectionCount) && completedSectionCount > 0) {
+    parts.push(
+      t("public.results.sectionsCompleted", {
+        count: completedSectionCount,
+      })
+    );
+  }
+
+  if (details.hasFinal) {
+    parts.push(
+      details.finalCompleted
+        ? t("public.results.finalCompleted")
+        : isFinalInProgress
+          ? t("public.results.finalInProgress")
+          : t("public.results.finalPlanned")
+    );
+  }
+
+  if (details.isCompleted) {
+    parts.push(t("management.classes.statusCompleted"));
+  }
+
+  if (String(details.note || "").trim()) {
+    parts.push(String(details.note).trim());
+  }
+
+  return parts;
+}
+
+function getScheduleProgressLabel(details = {}, t) {
+  const completedSectionCount =
+    Number.parseInt(details.completedSectionCount, 10) || 0;
+  const sectionCount = Number.parseInt(details.sectionCount, 10) || 0;
+
+  if (details.isCompleted) {
+    return t("management.classes.statusCompleted");
+  }
+
+  if (details.hasFinal && details.finalCompleted) {
+    return t("public.results.finalCompleted");
+  }
+
+  if (details.hasFinal && sectionCount > 0 && completedSectionCount >= sectionCount) {
+    return t("public.results.finalInProgress");
+  }
+
+  if (completedSectionCount > 0 && sectionCount > 0) {
+    return t("public.results.sectionProgress", {
+      completed: completedSectionCount,
+      total: sectionCount,
+    });
+  }
+
+  return t("public.results.classInProgress");
+}
+
 function normalizeSearchText(value) {
   return String(value || "")
     .normalize("NFD")
@@ -1212,6 +1355,38 @@ const noScoreNoticeStyle = {
   color: "#1e3a8a",
   fontWeight: 800,
   marginBottom: 12,
+};
+
+const scheduleOnlyPanelStyle = {
+  border: "1px solid #bfdbfe",
+  borderRadius: 8,
+  padding: 14,
+  background: "#f8fafc",
+  marginBottom: 12,
+};
+
+const scheduleOnlyDetailListStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 8,
+  marginTop: 10,
+};
+
+const scheduleOnlyProgressStyle = {
+  color: "#1d4ed8",
+  fontWeight: 900,
+  marginTop: 6,
+};
+
+const scheduleOnlyDetailStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  border: "1px solid #cbd5e1",
+  borderRadius: 8,
+  padding: "6px 9px",
+  background: "#fff",
+  color: "#334155",
+  fontWeight: 800,
 };
 
 const liveGridStyle = {

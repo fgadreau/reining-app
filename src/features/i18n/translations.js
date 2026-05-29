@@ -193,7 +193,10 @@ export const translations = {
         draw: "Draw",
         latestScore: "Dernier score",
         loading: "Chargement du tableau annonceur...",
+        markClassComplete: "Marquer la classe terminée",
+        markFinalComplete: "Marquer la finale terminée",
         markPassed: "Marquer passé",
+        markSectionComplete: "Marquer section {{number}} terminée",
         inPreparation: "En attente",
         next: "Prochain",
         noActiveRun: "Aucun run actif.",
@@ -213,6 +216,8 @@ export const translations = {
         startNext: "Démarrer prochain",
         stats: "Stats",
         stopAndMarkPassed: "Arrêter et marquer passé",
+        reopenClass: "Réouvrir la classe",
+        undoSectionComplete: "Annuler dernière section",
         warmupStats:
           "Total: {{total}} · Passés: {{done}} · No show: {{noShow}} · Scratch: {{scratch}}",
         waiting: "En préparation",
@@ -370,6 +375,8 @@ export const translations = {
         newClassName: "Nouvelle classe",
         newPaidWarmupName: "Nouveau paid warm up",
         noDragPlanned: "Aucun drag planifié",
+        noPatternNoScoring:
+          "Cette classe est configurée sans patron: elle sert au suivi live/horaire et ne s’ouvre pas en scoring.",
         openScoring: "Ouvrir scoring",
         openSetup: "Ouvrir setup",
         pdfAfterValidation:
@@ -478,6 +485,8 @@ export const translations = {
         selectJudgeBeforeClaim:
           "Choisis la feuille du juge avant de la réserver à ton login.",
         signClass: "Signer la classe",
+        noPatternMessage:
+          "Cette classe est sans patron. Elle est utilisée pour le suivi de l’horaire et le live, sans feuille de scoring.",
         statusPrefix: "Statut",
         syncLocal: "Sauvé localement",
         syncNoticePending:
@@ -528,6 +537,7 @@ export const translations = {
         customPatternMinimum:
           "Minimum {{count}} manoeuvres pour cette discipline.",
         customPatternName: "Nom du patron custom",
+        completedSectionCount: "Sections terminées",
         dragDurationAria: "Durée du drag en minutes",
         dragDurationHelper: "Durée estimée d’un drag en minutes.",
         drawLockedMessage:
@@ -545,6 +555,7 @@ export const translations = {
           "Cette classe est finalisée. Le setup ne peut plus être modifié.",
         fullDescription: "Description complète",
         generalInfo: "Infos générales",
+        hasFinal: "Finale prévue",
         horseColumn: "Horse",
         horsePlaceholder: "Nom du cheval",
         importDraw: "Importer un draw",
@@ -574,6 +585,7 @@ export const translations = {
           "Aucun run pour l’instant. Entre un nombre de runs ou clique sur",
         oneLinePerRun: "Une ligne par run.",
         ownerPlaceholder: "Nom du owner",
+        participantCount: "Nombre de participants",
         publicChooseDescription:
           "Choisis comment cette classe apparaît dans la vitrine publique.",
         publicHiddenDescription: "La classe n’apparaît pas en live public.",
@@ -594,6 +606,13 @@ export const translations = {
         riderPlaceholder: "Nom du rider",
         runCount: "Nombre de runs",
         runs: "Runs",
+        saveScheduleDetails: "Enregistrer les détails",
+        scheduleNote: "Détail live",
+        scheduleNotePlaceholder: "Ex. Classe divisée par âge, pause avant finale",
+        scheduleOnlyHelper:
+          "Ces détails apparaissent dans le live public et peuvent aussi être ajustés par l’annonceur.",
+        sectionCount: "Nombre de sections",
+        sectionSize: "Participants par section",
         scribeDrawLockedBanner:
           "Draw importé verrouillé pour le scribe après le début du scoring.",
         structureLockedBanner:
@@ -826,6 +845,7 @@ export const translations = {
         back: "← Retour",
         backNumber: "Back",
         classEnd: "Fin estimée de la classe",
+        classInProgress: "Classe en cours",
         completedScoresNotice:
           "Les scores s’affichent seulement quand la run du participant est complétée par le scribe.",
         dateTbd: "Date non définie",
@@ -839,6 +859,9 @@ export const translations = {
         hide: "Masquer",
         horseFallback: "Cheval —",
         inProgress: "En cours",
+        finalCompleted: "Finale terminée",
+        finalInProgress: "Finale en cours",
+        finalPlanned: "Finale à venir",
         judge: "Juge",
         judges: "Juges",
         judgeNote: "Note du juge",
@@ -862,6 +885,7 @@ export const translations = {
         pattern: "Pattern",
         penaltyPrefix: "P",
         publishedSheets: "classes avec feuilles publiées",
+        participantCount: "{{count}} participants",
         passedWithScores: "Passés avec scores",
         riderFallback: "Cavalier —",
         searchRun: "Rechercher une run",
@@ -870,6 +894,11 @@ export const translations = {
         showNotFound: "Show introuvable.",
         siteTitle: "Feuilles de pointage publiques",
         score: "Score",
+        scheduleOnly: "Classe sans patron pour le suivi de l’horaire.",
+        sectionCount: "{{count}} sections",
+        sectionProgress: "Sections terminées: {{completed}}/{{total}}",
+        sectionSummary: "{{sectionCount}} sections de {{sectionSize}}",
+        sectionsCompleted: "{{count}} section(s) terminée(s)",
         totalScore: "Total",
         statusOnCourse: "En piste",
         statusPassed: "Passé",
@@ -1093,7 +1122,10 @@ export const translations = {
         draw: "Draw",
         latestScore: "Latest score",
         loading: "Loading announcer dashboard...",
+        markClassComplete: "Mark class complete",
+        markFinalComplete: "Mark final complete",
         markPassed: "Mark done",
+        markSectionComplete: "Mark section {{number}} complete",
         inPreparation: "In the hole",
         next: "Next",
         noActiveRun: "No active run.",
@@ -1113,6 +1145,8 @@ export const translations = {
         startNext: "Start next",
         stats: "Stats",
         stopAndMarkPassed: "Stop and mark done",
+        reopenClass: "Reopen class",
+        undoSectionComplete: "Undo last section",
         warmupStats:
           "Total: {{total}} · Done: {{done}} · No show: {{noShow}} · Scratch: {{scratch}}",
         waiting: "On deck",
@@ -1269,6 +1303,8 @@ export const translations = {
         newClassName: "New class",
         newPaidWarmupName: "New paid warm up",
         noDragPlanned: "No planned drag",
+        noPatternNoScoring:
+          "This class is set without a pattern: it is used for live/schedule tracking and does not open in scoring.",
         openScoring: "Open scoring",
         openSetup: "Open setup",
         pdfAfterValidation:
@@ -1377,6 +1413,8 @@ export const translations = {
         selectJudgeBeforeClaim:
           "Choose the judge sheet before reserving it to your login.",
         signClass: "Sign class",
+        noPatternMessage:
+          "This class has no pattern. It is used for schedule tracking and live display, without a scoring sheet.",
         statusPrefix: "Status",
         syncLocal: "Saved locally",
         syncNoticePending:
@@ -1427,6 +1465,7 @@ export const translations = {
         customPatternMinimum:
           "Minimum {{count}} maneuvers for this discipline.",
         customPatternName: "Custom pattern name",
+        completedSectionCount: "Completed sections",
         dragDurationAria: "Drag duration in minutes",
         dragDurationHelper: "Estimated drag duration in minutes.",
         drawLockedMessage:
@@ -1444,6 +1483,7 @@ export const translations = {
           "This class is finalized. Setup can no longer be changed.",
         fullDescription: "Full description",
         generalInfo: "General info",
+        hasFinal: "Final planned",
         horseColumn: "Horse",
         horsePlaceholder: "Horse name",
         importDraw: "Import a draw",
@@ -1473,6 +1513,7 @@ export const translations = {
           "No run yet. Enter a number of runs or click",
         oneLinePerRun: "One line per run.",
         ownerPlaceholder: "Owner name",
+        participantCount: "Number of participants",
         publicChooseDescription:
           "Choose how this class appears in the public showcase.",
         publicHiddenDescription: "The class does not appear in public live.",
@@ -1493,6 +1534,13 @@ export const translations = {
         riderPlaceholder: "Rider name",
         runCount: "Number of runs",
         runs: "Runs",
+        saveScheduleDetails: "Save details",
+        scheduleNote: "Live detail",
+        scheduleNotePlaceholder: "Ex. Class split by age, break before final",
+        scheduleOnlyHelper:
+          "These details appear in the public live view and can also be adjusted by the announcer.",
+        sectionCount: "Number of sections",
+        sectionSize: "Participants per section",
         scribeDrawLockedBanner:
           "Imported draw locked for the scribe after scoring has started.",
         structureLockedBanner:
@@ -1725,6 +1773,7 @@ export const translations = {
         back: "← Back",
         backNumber: "Back",
         classEnd: "Estimated class end",
+        classInProgress: "Class in progress",
         completedScoresNotice:
           "Scores are shown only once the participant’s run is completed by the scribe.",
         dateTbd: "Date not set",
@@ -1739,6 +1788,9 @@ export const translations = {
         hide: "Hide",
         horseFallback: "Horse —",
         inProgress: "In progress",
+        finalCompleted: "Final complete",
+        finalInProgress: "Final in progress",
+        finalPlanned: "Final upcoming",
         judge: "Judge",
         judges: "Judges",
         judgeNote: "Judge note",
@@ -1768,10 +1820,16 @@ export const translations = {
         pattern: "Pattern",
         penaltyPrefix: "P",
         publishedSheets: "classes with published sheets",
+        participantCount: "{{count}} participants",
         passedWithScores: "Completed with scores",
         returnSoon: "Back in the pen soon",
         riderFallback: "Rider —",
         score: "Score",
+        scheduleOnly: "Class without a pattern for schedule tracking.",
+        sectionCount: "{{count}} sections",
+        sectionProgress: "Sections complete: {{completed}}/{{total}}",
+        sectionSummary: "{{sectionCount}} sections of {{sectionSize}}",
+        sectionsCompleted: "{{count}} section(s) complete",
         totalScore: "Total",
         searchRun: "Search for a run",
         searchRunPlaceholder: "Rider, horse, or back number",

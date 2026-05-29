@@ -8,7 +8,10 @@ import { normalizeClassJudges } from "../../features/classes/classJudges";
 import { getDaysByShowRepository } from "../../features/days/dayRepository";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import { useTranslation } from "../../features/i18n/I18nProvider";
-import { getPatternDisplayName } from "../../features/patterns/patternDefinitions";
+import {
+  getPatternDisplayName,
+  isNoPatternValue,
+} from "../../features/patterns/patternDefinitions";
 import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
 import { getShowRepository } from "../../features/shows/showRepository";
 import { appStyles as styles } from "../../styles/appStyles";
@@ -202,6 +205,14 @@ function Metric({ label, value }) {
 
 function canOpenClassForScribe(classData) {
   if (classData?.publication?.status === PUBLICATION_STATUSES.PUBLISHED) {
+    return false;
+  }
+
+  if (
+    isNoPatternValue(
+      classData?.setup?.pattern || classData?.classItem?.pattern || ""
+    )
+  ) {
     return false;
   }
 

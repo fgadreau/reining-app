@@ -62,6 +62,7 @@ Etat fonctionnel majeur:
 - Multi-juges de base implemente.
 - Analytics global et journal d'activite ajoute.
 - Politique de confidentialite mise a jour pour analytics/journal.
+- Classes sans patron ajoutees pour suivi horaire/live seulement, avec details participants/sections.
 
 Etat git au moment de cette passation:
 
@@ -152,6 +153,7 @@ Racine:
 
 - `supabase-schema.sql`: schema complet de depart pour nouveau projet Supabase.
 - `supabase-analytics-migration.sql`: migration analytics/journal pour projets existants.
+- `supabase-schedule-only-classes-migration.sql`: migration classes sans patron / details horaire live.
 - `supabase-multi-judges-migration.sql`: migration multi-juges.
 - `supabase-live-statuses-migration.sql`: statuts live.
 - `supabase-paid-warmups-migration.sql`: paid warmups.
@@ -1398,14 +1400,15 @@ Manual QA Supabase:
 10. Le scribe doit choisir un juge avant claim.
 11. Pas de liberation automatique du claim.
 12. Les migrations Supabase sont souvent la cle des bugs prod.
-13. Le fallback local peut masquer un bug cloud.
-14. La navigation a ete travaillee; ne pas rajouter un troisieme etage visible sans bonne raison.
-15. Les pages public/mobile sont importantes.
-16. Les tests unitaires historiques sont dans `App.test.js`; ajouter tests pour logique pure.
-17. Le robot Playwright principal est dans `tests/e2e/show-robot.spec.js`.
-17. Les styles sont inline; rester coherent.
-18. La politique de confidentialite existe, mais n'est pas un avis legal final.
-19. L'application est maintenant en phase QA, pas en phase "ajouter grosses features".
+13. Les classes sans patron utilisent `NO_PATTERN` et `class_setups.schedule_details`; executer `docs/supabase-schedule-only-classes-migration.sql` en cloud.
+14. Le fallback local peut masquer un bug cloud.
+15. La navigation a ete travaillee; ne pas rajouter un troisieme etage visible sans bonne raison.
+16. Les pages public/mobile sont importantes.
+17. Les tests unitaires historiques sont dans `App.test.js`; ajouter tests pour logique pure.
+18. Le robot Playwright principal est dans `tests/e2e/show-robot.spec.js`.
+19. Les styles sont inline; rester coherent.
+20. La politique de confidentialite existe, mais n'est pas un avis legal final.
+21. L'application est maintenant en phase QA, pas en phase "ajouter grosses features".
 
 ---
 

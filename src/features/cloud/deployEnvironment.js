@@ -21,7 +21,7 @@ export function getDeployEnvironment() {
 export function getDeployEnvironmentLabel() {
   const environment = getDeployEnvironment();
 
-  if (!environment) {
+  if (!environment || isProductionDeployEnvironment()) {
     return null;
   }
 

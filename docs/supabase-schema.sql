@@ -136,6 +136,7 @@ create table if not exists public.class_setups (
   pattern text,
   custom_pattern jsonb,
   runs jsonb not null default '[]'::jsonb,
+  schedule_details jsonb not null default '{}'::jsonb,
   judges jsonb not null default '[{"id":"judge-1","name":"","order":1}]'::jsonb,
   is_draw_imported boolean not null default false,
   started_at timestamptz,
@@ -166,6 +167,9 @@ add column if not exists custom_pattern jsonb;
 
 alter table public.class_setups
 add column if not exists judges jsonb not null default '[{"id":"judge-1","name":"","order":1}]'::jsonb;
+
+alter table public.class_setups
+add column if not exists schedule_details jsonb not null default '{}'::jsonb;
 
 create table if not exists public.scoring_sessions (
   class_id text primary key references public.classes(id) on delete cascade,
@@ -474,6 +478,48 @@ returns boolean as $$
       and public.current_user_can_manage_association(c.association_id)
   );
 $$ language sql stable security definer set search_path = public;
+
+create or replace function public.update_class_schedule_details(
+  target_class_id text,
+  next_schedule_details jsonb
+)
+returns public.class_setups as $$
+declare
+  saved_setup public.class_setups;
+begin
+  if not exists (
+    select 1
+    from public.classes c
+    where c.id = target_class_id
+      and public.current_user_has_association_role(
+        c.association_id,
+        array['admin', 'secretary', 'announcer']
+      )
+  ) then
+    raise exception 'Not allowed to update class schedule details.';
+  end if;
+
+  insert into public.class_setups (
+    class_id,
+    pattern,
+    schedule_details
+  )
+  values (
+    target_class_id,
+    'NO_PATTERN',
+    coalesce(next_schedule_details, '{}'::jsonb)
+  )
+  on conflict (class_id) do update
+  set schedule_details = coalesce(excluded.schedule_details, '{}'::jsonb),
+      pattern = coalesce(nullif(public.class_setups.pattern, ''), 'NO_PATTERN')
+  returning * into saved_setup;
+
+  return saved_setup;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function public.update_class_schedule_details(text, jsonb)
+to authenticated;
 
 create or replace function public.class_has_published_official_result(
   target_class_id text

@@ -1,12 +1,14 @@
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 import { getClassById } from "./classSelectors";
+import { normalizeClassScheduleDetails } from "./classSchedule";
 import {
   deleteClassSetup,
   getClassSetup,
   normalizeClassSetup,
   saveClassSetup,
 } from "./classSetupStorage";
+import { NO_PATTERN_ID, isNoPatternValue } from "../patterns/patternDefinitions";
 
 function hasOwn(value, key) {
   return Object.prototype.hasOwnProperty.call(value || {}, key);
@@ -30,6 +32,7 @@ function toSetup(row, localSetup = {}) {
       remoteHasJudges && Array.isArray(row.judges)
         ? row.judges
         : fallbackJudges,
+    scheduleDetails: normalizeClassScheduleDetails(row.schedule_details),
     startedAt: row.started_at || null,
     dragInterval: row.drag_interval || null,
     dragDurationMinutes: row.drag_duration_minutes,
@@ -41,6 +44,7 @@ function toSetup(row, localSetup = {}) {
     judgeSignature: row.judge_signature || null,
     judgeSignedAt: row.judge_signed_at || null,
     finalPdfFileName: row.final_pdf_file_name || null,
+    updatedAt: row.updated_at || null,
   });
 }
 
@@ -49,6 +53,7 @@ function toSetupRow(classId, setup, options = {}) {
   const includePlanning = options.includePlanning !== false;
   const includeCustomPattern = options.includeCustomPattern !== false;
   const includeJudges = options.includeJudges !== false;
+  const includeScheduleDetails = options.includeScheduleDetails !== false;
   const row = {
     class_id: classId,
     pattern: normalized.pattern || null,
@@ -78,6 +83,12 @@ function toSetupRow(classId, setup, options = {}) {
     row.judges = normalized.judges || [];
   }
 
+  if (includeScheduleDetails) {
+    row.schedule_details = normalizeClassScheduleDetails(
+      normalized.scheduleDetails
+    );
+  }
+
   return row;
 }
 
@@ -96,6 +107,10 @@ function isCustomPatternColumnMissingError(error) {
 
 function isJudgesColumnMissingError(error) {
   return String(error?.message || "").includes("judges");
+}
+
+function isScheduleDetailsColumnMissingError(error) {
+  return String(error?.message || "").includes("schedule_details");
 }
 
 export async function getClassSetupRepository(classId) {
@@ -190,12 +205,69 @@ export async function saveClassSetupRepository(classId, setup) {
         }
       }
 
+      if (isScheduleDetailsColumnMissingError(error)) {
+        try {
+          const { error: legacyError } = await supabase
+            .from("class_setups")
+            .upsert(
+              toSetupRow(classId, normalized, { includeScheduleDetails: false })
+            );
+
+          if (legacyError) throw legacyError;
+          trackClassSetupReadyEvent(classId, previousSetup, normalized);
+          return normalized;
+        } catch (legacyError) {
+          console.error("Erreur sauvegarde setup Supabase:", legacyError);
+          trackClassSetupReadyEvent(classId, previousSetup, normalized);
+          return normalized;
+        }
+      }
+
       console.error("Erreur sauvegarde setup Supabase:", error);
     }
   }
 
   trackClassSetupReadyEvent(classId, previousSetup, normalized);
   return normalized;
+}
+
+export async function saveClassScheduleDetailsRepository(classId, details) {
+  const currentSetup = getClassSetup(classId);
+  const normalizedDetails = normalizeClassScheduleDetails(details);
+  const nextLocalSetup = {
+    ...currentSetup,
+    pattern: currentSetup.pattern || NO_PATTERN_ID,
+    scheduleDetails: normalizedDetails,
+    updatedAt: new Date().toISOString(),
+  };
+  const supabase = getSupabaseClient();
+
+  saveClassSetup(classId, nextLocalSetup);
+
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.rpc(
+        "update_class_schedule_details",
+        {
+          target_class_id: classId,
+          next_schedule_details: normalizedDetails,
+        }
+      );
+
+      if (error) throw error;
+
+      if (data) {
+        const savedSetup = toSetup(data, nextLocalSetup);
+        saveClassSetup(classId, savedSetup);
+        return savedSetup;
+      }
+    } catch (error) {
+      console.error("Erreur sauvegarde détails horaire Supabase:", error);
+      return saveClassSetupRepository(classId, nextLocalSetup);
+    }
+  }
+
+  return nextLocalSetup;
 }
 
 export async function deleteClassSetupRepository(classId) {
@@ -218,6 +290,10 @@ export async function deleteClassSetupRepository(classId) {
 }
 
 function isSetupReady(setup) {
+  if (isNoPatternValue(setup?.pattern)) {
+    return true;
+  }
+
   return Boolean(
     setup?.pattern &&
       Array.isArray(setup?.runs) &&
