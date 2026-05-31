@@ -3,6 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { getAssociationRepository } from "../../features/associations/associationRepository";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import { getCloudSyncStatus } from "../../features/cloud/supabaseStatus";
+import { syncDaysForShowDateRangeRepository } from "../../features/days/dayRepository";
+import { compareDateValues } from "../../features/days/dayDateUtils";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import {
   deleteShowRepository,
@@ -14,7 +16,7 @@ import { appStyles as styles } from "../../styles/appStyles";
 
 function AssociationShowPage() {
   const { associationId } = useParams();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   const [association, setAssociation] = useState(null);
   const [shows, setShows] = useState([]);
@@ -110,6 +112,14 @@ function AssociationShowPage() {
 
   const saveEdit = async () => {
     if (!editingId) return;
+    if (
+      draft.startDate &&
+      draft.endDate &&
+      compareDateValues(draft.startDate, draft.endDate) > 0
+    ) {
+      alert(t("management.shows.invalidDateRange"));
+      return;
+    }
 
     const currentShow = shows.find((show) => show.id === editingId);
     const nextShow = {
@@ -125,6 +135,7 @@ function AssociationShowPage() {
 
     setIsSaving(true);
     await saveShowRepository(nextShow);
+    await syncDaysForShowDateRangeRepository(nextShow, { language });
     setShows((current) =>
       current.map((show) => (show.id === editingId ? nextShow : show))
     );

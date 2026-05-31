@@ -1,7 +1,16 @@
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
+import { getClassesByDayId } from "../classes/classSelectors";
+import { getPaidWarmupsByDayId } from "../paidWarmups/paidWarmupStorage";
+import { createId } from "../../utils/createId";
 import { getAllDays, getDayById, getDaysByShowId } from "./daySelectors";
 import { createDay, deleteDay, saveDays, updateDay } from "./dayStorage";
+import {
+  formatDayLabel,
+  getShowDateRange,
+  getSortOrderForShowDate,
+  sortDaysByDate,
+} from "./dayDateUtils";
 
 function toDay(row) {
   return {
@@ -41,7 +50,7 @@ export async function getDaysByShowRepository(showId) {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
-    return getDaysByShowId(showId);
+    return sortDaysByDate(getDaysByShowId(showId));
   }
 
   try {
@@ -54,13 +63,13 @@ export async function getDaysByShowRepository(showId) {
 
     if (error) throw error;
 
-    const days = Array.isArray(data) ? data.map(toDay) : [];
+    const days = sortDaysByDate(Array.isArray(data) ? data.map(toDay) : []);
     const otherLocalDays = getAllDays().filter((day) => day.showId !== showId);
     saveDays([...otherLocalDays, ...days]);
     return days;
   } catch (error) {
     console.error("Erreur chargement journées Supabase:", error);
-    return getDaysByShowId(showId);
+    return sortDaysByDate(getDaysByShowId(showId));
   }
 }
 
@@ -119,6 +128,117 @@ export async function saveDayRepository(day) {
   });
 
   return savedDay;
+}
+
+async function tableHasDayRows(supabase, tableName, dayId) {
+  const { data, error } = await supabase
+    .from(tableName)
+    .select("id")
+    .eq("day_id", dayId)
+    .limit(1);
+
+  if (error) throw error;
+  return Array.isArray(data) && data.length > 0;
+}
+
+export async function dayHasScheduleItemsRepository(dayId) {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return (
+      getClassesByDayId(dayId).length > 0 ||
+      getPaidWarmupsByDayId(dayId).length > 0
+    );
+  }
+
+  try {
+    const [hasClasses, hasPaidWarmups] = await Promise.all([
+      tableHasDayRows(supabase, "classes", dayId),
+      tableHasDayRows(supabase, "paid_warmups", dayId),
+    ]);
+
+    return hasClasses || hasPaidWarmups;
+  } catch (error) {
+    console.error("Erreur verification contenu journée Supabase:", error);
+    return (
+      getClassesByDayId(dayId).length > 0 ||
+      getPaidWarmupsByDayId(dayId).length > 0
+    );
+  }
+}
+
+export async function syncDaysForShowDateRangeRepository(show, options = {}) {
+  if (!show?.id || !show?.associationId) {
+    return [];
+  }
+
+  const currentDays = await getDaysByShowRepository(show.id);
+  const dateRange = getShowDateRange(show);
+
+  if (dateRange.length === 0) {
+    return currentDays;
+  }
+
+  const language = options.language || "fr";
+  const rangeDates = new Set(dateRange);
+  const nextDaysById = new Map(currentDays.map((day) => [day.id, day]));
+  const daysByDate = new Map();
+
+  currentDays.forEach((day) => {
+    if (day?.date && !daysByDate.has(day.date)) {
+      daysByDate.set(day.date, day);
+    }
+  });
+
+  for (const date of dateRange) {
+    const existingDay = daysByDate.get(date);
+    const nextDay = {
+      ...(existingDay || {}),
+      id: existingDay?.id || createId("day"),
+      associationId: show.associationId,
+      showId: show.id,
+      date,
+      label: formatDayLabel(date, language),
+      sortOrder: getSortOrderForShowDate(date, show),
+    };
+
+    const hasChanged =
+      !existingDay ||
+      existingDay.associationId !== nextDay.associationId ||
+      existingDay.showId !== nextDay.showId ||
+      existingDay.label !== nextDay.label ||
+      existingDay.sortOrder !== nextDay.sortOrder;
+
+    if (hasChanged) {
+      await saveDayRepository(nextDay);
+    }
+
+    nextDaysById.set(nextDay.id, nextDay);
+  }
+
+  for (const day of currentDays) {
+    if (!day?.id || !day.date || rangeDates.has(day.date)) {
+      continue;
+    }
+
+    const hasScheduleItems = await dayHasScheduleItemsRepository(day.id);
+
+    if (!hasScheduleItems) {
+      await deleteDayRepository(day.id);
+      nextDaysById.delete(day.id);
+      continue;
+    }
+
+    const nextLabel = formatDayLabel(day.date, language) || day.label;
+
+    if (nextLabel && nextLabel !== day.label) {
+      const protectedDay = { ...day, label: nextLabel };
+      await saveDayRepository(protectedDay);
+      nextDaysById.set(day.id, protectedDay);
+    }
+  }
+
+  return sortDaysByDate(Array.from(nextDaysById.values()));
 }
 
 export async function deleteDayRepository(dayId) {

@@ -506,28 +506,16 @@ test.describe("demo produit ShowScore", () => {
       "showId"
     );
     await expect(page.getByRole("heading", { name: "Derby ShowScore 2026" })).toBeVisible();
-
-    await demoClick(
-      page,
-      page.getByRole("button", { name: "+ Ajouter une journée" }),
-      "Ajouter une journée"
-    );
-    const dayInputs = page.locator("input");
-    await demoFill(page, dayInputs.nth(0), "Vendredi - Ranch Riding", "Journée");
-    await demoFill(page, dayInputs.nth(1), "2026-06-12", "Date");
-    await demoFill(page, dayInputs.nth(2), "1", "Ordre");
-    await showStep(page);
-    await demoClick(page, page.getByRole("button", { name: "Enregistrer" }), "Enregistrer");
-    await expect(page.locator("body")).toContainText("Vendredi - Ranch Riding");
+    await expect(page.locator("body")).toContainText("vendredi 12 juin");
     await showStep(page);
 
     await demoClick(
       page,
-      page.getByRole("link", { name: "Ouvrir les classes" }),
+      page.getByRole("link", { name: "Ouvrir les classes" }).first(),
       "Classes"
     );
     const dayId = getIdFromUrl(page.url(), /\/days\/([^/]+)$/, "dayId");
-    await expect(page.locator("body")).toContainText("Vendredi - Ranch Riding");
+    await expect(page.locator("body")).toContainText("vendredi 12 juin");
 
     await demoClick(
       page,

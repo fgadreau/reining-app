@@ -1,4 +1,5 @@
 import { days as mockDays } from "../../data/mock/days";
+import { sortDaysByDate } from "./dayDateUtils";
 
 const STORAGE_KEY = "reining_days_v1";
 
@@ -22,9 +23,9 @@ export function getAllDays() {
 }
 
 export function getDaysByShowId(showId) {
-  return loadDaysFromStorage()
-    .filter((day) => day.showId === showId)
-    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  return sortDaysByDate(
+    loadDaysFromStorage().filter((day) => day.showId === showId)
+  );
 }
 
 export function getDayById(dayId) {
