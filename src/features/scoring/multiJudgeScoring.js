@@ -2,6 +2,10 @@ import {
   PATTERN_DISCIPLINES,
   getPatternDiscipline,
 } from "../patterns/patternDefinitions";
+import {
+  formatTotalValue,
+  parseScoreTotalValue,
+} from "../../utils/scoring";
 
 const COMBINED_SCORE_DISCIPLINES = new Set([
   PATTERN_DISCIPLINES.REINING,
@@ -16,7 +20,7 @@ export function classUsesCombinedJudgeScore(patternValue, customPattern = null) 
 }
 
 export function parseJudgeScoreTotal(value) {
-  const score = Number(String(value ?? "").trim());
+  const score = parseScoreTotalValue(value);
   return Number.isFinite(score) ? score : null;
 }
 
@@ -54,7 +58,7 @@ export function buildCombinedJudgeScore(judgeRuns = []) {
   );
 
   return {
-    scoreTotal: total.toFixed(1),
+    scoreTotal: formatTotalValue(total),
     retainedJudges,
     droppedJudges,
     isComplete: true,

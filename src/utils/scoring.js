@@ -1,6 +1,94 @@
+function readLeadingScoreNumber(value) {
+  if (!value) return null;
+
+  const text = String(value).trim().replace(",", ".");
+  if (!text) return null;
+
+  const match = text.match(
+    /^([+-])?\s*(?:(\d+)\s*½|(\d+)\s+1\/2|(½|1\/2)|(\d+(?:\.\d+)?|\.\d+))(.*)$/
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  const signText = match[1] || "";
+  const sign = signText === "-" ? -1 : 1;
+  let numericValue = null;
+
+  if (match[2]) {
+    numericValue = Number(match[2]) + 0.5;
+  } else if (match[3]) {
+    numericValue = Number(match[3]) + 0.5;
+  } else if (match[4]) {
+    numericValue = 0.5;
+  } else if (match[5]) {
+    numericValue = Number.parseFloat(match[5]);
+  }
+
+  return Number.isFinite(numericValue)
+    ? {
+        numericValue: sign * numericValue,
+        hasExplicitPlus: signText === "+",
+        suffixText: match[6] || "",
+      }
+    : null;
+}
+
+function parseScoreNumber(value) {
+  return readLeadingScoreNumber(value)?.numericValue ?? null;
+}
+
+function formatNumberAsFraction(value, hasExplicitPlus = false) {
+  if (!Number.isFinite(value)) return "";
+
+  const sign = value < 0 ? "-" : hasExplicitPlus && value > 0 ? "+" : "";
+  const absoluteValue = Math.abs(value);
+  const doubledValue = Math.round(absoluteValue * 2);
+
+  if (Math.abs(absoluteValue * 2 - doubledValue) > 0.001) {
+    return `${sign}${absoluteValue}`;
+  }
+
+  const whole = Math.floor(doubledValue / 2);
+  const hasHalf = doubledValue % 2 === 1;
+
+  if (!hasHalf) {
+    return `${sign}${whole}`;
+  }
+
+  return `${sign}${whole ? whole : ""}½`;
+}
+
 export function parseScoreValue(value) {
-  if (!value) return 0;
-  return parseFloat(String(value).replace("+", ""));
+  return parseScoreNumber(value) ?? 0;
+}
+
+export function parseScoreTotalValue(value) {
+  return parseScoreNumber(value);
+}
+
+export function formatScoreValue(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+
+  const parsed = readLeadingScoreNumber(text);
+  if (!parsed) return text;
+
+  return formatNumberAsFraction(parsed.numericValue, parsed.hasExplicitPlus);
+}
+
+export function formatTotalValue(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+
+  const parsed = readLeadingScoreNumber(text);
+  if (!parsed) return text;
+
+  return `${formatNumberAsFraction(
+    parsed.numericValue,
+    parsed.hasExplicitPlus
+  )}${parsed.suffixText}`;
 }
 
 export function parsePenaltyValue(value) {
@@ -144,9 +232,9 @@ export function recalculateRun(run, options = {}) {
 
   const status = getRunStatus(run);
 
-  let penTotalText = penTotalNumber ? penTotalNumber.toFixed(1) : "";
+  let penTotalText = penTotalNumber ? formatScoreValue(penTotalNumber) : "";
   let scoreTotalText = runHasAnyData(run)
-    ? (baseScore + manoeuvreTotal - penTotalNumber).toFixed(1)
+    ? formatScoreValue(baseScore + manoeuvreTotal - penTotalNumber)
     : "";
 
   if (status === "SCR") {
@@ -175,7 +263,7 @@ export function recalculateRun(run, options = {}) {
 
   if (status === "S0") {
     penTotalText = penTotalText ? `${penTotalText} + Score 0` : "Score 0";
-    scoreTotalText = runHasAnyData(run) ? "0.0" : "";
+    scoreTotalText = runHasAnyData(run) ? "0" : "";
   }
 
   if (status === "OP") {

@@ -1,3 +1,5 @@
+import { formatTotalValue, parseScoreTotalValue } from "../../utils/scoring";
+
 export const PROVISIONAL_RANKING_NOTE =
   "Classement provisoire selon les scores individuels. Compléter le classement avec le travail en piste, en dehors de l’app.";
 
@@ -6,7 +8,7 @@ export function buildProvisionalRanking(runs = []) {
     .filter((run) => String(run?.scoreTotal ?? "").trim())
     .map((run) => {
       const scoreText = String(run.scoreTotal ?? "").trim();
-      const scoreValue = Number.parseFloat(scoreText);
+      const scoreValue = parseScoreTotalValue(scoreText);
 
       return {
         id: run.id,
@@ -15,7 +17,7 @@ export function buildProvisionalRanking(runs = []) {
         rider: run.rider || "",
         horse: run.horse || "",
         owner: run.owner || "",
-        scoreTotal: scoreText,
+        scoreTotal: formatTotalValue(scoreText),
         scoreValue: Number.isFinite(scoreValue) ? scoreValue : null,
       };
     })

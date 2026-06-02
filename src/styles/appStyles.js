@@ -265,13 +265,42 @@ export const appStyles = {
     textAlign: "left",
   },
 
+  runNoteHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "10px",
+    marginBottom: "6px",
+  },
+
   runNoteLabel: {
     color: "#64748b",
     fontSize: "12px",
     fontWeight: 800,
     textTransform: "uppercase",
     letterSpacing: 0,
-    marginBottom: "6px",
+  },
+
+  runNotePickerButton: {
+    padding: "10px 14px",
+    minWidth: "92px",
+    borderRadius: "8px",
+    border: "1px solid #cbd5e1",
+    backgroundColor: "#ffffff",
+    color: "#334155",
+    fontWeight: "700",
+    cursor: "pointer",
+  },
+
+  runNoteHideButton: {
+    padding: "6px 8px",
+    borderRadius: "8px",
+    border: "1px solid #cbd5e1",
+    backgroundColor: "#ffffff",
+    color: "#334155",
+    fontSize: "12px",
+    fontWeight: "700",
+    cursor: "pointer",
   },
 
   runNoteInput: {

@@ -1,5 +1,7 @@
 import {
+  formatScoreValue,
   isScoredRunComplete,
+  parseScoreValue,
   recalculateRun,
   runHasVideoReview,
 } from "./utils/scoring";
@@ -92,8 +94,21 @@ test("calculates a scored run total", () => {
     penalties: ["", "1", ""],
   });
 
-  expect(run.penTotal).toBe("1.0");
-  expect(run.scoreTotal).toBe("69.0");
+  expect(run.penTotal).toBe("1");
+  expect(run.scoreTotal).toBe("69");
+});
+
+test("calculates and formats fractional maneuver scores", () => {
+  const run = recalculateRun({
+    scores: ["+1½", "0", "-½"],
+    penalties: ["", "", ""],
+  });
+
+  expect(parseScoreValue("+½")).toBe(0.5);
+  expect(parseScoreValue("-1½")).toBe(-1.5);
+  expect(formatScoreValue("+0.5")).toBe("+½");
+  expect(formatScoreValue("-1.5")).toBe("-1½");
+  expect(run.scoreTotal).toBe("71");
 });
 
 test("treats special run statuses as complete scores", () => {
@@ -166,7 +181,7 @@ test("uses ranch riding patterns and penalties", () => {
   );
 
   expect(offPatternRun.penTotal).toBe("OP");
-  expect(offPatternRun.scoreTotal).toBe("70.0 OP");
+  expect(offPatternRun.scoreTotal).toBe("70 OP");
   expect(isScoredRunComplete(offPatternRun, 3)).toBe(true);
   expect(
     isScoredRunComplete(
@@ -221,7 +236,7 @@ test("uses western riding patterns and disqualification scoring", () => {
     penalties: ["1/2 Disqualification", ""],
   });
 
-  expect(disqualifiedRun.penTotal).toBe("0.5 + Disqualification");
+  expect(disqualifiedRun.penTotal).toBe("½ + Disqualification");
   expect(disqualifiedRun.scoreTotal).toBe("DQ");
   expect(isScoredRunComplete(disqualifiedRun, 2)).toBe(true);
 });
@@ -316,10 +331,10 @@ test("uses AQHA performance custom patterns with F&E scoring", () => {
   );
 
   expect(scoringOptions.scoreOptions).toEqual(
-    expect.arrayContaining(["-3", "-2.5", "0", "+2.5", "+3"])
+    expect.arrayContaining(["-3", "-2½", "0", "+2½", "+3"])
   );
   expect(scoringOptions.scoreOptionsByHeader[OVERALL_FORM_EFFECTIVENESS_HEADER]).toEqual(
-    expect.arrayContaining(["0", "2.5", "5"])
+    expect.arrayContaining(["0", "2½", "5"])
   );
   expect(scoringOptions).toMatchObject({
     penaltyOptions: ["3", "5", "10"],
@@ -338,16 +353,16 @@ test("uses AQHA performance custom patterns with F&E scoring", () => {
     }
   );
 
-  expect(scoredRun.penTotal).toBe("3.0");
-  expect(scoredRun.scoreTotal).toBe("72.5");
+  expect(scoredRun.penTotal).toBe("3");
+  expect(scoredRun.scoreTotal).toBe("72½");
 
   const tenPenaltyRun = recalculateRun({
     scores: ["0"],
     penalties: ["10"],
   });
 
-  expect(tenPenaltyRun.penTotal).toBe("10.0");
-  expect(tenPenaltyRun.scoreTotal).toBe("60.0");
+  expect(tenPenaltyRun.penTotal).toBe("10");
+  expect(tenPenaltyRun.scoreTotal).toBe("60");
 
   const disqualifiedRun = recalculateRun(
     {
@@ -378,7 +393,7 @@ test("PDF score rules follow the class scoring scale", () => {
 
   expect(getScoreRuleLines("2")).toEqual(
     expect.arrayContaining([
-      expect.stringContaining("-1 1/2 Extremely Poor"),
+      expect.stringContaining("-1½ Extremely Poor"),
     ])
   );
   expect(
@@ -487,7 +502,7 @@ test("combines retained judge scores without averaging", () => {
     { judgeId: "judge-5", scoreTotal: "74.0" },
   ]);
 
-  expect(combined.scoreTotal).toBe("216.0");
+  expect(combined.scoreTotal).toBe("216");
   expect(combined.retainedJudges.map((judge) => judge.judgeId)).toEqual([
     "judge-2",
     "judge-3",
@@ -637,7 +652,7 @@ test("public scoresheets keep judge names on combined judge rows", () => {
   expect(classView.judgeNames).toEqual(["Judge A", "Judge B"]);
   expect(
     classView.runs.map((run) => `${run.draw}:${run.judgeName}:${run.scoreTotal}`)
-  ).toEqual(["1:Judge A:71.0", "1:Judge B:70.0", "2:Judge A:72.0"]);
+  ).toEqual(["1:Judge A:71", "1:Judge B:70", "2:Judge A:72"]);
 });
 
 test("parses imported draw rows in draw order", () => {
@@ -782,7 +797,7 @@ test("publishes scoresheets in draw order with manoeuvre details", () => {
   expect(classView.runs[0].manoeuvres[0]).toMatchObject({
     name: "W",
     description: "Walk",
-    score: "+0.5",
+    score: "+½",
     penalty: "",
   });
 });
@@ -969,7 +984,7 @@ test("public live view exposes active, next, and last passed runs", () => {
   expect(classView.passedRuns.map((run) => run.draw)).toEqual([3, 2, 1]);
   expect(classView.lastPassedRuns.map((run) => run.draw)).toEqual([3, 2]);
   expect(classView.lastPassedRuns[0].manoeuvres[1]).toMatchObject({
-    score: "+0.5",
+    score: "+½",
     penalty: "2",
   });
   expect(classView.lastPassedRuns[0].note).toBe("Penalty note.");
@@ -1056,11 +1071,11 @@ test("multi-judge public live aggregates active run and completed score", () => 
 
   expect(classView.activeRun.draw).toBe(2);
   expect(classView.nextRun.draw).toBe(3);
-  expect(classView.latestScore.scoreTotal).toBe("213.0");
+  expect(classView.latestScore.scoreTotal).toBe("213");
   expect(classView.latestScore.judgeScores).toEqual([
-    { judgeId: "judge-1", judgeName: "Judge A", scoreTotal: "70.0" },
-    { judgeId: "judge-2", judgeName: "Judge B", scoreTotal: "71.0" },
-    { judgeId: "judge-3", judgeName: "Judge C", scoreTotal: "72.0" },
+    { judgeId: "judge-1", judgeName: "Judge A", scoreTotal: "70" },
+    { judgeId: "judge-2", judgeName: "Judge B", scoreTotal: "71" },
+    { judgeId: "judge-3", judgeName: "Judge C", scoreTotal: "72" },
   ]);
   expect(classView.orderRuns.map((run) => run.liveOrderStatus)).toEqual([
     "passed",
@@ -1126,10 +1141,10 @@ test("multi-judge public live disables detailed scoring and sums two judges", ()
   expect(classView.showScores).toBe(true);
   expect(classView.showScoreDetails).toBe(false);
   expect(classView.activeRun.draw).toBe(2);
-  expect(classView.latestScore.scoreTotal).toBe("141.0");
+  expect(classView.latestScore.scoreTotal).toBe("141");
   expect(classView.latestScore.judgeScores).toEqual([
-    { judgeId: "judge-1", judgeName: "Judge A", scoreTotal: "70.0" },
-    { judgeId: "judge-2", judgeName: "Judge B", scoreTotal: "71.0" },
+    { judgeId: "judge-1", judgeName: "Judge A", scoreTotal: "70" },
+    { judgeId: "judge-2", judgeName: "Judge B", scoreTotal: "71" },
   ]);
   expect(classView.lastPassedRuns[0].manoeuvres[0].score).toBe("");
 });
@@ -1269,7 +1284,7 @@ test("public live scoring shows completed totals only", () => {
   expect(classView.latestScore.draw).toBe(1);
   expect(classView.lastPassedRuns[0]).toMatchObject({
     draw: 1,
-    scoreTotal: "70.0",
+    scoreTotal: "70",
     penTotal: "",
     note: "",
   });
@@ -1585,7 +1600,7 @@ test("announcer latest score ignores public publication restrictions", () => {
     ],
   };
 
-  expect(buildAnnouncerClassView(classData).latestScore.scoreTotal).toBe("72.0");
+  expect(buildAnnouncerClassView(classData).latestScore.scoreTotal).toBe("72");
 
   expect(
     buildAnnouncerClassView({
@@ -1594,7 +1609,7 @@ test("announcer latest score ignores public publication restrictions", () => {
         status: PUBLICATION_STATUSES.LIVE_SCORING,
       },
     }).latestScore.scoreTotal
-  ).toBe("72.0");
+  ).toBe("72");
 
   expect(
     buildAnnouncerClassView({
@@ -1603,7 +1618,7 @@ test("announcer latest score ignores public publication restrictions", () => {
         status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
       },
     }).latestScore.scoreTotal
-  ).toBe("72.0");
+  ).toBe("72");
 });
 
 test("announcer live view exposes active, next, and recent completed runs", () => {
@@ -1723,10 +1738,10 @@ test("announcer live view exposes active, next, and recent completed runs", () =
     3,
     2,
   ]);
-  expect(fourthRunActiveView.latestScore.scoreTotal).toBe("70.5");
-  expect(fourthRunActiveView.lastPassedRuns[0].scoreTotal).toBe("70.5");
+  expect(fourthRunActiveView.latestScore.scoreTotal).toBe("70½");
+  expect(fourthRunActiveView.lastPassedRuns[0].scoreTotal).toBe("70½");
   expect(fourthRunActiveView.lastPassedRuns[0].manoeuvres[1]).toMatchObject({
-    score: "+0.5",
+    score: "+½",
     penalty: "2",
   });
 });
@@ -1806,11 +1821,11 @@ test("announcer live view reads multi-judge sessions", () => {
   });
 
   expect(classView.activeRun.draw).toBe(2);
-  expect(classView.latestScore.scoreTotal).toBe("213.0");
+  expect(classView.latestScore.scoreTotal).toBe("213");
   expect(classView.latestScore.judgeScores).toEqual([
-    { judgeId: "judge-1", judgeName: "Judge A", scoreTotal: "70.0" },
-    { judgeId: "judge-2", judgeName: "Judge B", scoreTotal: "71.0" },
-    { judgeId: "judge-3", judgeName: "Judge C", scoreTotal: "72.0" },
+    { judgeId: "judge-1", judgeName: "Judge A", scoreTotal: "70" },
+    { judgeId: "judge-2", judgeName: "Judge B", scoreTotal: "71" },
+    { judgeId: "judge-3", judgeName: "Judge C", scoreTotal: "72" },
   ]);
   expect(classView.orderRuns.map((run) => run.liveOrderStatus)).toEqual([
     "passed",

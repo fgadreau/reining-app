@@ -1,5 +1,6 @@
 import { OVERALL_FORM_EFFECTIVENESS_HEADER } from "../patterns/patternDefinitions";
 import { getScoringOptionsForPattern } from "./scoringOptions";
+import { formatScoreValue, parseScoreValue } from "../../utils/scoring";
 
 function safeText(value) {
   return String(value ?? "");
@@ -10,16 +11,13 @@ function formatRuleOptions(options = []) {
 }
 
 function formatScoreOptionForRule(option) {
-  return safeText(option)
-    .replace(".5", " 1/2")
-    .replace("+0 1/2", "+1/2")
-    .replace("-0 1/2", "-1/2");
+  return formatScoreValue(option) || safeText(option);
 }
 
 function getScoreStepText(scoreOptions = []) {
   const numericOptions = scoreOptions
-    .map((option) => Number.parseFloat(safeText(option).replace("+", "")))
-    .filter(Number.isFinite);
+    .map((option) => parseScoreValue(option))
+    .filter((option) => Number.isFinite(option));
 
   if (numericOptions.length < 2) {
     return "";
@@ -36,12 +34,19 @@ function getScoreStepText(scoreOptions = []) {
 function getScoreRuleText(scoreOptions = []) {
   const firstOption = safeText(scoreOptions[0]);
   const lastOption = safeText(scoreOptions[scoreOptions.length - 1]);
+  const firstScore = parseScoreValue(firstOption);
+  const lastScore = parseScoreValue(lastOption);
 
   if (firstOption === "-3" && lastOption === "+3") {
     return "MANEUVER SCORES: -3 Extremely Poor   -2 Very Poor   -1 Poor   0 Average   +1 Good   +2 Very Good   +3 Excellent (1/2 point increments)";
   }
 
-  if (firstOption && lastOption && (firstOption !== "-1.5" || lastOption !== "+1.5")) {
+  if (
+    firstOption &&
+    lastOption &&
+    (Math.abs(firstScore + 1.5) > 0.001 ||
+      Math.abs(lastScore - 1.5) > 0.001)
+  ) {
     return `MANEUVER SCORES: ${formatScoreOptionForRule(
       firstOption
     )} to ${formatScoreOptionForRule(lastOption)}${getScoreStepText(
@@ -49,7 +54,7 @@ function getScoreRuleText(scoreOptions = []) {
     )}`;
   }
 
-  return "MANEUVER SCORES: -1 1/2 Extremely Poor   -1 Very Poor   -1/2 Poor   0 Correct   +1/2 Good   +1 Very Good   +1 1/2 Excellent";
+  return "MANEUVER SCORES: -1½ Extremely Poor   -1 Very Poor   -½ Poor   0 Correct   +½ Good   +1 Very Good   +1½ Excellent";
 }
 
 export function getScoreRuleLines(patternValue, customPattern) {

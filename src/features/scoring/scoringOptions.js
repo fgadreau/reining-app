@@ -7,33 +7,33 @@ import {
   isWesternRidingPattern,
 } from "../patterns/patternDefinitions";
 
-export const SCORE_OPTIONS = ["-1.5", "-1", "-0.5", "0", "+0.5", "+1", "+1.5"];
+export const SCORE_OPTIONS = ["-1½", "-1", "-½", "0", "+½", "+1", "+1½"];
 export const PERFORMANCE_SCORE_OPTIONS = [
   "-3",
-  "-2.5",
+  "-2½",
   "-2",
-  "-1.5",
+  "-1½",
   "-1",
-  "-0.5",
+  "-½",
   "0",
-  "+0.5",
+  "+½",
   "+1",
-  "+1.5",
+  "+1½",
   "+2",
-  "+2.5",
+  "+2½",
   "+3",
 ];
 export const OVERALL_FORM_EFFECTIVENESS_OPTIONS = [
   "0",
-  "0.5",
+  "½",
   "1",
-  "1.5",
+  "1½",
   "2",
-  "2.5",
+  "2½",
   "3",
-  "3.5",
+  "3½",
   "4",
-  "4.5",
+  "4½",
   "5",
 ];
 

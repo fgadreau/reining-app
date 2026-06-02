@@ -1,5 +1,6 @@
 import React from "react";
 import { useTranslation } from "../features/i18n/I18nProvider";
+import { formatScoreValue, parseScoreValue } from "../utils/scoring";
 
 function ManoeuvrePicker({
   position,
@@ -16,6 +17,7 @@ function ManoeuvrePicker({
   addPenaltyToken,
   toggleSpecialPenalty,
   clearPenaltyCell,
+  openRunNote,
   setActiveManoeuvre,
   getColSpan,
   styles,
@@ -35,6 +37,11 @@ function ManoeuvrePicker({
   const manoeuvreName = headers[manoeuvreIndex];
   const activePenaltyValue = run.penalties[manoeuvreIndex] || "";
   const activeScoreValue = run.scores[manoeuvreIndex] || "";
+  const activeScoreDisplayValue = formatScoreValue(activeScoreValue);
+  const hasActiveScore = String(activeScoreValue || "").trim() !== "";
+  const activeScoreNumber = hasActiveScore
+    ? parseScoreValue(activeScoreValue)
+    : null;
   const activeScoreOptions =
     scoreOptionsByIndex?.[manoeuvreIndex] || scoreOptions || [];
   const penaltyDisabled = (penaltyDisabledIndexes || []).includes(
@@ -43,6 +50,15 @@ function ManoeuvrePicker({
   const statusOptions = Array.isArray(statusPenaltyOptions)
     ? statusPenaltyOptions
     : [];
+  const runNoteButtonLabel = String(run.note || "").trim()
+    ? t("management.scoring.editJudgeNote")
+    : t("management.scoring.addJudgeNote");
+  const isSelectedScoreOption = (option) => {
+    if (activeScoreDisplayValue === option) return true;
+    if (activeScoreNumber === null) return false;
+
+    return Math.abs(activeScoreNumber - parseScoreValue(option)) < 0.001;
+  };
 
   if (position === "top" && penaltyDisabled) {
     return null;
@@ -76,6 +92,14 @@ function ManoeuvrePicker({
                 onClick={() => clearPenaltyCell(run.draw, manoeuvreIndex)}
               >
                 {t("management.scoring.clearManeuverPenalty")}
+              </button>
+
+              <button
+                type="button"
+                style={styles.runNotePickerButton}
+                onClick={openRunNote}
+              >
+                {runNoteButtonLabel}
               </button>
             </div>
 
@@ -120,7 +144,9 @@ function ManoeuvrePicker({
                 key={`score-${run.id || run.draw}-${manoeuvreIndex}-${option}`}
                 style={{
                   ...styles.optionButton,
-                  ...(activeScoreValue === option ? styles.optionButtonSelected : {}),
+                  ...(isSelectedScoreOption(option)
+                    ? styles.optionButtonSelected
+                    : {}),
                 }}
                 onClick={() => updateScoreCell(run.draw, manoeuvreIndex, option)}
               >
@@ -133,6 +159,14 @@ function ManoeuvrePicker({
               onClick={() => clearScoreCell(run.draw, manoeuvreIndex)}
             >
               {t("management.scoring.clearScore")}
+            </button>
+
+            <button
+              type="button"
+              style={styles.runNotePickerButton}
+              onClick={openRunNote}
+            >
+              {runNoteButtonLabel}
             </button>
 
             <button

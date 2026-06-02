@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import ManoeuvrePicker from "./ManoeuvrePicker";
 import { useTranslation } from "../features/i18n/I18nProvider";
+import { formatScoreValue, formatTotalValue } from "../utils/scoring";
 
 function RunRows({
   run,
@@ -26,6 +27,7 @@ function RunRows({
   const { t } = useTranslation();
   const [editingBackNumber, setEditingBackNumber] = useState(false);
   const [tempBackNumber, setTempBackNumber] = useState(run.backNumber || "");
+  const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
   const canEditBackNumber = !isLocked && !isBackNumberLocked;
 
   useEffect(() => {
@@ -55,6 +57,13 @@ function RunRows({
 
   const isActiveRun =
     activeManoeuvre !== null && activeManoeuvre.draw === run.draw;
+  const hasRunNote = Boolean(String(run.note || "").trim());
+
+  useEffect(() => {
+    if (!isActiveRun) {
+      setIsNoteEditorOpen(false);
+    }
+  }, [isActiveRun]);
 
   const openManoeuvre = (manoeuvreIndex) => {
     if (isLocked) return;
@@ -84,7 +93,24 @@ function RunRows({
   const renderCellValue = (value) => {
     return value ? value : <span style={styles.placeholder}>—</span>;
   };
-  const shouldShowNoteRow = isActiveRun || String(run.note || "").trim();
+  const renderScoreCellValue = (value) => {
+    const formattedValue = formatScoreValue(value);
+    return formattedValue ? (
+      formattedValue
+    ) : (
+      <span style={styles.placeholder}>—</span>
+    );
+  };
+  const renderTotalCellValue = (value) => {
+    const formattedValue = formatTotalValue(value);
+    return formattedValue ? (
+      formattedValue
+    ) : (
+      <span style={styles.placeholder}>—</span>
+    );
+  };
+  const shouldShowNoteRow = isNoteEditorOpen || hasRunNote;
+  const openRunNote = () => setIsNoteEditorOpen(true);
 
   return (
     <>
@@ -106,6 +132,7 @@ function RunRows({
           addPenaltyToken={addPenaltyToken}
           toggleSpecialPenalty={toggleSpecialPenalty}
           clearPenaltyCell={clearPenaltyCell}
+          openRunNote={openRunNote}
           setActiveManoeuvre={setActiveManoeuvre}
           getColSpan={() => colSpan}
           isLocked={isLocked}
@@ -211,7 +238,7 @@ function RunRows({
             ...(isActiveRun ? styles.activeRunSummaryCell : {}),
           }}
         >
-          {renderCellValue(run.penTotal)}
+          {renderTotalCellValue(run.penTotal)}
         </td>
 
         <td
@@ -222,7 +249,7 @@ function RunRows({
             ...(isActiveRun ? styles.activeRunSummaryCell : {}),
           }}
         >
-          {renderCellValue(run.scoreTotal)}
+          {renderTotalCellValue(run.scoreTotal)}
         </td>
       </tr>
 
@@ -247,7 +274,7 @@ function RunRows({
               ...(isActiveRun ? styles.activeRunCell : {}),
             }}
           >
-            {renderCellValue(value)}
+            {renderScoreCellValue(value)}
           </td>
         ))}
       </tr>
@@ -255,8 +282,19 @@ function RunRows({
       {shouldShowNoteRow && (
         <tr>
           <td colSpan={colSpan} style={styles.runNoteCell}>
-            <div style={styles.runNoteLabel}>{t("public.results.judgeNote")}</div>
-            {isLocked ? (
+            <div style={styles.runNoteHeader}>
+              <div style={styles.runNoteLabel}>{t("public.results.judgeNote")}</div>
+              {!isLocked && isNoteEditorOpen && (
+                <button
+                  type="button"
+                  style={styles.runNoteHideButton}
+                  onClick={() => setIsNoteEditorOpen(false)}
+                >
+                  {t("management.scoring.hideJudgeNote")}
+                </button>
+              )}
+            </div>
+            {isLocked || !isNoteEditorOpen ? (
               <div style={styles.runNoteText}>
                 {String(run.note || "").trim() || "—"}
               </div>
@@ -288,6 +326,7 @@ function RunRows({
           addPenaltyToken={addPenaltyToken}
           toggleSpecialPenalty={toggleSpecialPenalty}
           clearPenaltyCell={clearPenaltyCell}
+          openRunNote={openRunNote}
           setActiveManoeuvre={setActiveManoeuvre}
           getColSpan={() => colSpan}
           isLocked={isLocked}

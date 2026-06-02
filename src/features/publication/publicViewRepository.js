@@ -10,7 +10,12 @@ import { getDaysByShowRepository } from "../days/dayRepository";
 import { getDaysByShowId } from "../days/daySelectors";
 import { getPaidWarmupsByDayId } from "../paidWarmups/paidWarmupStorage";
 import { buildPaidWarmupLiveView } from "../paidWarmups/paidWarmupLive";
-import { isScoredRunComplete } from "../../utils/scoring";
+import {
+  formatScoreValue,
+  formatTotalValue,
+  isScoredRunComplete,
+  parseScoreTotalValue,
+} from "../../utils/scoring";
 import {
   buildClassTimingRow,
   buildPatternTimingStats,
@@ -1124,15 +1129,15 @@ function normalizePublicLiveRun(
     showScoreDetails ||
     (liveScoreDisplayMode === LIVE_SCORE_DISPLAY_MODES.COMPLETED_TOTAL &&
       isComplete);
-  const scoreTotal = run.scoreTotal ?? "";
-  const penTotal = run.penTotal ?? "";
+  const scoreTotal = formatTotalValue(run.scoreTotal);
+  const penTotal = formatTotalValue(run.penTotal);
   const note = run.note || "";
   const judgeScores = Array.isArray(run.judgeScores)
     ? run.judgeScores
         .map((judgeScore) => ({
           judgeId: judgeScore?.judgeId || "",
           judgeName: judgeScore?.judgeName || "",
-          scoreTotal: judgeScore?.scoreTotal ?? "",
+          scoreTotal: formatTotalValue(judgeScore?.scoreTotal),
         }))
         .filter((judgeScore) => String(judgeScore.scoreTotal).trim())
     : [];
@@ -1163,7 +1168,7 @@ function normalizePublicLiveRun(
     manoeuvres: headers.map((name, manoeuvreIndex) => ({
       name,
       description: getPatternManeuverDescription(name, pattern, customPattern),
-      score: showScoreDetails ? scores[manoeuvreIndex] || "" : "",
+      score: showScoreDetails ? formatScoreValue(scores[manoeuvreIndex]) : "",
       penalty: showScoreDetails ? penalties[manoeuvreIndex] || "" : "",
     })),
   };
@@ -1362,13 +1367,13 @@ function normalizePublicRun(run, index, pattern = "", customPattern = null) {
     judgeId: run.judgeId || "",
     judgeName: run.judgeName || "",
     judgeOrder: getPublicRunJudgeOrder(run, index),
-    scoreTotal: run.scoreTotal ?? "",
-    penTotal: run.penTotal ?? "",
+    scoreTotal: formatTotalValue(run.scoreTotal),
+    penTotal: formatTotalValue(run.penTotal),
     note: run.note || "",
     manoeuvres: headers.map((name, manoeuvreIndex) => ({
       name,
       description: getPatternManeuverDescription(name, pattern, customPattern),
-      score: scores[manoeuvreIndex] || "",
+      score: formatScoreValue(scores[manoeuvreIndex]),
       penalty: penalties[manoeuvreIndex] || "",
     })),
   };
@@ -1403,7 +1408,7 @@ function compareRunsByDraw(a, b) {
 }
 
 function parsePublicScore(value) {
-  const parsed = Number.parseFloat(String(value ?? ""));
+  const parsed = parseScoreTotalValue(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
 

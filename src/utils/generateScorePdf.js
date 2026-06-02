@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import { getPatternDisplayName } from "../features/patterns/patternDefinitions";
 import { getScoreRuleLines } from "../features/scoring/scoringRuleText";
+import { formatScoreValue, formatTotalValue } from "./scoring";
 
 function safeText(value) {
   return String(value ?? "");
@@ -291,7 +292,7 @@ export function generateScorePdf({
       startY,
       summaryW,
       runBlockH,
-      run.penTotal ?? "",
+      formatTotalValue(run.penTotal),
       { fontStyle: "bold", fontSize: 6.2 }
     );
 
@@ -300,7 +301,7 @@ export function generateScorePdf({
       startY,
       summaryW,
       runBlockH,
-      run.scoreTotal ?? "",
+      formatTotalValue(run.scoreTotal),
       { fontStyle: "bold", fontSize: 6.8 }
     );
 
@@ -315,7 +316,7 @@ export function generateScorePdf({
         startY + penRowH,
         manoeuvreW,
         scoreRowH,
-        run.scores?.[i] || "",
+        formatScoreValue(run.scores?.[i]) || "",
         { fontSize: 6.5 }
       );
     }

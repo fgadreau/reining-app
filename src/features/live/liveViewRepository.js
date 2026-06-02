@@ -28,6 +28,7 @@ import {
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import { getPublicationStatusLabel } from "../publication/publicationRepository";
 import { loadActiveManoeuvre } from "../scoring/scoringRepository";
+import { formatScoreValue, formatTotalValue } from "../../utils/scoring";
 
 const ANNOUNCER_CLASS_REALTIME_TABLES = [
   "scoring_sessions",
@@ -364,7 +365,7 @@ function normalizeRunForAnnouncer(run, index, headers) {
         .map((judgeScore) => ({
           judgeId: judgeScore?.judgeId || "",
           judgeName: judgeScore?.judgeName || "",
-          scoreTotal: judgeScore?.scoreTotal ?? "",
+          scoreTotal: formatTotalValue(judgeScore?.scoreTotal),
         }))
         .filter((judgeScore) => String(judgeScore.scoreTotal).trim())
     : [];
@@ -376,9 +377,9 @@ function normalizeRunForAnnouncer(run, index, headers) {
     rider: run.rider || "",
     horse: run.horse || "",
     owner: run.owner || "",
-    scoreTotal: run.scoreTotal ?? "",
+    scoreTotal: formatTotalValue(run.scoreTotal),
     judgeScores,
-    penTotal: run.penTotal ?? "",
+    penTotal: formatTotalValue(run.penTotal),
     note: run.note || "",
     status: run.status || "",
     isActive: Boolean(run.isActive),
@@ -390,7 +391,7 @@ function normalizeRunForAnnouncer(run, index, headers) {
     isReview: String(run.scoreTotal ?? "").trim() === "Review",
     manoeuvres: headers.map((name, manoeuvreIndex) => ({
       name,
-      score: scores[manoeuvreIndex] || "",
+      score: formatScoreValue(scores[manoeuvreIndex]),
       penalty: penalties[manoeuvreIndex] || "",
     })),
   };
