@@ -11,6 +11,69 @@ const {
 async function seedRobotShow(page) {
   const seed = buildRobotShowStorageSeed();
 
+  await seedStorage(page, seed);
+}
+
+async function seedPublishedRobotShow(page) {
+  const seed = buildRobotShowStorageSeed();
+  const setup = seed.json["reining_class_setup_v1"][CLASS_ID];
+  const officialRuns = setup.runs.map((run, index) => ({
+    ...run,
+    scores: Array.from({ length: 13 }, (_, manoeuvreIndex) =>
+      manoeuvreIndex < index % 6 ? "+0.5" : "0"
+    ),
+    penalties: Array.from({ length: 13 }, () => ""),
+    penTotal: "",
+    scoreTotal: (70 + (index % 6) * 0.5).toFixed(1),
+    status: "completed",
+    note:
+      index === 0
+        ? "Run fluide, belle cadence."
+        : index === 5
+          ? "Excellent controle, cadence reguliere."
+          : "",
+    judgeName: "Juge Alpha",
+    judgeId: "judge-1",
+    judgeOrder: 1,
+  }));
+
+  seed.json["reining_publication_states_v1"][CLASS_ID] = {
+    classId: CLASS_ID,
+    status: "published",
+    publishedAt: "2026-05-28T15:30:00.000Z",
+    publishedBy: "test@showscore.local",
+    publicUrl: `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}`,
+    visibleFields: [
+      "draw",
+      "backNumber",
+      "rider",
+      "horse",
+      "owner",
+      "scoreTotal",
+      "status",
+    ],
+  };
+  seed.json["reining_class_records_v1"] = {
+    [CLASS_ID]: {
+      id: CLASS_ID,
+      official: {
+        judgeName: "Juge Alpha",
+        judgeSignature: "robot-signature",
+        finalized: true,
+        finalizedAt: "2026-05-28T15:25:00.000Z",
+        judgeSignedAt: "2026-05-28T15:25:00.000Z",
+        secretariatValidatedAt: "2026-05-28T15:28:00.000Z",
+        finalPdfFileName: "robot-officiel.pdf",
+        officialRuns,
+      },
+    },
+  };
+  seed.json[`reining-scoring-runs-${CLASS_ID}`] = officialRuns;
+
+  await seedStorage(page, seed);
+}
+
+async function seedStorage(page, seed) {
   await page.addInitScript((storageSeed) => {
     window.localStorage.clear();
 
@@ -22,6 +85,16 @@ async function seedRobotShow(page) {
       window.localStorage.setItem(key, JSON.stringify(value));
     });
   }, seed);
+}
+
+async function expectNoHorizontalOverflow(page) {
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.body.scrollWidth <= document.documentElement.clientWidth
+      )
+    )
+    .toBe(true);
 }
 
 async function showStep(page) {
@@ -97,9 +170,44 @@ test.describe("robot de show local", () => {
     await expect(body).toContainText("Juge Charlie");
     await expect(body).toContainText("Juge Delta");
     await expect(body).toContainText("Juge Echo");
-    await expect(body).toContainText("216.0");
-    await expect(body).toContainText("217.5");
+    await expect(body).toContainText("Total: 216");
+    await expect(body).toContainText("Total: 217½");
     await expect(body).not.toContainText("Deux derniers");
     await showStep(page);
+  });
+
+  test("garde la vitrine publique mobile lisible avec details a la demande", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await seedRobotShow(page);
+
+    await page.goto(`/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}`);
+    await expect(page.getByRole("heading", { name: "Robot Derby local" })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+
+    await page
+      .getByRole("button", { name: /Classe robot 5 juges/ })
+      .click();
+    await expect(page.locator("body")).toContainText("Ordre de passage");
+    await expect(page.locator("body")).toContainText("Cavalier 3");
+    await expectNoHorizontalOverflow(page);
+
+    await seedPublishedRobotShow(page);
+    await page.goto(`/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}`);
+    await expect(page.locator("body")).toContainText("Feuille de pointage officielle");
+    await page
+      .getByRole("button", { name: /Classe robot 5 juges/ })
+      .click();
+
+    const body = page.locator("body");
+    await expect(body).toContainText("Télécharger PDF");
+    await expect(body).toContainText("Résumé mobile");
+    await expect(body).toContainText("Cavalier 1");
+    await expect(body).not.toContainText("Walk");
+    await page.getByRole("button", { name: "Détails" }).first().click();
+    await expect(body).toContainText("Walk");
+    await expect(body).toContainText("Run fluide");
+    await expectNoHorizontalOverflow(page);
   });
 });

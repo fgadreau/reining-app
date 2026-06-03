@@ -12,7 +12,19 @@ import {
   buildAssociationPublicSeo,
   buildPublicDirectorySeo,
 } from "../../features/seo/publicSeo";
-import { appStyles as styles } from "../../styles/appStyles";
+import {
+  publicCardStyle,
+  publicColors,
+  publicEmptyStateStyle,
+  publicEyebrowStyle,
+  publicHeroStyle,
+  publicMutedTextStyle,
+  publicPageStyle,
+  publicPrimaryActionStyle,
+  publicSecondaryActionStyle,
+  publicSubtitleStyle,
+  publicTitleStyle,
+} from "../../styles/publicStyles";
 
 function PublicAssociationsPage() {
   const [associations, setAssociations] = useState([]);
@@ -45,7 +57,7 @@ function PublicAssociationsPage() {
   const seo = useMemo(() => buildPublicDirectorySeo(t), [t]);
 
   return (
-    <div style={styles.app}>
+    <div style={publicPageStyle}>
       <SeoMeta
         title={seo.title}
         description={seo.description}
@@ -141,33 +153,21 @@ function PublicAssociationsPage() {
 }
 
 const heroStyle = {
-  background: "#fff",
-  borderRadius: 12,
-  padding: 18,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  marginBottom: 16,
-  display: "flex",
-  justifyContent: "space-between",
-  gap: 16,
-  alignItems: "flex-start",
-  flexWrap: "wrap",
+  ...publicHeroStyle,
+  marginBottom: 12,
 };
 
 const eyebrowStyle = {
-  color: "#64748b",
-  fontWeight: 700,
-  textTransform: "uppercase",
-  fontSize: 12,
-  letterSpacing: 0,
+  ...publicEyebrowStyle,
 };
 
 const titleStyle = {
-  margin: "4px 0",
-  fontSize: 30,
+  ...publicTitleStyle,
+  fontSize: 31,
 };
 
 const subtitleStyle = {
-  color: "#64748b",
+  ...publicSubtitleStyle,
 };
 
 const gridStyle = {
@@ -177,10 +177,7 @@ const gridStyle = {
 };
 
 const cardStyle = {
-  background: "#fff",
-  borderRadius: 8,
-  padding: 16,
-  border: "1px solid #e2e8f0",
+  ...publicCardStyle,
   display: "grid",
   gap: 14,
   alignContent: "space-between",
@@ -195,48 +192,41 @@ const associationHeaderStyle = {
 
 const cardTitleStyle = {
   margin: 0,
-  fontSize: 20,
+  fontSize: 21,
+  lineHeight: 1.12,
 };
 
 const mutedTextStyle = {
-  color: "#64748b",
+  ...publicMutedTextStyle,
   marginTop: 6,
 };
 
 const websiteLinkStyle = {
   display: "inline-flex",
   marginTop: 8,
-  color: "#1d4ed8",
+  color: publicColors.blue,
   fontWeight: 800,
 };
 
 const searchLabelStyle = {
   display: "grid",
-  gap: 6,
-  color: "#334155",
+  gap: 8,
+  color: publicColors.softText,
   fontWeight: 800,
 };
 
 const searchInputStyle = {
   width: "100%",
-  maxWidth: 520,
-  padding: "10px 12px",
+  padding: "12px 13px",
   borderRadius: 8,
-  border: "1px solid #cbd5e1",
+  border: `1px solid ${publicColors.borderStrong}`,
   boxSizing: "border-box",
+  fontSize: 16,
+  background: "#fff",
 };
 
 const primaryLinkStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "10px 14px",
-  borderRadius: 8,
-  border: "1px solid #111827",
-  background: "#111827",
-  color: "#fff",
-  textDecoration: "none",
-  minHeight: 40,
+  ...publicPrimaryActionStyle,
   maxWidth: "100%",
 };
 
@@ -248,27 +238,16 @@ const cardActionsStyle = {
 };
 
 const secondaryButtonStyle = {
-  minHeight: 40,
+  minHeight: 42,
 };
 
 const secondaryLinkStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "10px 14px",
-  borderRadius: 8,
-  border: "1px solid #cbd5e1",
-  background: "#fff",
-  color: "#111827",
-  textDecoration: "none",
+  ...publicSecondaryActionStyle,
 };
 
 const emptyStateStyle = {
-  background: "#fff",
-  borderRadius: 8,
-  padding: 16,
-  border: "1px dashed #cbd5e1",
-  color: "#64748b",
+  ...publicEmptyStateStyle,
+  borderStyle: "dashed",
 };
 
 export default PublicAssociationsPage;

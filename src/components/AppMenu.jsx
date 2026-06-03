@@ -67,6 +67,31 @@ function AppMenu() {
     };
   }, [associationId, isPublicPath]);
 
+  if (isPublicPath) {
+    return (
+      <div style={publicMenuShellStyle}>
+        <nav style={publicNavStyle} aria-label={t("nav.main")}>
+          <Link to="/public" style={publicBrandStyle}>
+            <span style={publicBrandMarkStyle}>ShowScore</span>
+            <span style={publicBrandLabelStyle}>{t("nav.publicShowcase")}</span>
+          </Link>
+
+          <span style={spacerStyle} />
+          <LanguageSwitcher />
+          {canOpenManagement ? (
+            <Link to="/associations" style={publicManagementLinkStyle}>
+              {t("nav.managementAccess")}
+            </Link>
+          ) : (
+            <Link to="/login" style={publicManagementLinkStyle}>
+              {t("nav.login")}
+            </Link>
+          )}
+        </nav>
+      </div>
+    );
+  }
+
   return (
     <div style={menuShellStyle}>
       <nav style={navStyle} aria-label={t("nav.main")}>
@@ -287,6 +312,60 @@ const backLinkStyle = {
 const spacerStyle = {
   flex: 1,
   minWidth: 8,
+};
+
+const publicMenuShellStyle = {
+  fontFamily:
+    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+  background: "#f5f6f8",
+  borderBottom: "1px solid #d8dee8",
+};
+
+const publicNavStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  padding: "8px 12px",
+  minHeight: 56,
+  boxSizing: "border-box",
+};
+
+const publicBrandStyle = {
+  display: "inline-flex",
+  flexDirection: "column",
+  justifyContent: "center",
+  minHeight: 38,
+  color: "#101827",
+  textDecoration: "none",
+  minWidth: 0,
+};
+
+const publicBrandMarkStyle = {
+  fontWeight: 950,
+  lineHeight: 1,
+};
+
+const publicBrandLabelStyle = {
+  color: "#66758d",
+  fontSize: 12,
+  fontWeight: 800,
+  marginTop: 2,
+};
+
+const publicManagementLinkStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: 34,
+  padding: "6px 10px",
+  borderRadius: 8,
+  border: "1px solid #cbd5e1",
+  background: "#fff",
+  color: "#42526b",
+  fontSize: 13,
+  fontWeight: 850,
+  textDecoration: "none",
+  whiteSpace: "nowrap",
 };
 
 export default AppMenu;

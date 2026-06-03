@@ -27,7 +27,19 @@ import {
   buildScorePdfFileName,
   generateScorePdf,
 } from "../../utils/generateScorePdf";
-import { appStyles as styles } from "../../styles/appStyles";
+import {
+  publicBadgeStyle,
+  publicCardStyle,
+  publicColors,
+  publicEmptyStateStyle,
+  publicEyebrowStyle,
+  publicHeroStyle,
+  publicMutedTextStyle,
+  publicPageStyle,
+  publicSecondaryActionStyle,
+  publicSubtitleStyle,
+  publicTitleStyle,
+} from "../../styles/publicStyles";
 
 function PublicResultsPage() {
   const { associationId, showId } = useParams();
@@ -153,7 +165,7 @@ function PublicResultsPage() {
 
   if (!show && !isLoading) {
     return (
-      <div style={styles.app}>
+      <div style={publicPageStyle}>
         <SeoMeta
           title={seo.title}
           description={seo.description}
@@ -172,7 +184,7 @@ function PublicResultsPage() {
   }
 
   return (
-    <div style={styles.app}>
+    <div style={publicPageStyle}>
       <SeoMeta
         title={seo.title}
         description={seo.description}
@@ -182,7 +194,7 @@ function PublicResultsPage() {
       />
       {isPublicRoute && <PublicAppInstallPrompt />}
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={navBackRowStyle}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
           {t("public.results.back")}
         </button>
@@ -306,11 +318,28 @@ function PublicResultsPage() {
 
 function PublicClassResults({ association, show, classView, isOpen, onToggle }) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [expandedRunIds, setExpandedRunIds] = useState(() => new Set());
   const { t } = useTranslation();
   const filteredRuns = useMemo(
     () => filterRunsBySearch(classView.runs, searchQuery),
     [classView.runs, searchQuery]
   );
+
+  function toggleRunDetails(run, index) {
+    const runKey = getPublicRunKey(run, index);
+
+    setExpandedRunIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+
+      if (nextIds.has(runKey)) {
+        nextIds.delete(runKey);
+      } else {
+        nextIds.add(runKey);
+      }
+
+      return nextIds;
+    });
+  }
 
   const downloadClassPdf = (event) => {
     event.stopPropagation();
@@ -417,22 +446,33 @@ function PublicClassResults({ association, show, classView, isOpen, onToggle }) 
             <div style={softEmptyStyle}>{t("public.results.noRunSearchResults")}</div>
           ) : (
             <div style={scoresheetListStyle}>
-              {filteredRuns.map((run, index) => (
-                <PublicScoresheetRun
-                  key={
-                    run.id
-                      ? `${run.id}-${run.judgeId || run.judgeName || index}`
-                      : `${run.draw}-${run.backNumber}-${run.judgeId || index}`
-                  }
-                  run={run}
-                />
-              ))}
+              <div style={resultsSummaryLabelStyle}>
+                {t("public.results.resultsSummary")}
+              </div>
+              {filteredRuns.map((run, index) => {
+                const runKey = getPublicRunKey(run, index);
+
+                return (
+                  <PublicScoresheetRun
+                    key={runKey}
+                    run={run}
+                    isExpanded={expandedRunIds.has(runKey)}
+                    onToggleDetails={() => toggleRunDetails(run, index)}
+                  />
+                );
+              })}
             </div>
           )}
         </div>
       )}
     </section>
   );
+}
+
+function getPublicRunKey(run, index) {
+  return run.id
+    ? `${run.id}-${run.judgeId || run.judgeName || index}`
+    : `${run.draw}-${run.backNumber}-${run.judgeId || index}`;
 }
 
 function getHeadersForPublicClass(classView) {
@@ -457,7 +497,7 @@ function getPublicJudgeLabel(classView, t) {
   return "";
 }
 
-function PublicScoresheetRun({ run }) {
+function PublicScoresheetRun({ run, isExpanded, onToggleDetails }) {
   const { t } = useTranslation();
 
   return (
@@ -474,16 +514,6 @@ function PublicScoresheetRun({ run }) {
           <div style={mutedTextStyle}>
             {run.horse || t("public.results.horseFallback")}
           </div>
-          {run.owner && (
-            <div style={mutedTextStyle}>
-              {t("public.results.owner")}: {run.owner}
-            </div>
-          )}
-          {run.judgeName && (
-            <div style={judgeLineStyle}>
-              {t("public.results.judge")}: {run.judgeName}
-            </div>
-          )}
         </div>
         <div style={runTotalsStyle}>
           <div>
@@ -497,8 +527,39 @@ function PublicScoresheetRun({ run }) {
         </div>
       </div>
 
-      <PublicRunNote note={run.note} />
-      <ManoeuvreDetails run={run} showDescriptions />
+      <div style={runDetailActionRowStyle}>
+        <button
+          type="button"
+          onClick={onToggleDetails}
+          style={smallButtonStyle}
+          aria-expanded={isExpanded}
+        >
+          {isExpanded
+            ? t("public.results.hideDetails")
+            : t("public.results.viewDetails")}
+        </button>
+      </div>
+
+      {isExpanded && (
+        <div style={runDetailsPanelStyle}>
+          <div style={runMetaGridStyle}>
+            {run.owner && (
+              <div style={runMetaItemStyle}>
+                <span style={runLabelStyle}>{t("public.results.owner")}</span>
+                <span>{run.owner}</span>
+              </div>
+            )}
+            {run.judgeName && (
+              <div style={runMetaItemStyle}>
+                <span style={runLabelStyle}>{t("public.results.judge")}</span>
+                <span>{run.judgeName}</span>
+              </div>
+            )}
+          </div>
+          <PublicRunNote note={run.note} />
+          <ManoeuvreDetails run={run} showDescriptions />
+        </div>
+      )}
     </article>
   );
 }
@@ -620,12 +681,14 @@ function PublicLivePanel({ classView, now }) {
                 )}
               </div>
               <LiveRunBlock
+                label={t("public.results.nextParticipant")}
                 run={nextRun}
                 showDetails={showScoreDetails}
                 statusLabel={t("public.results.statusPreparation")}
                 status="preparation"
               />
               <LiveRunBlock
+                label={t("public.results.secondNextParticipant")}
                 run={secondNextRun}
                 showDetails={showScoreDetails}
                 statusLabel={t("public.results.statusWaiting")}
@@ -928,14 +991,16 @@ function PublicLiveOrderTable({ runs, showScores }) {
                 {run.horse || t("public.results.horseFallback")}
               </div>
             </div>
-            <span style={orderStatusBadgeStyle(run.liveOrderStatus)}>
-              {getPublicRunOrderStatusLabel(run.liveOrderStatus, t)}
-            </span>
-            {showScores && run.scoreTotal ? (
-              <LiveRunScore run={run} compact />
-            ) : (
-              <div style={orderScoreStyle}>—</div>
-            )}
+            <div style={orderRowMetaStyle}>
+              <span style={orderStatusBadgeStyle(run.liveOrderStatus)}>
+                {getPublicRunOrderStatusLabel(run.liveOrderStatus, t)}
+              </span>
+              {showScores && run.scoreTotal ? (
+                <LiveRunScore run={run} compact />
+              ) : (
+                <div style={orderScoreStyle}>—</div>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -1235,7 +1300,7 @@ function normalizeSearchText(value) {
 }
 
 function Badge({ children }) {
-  return <span style={badgeStyle}>{children}</span>;
+  return <span style={publicBadgeStyle("live")}>{children}</span>;
 }
 
 function LiveFreshnessBadge({ updatedAt, now }) {
@@ -1245,22 +1310,18 @@ function LiveFreshnessBadge({ updatedAt, now }) {
   return <span style={freshnessBadgeStyle(freshness.tone)}>{freshness.label}</span>;
 }
 
+const navBackRowStyle = {
+  marginBottom: 10,
+};
+
 const heroStyle = {
-  background: "#fff",
-  borderRadius: 12,
-  padding: 16,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  marginBottom: 16,
-  display: "flex",
-  justifyContent: "space-between",
-  gap: 16,
-  alignItems: "flex-start",
-  flexWrap: "wrap",
+  ...publicHeroStyle,
+  marginBottom: 12,
 };
 
 const heroBrandStyle = {
   display: "flex",
-  gap: 14,
+  gap: 12,
   alignItems: "flex-start",
   minWidth: 0,
 };
@@ -1273,45 +1334,41 @@ const heroActionsStyle = {
 };
 
 const eyebrowStyle = {
-  color: "#64748b",
-  fontWeight: 700,
-  textTransform: "uppercase",
-  fontSize: 12,
-  letterSpacing: 0,
+  ...publicEyebrowStyle,
 };
 
 const titleStyle = {
-  margin: "4px 0",
-  fontSize: 28,
-  overflowWrap: "anywhere",
+  ...publicTitleStyle,
+  fontSize: 29,
 };
 
 const subtitleStyle = {
-  color: "#64748b",
+  ...publicSubtitleStyle,
 };
 
 const summaryStyle = {
-  background: "#ecfdf5",
-  border: "1px solid #86efac",
+  background: publicColors.greenSoft,
+  border: `1px solid ${publicColors.greenBorder}`,
   borderRadius: 8,
-  padding: 14,
-  marginBottom: 16,
+  padding: 12,
+  marginBottom: 12,
+  display: "grid",
+  gap: 2,
 };
 
 const summaryValueStyle = {
-  fontSize: 28,
-  fontWeight: 800,
-  color: "#166534",
+  fontSize: 26,
+  fontWeight: 950,
+  color: publicColors.green,
 };
 
 const summaryLabelStyle = {
-  color: "#166534",
-  marginTop: 4,
+  color: publicColors.green,
+  fontWeight: 750,
 };
 
 const summarySubLabelStyle = {
-  color: "#166534",
-  marginTop: 4,
+  color: publicColors.green,
   fontSize: 13,
 };
 
@@ -1321,12 +1378,10 @@ const liveStackStyle = {
 };
 
 const livePanelStyle = {
-  background: "#fff",
-  borderRadius: 12,
-  padding: 16,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  marginBottom: 16,
-  border: "1px solid #bbf7d0",
+  ...publicCardStyle,
+  padding: 14,
+  marginBottom: 12,
+  border: `1px solid ${publicColors.greenBorder}`,
 };
 
 const livePanelToggleStyle = (isOpen) => ({
@@ -1342,7 +1397,7 @@ const livePanelToggleStyle = (isOpen) => ({
 
 const badgeStackStyle = {
   display: "flex",
-  gap: 8,
+  gap: 7,
   flexWrap: "wrap",
   justifyContent: "flex-end",
 };
@@ -1350,8 +1405,8 @@ const badgeStackStyle = {
 const noScoreNoticeStyle = {
   border: "1px solid #bfdbfe",
   borderRadius: 8,
-  padding: 10,
-  background: "#eff6ff",
+  padding: 11,
+  background: publicColors.blueSoft,
   color: "#1e3a8a",
   fontWeight: 800,
   marginBottom: 12,
@@ -1361,7 +1416,7 @@ const scheduleOnlyPanelStyle = {
   border: "1px solid #bfdbfe",
   borderRadius: 8,
   padding: 14,
-  background: "#f8fafc",
+  background: publicColors.surfaceSoft,
   marginBottom: 12,
 };
 
@@ -1373,7 +1428,7 @@ const scheduleOnlyDetailListStyle = {
 };
 
 const scheduleOnlyProgressStyle = {
-  color: "#1d4ed8",
+  color: publicColors.blue,
   fontWeight: 900,
   marginTop: 6,
 };
@@ -1381,11 +1436,11 @@ const scheduleOnlyProgressStyle = {
 const scheduleOnlyDetailStyle = {
   display: "inline-flex",
   alignItems: "center",
-  border: "1px solid #cbd5e1",
+  border: `1px solid ${publicColors.border}`,
   borderRadius: 8,
   padding: "6px 9px",
-  background: "#fff",
-  color: "#334155",
+  background: publicColors.surface,
+  color: publicColors.softText,
   fontWeight: 800,
 };
 
@@ -1397,7 +1452,7 @@ const liveGridStyle = {
 
 const timingPanelStyle = {
   border: "1px solid #dbeafe",
-  background: "#eff6ff",
+  background: publicColors.blueSoft,
   borderRadius: 8,
   padding: 12,
   marginBottom: 12,
@@ -1410,7 +1465,7 @@ const timingGridStyle = {
 };
 
 const timingMetricStyle = {
-  background: "#fff",
+  background: publicColors.surface,
   border: "1px solid #bfdbfe",
   borderRadius: 8,
   padding: 12,
@@ -1423,16 +1478,17 @@ const timingValueStyle = {
 };
 
 const timingNoteStyle = {
-  color: "#475569",
+  color: publicColors.softText,
   fontSize: 13,
   marginTop: 10,
 };
 
 const liveBlockStyle = {
-  border: "1px solid #e2e8f0",
+  border: `1px solid ${publicColors.border}`,
   borderRadius: 8,
-  padding: 12,
-  minHeight: 112,
+  padding: 11,
+  minHeight: 104,
+  background: publicColors.surface,
 };
 
 const liveBlockHeaderStyle = {
@@ -1444,7 +1500,7 @@ const liveBlockHeaderStyle = {
 };
 
 const orderPanelStyle = {
-  borderTop: "1px solid #e2e8f0",
+  borderTop: `1px solid ${publicColors.border}`,
   marginTop: 14,
   paddingTop: 14,
 };
@@ -1460,69 +1516,64 @@ const orderHeaderStyle = {
 
 const orderListStyle = {
   display: "grid",
-  gap: 8,
+  gap: 7,
 };
 
 const orderRowStyle = {
-  display: "flex",
+  display: "grid",
+  gridTemplateColumns: "42px minmax(0, 1fr)",
   alignItems: "center",
-  gap: 10,
-  flexWrap: "wrap",
-  border: "1px solid #e2e8f0",
+  gap: 8,
+  border: `1px solid ${publicColors.border}`,
   borderRadius: 8,
-  padding: 10,
-  background: "#f8fafc",
+  padding: 9,
+  background: publicColors.surfaceSoft,
 };
 
 const orderDrawStyle = {
-  width: 48,
-  flex: "0 0 48px",
+  width: 42,
   fontWeight: 900,
-  color: "#0f172a",
+  color: publicColors.text,
 };
 
 const orderIdentityStyle = {
-  flex: "1 1 220px",
   minWidth: 0,
 };
 
+const orderRowMetaStyle = {
+  gridColumn: "1 / -1",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
 const orderScoreStyle = {
-  minWidth: 72,
-  textAlign: "right",
-  fontSize: 20,
+  minWidth: 60,
+  textAlign: "left",
+  fontSize: 18,
   fontWeight: 900,
-  color: "#111827",
+  color: publicColors.text,
 };
 
 const runLabelStyle = {
-  color: "#64748b",
-  fontWeight: 800,
+  color: publicColors.muted,
+  fontWeight: 850,
   textTransform: "uppercase",
   fontSize: 12,
   letterSpacing: 0,
-  marginBottom: 8,
+  marginBottom: 6,
 };
 
 const runTitleStyle = {
   fontWeight: 900,
-  color: "#111827",
+  color: publicColors.text,
 };
 
 const runNameStyle = {
   fontWeight: 800,
   marginTop: 4,
-};
-
-const judgeLineStyle = {
-  display: "inline-flex",
-  marginTop: 6,
-  padding: "4px 8px",
-  borderRadius: 999,
-  border: "1px solid #cbd5e1",
-  background: "#f8fafc",
-  color: "#334155",
-  fontSize: 12,
-  fontWeight: 800,
 };
 
 const liveScoreStyle = {
@@ -1547,56 +1598,56 @@ const judgeScoreItemStyle = {
   display: "inline-flex",
   gap: 4,
   alignItems: "baseline",
-  border: "1px solid #cbd5e1",
+  border: `1px solid ${publicColors.border}`,
   borderRadius: 8,
   padding: "5px 8px",
-  background: "#f8fafc",
+  background: publicColors.surfaceSoft,
 };
 
 const judgeScoreNameStyle = {
-  color: "#475569",
+  color: publicColors.softText,
   fontSize: 12,
   fontWeight: 800,
 };
 
 const judgeScoreValueStyle = {
-  color: "#111827",
+  color: publicColors.text,
   fontWeight: 900,
 };
 
 const judgeScoreCompactWrapStyle = {
   display: "grid",
   gap: 3,
-  minWidth: 150,
-  textAlign: "right",
+  minWidth: 0,
+  textAlign: "left",
 };
 
 const judgeScoreCompactListStyle = {
   display: "flex",
   gap: 4,
   flexWrap: "wrap",
-  justifyContent: "flex-end",
+  justifyContent: "flex-start",
 };
 
 const judgeScoreCompactItemStyle = {
   display: "inline-flex",
   gap: 3,
   alignItems: "baseline",
-  color: "#475569",
+  color: publicColors.softText,
   fontSize: 11,
   fontWeight: 800,
 };
 
 const runNotePublicStyle = {
-  border: "1px solid #cbd5e1",
+  border: `1px solid ${publicColors.border}`,
   borderRadius: 8,
   padding: 10,
-  background: "#f8fafc",
+  background: publicColors.surfaceSoft,
   marginTop: 10,
 };
 
 const runNoteTextStyle = {
-  color: "#334155",
+  color: publicColors.softText,
   whiteSpace: "pre-wrap",
   lineHeight: 1.4,
 };
@@ -1611,7 +1662,7 @@ const paidWarmupNoticeStyle = {
   border: "1px solid #fde68a",
   borderRadius: 8,
   padding: 10,
-  background: "#fefce8",
+  background: publicColors.amberSoft,
   color: "#854d0e",
   fontWeight: 800,
   marginBottom: 12,
@@ -1631,26 +1682,26 @@ const paidWarmupCueStyle = (tone) => ({
 
 const detailsGridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 72px), 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 92px), 1fr))",
   gap: 6,
   marginTop: 10,
 };
 
 const detailCellStyle = {
-  border: "1px solid #e2e8f0",
+  border: `1px solid ${publicColors.border}`,
   borderRadius: 6,
   padding: 8,
   minHeight: 48,
 };
 
 const detailNameStyle = {
-  color: "#64748b",
+  color: publicColors.muted,
   fontSize: 12,
   fontWeight: 800,
 };
 
 const detailDescriptionStyle = {
-  color: "#475569",
+  color: publicColors.softText,
   fontSize: 12,
   marginTop: 3,
   lineHeight: 1.3,
@@ -1662,17 +1713,15 @@ const detailScoreStyle = {
 };
 
 const detailPenaltyStyle = {
-  color: "#b91c1c",
+  color: publicColors.red,
   fontSize: 12,
   fontWeight: 800,
   marginTop: 2,
 };
 
 const cardStyle = {
-  background: "#fff",
-  borderRadius: 12,
-  padding: 16,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+  ...publicCardStyle,
+  padding: 14,
 };
 
 const sectionHeaderStyle = {
@@ -1685,9 +1734,10 @@ const sectionTitleStyle = {
 };
 
 const classCardStyle = {
-  border: "1px solid #e2e8f0",
+  border: `1px solid ${publicColors.border}`,
   borderRadius: 8,
   padding: 12,
+  background: publicColors.surface,
 };
 
 const classToggleStyle = {
@@ -1728,16 +1778,10 @@ const classActionsStyle = {
 };
 
 const smallButtonStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "8px 10px",
-  borderRadius: 8,
-  border: "1px solid #cbd5e1",
-  background: "#fff",
-  color: "#111827",
-  cursor: "pointer",
-  fontWeight: 800,
+  ...publicSecondaryActionStyle,
+  minHeight: 34,
+  padding: "7px 10px",
+  fontSize: 13,
 };
 
 const toggleIconStyle = {
@@ -1757,30 +1801,37 @@ const toggleIconStyle = {
 const searchLabelStyle = {
   display: "grid",
   gap: 6,
-  color: "#334155",
+  color: publicColors.softText,
   fontWeight: 800,
   marginBottom: 12,
 };
 
 const searchInputStyle = {
   width: "100%",
-  maxWidth: 520,
-  padding: "10px 12px",
+  padding: "12px 13px",
   borderRadius: 8,
-  border: "1px solid #cbd5e1",
+  border: `1px solid ${publicColors.borderStrong}`,
   boxSizing: "border-box",
+  fontSize: 16,
 };
 
 const scoresheetListStyle = {
   display: "grid",
-  gap: 12,
+  gap: 9,
+};
+
+const resultsSummaryLabelStyle = {
+  color: publicColors.softText,
+  fontWeight: 850,
+  fontSize: 13,
+  lineHeight: 1.35,
 };
 
 const scoresheetRunStyle = {
-  border: "1px solid #e2e8f0",
+  border: `1px solid ${publicColors.border}`,
   borderRadius: 8,
-  padding: 12,
-  background: "#fff",
+  padding: 10,
+  background: publicColors.surface,
 };
 
 const scoresheetRunHeaderStyle = {
@@ -1792,18 +1843,43 @@ const scoresheetRunHeaderStyle = {
   marginBottom: 10,
 };
 
+const runDetailActionRowStyle = {
+  display: "flex",
+  justifyContent: "flex-end",
+};
+
+const runDetailsPanelStyle = {
+  borderTop: `1px solid ${publicColors.border}`,
+  marginTop: 10,
+  paddingTop: 10,
+};
+
+const runMetaGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))",
+  gap: 8,
+  marginBottom: 10,
+};
+
+const runMetaItemStyle = {
+  display: "grid",
+  gap: 2,
+  color: publicColors.softText,
+  fontWeight: 750,
+};
+
 const runTotalsStyle = {
   display: "flex",
-  gap: 8,
+  gap: 7,
   flexWrap: "wrap",
 };
 
 const scoreValueStyle = {
-  minWidth: 76,
+  minWidth: 70,
   border: "1px solid #dbeafe",
   borderRadius: 8,
-  padding: "8px 10px",
-  background: "#eff6ff",
+  padding: "7px 9px",
+  background: publicColors.blueSoft,
   color: "#1e3a8a",
   fontWeight: 900,
   fontSize: 18,
@@ -1811,29 +1887,15 @@ const scoreValueStyle = {
 };
 
 const penaltyValueStyle = {
-  minWidth: 76,
+  minWidth: 70,
   border: "1px solid #fee2e2",
   borderRadius: 8,
-  padding: "8px 10px",
-  background: "#fff5f5",
-  color: "#991b1b",
+  padding: "7px 9px",
+  background: publicColors.redSoft,
+  color: publicColors.red,
   fontWeight: 900,
   fontSize: 18,
   textAlign: "center",
-};
-
-const badgeStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  minHeight: 28,
-  padding: "4px 9px",
-  borderRadius: 999,
-  border: "1px solid #86efac",
-  background: "#ecfdf5",
-  color: "#166534",
-  fontWeight: 700,
-  fontSize: 13,
-  whiteSpace: "nowrap",
 };
 
 const orderStatusBadgeStyle = (status) => {
@@ -1898,7 +1960,7 @@ const freshnessBadgeStyle = (tone) => {
   const colors = getFreshnessColors(tone);
 
   return {
-    ...badgeStyle,
+    ...publicBadgeStyle("neutral"),
     border: `1px solid ${colors.border}`,
     background: colors.background,
     color: colors.color,
@@ -1938,46 +2000,29 @@ function getFreshnessColors(tone) {
 }
 
 const linkButtonStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "10px 14px",
-  borderRadius: 8,
-  border: "1px solid #cbd5e1",
-  background: "#fff",
-  color: "#111827",
-  textDecoration: "none",
+  ...publicSecondaryActionStyle,
   maxWidth: "100%",
 };
 
 const secondaryButtonStyle = {
-  padding: "10px 14px",
-  borderRadius: 8,
-  border: "1px solid #cbd5e1",
-  background: "#fff",
-  color: "#111827",
-  cursor: "pointer",
+  ...publicSecondaryActionStyle,
 };
 
 const mutedTextStyle = {
-  color: "#64748b",
+  ...publicMutedTextStyle,
   fontSize: 13,
 };
 
 const emptyStateStyle = {
-  background: "#fff",
-  borderRadius: 12,
-  padding: 20,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  color: "#64748b",
+  ...publicEmptyStateStyle,
   marginTop: 16,
 };
 
 const softEmptyStyle = {
-  border: "1px dashed #cbd5e1",
+  border: `1px dashed ${publicColors.borderStrong}`,
   borderRadius: 8,
   padding: 14,
-  color: "#64748b",
+  color: publicColors.muted,
 };
 
 export default PublicResultsPage;

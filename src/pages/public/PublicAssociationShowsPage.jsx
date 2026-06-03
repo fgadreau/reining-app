@@ -14,7 +14,20 @@ import {
   buildAssociationPublicSeo,
   buildShowPublicSeo,
 } from "../../features/seo/publicSeo";
-import { appStyles as styles } from "../../styles/appStyles";
+import {
+  publicBadgeStyle,
+  publicCardStyle,
+  publicColors,
+  publicEmptyStateStyle,
+  publicEyebrowStyle,
+  publicHeroStyle,
+  publicMutedTextStyle,
+  publicPageStyle,
+  publicPrimaryActionStyle,
+  publicSecondaryActionStyle,
+  publicSubtitleStyle,
+  publicTitleStyle,
+} from "../../styles/publicStyles";
 
 function PublicAssociationShowsPage() {
   const { associationId } = useParams();
@@ -52,7 +65,7 @@ function PublicAssociationShowsPage() {
   );
 
   return (
-    <div style={styles.app}>
+    <div style={publicPageStyle}>
       <SeoMeta
         title={seo.title}
         description={seo.description}
@@ -152,20 +165,12 @@ function PublicAssociationShowsPage() {
 }
 
 function Badge({ children, tone = "published" }) {
-  return <span style={badgeStyle(tone)}>{children}</span>;
+  return <span style={publicBadgeStyle(tone === "live" ? "live" : "info")}>{children}</span>;
 }
 
 const heroStyle = {
-  background: "#fff",
-  borderRadius: 12,
-  padding: 18,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  marginBottom: 16,
-  display: "flex",
-  justifyContent: "space-between",
-  gap: 14,
-  alignItems: "flex-start",
-  flexWrap: "wrap",
+  ...publicHeroStyle,
+  marginBottom: 12,
 };
 
 const associationHeaderStyle = {
@@ -183,21 +188,16 @@ const heroActionsStyle = {
 };
 
 const eyebrowStyle = {
-  color: "#64748b",
-  fontWeight: 700,
-  textTransform: "uppercase",
-  fontSize: 12,
-  letterSpacing: 0,
+  ...publicEyebrowStyle,
 };
 
 const titleStyle = {
-  margin: "4px 0",
+  ...publicTitleStyle,
   fontSize: 30,
-  overflowWrap: "anywhere",
 };
 
 const subtitleStyle = {
-  color: "#64748b",
+  ...publicSubtitleStyle,
 };
 
 const showListStyle = {
@@ -206,10 +206,7 @@ const showListStyle = {
 };
 
 const cardStyle = {
-  background: "#fff",
-  borderRadius: 8,
-  padding: 16,
-  border: "1px solid #e2e8f0",
+  ...publicCardStyle,
   display: "flex",
   justifyContent: "space-between",
   gap: 16,
@@ -226,11 +223,12 @@ const cardActionsStyle = {
 
 const cardTitleStyle = {
   margin: 0,
-  fontSize: 20,
+  fontSize: 21,
+  lineHeight: 1.14,
 };
 
 const mutedTextStyle = {
-  color: "#64748b",
+  ...publicMutedTextStyle,
   marginTop: 6,
 };
 
@@ -241,50 +239,20 @@ const badgeRowStyle = {
   marginTop: 10,
 };
 
-const badgeStyle = (tone) => ({
-  display: "inline-flex",
-  alignItems: "center",
-  padding: "5px 9px",
-  borderRadius: 999,
-  border: `1px solid ${tone === "live" ? "#86efac" : "#bfdbfe"}`,
-  background: tone === "live" ? "#ecfdf5" : "#eff6ff",
-  color: tone === "live" ? "#166534" : "#1d4ed8",
-  fontWeight: 800,
-  fontSize: 13,
-});
-
 const primaryLinkStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "10px 14px",
-  borderRadius: 8,
-  border: "1px solid #111827",
-  background: "#111827",
-  color: "#fff",
-  textDecoration: "none",
+  ...publicPrimaryActionStyle,
   maxWidth: "100%",
 };
 
 const secondaryLinkStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "10px 14px",
-  borderRadius: 8,
-  border: "1px solid #cbd5e1",
-  background: "#fff",
-  color: "#111827",
-  textDecoration: "none",
+  ...publicSecondaryActionStyle,
   maxWidth: "100%",
 };
 
 const emptyStateStyle = {
-  background: "#fff",
-  borderRadius: 8,
-  padding: 16,
-  border: "1px dashed #cbd5e1",
-  color: "#64748b",
+  ...publicEmptyStateStyle,
+  borderStyle: "dashed",
+  color: publicColors.muted,
 };
 
 export default PublicAssociationShowsPage;
