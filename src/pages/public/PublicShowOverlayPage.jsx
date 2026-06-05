@@ -11,12 +11,16 @@ import {
 import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 
+const SPONSOR_LOGOS_PER_SLIDE = 4;
+const SPONSOR_SLIDE_INTERVAL_MS = 8000;
+
 function PublicShowOverlayPage() {
   const { associationId, showId } = useParams();
   const { t } = useTranslation();
   const [association, setAssociation] = useState(null);
   const [show, setShow] = useState(null);
   const [publicView, setPublicView] = useState(() => getPublicShowView(showId));
+  const [sponsorSlideIndex, setSponsorSlideIndex] = useState(0);
   const publicClassIdsKey = (publicView.classIds || []).join("|");
   const liveClass = useMemo(
     () => pickOverlayLiveClass(publicView.liveClasses || []),
@@ -27,6 +31,9 @@ function PublicShowOverlayPage() {
     ? association.sponsorLogos
     : [];
   const hasSponsorRail = sponsorLogos.length > 0;
+  const sponsorSlides = buildSponsorSlides(sponsorLogos);
+  const visibleSponsorLogos =
+    sponsorSlides[sponsorSlideIndex % sponsorSlides.length] || [];
 
   useEffect(() => {
     let isMounted = true;
@@ -78,6 +85,26 @@ function PublicShowOverlayPage() {
     };
   }, [showId, publicClassIdsKey]);
 
+  useEffect(() => {
+    setSponsorSlideIndex(0);
+  }, [sponsorLogos.length]);
+
+  useEffect(() => {
+    if (sponsorSlides.length <= 1) {
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      setSponsorSlideIndex(
+        (currentIndex) => (currentIndex + 1) % sponsorSlides.length
+      );
+    }, SPONSOR_SLIDE_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [sponsorSlides.length]);
+
   return (
     <main style={overlayPageStyle}>
       {hasSponsorRail && (
@@ -85,8 +112,14 @@ function PublicShowOverlayPage() {
           <div style={sponsorRailTitleStyle}>
             {t("public.overlay.sponsorRailTitle")}
           </div>
-          <div style={sponsorListStyle}>
-            {sponsorLogos.map((sponsor) => (
+          <div
+            key={sponsorSlideIndex}
+            style={{
+              ...sponsorListStyle,
+              animation: "showscore-sponsor-fade 700ms ease both",
+            }}
+          >
+            {visibleSponsorLogos.map((sponsor) => (
               <div key={sponsor.id} style={sponsorTileStyle}>
                 <img
                   src={sponsor.logoDataUrl}
@@ -139,6 +172,22 @@ function PublicShowOverlayPage() {
       </section>
     </main>
   );
+}
+
+function buildSponsorSlides(sponsorLogos) {
+  const logos = Array.isArray(sponsorLogos) ? sponsorLogos.filter(Boolean) : [];
+
+  if (!logos.length) {
+    return [[]];
+  }
+
+  const slides = [];
+
+  for (let index = 0; index < logos.length; index += SPONSOR_LOGOS_PER_SLIDE) {
+    slides.push(logos.slice(index, index + SPONSOR_LOGOS_PER_SLIDE));
+  }
+
+  return slides;
 }
 
 function OverlayMetric({ label, value, accent }) {
