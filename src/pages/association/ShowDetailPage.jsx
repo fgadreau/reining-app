@@ -42,6 +42,7 @@ function ShowDetailPage() {
   const [draft, setDraft] = useState({ date: "" });
   const [isAddingDay, setIsAddingDay] = useState(false);
   const [newDayDate, setNewDayDate] = useState("");
+  const [isOverlayLinkCopied, setIsOverlayLinkCopied] = useState(false);
   const [copyDraft, setCopyDraft] = useState({
     sourceDayId: "",
     targetDate: "",
@@ -220,6 +221,23 @@ function ShowDetailPage() {
     }
   };
 
+  const copyOverlayLink = async () => {
+    const overlayUrl = getAbsoluteOverlayUrl(associationId, showId);
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(overlayUrl);
+        setIsOverlayLinkCopied(true);
+        window.setTimeout(() => setIsOverlayLinkCopied(false), 1800);
+      } else {
+        window.prompt(t("management.shows.obsOverlayPrompt"), overlayUrl);
+      }
+    } catch (error) {
+      console.error("Erreur copie lien OBS:", error);
+      window.prompt(t("management.shows.obsOverlayPrompt"), overlayUrl);
+    }
+  };
+
   const startCopyClasses = (day) => {
     if (showDateRange.length === 0) {
       alert(t("management.days.noDateRange"));
@@ -351,6 +369,23 @@ function ShowDetailPage() {
         </div>
         <div style={{ color: "#64748b", marginTop: 4 }}>
           {t("management.shows.statusPrefix")}: {formatShowStatus(show?.status, t)}
+        </div>
+        <div style={actionRowStyle}>
+          <Link
+            to={`/public/associations/${associationId}/shows/${showId}/overlay`}
+            style={linkButtonStyle}
+          >
+            {t("management.shows.openObsOverlay")}
+          </Link>
+          <button
+            type="button"
+            onClick={copyOverlayLink}
+            style={secondaryButtonStyle}
+          >
+            {isOverlayLinkCopied
+              ? t("common.linkCopied")
+              : t("management.shows.copyObsOverlayLink")}
+          </button>
         </div>
         <div style={{ marginTop: 10 }}>
           <span style={syncBadgeStyle(cloudStatus.configured)}>
@@ -765,6 +800,16 @@ function getSyncLabel(cloudStatus, t) {
   if (!cloudStatus.configured) return t("management.sync.local");
   if (cloudStatus.authenticated) return t("management.sync.connected");
   return t("management.sync.disconnected");
+}
+
+function getAbsoluteOverlayUrl(associationId, showId) {
+  const path = `/public/associations/${associationId}/shows/${showId}/overlay`;
+  const origin =
+    typeof window === "undefined" || !window.location?.origin
+      ? ""
+      : window.location.origin;
+
+  return `${origin}${path}`;
 }
 
 export default ShowDetailPage;

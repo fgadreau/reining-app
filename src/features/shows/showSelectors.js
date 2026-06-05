@@ -2,18 +2,26 @@ import { shows as mockShows } from "../../data/mock/shows";
 
 const STORAGE_KEY = "reining_shows_v1";
 
+function normalizeShow(show) {
+  return {
+    ...show,
+    livestreamUrl: show?.livestreamUrl || "",
+    isLivestreamPublic: Boolean(show?.isLivestreamPublic),
+  };
+}
+
 function loadShowsFromStorage() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return mockShows;
+    if (!raw) return mockShows.map(normalizeShow);
 
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return mockShows;
+    if (!Array.isArray(parsed)) return mockShows.map(normalizeShow);
 
-    return parsed;
+    return parsed.map(normalizeShow);
   } catch (error) {
     console.error("Erreur lecture shows:", error);
-    return mockShows;
+    return mockShows.map(normalizeShow);
   }
 }
 

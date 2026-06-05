@@ -22,6 +22,10 @@ import {
   buildShowPublicSeo,
 } from "./features/seo/publicSeo";
 import {
+  buildLivestreamEmbed,
+  hasPublicLivestream,
+} from "./features/livestream/livestreamEmbed";
+import {
   getPublicationState,
   publishClass,
   PUBLICATION_STATUSES,
@@ -442,6 +446,40 @@ test("normalizes association website urls for public links", () => {
     "https://showscore.app"
   );
   expect(normalizeAssociationWebsiteUrl("")).toBe("");
+});
+
+test("builds livestream embeds from public video links", () => {
+  expect(buildLivestreamEmbed("https://youtu.be/abc123").embedUrl).toContain(
+    "youtube-nocookie.com/embed/abc123"
+  );
+  expect(
+    buildLivestreamEmbed("https://www.youtube.com/watch?v=abc123").embedUrl
+  ).toContain("youtube-nocookie.com/embed/abc123");
+  expect(buildLivestreamEmbed("https://vimeo.com/123456").embedUrl).toBe(
+    "https://player.vimeo.com/video/123456"
+  );
+  expect(
+    buildLivestreamEmbed('<iframe src="https://example.com/player"></iframe>')
+  ).toMatchObject({
+    canEmbed: true,
+    embedUrl: "https://example.com/player",
+  });
+  expect(buildLivestreamEmbed("https://example.com/live")).toMatchObject({
+    canEmbed: false,
+    externalUrl: "https://example.com/live",
+  });
+  expect(
+    hasPublicLivestream({
+      isLivestreamPublic: true,
+      livestreamUrl: "https://youtu.be/abc123",
+    })
+  ).toBe(true);
+  expect(
+    hasPublicLivestream({
+      isLivestreamPublic: false,
+      livestreamUrl: "https://youtu.be/abc123",
+    })
+  ).toBe(false);
 });
 
 test("detects and translates the interface language", () => {

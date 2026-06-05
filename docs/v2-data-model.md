@@ -27,6 +27,7 @@ Fields:
 - `timezone`
 - `logoDataUrl`
 - `websiteUrl`
+- `sponsorLogos`
 
 ### Show
 
@@ -41,6 +42,8 @@ Fields:
 - `startDate`
 - `endDate`
 - `status`
+- `livestreamUrl`
+- `isLivestreamPublic`
 
 Suggested statuses:
 - `draft`

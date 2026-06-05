@@ -23,6 +23,10 @@ function AppMenu() {
   const location = useLocation();
   const auth = useAuthUser();
   const { t } = useTranslation();
+  const isPublicOverlayPath =
+    /^\/public\/associations\/[^/]+\/shows\/[^/]+\/overlay/.test(
+      location.pathname
+    );
   const { associationId, showId } = parseContext(location.pathname);
   const [association, setAssociation] = useState(null);
   const access = useAssociationAccess(associationId);
@@ -66,6 +70,10 @@ function AppMenu() {
       isMounted = false;
     };
   }, [associationId, isPublicPath]);
+
+  if (isPublicOverlayPath) {
+    return null;
+  }
 
   if (isPublicPath) {
     return (

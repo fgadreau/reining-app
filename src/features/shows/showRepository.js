@@ -22,6 +22,8 @@ function toShow(row) {
     startDate: row.start_date || "",
     endDate: row.end_date || "",
     status: row.status || "draft",
+    livestreamUrl: row.livestream_url || "",
+    isLivestreamPublic: Boolean(row.is_livestream_public),
   };
 }
 
@@ -35,7 +37,22 @@ function toShowRow(show) {
     start_date: show.startDate || null,
     end_date: show.endDate || null,
     status: show.status || "draft",
+    livestream_url: show.livestreamUrl || "",
+    is_livestream_public: Boolean(show.isLivestreamPublic),
   };
+}
+
+function toLegacyShowRow(show) {
+  const row = toShowRow(show);
+  delete row.livestream_url;
+  delete row.is_livestream_public;
+  return row;
+}
+
+function isLivestreamSchemaMissing(error) {
+  const message = String(error?.message || "");
+
+  return /livestream_url|is_livestream_public/i.test(message);
 }
 
 function saveShowLocally(show) {
@@ -117,7 +134,18 @@ export async function saveShowRepository(show) {
       const { error } = await supabase.from("shows").upsert(toShowRow(show));
       if (error) throw error;
     } catch (error) {
-      console.error("Erreur sauvegarde show Supabase:", error);
+      if (isLivestreamSchemaMissing(error)) {
+        try {
+          const { error: legacyError } = await supabase
+            .from("shows")
+            .upsert(toLegacyShowRow(show));
+          if (legacyError) throw legacyError;
+        } catch (legacyError) {
+          console.error("Erreur sauvegarde show Supabase:", legacyError);
+        }
+      } else {
+        console.error("Erreur sauvegarde show Supabase:", error);
+      }
     }
   }
 

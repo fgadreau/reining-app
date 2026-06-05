@@ -35,6 +35,7 @@ create table if not exists public.associations (
   timezone text,
   logo_data_url text,
   website_url text,
+  sponsor_logos jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -76,6 +77,8 @@ create table if not exists public.shows (
   start_date date,
   end_date date,
   status text not null default 'draft',
+  livestream_url text,
+  is_livestream_public boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -654,7 +657,8 @@ create or replace function public.create_association_with_owner(
   target_short_name text default null,
   target_timezone text default null,
   target_logo_data_url text default null,
-  target_website_url text default null
+  target_website_url text default null,
+  target_sponsor_logos jsonb default '[]'::jsonb
 )
 returns table (
   id text,
@@ -662,7 +666,8 @@ returns table (
   short_name text,
   timezone text,
   logo_data_url text,
-  website_url text
+  website_url text,
+  sponsor_logos jsonb
 ) as $$
 declare
   created_id text;
@@ -688,7 +693,8 @@ begin
     short_name,
     timezone,
     logo_data_url,
-    website_url
+    website_url,
+    sponsor_logos
   )
   values (
     btrim(target_id),
@@ -696,7 +702,8 @@ begin
     nullif(btrim(target_short_name), ''),
     nullif(btrim(target_timezone), ''),
     nullif(target_logo_data_url, ''),
-    nullif(btrim(target_website_url), '')
+    nullif(btrim(target_website_url), ''),
+    coalesce(target_sponsor_logos, '[]'::jsonb)
   )
   returning associations.id into created_id;
 
@@ -719,7 +726,8 @@ begin
     a.short_name,
     a.timezone,
     a.logo_data_url,
-    a.website_url
+    a.website_url,
+    a.sponsor_logos
   from public.associations a
   where a.id = created_id;
 end;
@@ -731,7 +739,8 @@ grant execute on function public.create_association_with_owner(
   text,
   text,
   text,
-  text
+  text,
+  jsonb
 ) to authenticated;
 
 create or replace function public.record_app_event(
@@ -1349,6 +1358,19 @@ returns boolean as $$
   );
 $$ language sql stable security definer set search_path = public;
 
+create or replace function public.show_has_public_livestream(
+  target_show_id text
+)
+returns boolean as $$
+  select exists (
+    select 1
+    from public.shows s
+    where s.id = target_show_id
+      and s.is_livestream_public is true
+      and nullif(btrim(coalesce(s.livestream_url, '')), '') is not null
+  );
+$$ language sql stable security definer set search_path = public;
+
 create or replace function public.day_has_public_class(
   target_day_id text
 )
@@ -1397,12 +1419,25 @@ returns boolean as $$
   );
 $$ language sql stable security definer set search_path = public;
 
+create or replace function public.association_has_public_livestream(
+  target_association_id text
+)
+returns boolean as $$
+  select exists (
+    select 1
+    from public.shows s
+    where s.association_id = target_association_id
+      and public.show_has_public_livestream(s.id)
+  );
+$$ language sql stable security definer set search_path = public;
+
 drop policy if exists "Anyone can read associations with public classes" on public.associations;
 create policy "Anyone can read associations with public classes"
 on public.associations for select to anon, authenticated
 using (
   public.association_has_public_class(id)
   or public.association_has_public_paid_warmup(id)
+  or public.association_has_public_livestream(id)
 );
 
 drop policy if exists "Anyone can read shows with published official results" on public.shows;
@@ -1412,6 +1447,7 @@ on public.shows for select to anon, authenticated
 using (
   public.show_has_public_class(id)
   or public.show_has_public_paid_warmup(id)
+  or public.show_has_public_livestream(id)
 );
 
 drop policy if exists "Anyone can read days with published official results" on public.days;

@@ -6,6 +6,7 @@ import { getCloudSyncStatus } from "../../features/cloud/supabaseStatus";
 import { syncDaysForShowDateRangeRepository } from "../../features/days/dayRepository";
 import { compareDateValues } from "../../features/days/dayDateUtils";
 import { useTranslation } from "../../features/i18n/I18nProvider";
+import { hasPublicLivestream } from "../../features/livestream/livestreamEmbed";
 import {
   deleteShowRepository,
   getShowsByAssociationRepository,
@@ -23,6 +24,7 @@ function AssociationShowPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [copiedOverlayShowId, setCopiedOverlayShowId] = useState(null);
   const [draft, setDraft] = useState({
     name: "",
     location: "",
@@ -30,6 +32,8 @@ function AssociationShowPage() {
     startDate: "",
     endDate: "",
     status: "draft",
+    isLivestreamPublic: false,
+    livestreamUrl: "",
   });
   const access = useAssociationAccess(associationId);
 
@@ -68,6 +72,8 @@ function AssociationShowPage() {
       startDate: "",
       endDate: "",
       status: "draft",
+      isLivestreamPublic: false,
+      livestreamUrl: "",
     };
 
     setIsSaving(true);
@@ -83,6 +89,8 @@ function AssociationShowPage() {
       startDate: newShow.startDate,
       endDate: newShow.endDate,
       status: newShow.status,
+      isLivestreamPublic: newShow.isLivestreamPublic,
+      livestreamUrl: newShow.livestreamUrl,
     });
   };
 
@@ -95,6 +103,8 @@ function AssociationShowPage() {
       startDate: show.startDate || "",
       endDate: show.endDate || "",
       status: show.status || "draft",
+      isLivestreamPublic: Boolean(show.isLivestreamPublic),
+      livestreamUrl: show.livestreamUrl || "",
     });
   };
 
@@ -107,6 +117,8 @@ function AssociationShowPage() {
       startDate: "",
       endDate: "",
       status: "draft",
+      isLivestreamPublic: false,
+      livestreamUrl: "",
     });
   };
 
@@ -131,6 +143,8 @@ function AssociationShowPage() {
       startDate: draft.startDate,
       endDate: draft.endDate,
       status: draft.status,
+      isLivestreamPublic: Boolean(draft.isLivestreamPublic),
+      livestreamUrl: draft.livestreamUrl,
     };
 
     setIsSaving(true);
@@ -154,6 +168,23 @@ function AssociationShowPage() {
 
     if (editingId === showId) {
       cancelEdit();
+    }
+  };
+
+  const copyOverlayLink = async (showId) => {
+    const overlayUrl = getAbsoluteOverlayUrl(associationId, showId);
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(overlayUrl);
+        setCopiedOverlayShowId(showId);
+        window.setTimeout(() => setCopiedOverlayShowId(null), 1800);
+      } else {
+        window.prompt(t("management.shows.obsOverlayPrompt"), overlayUrl);
+      }
+    } catch (error) {
+      console.error("Erreur copie lien OBS:", error);
+      window.prompt(t("management.shows.obsOverlayPrompt"), overlayUrl);
     }
   };
 
@@ -265,6 +296,12 @@ function AssociationShowPage() {
                       {formatStatus(show.status, t)}
                     </div>
 
+                    {hasPublicLivestream(show) && (
+                      <div style={liveMetaStyle}>
+                        {t("management.shows.livestreamPublicEnabled")}
+                      </div>
+                    )}
+
                     <div style={actionRowStyle}>
                       <Link
                         to={`/associations/${associationId}/shows/${show.id}`}
@@ -272,6 +309,21 @@ function AssociationShowPage() {
                       >
                         {t("management.shows.openShow")}
                       </Link>
+                      <Link
+                        to={`/public/associations/${associationId}/shows/${show.id}/overlay`}
+                        style={linkButtonStyle}
+                      >
+                        {t("management.shows.openObsOverlay")}
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => copyOverlayLink(show.id)}
+                        style={secondaryButtonStyle}
+                      >
+                        {copiedOverlayShowId === show.id
+                          ? t("common.linkCopied")
+                          : t("management.shows.copyObsOverlayLink")}
+                      </button>
 
                       {access.canManageAssociation && (
                         <>
@@ -405,6 +457,41 @@ function AssociationShowPage() {
                       </div>
                     </div>
 
+                    <div style={livestreamBoxStyle}>
+                      <label style={checkboxLabelStyle}>
+                        <input
+                          type="checkbox"
+                          checked={draft.isLivestreamPublic}
+                          onChange={(e) =>
+                            setDraft((prev) => ({
+                              ...prev,
+                              isLivestreamPublic: e.target.checked,
+                            }))
+                          }
+                        />
+                        <span>{t("management.shows.livestreamPublicLabel")}</span>
+                      </label>
+
+                      <label style={labelStyle}>
+                        {t("management.shows.livestreamUrlLabel")}
+                      </label>
+                      <input
+                        type="text"
+                        value={draft.livestreamUrl}
+                        onChange={(e) =>
+                          setDraft((prev) => ({
+                            ...prev,
+                            livestreamUrl: e.target.value,
+                          }))
+                        }
+                        placeholder="https://youtube.com/watch?v=..."
+                        style={inputStyle}
+                      />
+                      <div style={helpTextStyle}>
+                        {t("management.shows.livestreamHelp")}
+                      </div>
+                    </div>
+
                     <div style={actionRowStyle}>
                       <button
                         type="button"
@@ -441,6 +528,16 @@ function formatStatus(status, t) {
   return t("management.shows.statusDraft");
 }
 
+function getAbsoluteOverlayUrl(associationId, showId) {
+  const path = `/public/associations/${associationId}/shows/${showId}/overlay`;
+  const origin =
+    typeof window === "undefined" || !window.location?.origin
+      ? ""
+      : window.location.origin;
+
+  return `${origin}${path}`;
+}
+
 const headerWrapStyle = {
   display: "flex",
   justifyContent: "space-between",
@@ -467,6 +564,18 @@ const cardMetaStyle = {
   marginTop: 6,
 };
 
+const liveMetaStyle = {
+  display: "inline-flex",
+  marginTop: 8,
+  padding: "5px 9px",
+  borderRadius: 999,
+  border: "1px solid #99e4b8",
+  background: "#eafbf2",
+  color: "#167a4b",
+  fontWeight: 800,
+  fontSize: 13,
+};
+
 const actionRowStyle = {
   marginTop: 14,
   display: "flex",
@@ -480,10 +589,32 @@ const editGridStyle = {
   gap: 12,
 };
 
+const livestreamBoxStyle = {
+  marginTop: 14,
+  display: "grid",
+  gap: 8,
+  border: "1px solid #dbeafe",
+  background: "#eff6ff",
+  borderRadius: 8,
+  padding: 12,
+};
+
+const checkboxLabelStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  fontWeight: 800,
+};
+
 const labelStyle = {
   display: "block",
   marginBottom: 6,
   fontWeight: 600,
+};
+
+const helpTextStyle = {
+  color: "#475569",
+  fontSize: 13,
 };
 
 const inputStyle = {

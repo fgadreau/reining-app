@@ -211,7 +211,11 @@ function AssociationsPage() {
 
     try {
       if (editingId) {
+        const currentAssociation = associations.find(
+          (association) => association.id === editingId
+        );
         const nextAssociation = {
+          ...currentAssociation,
           id: editingId,
           name,
           shortName,

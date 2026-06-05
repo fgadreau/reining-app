@@ -6,6 +6,16 @@ import {
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 
+function normalizeSponsorLogos(value) {
+  return (Array.isArray(value) ? value : [])
+    .map((logo, index) => ({
+      id: String(logo?.id || `sponsor-${index + 1}`),
+      name: String(logo?.name || "").trim(),
+      logoDataUrl: String(logo?.logoDataUrl || logo?.logo_data_url || "").trim(),
+    }))
+    .filter((logo) => logo.logoDataUrl);
+}
+
 function toAssociation(row) {
   return {
     id: row.id,
@@ -14,6 +24,7 @@ function toAssociation(row) {
     timezone: row.timezone || "",
     logoDataUrl: row.logo_data_url || null,
     websiteUrl: row.website_url || "",
+    sponsorLogos: normalizeSponsorLogos(row.sponsor_logos),
   };
 }
 
@@ -25,7 +36,20 @@ function toAssociationRow(association) {
     timezone: association.timezone || "",
     logo_data_url: association.logoDataUrl || null,
     website_url: association.websiteUrl || null,
+    sponsor_logos: normalizeSponsorLogos(association.sponsorLogos),
   };
+}
+
+function toLegacyAssociationRow(association) {
+  const row = toAssociationRow(association);
+  delete row.sponsor_logos;
+  return row;
+}
+
+function isSponsorSchemaMissing(error) {
+  const message = String(error?.message || "");
+
+  return /sponsor_logos/i.test(message);
 }
 
 function saveAssociationLocally(association) {
@@ -87,8 +111,19 @@ export async function saveAssociationRepository(association) {
 
       if (error) throw error;
     } catch (error) {
-      console.error("Erreur sauvegarde association Supabase:", error);
-      throw error;
+      if (isSponsorSchemaMissing(error)) {
+        const { error: legacyError } = await supabase
+          .from("associations")
+          .upsert(toLegacyAssociationRow(normalized));
+
+        if (legacyError) {
+          console.error("Erreur sauvegarde association Supabase:", legacyError);
+          throw legacyError;
+        }
+      } else {
+        console.error("Erreur sauvegarde association Supabase:", error);
+        throw error;
+      }
     }
   }
 

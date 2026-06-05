@@ -6,6 +6,7 @@ export const associations = [
     timezone: "America/Montreal",
     logoDataUrl: null,
     websiteUrl: "",
+    sponsorLogos: [],
     status: "active",
   },
   {
@@ -15,6 +16,7 @@ export const associations = [
     timezone: "America/Toronto",
     logoDataUrl: null,
     websiteUrl: "",
+    sponsorLogos: [],
     status: "active",
   },
 ];

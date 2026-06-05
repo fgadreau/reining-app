@@ -1,12 +1,61 @@
--- ShowScore association public profile migration
+-- ShowScore public livestream and OBS overlay migration
 -- Run this once in Supabase SQL editor for existing projects.
--- Adds the public website URL used by the public showcase.
+-- Adds:
+-- - show-level public livestream settings;
+-- - association sponsor logos used by the OBS overlay right rail.
 
-alter table public.associations
-add column if not exists website_url text;
+alter table public.shows
+add column if not exists livestream_url text;
+
+alter table public.shows
+add column if not exists is_livestream_public boolean not null default false;
 
 alter table public.associations
 add column if not exists sponsor_logos jsonb not null default '[]'::jsonb;
+
+create or replace function public.show_has_public_livestream(
+  target_show_id text
+)
+returns boolean as $$
+  select exists (
+    select 1
+    from public.shows s
+    where s.id = target_show_id
+      and s.is_livestream_public is true
+      and nullif(btrim(coalesce(s.livestream_url, '')), '') is not null
+  );
+$$ language sql stable security definer set search_path = public;
+
+create or replace function public.association_has_public_livestream(
+  target_association_id text
+)
+returns boolean as $$
+  select exists (
+    select 1
+    from public.shows s
+    where s.association_id = target_association_id
+      and public.show_has_public_livestream(s.id)
+  );
+$$ language sql stable security definer set search_path = public;
+
+drop policy if exists "Anyone can read associations with public classes" on public.associations;
+create policy "Anyone can read associations with public classes"
+on public.associations for select to anon, authenticated
+using (
+  public.association_has_public_class(id)
+  or public.association_has_public_paid_warmup(id)
+  or public.association_has_public_livestream(id)
+);
+
+drop policy if exists "Anyone can read shows with published official results" on public.shows;
+drop policy if exists "Anyone can read shows with public classes" on public.shows;
+create policy "Anyone can read shows with public classes"
+on public.shows for select to anon, authenticated
+using (
+  public.show_has_public_class(id)
+  or public.show_has_public_paid_warmup(id)
+  or public.show_has_public_livestream(id)
+);
 
 drop function if exists public.create_association_with_owner(
   text,

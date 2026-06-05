@@ -8,6 +8,8 @@ export const shows = [
     startDate: "2026-05-15",
     endDate: "2026-05-17",
     status: "active",
+    isLivestreamPublic: false,
+    livestreamUrl: "",
   },
   {
     id: "show-2",
@@ -18,5 +20,7 @@ export const shows = [
     startDate: "2026-07-10",
     endDate: "2026-07-12",
     status: "draft",
+    isLivestreamPublic: false,
+    livestreamUrl: "",
   },
 ];

@@ -10,6 +10,7 @@ const defaultAssociations = [
     timezone: "America/Montreal",
     logoDataUrl: null,
     websiteUrl: "",
+    sponsorLogos: [],
   },
   {
     id: "era",
@@ -18,27 +19,37 @@ const defaultAssociations = [
     timezone: "America/Toronto",
     logoDataUrl: null,
     websiteUrl: "",
+    sponsorLogos: [],
   },
 ];
+
+function normalizeAssociation(association) {
+  return {
+    ...association,
+    sponsorLogos: Array.isArray(association?.sponsorLogos)
+      ? association.sponsorLogos
+      : [],
+  };
+}
 
 export function loadAssociations() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
 
     if (!raw) {
-      return defaultAssociations;
+      return defaultAssociations.map(normalizeAssociation);
     }
 
     const parsed = JSON.parse(raw);
 
     if (!Array.isArray(parsed)) {
-      return defaultAssociations;
+      return defaultAssociations.map(normalizeAssociation);
     }
 
-    return parsed;
+    return parsed.map(normalizeAssociation);
   } catch (error) {
     console.error("Erreur loadAssociations:", error);
-    return defaultAssociations;
+    return defaultAssociations.map(normalizeAssociation);
   }
 }
 

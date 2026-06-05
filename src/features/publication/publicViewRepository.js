@@ -10,6 +10,7 @@ import { getDaysByShowRepository } from "../days/dayRepository";
 import { getDaysByShowId } from "../days/daySelectors";
 import { getPaidWarmupsByDayId } from "../paidWarmups/paidWarmupStorage";
 import { buildPaidWarmupLiveView } from "../paidWarmups/paidWarmupLive";
+import { hasPublicLivestream } from "../livestream/livestreamEmbed";
 import {
   formatScoreValue,
   formatTotalValue,
@@ -45,6 +46,16 @@ import {
   isLivePublicationStatus,
 } from "./publicationRepository";
 
+function normalizeSponsorLogos(value) {
+  return (Array.isArray(value) ? value : [])
+    .map((logo, index) => ({
+      id: String(logo?.id || `sponsor-${index + 1}`),
+      name: String(logo?.name || "").trim(),
+      logoDataUrl: String(logo?.logoDataUrl || logo?.logo_data_url || "").trim(),
+    }))
+    .filter((logo) => logo.logoDataUrl);
+}
+
 function toAssociation(row) {
   return {
     id: row.id,
@@ -53,6 +64,7 @@ function toAssociation(row) {
     timezone: row.timezone || "",
     logoDataUrl: row.logo_data_url || null,
     websiteUrl: row.website_url || "",
+    sponsorLogos: normalizeSponsorLogos(row.sponsor_logos),
   };
 }
 
@@ -66,6 +78,8 @@ function toShow(row) {
     startDate: row.start_date || "",
     endDate: row.end_date || "",
     status: row.status || "draft",
+    livestreamUrl: row.livestream_url || "",
+    isLivestreamPublic: Boolean(row.is_livestream_public),
   };
 }
 
@@ -746,7 +760,10 @@ export async function getPublicShowsByAssociationRepository(associationId) {
     );
 
     return showsWithCounts.filter(
-      (show) => show.publishedClassCount > 0 || show.liveClassCount > 0
+      (show) =>
+        show.publishedClassCount > 0 ||
+        show.liveClassCount > 0 ||
+        hasPublicLivestream(show)
     );
   } catch (error) {
     console.error("Erreur chargement shows publics:", error);

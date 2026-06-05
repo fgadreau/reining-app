@@ -8,13 +8,36 @@
 alter table public.associations
 add column if not exists website_url text;
 
+alter table public.associations
+add column if not exists sponsor_logos jsonb not null default '[]'::jsonb;
+
+drop function if exists public.create_association_with_owner(
+  text,
+  text,
+  text,
+  text,
+  text,
+  text
+);
+
+drop function if exists public.create_association_with_owner(
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  jsonb
+);
+
 create or replace function public.create_association_with_owner(
   target_id text,
   target_name text,
   target_short_name text default null,
   target_timezone text default null,
   target_logo_data_url text default null,
-  target_website_url text default null
+  target_website_url text default null,
+  target_sponsor_logos jsonb default '[]'::jsonb
 )
 returns table (
   id text,
@@ -22,7 +45,8 @@ returns table (
   short_name text,
   timezone text,
   logo_data_url text,
-  website_url text
+  website_url text,
+  sponsor_logos jsonb
 ) as $$
 declare
   created_id text;
@@ -48,7 +72,8 @@ begin
     short_name,
     timezone,
     logo_data_url,
-    website_url
+    website_url,
+    sponsor_logos
   )
   values (
     btrim(target_id),
@@ -56,7 +81,8 @@ begin
     nullif(btrim(target_short_name), ''),
     nullif(btrim(target_timezone), ''),
     nullif(target_logo_data_url, ''),
-    nullif(btrim(target_website_url), '')
+    nullif(btrim(target_website_url), ''),
+    coalesce(target_sponsor_logos, '[]'::jsonb)
   )
   returning associations.id into created_id;
 
@@ -79,7 +105,8 @@ begin
     a.short_name,
     a.timezone,
     a.logo_data_url,
-    a.website_url
+    a.website_url,
+    a.sponsor_logos
   from public.associations a
   where a.id = created_id;
 end;
@@ -91,7 +118,8 @@ grant execute on function public.create_association_with_owner(
   text,
   text,
   text,
-  text
+  text,
+  jsonb
 ) to authenticated;
 
 drop policy if exists "Authenticated users can create associations" on public.associations;
