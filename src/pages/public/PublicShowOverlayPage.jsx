@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import AssociationLogo from "../../components/AssociationLogo";
 import {
   getPublicAssociationRepository,
@@ -16,15 +16,20 @@ const SPONSOR_SLIDE_INTERVAL_MS = 8000;
 
 function PublicShowOverlayPage() {
   const { associationId, showId } = useParams();
+  const location = useLocation();
   const { t } = useTranslation();
   const [association, setAssociation] = useState(null);
   const [show, setShow] = useState(null);
   const [publicView, setPublicView] = useState(() => getPublicShowView(showId));
   const [sponsorSlideIndex, setSponsorSlideIndex] = useState(0);
   const publicClassIdsKey = (publicView.classIds || []).join("|");
+  const selectedArena = useMemo(
+    () => getOverlayArenaFromSearch(location.search),
+    [location.search]
+  );
   const liveClass = useMemo(
-    () => pickOverlayLiveClass(publicView.liveClasses || []),
-    [publicView.liveClasses]
+    () => pickOverlayLiveClass(publicView.liveClasses || [], selectedArena),
+    [publicView.liveClasses, selectedArena]
   );
   const liveSummary = buildOverlayLiveSummary(liveClass, t);
   const sponsorLogos = Array.isArray(association?.sponsorLogos)
@@ -191,16 +196,57 @@ function buildSponsorSlides(sponsorLogos) {
 }
 
 function OverlayMetric({ label, value, accent }) {
+  const hasStructuredValue = value && typeof value === "object";
+
   return (
     <div style={metricStyle}>
       <div style={metricLabelStyle(accent)}>{label}</div>
-      <div style={metricValueStyle}>{value}</div>
+      {hasStructuredValue ? (
+        <div style={metricValueStyle}>
+          {value.meta && <div style={metricMetaStyle}>{value.meta}</div>}
+          <div style={metricPrimaryStyle}>{value.primary}</div>
+          {(value.secondary || value.score) && (
+            <div style={metricSecondaryRowStyle}>
+              {value.secondary && (
+                <span style={metricSecondaryStyle}>{value.secondary}</span>
+              )}
+              {value.score && <span style={metricScoreStyle}>{value.score}</span>}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={metricFallbackValueStyle}>{value}</div>
+      )}
     </div>
   );
 }
 
-function pickOverlayLiveClass(liveClasses) {
+function normalizeArenaName(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function getOverlayArenaFromSearch(search) {
+  try {
+    return normalizeArenaName(new URLSearchParams(search || "").get("arena"));
+  } catch (error) {
+    return "";
+  }
+}
+
+function filterLiveClassesByArena(liveClasses, arena) {
   const classes = Array.isArray(liveClasses) ? liveClasses.filter(Boolean) : [];
+  const selectedArena = normalizeArenaName(arena).toLowerCase();
+
+  if (!selectedArena) return classes;
+
+  return classes.filter(
+    (classView) =>
+      normalizeArenaName(classView?.arena).toLowerCase() === selectedArena
+  );
+}
+
+function pickOverlayLiveClass(liveClasses, arena = "") {
+  const classes = filterLiveClassesByArena(liveClasses, arena);
 
   return (
     classes.find((classView) => classView.activeRun) ||
@@ -245,21 +291,25 @@ function buildOverlayLiveSummary(classView, t) {
         : t("public.overlay.noActiveRun"),
     waiting: waitingRun ? formatOverlayRun(waitingRun, t) : t("public.overlay.noWaitingRun"),
     lastScore: lastScoreRun
-      ? `${formatOverlayRun(lastScoreRun, t)} · ${lastScoreRun.scoreTotal}`
+      ? formatOverlayRun(lastScoreRun, t, { score: lastScoreRun.scoreTotal })
       : t("public.overlay.noScoreYet"),
   };
 }
 
-function formatOverlayRun(run, t) {
+function formatOverlayRun(run, t, options = {}) {
   const draw = run?.draw ? `#${run.draw}` : "";
   const rider = run?.rider || t("public.results.riderFallback");
   const horse = run?.horse || "";
   const backNumber = run?.backNumber
     ? `${t("public.results.backNumber")} ${run.backNumber}`
     : "";
-  const details = [draw, backNumber].filter(Boolean).join(" · ");
 
-  return [details, rider, horse].filter(Boolean).join(" | ");
+  return {
+    meta: [draw, backNumber].filter(Boolean).join(" · "),
+    primary: rider,
+    secondary: horse,
+    score: options.score == null ? "" : String(options.score).trim(),
+  };
 }
 
 const overlayPageStyle = {
@@ -330,13 +380,14 @@ const bottomBarStyle = (hasSponsorRail) => ({
   left: 24,
   right: hasSponsorRail ? "calc(clamp(132px, 11vw, 220px) + 48px)" : 24,
   bottom: 24,
-  minHeight: 86,
+  minHeight: 108,
   borderRadius: 8,
   background: "rgba(8, 13, 24, 0.88)",
   border: "1px solid rgba(255, 255, 255, 0.18)",
   boxShadow: "0 18px 40px rgba(0, 0, 0, 0.32)",
   display: "grid",
-  gridTemplateColumns: "minmax(240px, 0.8fr) minmax(420px, 1.8fr) minmax(150px, 0.4fr)",
+  gridTemplateColumns:
+    "minmax(230px, 0.65fr) minmax(540px, 2.35fr) minmax(118px, 0.25fr)",
   alignItems: "stretch",
   gap: 12,
   padding: 12,
@@ -387,11 +438,11 @@ const metricStyle = {
   borderRadius: 8,
   background: "rgba(255, 255, 255, 0.08)",
   border: "1px solid rgba(255, 255, 255, 0.1)",
-  padding: "8px 10px",
+  padding: "8px 10px 9px",
   boxSizing: "border-box",
   display: "grid",
   alignContent: "center",
-  gap: 4,
+  gap: 5,
 };
 
 const metricLabelStyle = (accent) => ({
@@ -406,12 +457,68 @@ const metricLabelStyle = (accent) => ({
 
 const metricValueStyle = {
   minWidth: 0,
-  fontSize: "clamp(17px, 1.45vw, 28px)",
+  display: "grid",
+  gap: 2,
+};
+
+const metricFallbackValueStyle = {
+  minWidth: 0,
+  fontSize: "clamp(16px, 1.25vw, 24px)",
   fontWeight: 950,
-  lineHeight: 1.08,
-  whiteSpace: "nowrap",
+  lineHeight: 1.1,
   overflow: "hidden",
   textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const metricMetaStyle = {
+  color: "#cbd5e1",
+  fontSize: "clamp(11px, 0.82vw, 15px)",
+  fontWeight: 850,
+  lineHeight: 1,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const metricPrimaryStyle = {
+  color: "#fff",
+  fontSize: "clamp(18px, 1.45vw, 27px)",
+  fontWeight: 950,
+  lineHeight: 1.02,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const metricSecondaryRowStyle = {
+  minWidth: 0,
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+};
+
+const metricSecondaryStyle = {
+  flex: "1 1 auto",
+  minWidth: 0,
+  color: "#d1d5db",
+  fontSize: "clamp(11px, 0.82vw, 15px)",
+  fontWeight: 800,
+  lineHeight: 1.05,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const metricScoreStyle = {
+  flex: "0 0 auto",
+  color: "#101827",
+  background: "#93c5fd",
+  borderRadius: 6,
+  padding: "1px 6px",
+  fontSize: "clamp(11px, 0.82vw, 15px)",
+  fontWeight: 950,
+  lineHeight: 1.2,
 };
 
 const poweredBlockStyle = {

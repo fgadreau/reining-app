@@ -42,7 +42,8 @@ function ShowDetailPage() {
   const [draft, setDraft] = useState({ date: "" });
   const [isAddingDay, setIsAddingDay] = useState(false);
   const [newDayDate, setNewDayDate] = useState("");
-  const [isOverlayLinkCopied, setIsOverlayLinkCopied] = useState(false);
+  const [copiedOverlayKey, setCopiedOverlayKey] = useState("");
+  const [overlayArenas, setOverlayArenas] = useState([]);
   const [copyDraft, setCopyDraft] = useState({
     sourceDayId: "",
     targetDate: "",
@@ -77,6 +78,23 @@ function ShowDetailPage() {
       isMounted = false;
     };
   }, [language, showId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadOverlayArenas() {
+      const arenas = await getOverlayArenasForDays(sortedDays);
+
+      if (!isMounted) return;
+      setOverlayArenas(arenas);
+    }
+
+    loadOverlayArenas();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [sortedDays]);
 
   useEffect(() => {
     if (access.isLoadingAccess) return;
@@ -221,14 +239,20 @@ function ShowDetailPage() {
     }
   };
 
-  const copyOverlayLink = async () => {
-    const overlayUrl = getAbsoluteOverlayUrl(associationId, showId);
+  const copyOverlayLink = async (arena = "") => {
+    const normalizedArena = normalizeArenaName(arena);
+    const overlayUrl = getAbsoluteOverlayUrl(
+      associationId,
+      showId,
+      normalizedArena
+    );
+    const copyKey = getOverlayCopyKey(normalizedArena);
 
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(overlayUrl);
-        setIsOverlayLinkCopied(true);
-        window.setTimeout(() => setIsOverlayLinkCopied(false), 1800);
+        setCopiedOverlayKey(copyKey);
+        window.setTimeout(() => setCopiedOverlayKey(""), 1800);
       } else {
         window.prompt(t("management.shows.obsOverlayPrompt"), overlayUrl);
       }
@@ -281,10 +305,12 @@ function ShowDetailPage() {
       }
 
       let targetDay = days.find((day) => day.date === targetDate);
+      let nextDaysForOverlay = days;
 
       if (!targetDay) {
         targetDay = await saveDayRepository(buildDayForDate(targetDate));
-        setDays((current) => sortDaysByDate([...current, targetDay]));
+        nextDaysForOverlay = sortDaysByDate([...days, targetDay]);
+        setDays(nextDaysForOverlay);
       }
 
       const [targetClasses, targetWarmups] = await Promise.all([
@@ -333,6 +359,7 @@ function ShowDetailPage() {
           count: orderedSourceClasses.length,
         })
       );
+      setOverlayArenas(await getOverlayArenasForDays(nextDaysForOverlay));
       cancelCopyClasses();
     } finally {
       setIsSaving(false);
@@ -370,22 +397,52 @@ function ShowDetailPage() {
         <div style={{ color: "#64748b", marginTop: 4 }}>
           {t("management.shows.statusPrefix")}: {formatShowStatus(show?.status, t)}
         </div>
-        <div style={actionRowStyle}>
-          <Link
-            to={`/public/associations/${associationId}/shows/${showId}/overlay`}
-            style={linkButtonStyle}
-          >
-            {t("management.shows.openObsOverlay")}
-          </Link>
-          <button
-            type="button"
-            onClick={copyOverlayLink}
-            style={secondaryButtonStyle}
-          >
-            {isOverlayLinkCopied
-              ? t("common.linkCopied")
-              : t("management.shows.copyObsOverlayLink")}
-          </button>
+        <div style={overlayLinksStyle}>
+          <div style={actionRowStyleNoMargin}>
+            <Link
+              to={getOverlayPath(associationId, showId)}
+              style={linkButtonStyle}
+            >
+              {t("management.shows.openObsOverlayGeneral")}
+            </Link>
+            <button
+              type="button"
+              onClick={() => copyOverlayLink()}
+              style={secondaryButtonStyle}
+            >
+              {copiedOverlayKey === getOverlayCopyKey()
+                ? t("common.linkCopied")
+                : t("management.shows.copyObsOverlayLink")}
+            </button>
+          </div>
+
+          {overlayArenas.length > 0 && (
+            <div style={arenaOverlayListStyle}>
+              <div style={arenaOverlayTitleStyle}>
+                {t("management.shows.obsOverlayArenaTitle")}
+              </div>
+              {overlayArenas.map((arena) => (
+                <div key={arena} style={arenaOverlayRowStyle}>
+                  <span style={arenaOverlayNameStyle}>{arena}</span>
+                  <Link
+                    to={getOverlayPath(associationId, showId, arena)}
+                    style={linkButtonStyle}
+                  >
+                    {t("management.shows.openObsOverlayArena")}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => copyOverlayLink(arena)}
+                    style={secondaryButtonStyle}
+                  >
+                    {copiedOverlayKey === getOverlayCopyKey(arena)
+                      ? t("common.linkCopied")
+                      : t("management.shows.copyObsOverlayArenaLink")}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div style={{ marginTop: 10 }}>
           <span style={syncBadgeStyle(cloudStatus.configured)}>
@@ -685,6 +742,38 @@ const copyFormStyle = {
   borderTop: "1px solid #e2e8f0",
 };
 
+const overlayLinksStyle = {
+  display: "grid",
+  gap: 10,
+  marginTop: 14,
+};
+
+const arenaOverlayListStyle = {
+  display: "grid",
+  gap: 8,
+  paddingTop: 10,
+  borderTop: "1px solid #e2e8f0",
+};
+
+const arenaOverlayTitleStyle = {
+  color: "#475569",
+  fontSize: 13,
+  fontWeight: 800,
+};
+
+const arenaOverlayRowStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  flexWrap: "wrap",
+};
+
+const arenaOverlayNameStyle = {
+  minWidth: 120,
+  color: "#111827",
+  fontWeight: 800,
+};
+
 const editGridStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
@@ -802,8 +891,57 @@ function getSyncLabel(cloudStatus, t) {
   return t("management.sync.disconnected");
 }
 
-function getAbsoluteOverlayUrl(associationId, showId) {
+function normalizeArenaName(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+async function getOverlayArenasForDays(days) {
+  const dayList = Array.isArray(days) ? days.filter((day) => day?.id) : [];
+
+  if (!dayList.length) return [];
+
+  let classesByDay = [];
+
+  try {
+    classesByDay = await Promise.all(
+      dayList.map((day) => getClassesForDayRepository(day.id))
+    );
+  } catch (error) {
+    console.error("Erreur chargement arenas overlay OBS:", error);
+    return [];
+  }
+
+  const arenasByName = new Map();
+
+  classesByDay.flat().forEach((classItem) => {
+    const arena = normalizeArenaName(classItem?.arena);
+    if (!arena) return;
+
+    arenasByName.set(arena.toLowerCase(), arena);
+  });
+
+  return Array.from(arenasByName.values()).sort((a, b) =>
+    a.localeCompare(b)
+  );
+}
+
+function getOverlayCopyKey(arena = "") {
+  const normalizedArena = normalizeArenaName(arena);
+  return normalizedArena ? `arena:${normalizedArena.toLowerCase()}` : "general";
+}
+
+function getOverlayPath(associationId, showId, arena = "") {
   const path = `/public/associations/${associationId}/shows/${showId}/overlay`;
+  const normalizedArena = normalizeArenaName(arena);
+
+  if (!normalizedArena) return path;
+
+  const params = new URLSearchParams({ arena: normalizedArena });
+  return `${path}?${params.toString()}`;
+}
+
+function getAbsoluteOverlayUrl(associationId, showId, arena = "") {
+  const path = getOverlayPath(associationId, showId, arena);
   const origin =
     typeof window === "undefined" || !window.location?.origin
       ? ""
