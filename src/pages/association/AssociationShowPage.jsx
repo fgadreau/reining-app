@@ -24,7 +24,6 @@ function AssociationShowPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [copiedOverlayShowId, setCopiedOverlayShowId] = useState(null);
   const [draft, setDraft] = useState({
     name: "",
     location: "",
@@ -171,23 +170,6 @@ function AssociationShowPage() {
     }
   };
 
-  const copyOverlayLink = async (showId) => {
-    const overlayUrl = getAbsoluteOverlayUrl(associationId, showId);
-
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(overlayUrl);
-        setCopiedOverlayShowId(showId);
-        window.setTimeout(() => setCopiedOverlayShowId(null), 1800);
-      } else {
-        window.prompt(t("management.shows.obsOverlayPrompt"), overlayUrl);
-      }
-    } catch (error) {
-      console.error("Erreur copie lien OBS:", error);
-      window.prompt(t("management.shows.obsOverlayPrompt"), overlayUrl);
-    }
-  };
-
   if (isLoading) {
     return (
       <div style={styles.app}>
@@ -309,21 +291,6 @@ function AssociationShowPage() {
                       >
                         {t("management.shows.openShow")}
                       </Link>
-                      <Link
-                        to={`/public/associations/${associationId}/shows/${show.id}/overlay`}
-                        style={linkButtonStyle}
-                      >
-                        {t("management.shows.openObsOverlay")}
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => copyOverlayLink(show.id)}
-                        style={secondaryButtonStyle}
-                      >
-                        {copiedOverlayShowId === show.id
-                          ? t("common.linkCopied")
-                          : t("management.shows.copyObsOverlayLink")}
-                      </button>
 
                       {access.canManageAssociation && (
                         <>
@@ -526,16 +493,6 @@ function formatStatus(status, t) {
   if (status === "active") return t("management.shows.statusActive");
   if (status === "completed") return t("management.shows.statusCompleted");
   return t("management.shows.statusDraft");
-}
-
-function getAbsoluteOverlayUrl(associationId, showId) {
-  const path = `/public/associations/${associationId}/shows/${showId}/overlay`;
-  const origin =
-    typeof window === "undefined" || !window.location?.origin
-      ? ""
-      : window.location.origin;
-
-  return `${origin}${path}`;
 }
 
 const headerWrapStyle = {
