@@ -78,7 +78,7 @@ function formatEventLabel(eventName, classItem) {
   const showName = safeText(eventName).trim();
 
   if (!classCode) return showName;
-  if (!showName) return `Class ${classCode}`;
+  if (!showName) return `Block ${classCode}`;
 
   return `${showName} - ${classCode}`;
 }
@@ -96,7 +96,7 @@ export function buildScorePdfFileName({
   const ts = formatTimestampForFile(finalizedAt ? new Date(finalizedAt) : new Date());
   const assoc = sanitizeFilePart(associationAbbreviation || "ASSOC");
   const show = sanitizeFilePart(showName || "show");
-  const classPart = sanitizeFilePart(className || "classe");
+  const classPart = sanitizeFilePart(className || "bloc");
 
   return `${assoc}-${show}-${classPart}-${ts}.pdf`;
 }
@@ -448,7 +448,7 @@ export function generateScorePdf({
 
     y += 4.2;
 
-    drawFittedText(`Class: ${classItem?.name || ""}`, marginLeft, y, fullTableW, {
+    drawFittedText(`Block: ${classItem?.name || ""}`, marginLeft, y, fullTableW, {
       fontSize: 8,
     });
 

@@ -152,7 +152,7 @@ export function buildClassTimingRow({
 
   return {
     classId: classData?.classItem?.id,
-    className: classData?.classItem?.name || "Classe sans nom",
+    className: classData?.classItem?.name || "Bloc sans nom",
     dayLabel: day?.label || "Journée",
     dayDate: day?.date || "",
     pattern: pattern || "—",

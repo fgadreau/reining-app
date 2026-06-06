@@ -8,6 +8,7 @@ import {
 import {
   parseImportedDraw,
   parseImportedRuns,
+  parsePositionedPdfPages,
 } from "./features/classes/classSetupImport";
 import { filterAssociationsBySearch } from "./features/associations/associationSearch";
 import { normalizeAssociationWebsiteUrl } from "./features/associations/associationProfile";
@@ -36,6 +37,10 @@ import {
   buildPublicLiveClassView,
   sortPublicResults,
 } from "./features/publication/publicViewRepository";
+import {
+  buildClassResultGroups,
+  normalizeResultGroups,
+} from "./features/results/classResults";
 import { buildAnnouncerClassView } from "./features/live/liveViewRepository";
 import {
   ASSOCIATION_ROLES,
@@ -756,6 +761,353 @@ Tractor,,,,,,,,,,,,,
       owner: "Scratched",
     }
   );
+});
+
+test("parses imported draw class codes when a code column is present", () => {
+  const importedDraw = parseImportedDraw(`
+    1, 101, Open Rider, Shiney Horse, Owner One, , "NHO,NH2,OPEN"
+    2, 202, Non Pro Rider, Smart Horse, Owner Two, , "NHNP,NONP"
+  `);
+
+  expect(importedDraw.runs).toHaveLength(2);
+  expect(importedDraw.runs[0].classCodes).toEqual(["NHO", "NH2", "OPEN"]);
+  expect(importedDraw.runs[1].classCodes).toEqual(["NHNP", "NONP"]);
+});
+
+test("parses REO positioned PDF draws with owners and division codes", () => {
+  const importedDraw = parsePositionedPdfPages([
+    [
+      {
+        cells: [
+          { x: 227, text: "CNYRHA2026 Draw Report" },
+        ],
+      },
+      {
+        cells: [
+          {
+            x: 127,
+            text: "Draw for Class 04 ROOKIE on 6-5-2026 (Pattern 18)",
+          },
+        ],
+      },
+      {
+        cells: [
+          { x: 32, text: "Draw" },
+          { x: 68, text: "Entry" },
+          { x: 139, text: "Horse / Owner 1" },
+          { x: 297, text: "Rider / Owner 2" },
+          { x: 454, text: "Scores / Divisions Entered" },
+        ],
+      },
+      {
+        cells: [
+          { x: 45, text: "1" },
+          { x: 71, text: "343" },
+          { x: 139, text: "WHO DAT HOT CHIC" },
+          { x: 297, text: "MADILYNNE KRISTINE LANNON |____|" },
+        ],
+      },
+      {
+        cells: [
+          { x: 139, text: "CHAD LANNON" },
+          { x: 454, text: "5300 / 5310" },
+        ],
+      },
+      {
+        cells: [
+          { x: 80, text: "(M)" },
+          { x: 139, text: "WIMPYS LITTLE STEP" },
+          { x: 297, text: "HOT CHIC DREAMS" },
+        ],
+      },
+      {
+        cells: [
+          { x: 45, text: "2" },
+          { x: 71, text: "312" },
+          { x: 139, text: "YANKEE GUNNA SMOKE" },
+          { x: 297, text: "LEXI PORTER" },
+          { x: 454, text: "|____|" },
+        ],
+      },
+      {
+        cells: [
+          { x: 139, text: "SHANE PORTER" },
+          { x: 297, text: "KATE GRIFFIN" },
+          { x: 454, text: "5301" },
+        ],
+      },
+      {
+        cells: [
+          { x: 66, text: "Entries" },
+          { x: 139, text: "Division" },
+          { x: 297, text: "Total Purse" },
+          { x: 454, text: "Places" },
+        ],
+      },
+      {
+        cells: [
+          { x: 84, text: "19" },
+          { x: 139, text: "5300 ROOKIE" },
+          { x: 297, text: "$ 200.00" },
+          { x: 457, text: "5" },
+        ],
+      },
+      {
+        cells: [
+          { x: 84, text: "12" },
+          { x: 139, text: "5301 PT ROOKIE" },
+          { x: 297, text: "$ 100.00" },
+          { x: 457, text: "3" },
+        ],
+      },
+      {
+        cells: [
+          { x: 84, text: "17" },
+          { x: 139, text: "5310 ROOKIE II" },
+          { x: 297, text: "$ 100.00" },
+          { x: 457, text: "4" },
+        ],
+      },
+    ],
+  ]);
+
+  expect(importedDraw.runs).toHaveLength(2);
+  expect(importedDraw.runs[0]).toMatchObject({
+    order: 1,
+    draw: 1,
+    backNumber: "343",
+    rider: "MADILYNNE KRISTINE LANNON",
+    horse: "WHO DAT HOT CHIC",
+    owner: "CHAD LANNON",
+    classCodes: ["5300", "5310"],
+  });
+  expect(importedDraw.runs[1]).toMatchObject({
+    order: 2,
+    draw: 2,
+    backNumber: "312",
+    rider: "LEXI PORTER",
+    horse: "YANKEE GUNNA SMOKE",
+    owner: "SHANE PORTER / KATE GRIFFIN",
+    classCodes: ["5301"],
+  });
+  expect(importedDraw.blockClasses).toEqual([
+    {
+      code: "5300",
+      name: "ROOKIE",
+      classNumber: "5300",
+      association: "REO",
+    },
+    {
+      code: "5301",
+      name: "PT ROOKIE",
+      classNumber: "5301",
+      association: "REO",
+    },
+    {
+      code: "5310",
+      name: "ROOKIE II",
+      classNumber: "5310",
+      association: "REO",
+    },
+  ]);
+});
+
+test("parses REO PDF draws when text fragments split columns", () => {
+  const importedDraw = parsePositionedPdfPages([
+    [
+      {
+        cells: [{ x: 227, text: "CNYRHA2026 Draw Report" }],
+      },
+      {
+        cells: [
+          {
+            x: 151,
+            text: "Draw for Class 04 ROOKIE on 6-5-2026 (Pattern 18)",
+          },
+        ],
+      },
+      {
+        cells: [
+          { x: 32, text: "Draw" },
+          { x: 68, text: "Entry" },
+          { x: 139, text: "Horse / Owner 1" },
+          { x: 297, text: "Rider / Owner 2" },
+          { x: 454, text: "Scores / Divisions Entered" },
+        ],
+      },
+      {
+        cells: [
+          { x: 39, text: "11" },
+          { x: 71, text: "265" },
+          { x: 139, text: "CHICS" },
+          { x: 170, text: "DREAM OF LACE" },
+          { x: 297, text: "NICOLE" },
+          { x: 335, text: "M." },
+          { x: 352, text: "PETRANCHUK" },
+          { x: 454, text: "|____|" },
+          { x: 494, text: "5310" },
+        ],
+      },
+      {
+        cells: [
+          { x: 139, text: "DEVINNE" },
+          { x: 183, text: "RYAN" },
+          { x: 219, text: "BENNETT" },
+        ],
+      },
+      {
+        cells: [
+          { x: 80, text: "(M)" },
+          { x: 139, text: "CHIC DREAMIN" },
+          { x: 297, text: "BOOMIN IN LACE" },
+        ],
+      },
+      {
+        cells: [
+          { x: 39, text: "12" },
+          { x: 71, text: "347" },
+          { x: 139, text: "GATA CUSTOM VINTAGE" },
+          { x: 297, text: "DENISE ANN" },
+          { x: 360, text: "LOMASCOLO |____| 5301 / 5310" },
+        ],
+      },
+      {
+        cells: [
+          { x: 139, text: "DENISE ANN" },
+          { x: 210, text: "LOMASCOLO" },
+        ],
+      },
+      {
+        cells: [
+          { x: 66, text: "Entries" },
+          { x: 139, text: "Division" },
+          { x: 297, text: "Total Purse" },
+          { x: 454, text: "Places" },
+        ],
+      },
+      {
+        cells: [
+          { x: 89, text: "6" },
+          { x: 139, text: "5301" },
+          { x: 173, text: "PT ROOKIE" },
+          { x: 297, text: "$ 100.00" },
+          { x: 457, text: "3" },
+        ],
+      },
+      {
+        cells: [
+          { x: 84, text: "14" },
+          { x: 139, text: "5310" },
+          { x: 173, text: "ROOKIE II" },
+          { x: 297, text: "$ 298.33" },
+          { x: 457, text: "5" },
+        ],
+      },
+    ],
+  ]);
+
+  expect(importedDraw.runs).toHaveLength(2);
+  expect(importedDraw.runs[0]).toMatchObject({
+    draw: 11,
+    backNumber: "265",
+    rider: "NICOLE M. PETRANCHUK",
+    horse: "CHICS DREAM OF LACE",
+    owner: "DEVINNE RYAN BENNETT",
+    classCodes: ["5310"],
+  });
+  expect(importedDraw.runs[1]).toMatchObject({
+    draw: 12,
+    backNumber: "347",
+    rider: "DENISE ANN LOMASCOLO",
+    horse: "GATA CUSTOM VINTAGE",
+    owner: "DENISE ANN LOMASCOLO",
+    classCodes: ["5301", "5310"],
+  });
+  expect(importedDraw.blockClasses).toEqual([
+    {
+      code: "5301",
+      name: "PT ROOKIE",
+      classNumber: "5301",
+      association: "REO",
+    },
+    {
+      code: "5310",
+      name: "ROOKIE II",
+      classNumber: "5310",
+      association: "REO",
+    },
+  ]);
+});
+
+test("builds independent result groups by imported class code", () => {
+  const groups = buildClassResultGroups({
+    classItem: {
+      id: "block-1",
+      name: "Novice Horse Block",
+      classCode: "BLOCK",
+      pattern: "pattern-8",
+    },
+    setup: {
+      pattern: "pattern-8",
+      blockClasses: [
+        { code: "NHO", name: "Novice Horse Open" },
+        { code: "NH2", name: "Novice Horse Level 2" },
+      ],
+      runs: [
+        {
+          id: "run-1",
+          draw: 1,
+          backNumber: "101",
+          rider: "Open Rider",
+          horse: "Horse One",
+          classCodes: ["NHO", "NH2"],
+        },
+        {
+          id: "run-2",
+          draw: 2,
+          backNumber: "202",
+          rider: "Level Two Rider",
+          horse: "Horse Two",
+          classCodes: ["NH2"],
+        },
+      ],
+    },
+    official: {
+      isSecretariatValidated: true,
+      officialRuns: [
+        { id: "run-1", draw: 1, scoreTotal: "72.0" },
+        { id: "run-2", draw: 2, scoreTotal: "70.5" },
+      ],
+    },
+    scoringRuns: [],
+  });
+
+  expect(groups.map((group) => group.code)).toEqual(["NH2", "NHO"]);
+  expect(groups.find((group) => group.code === "NHO").entries).toHaveLength(1);
+  expect(groups.find((group) => group.code === "NH2").entries).toMatchObject([
+    { rank: 1, backNumber: "101", scoreTotal: "72" },
+    { rank: 2, backNumber: "202", scoreTotal: "70½" },
+  ]);
+
+  const normalizedGroups = normalizeResultGroups(groups);
+  expect(
+    normalizedGroups.find((group) => group.code === "NH2").entries
+  ).toMatchObject([
+    { rank: 1, backNumber: "101", scoreTotal: "72" },
+    { rank: 2, backNumber: "202", scoreTotal: "70½" },
+  ]);
+  expect(
+    normalizeResultGroups([
+      {
+        id: "legacy",
+        code: "LEG",
+        entries: [
+          { id: "legacy-1", backNumber: "101", scoreTotal: "72" },
+          { id: "legacy-2", backNumber: "202", scoreTotal: "70.5" },
+        ],
+      },
+    ])[0].entries
+  ).toMatchObject([{ rank: 1 }, { rank: 2 }]);
 });
 
 test("publishes and unpublishes a class publication state", () => {

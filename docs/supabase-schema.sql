@@ -141,6 +141,7 @@ create table if not exists public.class_setups (
   runs jsonb not null default '[]'::jsonb,
   schedule_details jsonb not null default '{}'::jsonb,
   judges jsonb not null default '[{"id":"judge-1","name":"","order":1}]'::jsonb,
+  block_classes jsonb not null default '[]'::jsonb,
   is_draw_imported boolean not null default false,
   started_at timestamptz,
   drag_interval integer,
@@ -173,6 +174,9 @@ add column if not exists judges jsonb not null default '[{"id":"judge-1","name":
 
 alter table public.class_setups
 add column if not exists schedule_details jsonb not null default '{}'::jsonb;
+
+alter table public.class_setups
+add column if not exists block_classes jsonb not null default '[]'::jsonb;
 
 create table if not exists public.scoring_sessions (
   class_id text primary key references public.classes(id) on delete cascade,
@@ -223,6 +227,16 @@ create table if not exists public.publication_states (
   published_by text,
   public_url text,
   visible_fields jsonb not null default '["draw","backNumber","rider","horse","owner","scoreTotal","status"]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.class_result_publications (
+  class_id text primary key references public.classes(id) on delete cascade,
+  status text not null default 'hidden'
+    check (status in ('hidden', 'published')),
+  published_at timestamptz,
+  published_by text,
+  result_groups jsonb not null default '[]'::jsonb,
   updated_at timestamptz not null default now()
 );
 
@@ -337,6 +351,12 @@ create trigger publication_states_set_updated_at
 before update on public.publication_states
 for each row execute function public.set_updated_at();
 
+drop trigger if exists class_result_publications_set_updated_at
+on public.class_result_publications;
+create trigger class_result_publications_set_updated_at
+before update on public.class_result_publications
+for each row execute function public.set_updated_at();
+
 alter table public.associations enable row level security;
 alter table public.user_profiles enable row level security;
 alter table public.platform_admins enable row level security;
@@ -351,6 +371,7 @@ alter table public.scoring_sessions enable row level security;
 alter table public.judge_scoring_sessions enable row level security;
 alter table public.official_results enable row level security;
 alter table public.publication_states enable row level security;
+alter table public.class_result_publications enable row level security;
 alter table public.app_events enable row level security;
 
 -- Association-scoped access helpers.
@@ -536,6 +557,19 @@ returns boolean as $$
       and ps.status = 'published'
       and official.finalized is true
       and official.secretariat_validated_at is not null
+  );
+$$ language sql stable security definer set search_path = public;
+
+create or replace function public.class_has_published_result(
+  target_class_id text
+)
+returns boolean as $$
+  select exists (
+    select 1
+    from public.class_result_publications rp
+    where rp.class_id = target_class_id
+      and rp.status = 'published'
+      and jsonb_array_length(coalesce(rp.result_groups, '[]'::jsonb)) > 0
   );
 $$ language sql stable security definer set search_path = public;
 
@@ -1254,6 +1288,31 @@ create policy "Managers can delete publication states"
 on public.publication_states for delete to authenticated
 using (public.current_user_can_manage_class(class_id));
 
+-- Class result publication policies.
+drop policy if exists "Members can read class result publications" on public.class_result_publications;
+create policy "Members can read class result publications"
+on public.class_result_publications for select to authenticated
+using (public.current_user_can_read_class(class_id));
+
+drop policy if exists "Managers can insert class result publications"
+on public.class_result_publications;
+create policy "Managers can insert class result publications"
+on public.class_result_publications for insert to authenticated
+with check (public.current_user_can_manage_class(class_id));
+
+drop policy if exists "Managers can update class result publications"
+on public.class_result_publications;
+create policy "Managers can update class result publications"
+on public.class_result_publications for update to authenticated
+using (public.current_user_can_manage_class(class_id))
+with check (public.current_user_can_manage_class(class_id));
+
+drop policy if exists "Managers can delete class result publications"
+on public.class_result_publications;
+create policy "Managers can delete class result publications"
+on public.class_result_publications for delete to authenticated
+using (public.current_user_can_manage_class(class_id));
+
 -- Public read policy for published results only.
 drop policy if exists "Anyone can read published publication states" on public.publication_states;
 create policy "Anyone can read published publication states"
@@ -1277,6 +1336,12 @@ using (
   )
 );
 
+drop policy if exists "Anyone can read published class result publications"
+on public.class_result_publications;
+create policy "Anyone can read published class result publications"
+on public.class_result_publications for select to anon, authenticated
+using (public.class_has_published_result(class_id));
+
 -- Realtime support for announcer dashboards.
 do $$
 declare
@@ -1295,7 +1360,8 @@ begin
       'scoring_sessions',
       'judge_scoring_sessions',
       'official_results',
-      'publication_states'
+      'publication_states',
+      'class_result_publications'
     ] loop
       if not exists (
         select 1
@@ -1321,6 +1387,7 @@ create or replace function public.class_is_publicly_visible(
 )
 returns boolean as $$
   select public.class_has_published_official_result(target_class_id)
+    or public.class_has_published_result(target_class_id)
     or exists (
       select 1
       from public.publication_states ps

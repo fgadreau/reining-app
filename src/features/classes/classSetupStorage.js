@@ -68,6 +68,7 @@ export function createEmptyRun(nextOrder = 1) {
     rider: "",
     horse: "",
     owner: "",
+    classCodes: [],
   };
 }
 
@@ -80,6 +81,7 @@ function normalizeDraw(value) {
 
 export function normalizeRun(run, index = 0) {
   const draw = normalizeDraw(run?.draw);
+  const classCodes = normalizeClassCodes(run?.classCodes);
 
   return {
     id: run?.id ?? createId("run"),
@@ -89,6 +91,7 @@ export function normalizeRun(run, index = 0) {
     rider: run?.rider ?? "",
     horse: run?.horse ?? "",
     owner: run?.owner ?? "",
+    classCodes,
   };
 }
 
@@ -113,6 +116,7 @@ function normalizeSetup(setup = {}) {
     customPattern: normalizeCustomPattern(setup.customPattern, pattern),
     scheduleDetails,
     judges,
+    blockClasses: normalizeBlockClasses(setup.blockClasses),
     runs: Array.isArray(setup.runs) ? setup.runs.map(normalizeRun) : [],
     isDrawImported: Boolean(setup.isDrawImported),
     startedAt: setup.startedAt ?? null,
@@ -128,4 +132,37 @@ function normalizeSetup(setup = {}) {
     finalPdf: setup.finalPdf ?? null,
     finalPdfFileName: setup.finalPdfFileName ?? null,
   };
+}
+
+function normalizeClassCodes(value) {
+  return Array.from(
+    new Set(
+      (Array.isArray(value) ? value : [])
+        .map((code) => String(code || "").trim().toUpperCase())
+        .filter(Boolean)
+    )
+  );
+}
+
+function normalizeBlockClasses(value) {
+  return Array.from(
+    new Map(
+      (Array.isArray(value) ? value : [])
+        .map((classEntry) => {
+          const code = String(classEntry?.code || "").trim().toUpperCase();
+          if (!code) return null;
+
+          return [
+            code,
+            {
+              code,
+              name: String(classEntry?.name || "").trim(),
+              classNumber: String(classEntry?.classNumber || "").trim(),
+              association: String(classEntry?.association || "").trim(),
+            },
+          ];
+        })
+        .filter(Boolean)
+    ).values()
+  );
 }

@@ -22,7 +22,7 @@ const termsSections = [
   {
     title: "2. Nature du service",
     paragraphs: [
-      "ShowScore est un outil de gestion de pointage pour compétitions équestres jugées. L'application aide à préparer les classes, enregistrer les scores, générer des feuilles de pointage, suivre le déroulement d'un show et publier certains résultats.",
+      "ShowScore est un outil de gestion de pointage pour compétitions équestres jugées. L'application aide à préparer les blocs, enregistrer les scores, générer des feuilles de pointage, suivre le déroulement d'un show et publier certains résultats.",
       "ShowScore ne remplace pas le jugement des officiels, les règlements de l'association, le secrétariat du concours ni les procédures officielles de validation.",
     ],
   },
@@ -43,7 +43,7 @@ const termsSections = [
   {
     title: "5. Publication des résultats",
     paragraphs: [
-      "Les résultats, scoresheets, informations de classes et données de live peuvent devenir visibles au public lorsqu'une association les publie ou active la vitrine publique.",
+      "Les résultats, scoresheets, informations de blocs, classes/divisions et données de live peuvent devenir visibles au public lorsqu'une association les publie ou active la vitrine publique.",
       "Une association doit s'assurer qu'elle a le droit de publier les renseignements de compétition qu'elle rend publics.",
     ],
   },
@@ -94,14 +94,14 @@ const privacySections = [
     title: "1. Renseignements collectés",
     paragraphs: [
       "ShowScore peut traiter des renseignements de compte, comme le courriel, le nom affiché et les rôles d'accès.",
-      "L'application peut aussi traiter des renseignements de compétition, comme les associations, shows, jours, classes, participants, chevaux, numéros de dossard, ordres de passage, scores, pénalités, notes, signatures, validations et documents PDF générés.",
+      "L'application peut aussi traiter des renseignements de compétition, comme les associations, shows, jours, blocs, classes/divisions, participants, chevaux, numéros de dossard, ordres de passage, scores, pénalités, notes, signatures, validations et documents PDF générés.",
       "Des renseignements techniques peuvent être traités pour l'authentification, la synchronisation cloud, la sécurité, le stockage local et le bon fonctionnement de l'application.",
     ],
   },
   {
     title: "2. Finalités",
     paragraphs: [
-      "Les renseignements sont utilisés pour gérer les accès, préparer les classes, enregistrer les pointages, synchroniser les données, générer des documents, publier les résultats autorisés et soutenir les opérations du show.",
+      "Les renseignements sont utilisés pour gérer les accès, préparer les blocs, enregistrer les pointages, synchroniser les données, générer des documents, publier les résultats autorisés et soutenir les opérations du show.",
       "Les renseignements ne devraient être saisis que lorsqu'ils sont nécessaires à ces finalités.",
     ],
   },
@@ -174,7 +174,7 @@ const resultsSections = [
     title: "2. Live, provisoire et officiel",
     paragraphs: [
       "Un score affiché en direct ou dans un classement provisoire peut changer après vérification, validation du secrétariat, correction d'erreur, application des règlements ou décision officielle.",
-      "Les classes avec travail en piste ou ajustement final peuvent utiliser un classement provisoire pour aider les officiels et annonceurs. Le classement doit être complété avec le travail en piste en dehors de l'application lorsque requis.",
+      "Les blocs avec travail en piste ou ajustement final peuvent utiliser un classement provisoire pour aider les officiels et annonceurs. Le classement doit être complété avec le travail en piste en dehors de l'application lorsque requis.",
     ],
   },
   {
@@ -194,7 +194,7 @@ const resultsSections = [
   {
     title: "5. Estimations et informations de déroulement",
     paragraphs: [
-      "Les estimations de temps, statuts de classe, pauses, drags et prochains participants sont fournis à titre indicatif et peuvent varier selon le déroulement réel du concours.",
+      "Les estimations de temps, statuts de bloc, pauses, drags et prochains participants sont fournis à titre indicatif et peuvent varier selon le déroulement réel du concours.",
     ],
   },
 ];
@@ -210,7 +210,7 @@ const termsSectionsEn = [
   {
     title: "2. Nature of the service",
     paragraphs: [
-      "ShowScore is a scoring management tool for judged equestrian competitions. The application helps prepare classes, record scores, generate score sheets, follow the flow of a show, and publish certain results.",
+      "ShowScore is a scoring management tool for judged equestrian competitions. The application helps prepare blocks, record scores, generate score sheets, follow the flow of a show, and publish certain results.",
       "ShowScore does not replace the judgment of officials, association rules, show secretariat work, or official validation procedures.",
     ],
   },
@@ -231,7 +231,7 @@ const termsSectionsEn = [
   {
     title: "5. Publication of results",
     paragraphs: [
-      "Results, score sheets, class information, and live data may become visible to the public when an association publishes them or activates the public showcase.",
+      "Results, score sheets, block, class/division information, and live data may become visible to the public when an association publishes them or activates the public showcase.",
       "An association must ensure it has the right to publish the competition information it makes public.",
     ],
   },
@@ -282,14 +282,14 @@ const privacySectionsEn = [
     title: "1. Information collected",
     paragraphs: [
       "ShowScore may process account information such as email, display name, and access roles.",
-      "The application may also process competition information such as associations, shows, days, classes, participants, horses, back numbers, orders of go, scores, penalties, notes, signatures, validations, and generated PDF documents.",
+      "The application may also process competition information such as associations, shows, days, blocks, classes/divisions, participants, horses, back numbers, orders of go, scores, penalties, notes, signatures, validations, and generated PDF documents.",
       "Technical information may be processed for authentication, cloud sync, security, local storage, and proper operation of the application.",
     ],
   },
   {
     title: "2. Purposes",
     paragraphs: [
-      "Information is used to manage access, prepare classes, record scores, synchronize data, generate documents, publish authorized results, and support show operations.",
+      "Information is used to manage access, prepare blocks, record scores, synchronize data, generate documents, publish authorized results, and support show operations.",
       "Information should be entered only when it is necessary for those purposes.",
     ],
   },
@@ -362,7 +362,7 @@ const resultsSectionsEn = [
     title: "2. Live, provisional, and official",
     paragraphs: [
       "A score shown live or in a provisional ranking may change after review, secretariat validation, error correction, rule application, or an official decision.",
-      "Classes with in-pen work or final adjustment may use a provisional ranking to help officials and announcers. The ranking must be completed with the in-pen work outside the application when required.",
+      "Blocks with in-pen work or final adjustment may use a provisional ranking to help officials and announcers. The ranking must be completed with the in-pen work outside the application when required.",
     ],
   },
   {
@@ -382,7 +382,7 @@ const resultsSectionsEn = [
   {
     title: "5. Estimates and flow information",
     paragraphs: [
-      "Time estimates, class statuses, breaks, drags, and next participants are provided for information only and may vary according to the actual flow of the competition.",
+      "Time estimates, block statuses, breaks, drags, and next participants are provided for information only and may vary according to the actual flow of the competition.",
     ],
   },
 ];

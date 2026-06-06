@@ -32,6 +32,9 @@ function toSetup(row, localSetup = {}) {
       remoteHasJudges && Array.isArray(row.judges)
         ? row.judges
         : fallbackJudges,
+    blockClasses: Array.isArray(row.block_classes)
+      ? row.block_classes
+      : localSetup?.blockClasses || [],
     scheduleDetails: normalizeClassScheduleDetails(row.schedule_details),
     startedAt: row.started_at || null,
     dragInterval: row.drag_interval || null,
@@ -54,6 +57,7 @@ function toSetupRow(classId, setup, options = {}) {
   const includeCustomPattern = options.includeCustomPattern !== false;
   const includeJudges = options.includeJudges !== false;
   const includeScheduleDetails = options.includeScheduleDetails !== false;
+  const includeBlockClasses = options.includeBlockClasses !== false;
   const row = {
     class_id: classId,
     pattern: normalized.pattern || null,
@@ -89,6 +93,10 @@ function toSetupRow(classId, setup, options = {}) {
     );
   }
 
+  if (includeBlockClasses) {
+    row.block_classes = normalized.blockClasses || [];
+  }
+
   return row;
 }
 
@@ -111,6 +119,10 @@ function isJudgesColumnMissingError(error) {
 
 function isScheduleDetailsColumnMissingError(error) {
   return String(error?.message || "").includes("schedule_details");
+}
+
+function isBlockClassesColumnMissingError(error) {
+  return String(error?.message || "").includes("block_classes");
 }
 
 export async function getClassSetupRepository(classId) {
@@ -211,6 +223,24 @@ export async function saveClassSetupRepository(classId, setup) {
             .from("class_setups")
             .upsert(
               toSetupRow(classId, normalized, { includeScheduleDetails: false })
+            );
+
+          if (legacyError) throw legacyError;
+          trackClassSetupReadyEvent(classId, previousSetup, normalized);
+          return normalized;
+        } catch (legacyError) {
+          console.error("Erreur sauvegarde setup Supabase:", legacyError);
+          trackClassSetupReadyEvent(classId, previousSetup, normalized);
+          return normalized;
+        }
+      }
+
+      if (isBlockClassesColumnMissingError(error)) {
+        try {
+          const { error: legacyError } = await supabase
+            .from("class_setups")
+            .upsert(
+              toSetupRow(classId, normalized, { includeBlockClasses: false })
             );
 
           if (legacyError) throw legacyError;

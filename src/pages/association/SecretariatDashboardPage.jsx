@@ -15,6 +15,10 @@ import {
   downloadOfficialScorePdf,
   getOfficialPdfFileName,
 } from "../../features/classes/officialPdfService";
+import {
+  buildClassResultsPdfFileName,
+  generateClassResultsPdf,
+} from "../../utils/generateResultsPdf";
 import { validateOfficialResultRepository } from "../../features/classes/officialResultRepository";
 import { getDaysByShowId } from "../../features/days/daySelectors";
 import {
@@ -22,6 +26,12 @@ import {
   unpublishClassRepository,
 } from "../../features/publication/publicationCloudRepository";
 import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
+import {
+  RESULT_PUBLICATION_STATUSES,
+  getClassResultPublicationRepository,
+  publishClassResultsRepository,
+  unpublishClassResultsRepository,
+} from "../../features/results/resultPublicationRepository";
 import {
   loadJudgeScoringSessionsForClassRepository,
   releaseJudgeScoringSessionRepository,
@@ -82,6 +92,8 @@ function SecretariatDashboardPage() {
                 ...classData,
                 judges,
                 judgeSessions,
+                resultPublication:
+                  await getClassResultPublicationRepository(classItem.id),
               };
             })
           );
@@ -118,6 +130,57 @@ function SecretariatDashboardPage() {
   const handleUnpublish = async (classId) => {
     await unpublishClassRepository(classId);
     refresh();
+  };
+
+  const handlePublishResults = async (classData) => {
+    try {
+      await publishClassResultsRepository({
+        classData: prepareClassDataForValidation(classData, t),
+        publishedBy: "secretariat",
+      });
+      refresh();
+    } catch (error) {
+      alert(error.message || t("management.secretariat.resultsPublishFailed"));
+    }
+  };
+
+  const handleUnpublishResults = async (classId) => {
+    await unpublishClassResultsRepository(classId);
+    refresh();
+  };
+
+  const handleDownloadResultsPdf = (classData) => {
+    const resultGroups = classData?.resultPublication?.resultGroups || [];
+    const publishedAt = classData?.resultPublication?.publishedAt || null;
+
+    if (!resultGroups.length) {
+      alert(t("management.secretariat.resultsPdfFailed"));
+      return;
+    }
+
+    const classItem = classData?.classItem || {};
+    const pdf = generateClassResultsPdf({
+      associationName: association?.name || t("common.association"),
+      associationLogoDataUrl: association?.logoDataUrl || null,
+      eventName: show?.name || "",
+      eventDate: classData?.official?.eventDate || show?.startDate || "",
+      blockName: classItem.name || t("management.classes.unnamedClass"),
+      pattern:
+        classData?.official?.pattern ||
+        classData?.setup?.pattern ||
+        classItem.pattern ||
+        "",
+      publishedAt,
+      resultGroups,
+    });
+    const fileName = buildClassResultsPdfFileName({
+      associationAbbreviation: association?.shortName || "ASSOC",
+      showName: show?.name || "show",
+      blockName: classItem.name || "results",
+      publishedAt,
+    });
+
+    pdf.save(fileName);
   };
 
   const handleDownloadOfficialPdf = async (classData, options = {}) => {
@@ -245,6 +308,7 @@ function SecretariatDashboardPage() {
         <SummaryTile label={t("management.classes.statusInProgress")} value={summary.inProgress} tone="warn" />
         <SummaryTile label={t("management.secretariat.signed")} value={summary.signed} tone="warn" />
         <SummaryTile label={t("management.secretariat.validated")} value={summary.validated} tone="success" />
+        <SummaryTile label={t("management.secretariat.results")} value={summary.resultsPublished} tone="success" />
         <SummaryTile label={t("management.secretariat.pdf")} value={summary.pdfReady} tone="success" />
         <SummaryTile label={t("management.secretariat.published")} value={summary.published} tone="success" />
       </section>
@@ -290,6 +354,7 @@ function SecretariatDashboardPage() {
                         <th style={thStyle}>{t("management.secretariat.setup")}</th>
                         <th style={thStyle}>{t("management.secretariat.scoring")}</th>
                         <th style={thStyle}>{t("management.secretariat.official")}</th>
+                        <th style={thStyle}>{t("management.secretariat.results")}</th>
                         <th style={thStyle}>{t("management.secretariat.officialPdf")}</th>
                         <th style={thStyle}>{t("management.secretariat.publication")}</th>
                         <th style={thStyle}>{t("management.classSetup.actions")}</th>
@@ -307,6 +372,9 @@ function SecretariatDashboardPage() {
                           onReleaseJudgeSession={handleReleaseJudgeSession}
                           onPublish={handlePublish}
                           onUnpublish={handleUnpublish}
+                          onPublishResults={handlePublishResults}
+                          onUnpublishResults={handleUnpublishResults}
+                          onDownloadResultsPdf={handleDownloadResultsPdf}
                           canManage={access.canManageAssociation}
                           language={language}
                         />
@@ -332,6 +400,9 @@ function ClassRow({
   onReleaseJudgeSession,
   onPublish,
   onUnpublish,
+  onPublishResults,
+  onUnpublishResults,
+  onDownloadResultsPdf,
   canManage,
   language,
 }) {
@@ -340,6 +411,7 @@ function ClassRow({
   const setup = classData.setup;
   const official = classData.official;
   const publication = classData.publication;
+  const resultPublication = classData.resultPublication;
   const scoringRuns = classData.scoringRuns || [];
   const classId = classItem?.id;
   const judgeSummary = getJudgeSheetSummary(classData);
@@ -351,6 +423,11 @@ function ClassRow({
     : Boolean(official?.isFinalized);
   const isValidated = Boolean(official?.isSecretariatValidated);
   const officialPdfReady = isValidated && hasOfficialPdf;
+  const resultsPublished =
+    resultPublication?.status === RESULT_PUBLICATION_STATUSES.PUBLISHED;
+  const resultGroupCount = Array.isArray(resultPublication?.resultGroups)
+    ? resultPublication.resultGroups.length
+    : 0;
 
   const setupReady = Boolean((setup?.pattern || classItem?.pattern) && setup?.runs?.length);
   const scoringStarted = isMultiJudge
@@ -465,6 +542,26 @@ function ClassRow({
       </td>
       <td style={tdStyle}>
         <div style={{ display: "grid", gap: 6 }}>
+          <Badge tone={resultsPublished ? "success" : isValidated ? "warn" : "muted"}>
+            {resultsPublished
+              ? t("management.secretariat.resultsPublished", {
+                  count: resultGroupCount,
+                })
+              : isValidated
+                ? t("management.secretariat.resultsReady")
+                : t("management.secretariat.resultsPending")}
+          </Badge>
+          {resultPublication?.publishedAt && (
+            <div style={metaStyle}>
+              {t("management.secretariat.publishedAt", {
+                date: formatDateTime(resultPublication.publishedAt, language),
+              })}
+            </div>
+          )}
+        </div>
+      </td>
+      <td style={tdStyle}>
+        <div style={{ display: "grid", gap: 6 }}>
           <Badge tone={officialPdfReady ? "success" : isSigned ? "warn" : "muted"}>
             {isMultiJudge && officialPdfReady
               ? t("management.secretariat.combinedPdfGenerated")
@@ -545,6 +642,33 @@ function ClassRow({
                   {t("management.secretariat.regenerate")}
                 </button>
               )}
+              {resultsPublished ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onDownloadResultsPdf(classData)}
+                    style={smallButtonStyle}
+                  >
+                    {t("management.secretariat.downloadResultsPdf")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onUnpublishResults(classId)}
+                    style={smallButtonStyle}
+                  >
+                    {t("management.secretariat.hideResults")}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onPublishResults(classData)}
+                  style={smallButtonStyle}
+                  disabled={!isValidated}
+                >
+                  {t("management.secretariat.publishResults")}
+                </button>
+              )}
               {publication?.status === PUBLICATION_STATUSES.PUBLISHED ? (
                 <button
                   type="button"
@@ -589,6 +713,7 @@ function buildSummary(classRows) {
     (summary, classData) => {
       const status = classData.status;
       const publicationStatus = classData.publication?.status;
+      const resultPublicationStatus = classData.resultPublication?.status;
       const judgeSummary = getJudgeSheetSummary(classData);
       const isSigned = judgeSummary.isMultiJudge
         ? judgeSummary.allSigned
@@ -607,6 +732,9 @@ function buildSummary(classRows) {
       if (isValidated && getOfficialPdfFileName(classData)) {
         summary.pdfReady += 1;
       }
+      if (resultPublicationStatus === RESULT_PUBLICATION_STATUSES.PUBLISHED) {
+        summary.resultsPublished += 1;
+      }
       if (publicationStatus === "published") summary.published += 1;
       return summary;
     },
@@ -617,6 +745,7 @@ function buildSummary(classRows) {
       inProgress: 0,
       signed: 0,
       validated: 0,
+      resultsPublished: 0,
       pdfReady: 0,
       published: 0,
     }

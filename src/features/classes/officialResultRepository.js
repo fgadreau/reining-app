@@ -181,11 +181,11 @@ export async function validateOfficialResultRepository({
     judgeSessions.every((session) => session?.finalized && session?.judgeSignature);
 
   if (!classId) {
-    throw new Error("Classe introuvable.");
+    throw new Error("Bloc introuvable.");
   }
 
   if ((!official.isFinalized || !official.judgeSignature) && !hasSignedJudgeSheets) {
-    throw new Error("La classe doit être signée par le juge avant validation.");
+    throw new Error("Le bloc doit être signé par le juge avant validation.");
   }
 
   return saveOfficialResultRepository(classId, {

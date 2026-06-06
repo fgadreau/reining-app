@@ -433,7 +433,7 @@ function DayClassesPage() {
     const fileName = buildScorePdfFileName({
       associationAbbreviation: association?.shortName || "ASSOC",
       showName: officialData.eventName || "show",
-      className: item?.name || "class",
+      className: item?.name || "block",
       finalizedAt: officialData.finalizedAt || new Date().toISOString(),
     });
 

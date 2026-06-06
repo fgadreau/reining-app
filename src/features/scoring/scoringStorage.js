@@ -23,7 +23,7 @@ export function saveScoringRuns(classId, runs) {
       JSON.stringify(Array.isArray(runs) ? runs : [])
     );
   } catch (error) {
-    console.error("Erreur sauvegarde runs classe:", error);
+    console.error("Erreur sauvegarde runs bloc:", error);
   }
 }
 

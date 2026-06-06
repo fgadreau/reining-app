@@ -8,9 +8,9 @@ export const ASSOCIATION_ROLES = {
 export const SECRETARY_CAPABILITIES = [
   "create shows",
   "create days",
-  "create classes",
+  "create blocks",
   "import draws",
-  "review class readiness",
+  "review block readiness",
   "validate official results",
   "generate official PDFs",
   "publish results",
@@ -19,7 +19,7 @@ export const SECRETARY_CAPABILITIES = [
 export const SCRIBE_CAPABILITIES = [
   "enter scores and penalties",
   "change active run/manoeuvre",
-  "submit class for signature",
+  "submit block for signature",
   "edit manual draws after scoring starts",
 ];
 

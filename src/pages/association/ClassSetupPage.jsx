@@ -204,6 +204,9 @@ function ClassSetupPage() {
     })
   );
   const [runs, setRuns] = useState(classSetup?.runs || []);
+  const [blockClasses, setBlockClasses] = useState(
+    classSetup?.blockClasses || []
+  );
   const [scheduleDetails, setScheduleDetails] = useState(() =>
     normalizeClassScheduleDetails(classSetup?.scheduleDetails)
   );
@@ -237,6 +240,9 @@ function ClassSetupPage() {
     PUBLICATION_STATUSES.OFFICIAL,
     PUBLICATION_STATUSES.PUBLISHED,
   ].includes(publicationStatus);
+  const hasRunClassCodes = runs.some(
+    (run) => Array.isArray(run.classCodes) && run.classCodes.length > 0
+  );
   const canManageSetup = access.canManageAssociation;
   const canEditRunIdentity =
     !isFinalized &&
@@ -288,6 +294,7 @@ function ClassSetupPage() {
         nextPattern
       );
       const nextRuns = nextSetup.runs || [];
+      const nextBlockClasses = nextSetup.blockClasses || [];
       const nextJudges = normalizeClassJudges({
         judges: nextSetup.judges,
         judgeName: nextSetup.judgeName || nextClassItem?.judgeName,
@@ -302,6 +309,7 @@ function ClassSetupPage() {
       setArena(nextClassItem?.arena || "");
       setJudges(nextJudges);
       setRuns(nextRuns);
+      setBlockClasses(nextBlockClasses);
       setScheduleDetails(normalizeClassScheduleDetails(nextSetup.scheduleDetails));
       setIsDrawImported(Boolean(nextSetup.isDrawImported));
       setDragInterval(String(nextSetup.dragInterval || ""));
@@ -355,6 +363,7 @@ function ClassSetupPage() {
         customPattern: nextCustomPattern,
         judges: normalizedJudges,
         judgeName: primaryJudgeName,
+        blockClasses,
         runs,
         scheduleDetails,
         isDrawImported,
@@ -409,6 +418,7 @@ function ClassSetupPage() {
     customPattern,
     arena,
     judges,
+    blockClasses,
     runs,
     scheduleDetails,
     isDrawImported,
@@ -833,6 +843,9 @@ function ClassSetupPage() {
 
   const applyImportedDraw = (importedDraw) => {
     const resequencedRuns = importedDraw?.runs || [];
+    const importedBlockClasses = Array.isArray(importedDraw?.blockClasses)
+      ? importedDraw.blockClasses
+      : [];
 
     if (!resequencedRuns.length) {
       setImportMessage(t("management.classSetup.importNoParticipants"));
@@ -840,6 +853,7 @@ function ClassSetupPage() {
     }
 
     setRuns(resequencedRuns);
+    setBlockClasses(importedBlockClasses);
     setRunCountInput(String(resequencedRuns.length));
     setIsDrawImported(true);
 
@@ -928,7 +942,7 @@ function ClassSetupPage() {
     const fileName = buildScorePdfFileName({
       associationAbbreviation: association?.shortName || "ASSOC",
       showName: show?.name || "show",
-      className: classItem?.name || "class",
+      className: classItem?.name || "block",
       finalizedAt:
         record?.official?.finalizedAt ||
         record?.official?.judgeSignedAt ||
@@ -1574,6 +1588,21 @@ function ClassSetupPage() {
             {importMessage && (
               <div style={importMessageStyle}>{importMessage}</div>
             )}
+
+            {blockClasses.length > 0 && (
+              <div style={classCodeSummaryStyle}>
+                <span style={classCodeSummaryLabelStyle}>
+                  {t("management.classSetup.detectedClassCodes")}
+                </span>
+                <div style={classCodePillListStyle}>
+                  {blockClasses.map((classEntry) => (
+                    <span key={classEntry.code} style={classCodePillStyle}>
+                      {classEntry.code}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1598,6 +1627,11 @@ function ClassSetupPage() {
                   <th style={thStyle}>{t("management.classSetup.riderColumn")}</th>
                   <th style={thStyle}>{t("management.classSetup.horseColumn")}</th>
                   <th style={thStyle}>{t("public.results.owner")}</th>
+                  {hasRunClassCodes && (
+                    <th style={thStyle}>
+                      {t("management.classSetup.classCodesColumn")}
+                    </th>
+                  )}
                   {canManageSetup && (
                     <th style={thStyle}>{t("management.days.orderLabel")}</th>
                   )}
@@ -1665,6 +1699,27 @@ function ClassSetupPage() {
                         disabled={!canEditRunIdentity}
                       />
                     </td>
+
+                    {hasRunClassCodes && (
+                      <td style={tdStyle}>
+                        <div style={classCodePillListStyle}>
+                          {(Array.isArray(run.classCodes)
+                            ? run.classCodes
+                            : []
+                          ).map((code) => (
+                            <span key={code} style={classCodePillStyle}>
+                              {code}
+                            </span>
+                          ))}
+                          {(!Array.isArray(run.classCodes) ||
+                            run.classCodes.length === 0) && (
+                            <span style={mutedClassCodeStyle}>
+                              {t("management.classSetup.noClassCode")}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    )}
 
                     {canManageSetup && (
                       <td style={tdStyle}>
@@ -2033,6 +2088,42 @@ const importMessageStyle = {
   color: "#155e75",
   fontSize: "14px",
   fontWeight: 600,
+};
+
+const classCodeSummaryStyle = {
+  marginTop: "10px",
+  display: "grid",
+  gap: "8px",
+};
+
+const classCodeSummaryLabelStyle = {
+  color: "#374151",
+  fontSize: "13px",
+  fontWeight: 700,
+};
+
+const classCodePillListStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "6px",
+};
+
+const classCodePillStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  minHeight: "22px",
+  padding: "2px 7px",
+  borderRadius: "6px",
+  border: "1px solid #cbd5e1",
+  background: "#f8fafc",
+  color: "#334155",
+  fontSize: "12px",
+  fontWeight: 700,
+};
+
+const mutedClassCodeStyle = {
+  color: "#9ca3af",
+  fontSize: "12px",
 };
 
 const helperTextStyle = {

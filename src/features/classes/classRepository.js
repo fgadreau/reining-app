@@ -195,7 +195,7 @@ export async function getAccessibleClassTimingDataRepository() {
 
     return buildTimingDataForClasses(classes);
   } catch (error) {
-    console.error("Erreur chargement analytics classes Supabase:", error);
+    console.error("Erreur chargement analytics blocs Supabase:", error);
     return buildTimingDataForClasses(getAllClasses());
   }
 }
@@ -360,7 +360,7 @@ export async function getClassesForDayRepository(dayId) {
 
     return classes;
   } catch (error) {
-    console.error("Erreur chargement classes Supabase:", error);
+    console.error("Erreur chargement blocs Supabase:", error);
     return getClassesByDayId(dayId);
   }
 }
@@ -395,14 +395,14 @@ export async function saveClassItemRepository(classItem) {
           trackClassSaveEvent(savedLegacyClass, isExistingClass);
           return savedLegacyClass;
         } catch (legacyError) {
-          console.error("Erreur sauvegarde classe Supabase:", legacyError);
+          console.error("Erreur sauvegarde bloc Supabase:", legacyError);
           const savedFallbackClass = saveClassLocally(classItem);
           trackClassSaveEvent(savedFallbackClass, isExistingClass);
           return savedFallbackClass;
         }
       }
 
-      console.error("Erreur sauvegarde classe Supabase:", error);
+      console.error("Erreur sauvegarde bloc Supabase:", error);
     }
   }
 
@@ -437,7 +437,7 @@ export async function deleteClassCompletelyRepository(classId) {
       const { error } = await supabase.from("classes").delete().eq("id", classId);
       if (error) throw error;
     } catch (error) {
-      console.error("Erreur suppression classe Supabase:", error);
+      console.error("Erreur suppression bloc Supabase:", error);
     }
   }
 

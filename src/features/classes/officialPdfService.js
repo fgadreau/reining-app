@@ -85,8 +85,8 @@ export function buildOfficialScorePdf({ association, classData, fileName }) {
       associationAbbreviation: association?.shortName || "ASSOC",
       showName: official.eventName || "show",
       className: isMultiJudge
-        ? `${classItem?.name || "classe"}-combined`
-        : classItem?.name || "classe",
+        ? `${classItem?.name || "bloc"}-combined`
+        : classItem?.name || "bloc",
       finalizedAt:
         official.finalizedAt || multiJudgeSignedAt || new Date().toISOString(),
     });
@@ -133,7 +133,7 @@ export function buildJudgeScorePdf({
   const fileName = buildJudgeScorePdfFileName({
     associationAbbreviation: association?.shortName || "ASSOC",
     showName: official.eventName || "show",
-    className: classItem?.name || "classe",
+    className: classItem?.name || "bloc",
     judgeName,
     finalizedAt,
   });
@@ -172,7 +172,7 @@ export async function downloadOfficialScorePdf({
 }) {
   if (!classData?.official?.isSecretariatValidated) {
     throw new Error(
-      "La classe doit être validée par le secrétariat avant de générer le PDF officiel."
+      "Le bloc doit être validé par le secrétariat avant de générer le PDF officiel."
     );
   }
 

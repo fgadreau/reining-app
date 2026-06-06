@@ -40,6 +40,12 @@ import {
   hasMultiJudgeLiveSetup,
 } from "../scoring/multiJudgeLiveData";
 import {
+  RESULT_PUBLICATION_STATUSES,
+  getClassResultPublication,
+  getResultPublicationsForClassesRepository,
+} from "../results/resultPublicationRepository";
+import { normalizeResultGroups } from "../results/classResults";
+import {
   LIVE_SCORE_DISPLAY_MODES,
   PUBLICATION_STATUSES,
   getLiveScoreDisplayMode,
@@ -123,6 +129,16 @@ function toPublicationState(row) {
   };
 }
 
+function toResultPublication(row) {
+  return {
+    classId: row.class_id,
+    status: row.status || RESULT_PUBLICATION_STATUSES.HIDDEN,
+    publishedAt: row.published_at || null,
+    publishedBy: row.published_by || null,
+    resultGroups: normalizeResultGroups(row.result_groups),
+  };
+}
+
 function toOfficialResult(row) {
   return {
     classId: row.class_id,
@@ -164,6 +180,7 @@ function toClassSetup(row) {
     runs: Array.isArray(row.runs) ? row.runs : [],
     scheduleDetails: normalizeClassScheduleDetails(row.schedule_details),
     judges: Array.isArray(row.judges) ? row.judges : [],
+    blockClasses: Array.isArray(row.block_classes) ? row.block_classes : [],
     dragInterval: row.drag_interval || null,
     dragDurationMinutes: row.drag_duration_minutes,
     updatedAt: row.updated_at || null,
@@ -217,6 +234,7 @@ export function getPublicShowView(showId) {
   const timingSections = [];
   const sections = getDaysByShowId(showId).map((day) => {
     const classRows = [];
+    const resultClasses = [];
     getPaidWarmupsByDayId(day.id)
       .filter((warmup) => warmup.isPublicLive)
       .forEach((warmup) => {
@@ -226,6 +244,12 @@ export function getPublicShowView(showId) {
       if (classItem.id) {
         classIds.push(classItem.id);
       }
+      resultClasses.push(
+        ...buildPublicResultClassViews({
+          classItem,
+          resultPublication: getClassResultPublication(classItem.id),
+        })
+      );
 
       const classData = getClassFullData(classItem.id);
       classRows.push(classData);
@@ -248,10 +272,21 @@ export function getPublicShowView(showId) {
     return {
       day,
       classes: classViews.filter(Boolean),
+      resultClasses,
     };
   });
 
+  const resultSections = sections
+    .map((section) => ({
+      day: section.day,
+      classes: section.resultClasses,
+    }))
+    .filter((section) => section.classes.length > 0);
   const publishedClassCount = sections.reduce(
+    (total, section) => total + section.classes.length,
+    0
+  );
+  const publishedResultClassCount = resultSections.reduce(
     (total, section) => total + section.classes.length,
     0
   );
@@ -268,7 +303,9 @@ export function getPublicShowView(showId) {
 
   return {
     sections: sections.filter((section) => section.classes.length > 0),
+    resultSections,
     publishedClassCount,
+    publishedResultClassCount,
     liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
     liveClasses: timedLiveClasses,
     livePaidWarmup: primaryLivePaidWarmup,
@@ -297,11 +334,22 @@ export async function getPublicShowViewRepository(showId) {
         });
       const classes = getClassesForDay(day.id);
       const classRows = [];
+      const resultPublicationsByClassId =
+        await getResultPublicationsForClassesRepository(
+          classes.map((classItem) => classItem.id)
+        );
+      const resultClasses = [];
       const classViews = await Promise.all(
         classes.map(async (classItem) => {
           if (classItem.id) {
             classIds.push(classItem.id);
           }
+          resultClasses.push(
+            ...buildPublicResultClassViews({
+              classItem,
+              resultPublication: resultPublicationsByClassId[classItem.id],
+            })
+          );
 
           const classData = await getClassFullDataRepository(classItem.id);
           classRows.push(classData);
@@ -325,11 +373,22 @@ export async function getPublicShowViewRepository(showId) {
       return {
         day,
         classes: classViews.filter(Boolean),
+        resultClasses,
       };
     })
   );
 
+  const resultSections = sections
+    .map((section) => ({
+      day: section.day,
+      classes: section.resultClasses,
+    }))
+    .filter((section) => section.classes.length > 0);
   const publishedClassCount = sections.reduce(
+    (total, section) => total + section.classes.length,
+    0
+  );
+  const publishedResultClassCount = resultSections.reduce(
     (total, section) => total + section.classes.length,
     0
   );
@@ -346,7 +405,9 @@ export async function getPublicShowViewRepository(showId) {
 
   return {
     sections: sections.filter((section) => section.classes.length > 0),
+    resultSections,
     publishedClassCount,
+    publishedResultClassCount,
     liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
     liveClasses: timedLiveClasses,
     livePaidWarmup: primaryLivePaidWarmup,
@@ -424,6 +485,7 @@ export function subscribePublicShowViewRepository(showId, classIds, onChange) {
   uniqueClassIds.forEach((classId) => {
     [
       "official_results",
+      "class_result_publications",
       "scoring_sessions",
       "judge_scoring_sessions",
       "class_setups",
@@ -506,7 +568,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
         allClassIds.push(...classIds);
 
         if (!classIds.length) {
-          return { day, classes: [] };
+          return { day, classes: [], resultClasses: [] };
         }
 
         const [
@@ -515,6 +577,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
           scoringResult,
           judgeScoringResult,
           setupResult,
+          resultPublicationsByClassId,
         ] = await Promise.all([
             supabase
               .from("publication_states")
@@ -536,6 +599,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
               .from("class_setups")
               .select("*")
               .in("class_id", classIds),
+            getPublicResultPublicationMap(supabase, classIds),
           ]);
 
         if (publicationResult.error) throw publicationResult.error;
@@ -580,10 +644,17 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
         const setupByClassId = new Map(
           (setupResult.data || []).map((row) => [row.class_id, toClassSetup(row)])
         );
+        const resultClasses = [];
 
         const classViews = classes.map((classItem) => {
           const publication = publicationsByClassId.get(classItem.id);
           const setup = setupByClassId.get(classItem.id) || null;
+          resultClasses.push(
+            ...buildPublicResultClassViews({
+              classItem,
+              resultPublication: resultPublicationsByClassId.get(classItem.id),
+            })
+          );
           const liveClass = buildPublicLiveClassView({
             classItem,
             setup,
@@ -608,11 +679,22 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
         return {
           day,
           classes: classViews.filter(Boolean),
+          resultClasses,
         };
       })
     );
 
+    const resultSections = sections
+      .map((section) => ({
+        day: section.day,
+        classes: section.resultClasses,
+      }))
+      .filter((section) => section.classes.length > 0);
     const publishedClassCount = sections.reduce(
+      (total, section) => total + section.classes.length,
+      0
+    );
+    const publishedResultClassCount = resultSections.reduce(
       (total, section) => total + section.classes.length,
       0
     );
@@ -625,7 +707,9 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
 
     return {
       sections: sections.filter((section) => section.classes.length > 0),
+      resultSections,
       publishedClassCount,
+      publishedResultClassCount,
       liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
       liveClasses: timedLiveClasses,
       livePaidWarmup: primaryLivePaidWarmup,
@@ -656,6 +740,29 @@ async function getPublicShowTimingByClassId(showId, supabase) {
   } catch (error) {
     console.error("Erreur chargement estimations publiques Supabase:", error);
     return new Map();
+  }
+}
+
+async function getPublicResultPublicationMap(supabase, classIds) {
+  try {
+    const { data, error } = await supabase
+      .from("class_result_publications")
+      .select("*")
+      .in("class_id", classIds);
+
+    if (error) throw error;
+
+    return new Map(
+      (Array.isArray(data) ? data : []).map((row) => [
+        row.class_id,
+        toResultPublication(row),
+      ])
+    );
+  } catch (error) {
+    console.error("Erreur chargement résultats publics Supabase:", error);
+    return new Map(
+      classIds.map((classId) => [classId, getClassResultPublication(classId)])
+    );
   }
 }
 
@@ -696,12 +803,12 @@ async function filterAssociationsWithPublicShows(associations) {
 
 export async function getPublicAssociationRepository(associationId) {
   const supabase = getSupabaseClient();
+  const localAssociation =
+    loadAssociations().find((association) => association.id === associationId) ||
+    null;
 
   if (!supabase) {
-    return (
-      loadAssociations().find((association) => association.id === associationId) ||
-      null
-    );
+    return localAssociation;
   }
 
   try {
@@ -712,10 +819,23 @@ export async function getPublicAssociationRepository(associationId) {
       .maybeSingle();
 
     if (error) throw error;
-    return data ? toAssociation(data) : null;
+    const association = data ? toAssociation(data) : null;
+
+    if (
+      association &&
+      !association.sponsorLogos.length &&
+      localAssociation?.sponsorLogos?.length
+    ) {
+      return {
+        ...association,
+        sponsorLogos: localAssociation.sponsorLogos,
+      };
+    }
+
+    return association || localAssociation;
   } catch (error) {
     console.error("Erreur chargement association publique Supabase:", error);
-    return null;
+    return localAssociation;
   }
 }
 
@@ -754,6 +874,7 @@ export async function getPublicShowsByAssociationRepository(associationId) {
         return {
           ...show,
           publishedClassCount: view.publishedClassCount,
+          publishedResultClassCount: view.publishedResultClassCount || 0,
           liveClassCount: view.liveClassCount || 0,
         };
       })
@@ -762,6 +883,7 @@ export async function getPublicShowsByAssociationRepository(associationId) {
     return showsWithCounts.filter(
       (show) =>
         show.publishedClassCount > 0 ||
+        show.publishedResultClassCount > 0 ||
         show.liveClassCount > 0 ||
         hasPublicLivestream(show)
     );
@@ -955,7 +1077,7 @@ export function buildPublicClassView(classData) {
 
   return {
     classId: classItem?.id,
-    className: classItem?.name || "Classe",
+    className: classItem?.name || "Bloc",
     classCode: classItem?.classCode || "",
     arena: classItem?.arena || "",
     pattern:
@@ -971,6 +1093,28 @@ export function buildPublicClassView(classData) {
     isMultiJudge: judgeNames.length > 1,
     runs,
   };
+}
+
+export function buildPublicResultClassViews({ classItem, resultPublication }) {
+  if (
+    resultPublication?.status !== RESULT_PUBLICATION_STATUSES.PUBLISHED ||
+    !Array.isArray(resultPublication.resultGroups)
+  ) {
+    return [];
+  }
+
+  return resultPublication.resultGroups
+    .filter((group) => Array.isArray(group.entries) && group.entries.length > 0)
+    .map((group) => ({
+      id: group.id || `${classItem?.id || "class"}-${group.code}`,
+      sourceClassId: classItem?.id,
+      className: group.className || classItem?.name || "Classe/division",
+      classCode: group.classCode || group.code || classItem?.classCode || "",
+      parentClassName: group.parentClassName || classItem?.name || "",
+      pattern: group.pattern || "",
+      publishedAt: resultPublication.publishedAt,
+      entries: group.entries,
+    }));
 }
 
 export function buildPublicLiveClassView({
@@ -1004,7 +1148,7 @@ export function buildPublicLiveClassView({
 
     return {
       classId: classItem?.id,
-      className: classItem?.name || "Classe",
+      className: classItem?.name || "Bloc",
       classCode: classItem?.classCode || "",
       arena: classItem?.arena || "",
       publicationStatus,
@@ -1088,7 +1232,7 @@ export function buildPublicLiveClassView({
 
   return {
     classId: classItem?.id,
-    className: classItem?.name || "Classe",
+    className: classItem?.name || "Bloc",
     classCode: classItem?.classCode || "",
     arena: classItem?.arena || "",
     publicationStatus,

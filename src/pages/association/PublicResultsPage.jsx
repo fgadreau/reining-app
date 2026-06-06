@@ -26,11 +26,19 @@ import {
   buildLivestreamEmbed,
   hasPublicLivestream,
 } from "../../features/livestream/livestreamEmbed";
+import {
+  seedClassResultsDemo,
+  shouldSeedClassResultsDemo,
+} from "../../features/demo/classResultsDemo";
 import { buildShowPublicSeo } from "../../features/seo/publicSeo";
 import {
   buildScorePdfFileName,
   generateScorePdf,
 } from "../../utils/generateScorePdf";
+import {
+  buildClassResultsPdfFileName,
+  generateClassResultsPdf,
+} from "../../utils/generateResultsPdf";
 import {
   publicBadgeStyle,
   publicCardStyle,
@@ -64,6 +72,9 @@ function PublicResultsPage() {
     : publicView.liveClass
       ? [publicView.liveClass]
       : [];
+  const resultSections = Array.isArray(publicView.resultSections)
+    ? publicView.resultSections
+    : [];
   const hasLiveClass = Boolean(liveClasses.length || publicView.livePaidWarmup);
   const hasLivestreamVideo = hasPublicLivestream(show);
   const canonicalPublicPath = `/public/associations/${associationId}/shows/${showId}`;
@@ -71,6 +82,13 @@ function PublicResultsPage() {
     () => buildShowPublicSeo({ association, show, t }),
     [association, show, t]
   );
+
+  useEffect(() => {
+    if (!shouldSeedClassResultsDemo(location.search)) return;
+
+    const { publicUrl } = seedClassResultsDemo();
+    window.location.replace(publicUrl);
+  }, [location.search]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -274,8 +292,18 @@ function PublicResultsPage() {
       )}
 
       <section style={summaryStyle}>
-        <div style={summaryValueStyle}>{publicView.publishedClassCount}</div>
-        <div style={summaryLabelStyle}>{t("public.results.publishedSheets")}</div>
+        <div style={summaryValueStyle}>
+          {(publicView.publishedResultClassCount || 0) +
+            (publicView.publishedClassCount || 0)}
+        </div>
+        <div style={summaryLabelStyle}>{t("public.results.publishedContent")}</div>
+        {publicView.publishedResultClassCount > 0 && (
+          <div style={summarySubLabelStyle}>
+            {t("public.results.publishedResults", {
+              count: publicView.publishedResultClassCount,
+            })}
+          </div>
+        )}
         {publicView.liveClassCount > 0 && (
           <div style={summarySubLabelStyle}>
             {t("public.results.liveActive", {
@@ -287,10 +315,42 @@ function PublicResultsPage() {
 
       {isLoading ? (
         <div style={emptyStateStyle}>{t("public.results.loading")}</div>
-      ) : publicView.sections.length === 0 ? (
+      ) : publicView.sections.length === 0 && resultSections.length === 0 ? (
         <div style={emptyStateStyle}>{t("public.results.noSheets")}</div>
       ) : (
         <div style={{ display: "grid", gap: 16 }}>
+          {resultSections.map((section) => {
+            const resultBlocks = groupResultClassesByBlock(section.classes);
+
+            return (
+              <section key={`results-${section.day.id}`} style={cardStyle}>
+                <div style={sectionHeaderStyle}>
+                  <div>
+                    <h2 style={sectionTitleStyle}>
+                      {t("public.results.resultsTitle")} ·{" "}
+                      {section.day.label || t("public.results.day")}
+                    </h2>
+                    <div style={mutedTextStyle}>
+                      {section.day.date || t("public.results.dateTbd")}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gap: 14 }}>
+                  {resultBlocks.map((resultBlock) => (
+                    <PublicResultBlock
+                      key={resultBlock.id}
+                      association={association}
+                      show={show}
+                      day={section.day}
+                      resultBlock={resultBlock}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+
           {publicView.sections.map((section) => (
             <section key={section.day.id} style={cardStyle}>
               <div style={sectionHeaderStyle}>
@@ -446,7 +506,7 @@ function PublicClassResults({ association, show, classView, isOpen, onToggle }) 
     const fileName = buildScorePdfFileName({
       associationAbbreviation: association?.shortName || "ASSOC",
       showName: show?.name || "show",
-      className: classView.className || "class",
+      className: classView.className || "block",
       finalizedAt: classView.finalizedAt || classView.publishedAt,
     });
 
@@ -538,6 +598,158 @@ function PublicClassResults({ association, show, classView, isOpen, onToggle }) 
       )}
     </section>
   );
+}
+
+function PublicResultBlock({ association, show, day, resultBlock }) {
+  const { t } = useTranslation();
+
+  const downloadBlockPdf = () => {
+    const publishedAt =
+      resultBlock.classes.find((classView) => classView.publishedAt)
+        ?.publishedAt || null;
+    const pdf = generateClassResultsPdf({
+      associationName: association?.name || t("common.association"),
+      associationLogoDataUrl: association?.logoDataUrl || null,
+      eventName: show?.name || "",
+      eventDate: day?.date || show?.startDate || "",
+      blockName: resultBlock.blockName,
+      pattern: resultBlock.pattern,
+      publishedAt,
+      resultGroups: resultBlock.classes,
+    });
+    const fileName = buildClassResultsPdfFileName({
+      associationAbbreviation: association?.shortName || "ASSOC",
+      showName: show?.name || "show",
+      blockName: resultBlock.blockName || "results",
+      publishedAt,
+    });
+
+    pdf.save(fileName);
+  };
+
+  return (
+    <section style={resultBlockStyle}>
+      <div style={resultBlockHeaderStyle}>
+        <div>
+          <h3 style={classTitleStyle}>
+            {resultBlock.blockName || t("public.results.resultsTitle")}
+          </h3>
+          <div style={mutedTextStyle}>
+            {t("public.results.publishedResultClasses", {
+              count: resultBlock.classes.length,
+            })}
+            {resultBlock.pattern
+              ? ` · ${t("public.results.pattern")} ${resultBlock.pattern}`
+              : ""}
+          </div>
+        </div>
+        <button type="button" onClick={downloadBlockPdf} style={smallButtonStyle}>
+          {t("public.results.downloadBlockResultsPdf")}
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gap: 14 }}>
+        {resultBlock.classes.map((classView) => (
+          <PublicClassResultStandings key={classView.id} classView={classView} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PublicClassResultStandings({ classView }) {
+  const { t } = useTranslation();
+
+  return (
+    <section style={classCardStyle}>
+      <div style={resultClassHeaderStyle}>
+        <div>
+          <h3 style={classTitleStyle}>
+            {classView.className}
+            {classView.classCode ? ` (${classView.classCode})` : ""}
+          </h3>
+          <div style={mutedTextStyle}>
+            {classView.parentClassName &&
+            classView.parentClassName !== classView.className
+              ? `${t("public.results.sourceBlock")} ${classView.parentClassName}`
+              : t("public.results.officialResults")}
+            {classView.pattern
+              ? ` · ${t("public.results.pattern")} ${classView.pattern}`
+              : ""}
+          </div>
+        </div>
+        <Badge>{t("public.results.resultsBadge")}</Badge>
+      </div>
+
+      <div style={resultTableWrapStyle}>
+        <table style={resultTableStyle}>
+          <thead>
+            <tr>
+              <th style={resultThStyle}>{t("public.results.rank")}</th>
+              <th style={resultThStyle}>{t("public.results.backNumber")}</th>
+              <th style={resultThStyle}>{t("public.results.rider")}</th>
+              <th style={resultThStyle}>{t("public.results.horse")}</th>
+              <th style={resultThStyle}>{t("public.results.owner")}</th>
+              <th style={resultThStyle}>{t("public.results.score")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {classView.entries.map((entry) => (
+              <tr key={`${entry.id}-${entry.rank}`}>
+                <td style={resultTdStyle}>{entry.rank}</td>
+                <td style={resultTdStyle}>{entry.backNumber || "—"}</td>
+                <td style={resultTdStyle}>
+                  <div style={runNameStyle}>
+                    {entry.rider || t("public.results.riderFallback")}
+                  </div>
+                </td>
+                <td style={resultTdStyle}>
+                  {entry.horse || t("public.results.horseFallback")}
+                </td>
+                <td style={resultTdStyle}>{entry.owner || "—"}</td>
+                <td style={resultTdStyle}>
+                  <span style={scoreValueStyle}>
+                    {entry.scoreTotal || entry.status || "—"}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function groupResultClassesByBlock(classes) {
+  const groupsById = new Map();
+
+  (Array.isArray(classes) ? classes : []).forEach((classView) => {
+    const blockId =
+      classView.sourceClassId ||
+      classView.parentClassName ||
+      classView.id ||
+      "results";
+    const blockName =
+      classView.parentClassName || classView.className || "Résultats";
+
+    if (!groupsById.has(blockId)) {
+      groupsById.set(blockId, {
+        id: blockId,
+        blockName,
+        pattern: classView.pattern || "",
+        classes: [],
+      });
+    }
+
+    const group = groupsById.get(blockId);
+    group.classes.push(classView);
+    if (!group.pattern && classView.pattern) {
+      group.pattern = classView.pattern;
+    }
+  });
+
+  return Array.from(groupsById.values());
 }
 
 function getPublicRunKey(run, index) {
@@ -1880,6 +2092,31 @@ const classHeaderStyle = {
   marginBottom: 12,
 };
 
+const resultClassHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  alignItems: "flex-start",
+  flexWrap: "wrap",
+  marginBottom: 10,
+};
+
+const resultBlockStyle = {
+  border: `1px solid ${publicColors.border}`,
+  borderRadius: 8,
+  padding: 12,
+  background: publicColors.surfaceSoft,
+};
+
+const resultBlockHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  alignItems: "flex-start",
+  flexWrap: "wrap",
+  marginBottom: 12,
+};
+
 const classTitleStyle = {
   margin: 0,
   fontSize: 18,
@@ -1934,6 +2171,31 @@ const searchInputStyle = {
 const scoresheetListStyle = {
   display: "grid",
   gap: 9,
+};
+
+const resultTableWrapStyle = {
+  overflowX: "auto",
+};
+
+const resultTableStyle = {
+  width: "100%",
+  minWidth: 620,
+  borderCollapse: "collapse",
+};
+
+const resultThStyle = {
+  padding: "8px 9px",
+  textAlign: "left",
+  borderBottom: `1px solid ${publicColors.border}`,
+  color: publicColors.softText,
+  fontSize: 12,
+  textTransform: "uppercase",
+};
+
+const resultTdStyle = {
+  padding: "9px",
+  borderBottom: `1px solid ${publicColors.border}`,
+  verticalAlign: "top",
 };
 
 const resultsSummaryLabelStyle = {

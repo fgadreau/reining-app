@@ -128,6 +128,7 @@ function buildBaseRunsFromSetup(
           rider: run.rider || "",
           horse: run.horse || "",
           owner: run.owner || "",
+          classCodes: Array.isArray(run.classCodes) ? run.classCodes : [],
           scores: [],
           penalties: [],
           penTotal: 0,
@@ -177,6 +178,9 @@ function mergeScoringRuns(
           rider: saved.rider ?? baseRun.rider,
           horse: saved.horse ?? baseRun.horse,
           owner: saved.owner ?? baseRun.owner,
+          classCodes: Array.isArray(saved.classCodes)
+            ? saved.classCodes
+            : baseRun.classCodes,
           penalties: Array.isArray(saved.penalties)
             ? saved.penalties
             : baseRun.penalties,
@@ -837,7 +841,7 @@ function ClassScoringPage() {
     );
 
     saveSetupForClassRepository(classId, nextSetup).catch((error) => {
-      console.error("Erreur démarrage classe:", error);
+      console.error("Erreur démarrage bloc:", error);
     });
     saveScoringStartedAtRepository(classId, timestamp).catch((error) => {
       console.error("Erreur démarrage scoring:", error);
@@ -1167,7 +1171,7 @@ function ClassScoringPage() {
     const fileName = buildScorePdfFileName({
       associationAbbreviation: association?.shortName || "ASSOC",
       showName: show?.name || "show",
-      className: classItem?.name || "classe",
+      className: classItem?.name || "bloc",
       finalizedAt:
         getClassSetup(classId)?.finalizedAt || new Date().toISOString(),
     });
@@ -1213,7 +1217,7 @@ function ClassScoringPage() {
     const link = document.createElement("a");
     const fileName = [
       "scoring-backup",
-      sanitizeFilePart(classItem?.name, "classe"),
+      sanitizeFilePart(classItem?.name, "bloc"),
       sanitizeFilePart(exportedAt.slice(0, 19), "date"),
     ].join("-");
 
@@ -1324,7 +1328,7 @@ function ClassScoringPage() {
         const fileName = buildJudgeScorePdfFileName({
           associationAbbreviation: association?.shortName || "ASSOC",
           showName: show?.name || "show",
-          className: classItem?.name || "classe",
+          className: classItem?.name || "bloc",
           judgeName: signingJudgeName,
           finalizedAt,
         });
@@ -1367,7 +1371,7 @@ function ClassScoringPage() {
       const fileName = buildScorePdfFileName({
         associationAbbreviation: association?.shortName || "ASSOC",
         showName: show?.name || "show",
-        className: classItem?.name || "classe",
+        className: classItem?.name || "bloc",
         finalizedAt: finalized.finalizedAt,
       });
 

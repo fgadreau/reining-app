@@ -140,6 +140,13 @@ function PublicAssociationShowsPage() {
                         })}
                       </Badge>
                     )}
+                    {show.publishedResultClassCount > 0 && (
+                      <Badge>
+                        {t("public.associationShows.publishedResults", {
+                          count: show.publishedResultClassCount,
+                        })}
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 <div style={cardActionsStyle}>

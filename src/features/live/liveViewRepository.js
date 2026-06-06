@@ -266,7 +266,7 @@ export function buildAnnouncerClassView(classData) {
   if (isScheduleOnly) {
     return {
       classId,
-      className: classItem?.name || "Classe",
+      className: classItem?.name || "Bloc",
       classCode: classItem?.classCode || "",
       arena: classItem?.arena || "",
       pattern: getPatternDisplayName(pattern, customPattern) || "",
@@ -316,7 +316,7 @@ export function buildAnnouncerClassView(classData) {
 
   return {
     classId,
-    className: classItem?.name || "Classe",
+    className: classItem?.name || "Bloc",
     classCode: classItem?.classCode || "",
     arena: classItem?.arena || "",
     pattern: getPatternDisplayName(pattern, customPattern) || pattern,
