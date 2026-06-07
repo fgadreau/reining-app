@@ -609,7 +609,7 @@ function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-function withTimeout(promise, timeoutMessage, timeoutMs = 15000) {
+function withTimeout(promise, timeoutMessage, timeoutMs = 45000) {
   let timeoutId;
 
   return Promise.race([

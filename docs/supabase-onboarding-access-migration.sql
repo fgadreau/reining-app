@@ -142,3 +142,157 @@ with check (
     and public.current_user_has_pending_invitation(association_id, role)
   )
 );
+
+create or replace function public.accept_association_invitation(
+  target_token text
+)
+returns table (
+  invitation_id uuid,
+  association_id text,
+  invitation_role text,
+  membership_id uuid,
+  invitation_status text
+) as $$
+declare
+  target_invitation public.association_invitations%rowtype;
+  target_membership_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required'
+      using errcode = '28000';
+  end if;
+
+  if nullif(btrim(target_token), '') is null then
+    raise exception 'Invitation token is required'
+      using errcode = '22023';
+  end if;
+
+  select *
+  into target_invitation
+  from public.association_invitations i
+  where i.token = btrim(target_token)
+    and i.status = 'pending'
+  limit 1;
+
+  if target_invitation.id is null then
+    raise exception 'Invitation introuvable ou deja acceptee. Verifie le lien d''invitation.'
+      using errcode = '22023';
+  end if;
+
+  if lower(target_invitation.email) <> lower(auth.email()) then
+    raise exception 'Cette invitation est liee a un autre courriel. Connecte-toi avec le courriel invite.'
+      using errcode = '28000';
+  end if;
+
+  insert into public.association_memberships (
+    user_id,
+    association_id,
+    role
+  )
+  values (
+    auth.uid(),
+    target_invitation.association_id,
+    target_invitation.role
+  )
+  on conflict (user_id, association_id, role) do nothing
+  returning id into target_membership_id;
+
+  if target_membership_id is null then
+    select m.id
+    into target_membership_id
+    from public.association_memberships m
+    where m.user_id = auth.uid()
+      and m.association_id = target_invitation.association_id
+      and m.role = target_invitation.role
+    limit 1;
+  end if;
+
+  update public.association_invitations
+  set
+    status = 'accepted',
+    accepted_by = auth.uid(),
+    accepted_at = now()
+  where id = target_invitation.id;
+
+  return query
+  select
+    target_invitation.id,
+    target_invitation.association_id,
+    target_invitation.role,
+    target_membership_id,
+    'accepted'::text;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function public.accept_association_invitation(text)
+to authenticated;
+
+create or replace function public.accept_pending_association_invitations()
+returns table (
+  invitation_id uuid,
+  association_id text,
+  invitation_role text,
+  membership_id uuid,
+  invitation_status text
+) as $$
+declare
+  target_invitation public.association_invitations%rowtype;
+  target_membership_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required'
+      using errcode = '28000';
+  end if;
+
+  for target_invitation in
+    select *
+    from public.association_invitations i
+    where lower(i.email) = lower(auth.email())
+      and i.status = 'pending'
+    order by i.created_at
+  loop
+    target_membership_id := null;
+
+    insert into public.association_memberships (
+      user_id,
+      association_id,
+      role
+    )
+    values (
+      auth.uid(),
+      target_invitation.association_id,
+      target_invitation.role
+    )
+    on conflict (user_id, association_id, role) do nothing
+    returning id into target_membership_id;
+
+    if target_membership_id is null then
+      select m.id
+      into target_membership_id
+      from public.association_memberships m
+      where m.user_id = auth.uid()
+        and m.association_id = target_invitation.association_id
+        and m.role = target_invitation.role
+      limit 1;
+    end if;
+
+    update public.association_invitations
+    set
+      status = 'accepted',
+      accepted_by = auth.uid(),
+      accepted_at = now()
+    where id = target_invitation.id;
+
+    return query
+    select
+      target_invitation.id,
+      target_invitation.association_id,
+      target_invitation.role,
+      target_membership_id,
+      'accepted'::text;
+  end loop;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function public.accept_pending_association_invitations()
+to authenticated;

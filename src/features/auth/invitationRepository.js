@@ -1,6 +1,9 @@
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
-import { saveAssociationMembershipRepository } from "./accessRepository";
+import {
+  notifyAccessMembershipsChanged,
+  saveAssociationMembershipRepository,
+} from "./accessRepository";
 
 export const INVITATION_STATUSES = {
   PENDING: "pending",
@@ -34,6 +37,116 @@ function toInvitation(row) {
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null,
   };
+}
+
+function isMissingRpcError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    error?.code === "PGRST202" ||
+    message.includes("could not find the function") ||
+    message.includes("function public.accept_association_invitation") ||
+    message.includes("function public.accept_pending_association_invitations")
+  );
+}
+
+function toRedeemedInvitation(row, user) {
+  const associationId = row.association_id || row.associationId || "";
+  const role = row.invitation_role || row.role || "";
+
+  return {
+    invitation: {
+      id: row.invitation_id || row.id || "",
+      associationId,
+      email: user?.email || "",
+      role,
+      token: "",
+      status: row.invitation_status || INVITATION_STATUSES.ACCEPTED,
+      invitedBy: null,
+      acceptedBy: user?.id || null,
+      acceptedAt: new Date().toISOString(),
+      createdAt: null,
+      updatedAt: null,
+    },
+    membership: {
+      id: row.membership_id || "",
+      userId: user?.id || "",
+      associationId,
+      role,
+      createdAt: null,
+      updatedAt: null,
+    },
+  };
+}
+
+function trackInvitationAccepted(result, user) {
+  if (!result?.membership?.associationId) {
+    return;
+  }
+
+  trackEvent({
+    eventName: "invitation_accepted",
+    eventType: APP_EVENT_TYPES.AUDIT,
+    associationId: result.membership.associationId,
+    metadata: {
+      email: normalizeEmail(user?.email),
+      role: result.membership.role,
+      acceptedBy: user?.id,
+    },
+  });
+}
+
+async function acceptInvitationWithRpc({ token, user }) {
+  const supabase = getSupabaseClient();
+
+  if (!supabase || !token || !user?.id) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .rpc("accept_association_invitation", {
+      target_token: token,
+    })
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const result = toRedeemedInvitation(data, user);
+  notifyAccessMembershipsChanged();
+  trackInvitationAccepted(result, user);
+  return result;
+}
+
+async function acceptPendingInvitationsWithRpc(user) {
+  const supabase = getSupabaseClient();
+
+  if (!supabase || !user?.id) {
+    return [];
+  }
+
+  const { data, error } = await supabase.rpc(
+    "accept_pending_association_invitations"
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  const results = Array.isArray(data)
+    ? data.map((row) => toRedeemedInvitation(row, user))
+    : [];
+
+  if (results.length > 0) {
+    notifyAccessMembershipsChanged();
+    results.forEach((result) => trackInvitationAccepted(result, user));
+  }
+
+  return results;
 }
 
 export async function loadAssociationInvitationsRepository(associationId) {
@@ -225,6 +338,14 @@ export async function redeemAssociationInvitationRepository({ token, user }) {
     return null;
   }
 
+  try {
+    return await acceptInvitationWithRpc({ token, user });
+  } catch (error) {
+    if (!isMissingRpcError(error)) {
+      throw error;
+    }
+  }
+
   const { data, error } = await supabase
     .from("association_invitations")
     .select("*")
@@ -262,6 +383,14 @@ export async function redeemPendingAssociationInvitationsRepository(user) {
   }
 
   try {
+    try {
+      return await acceptPendingInvitationsWithRpc(user);
+    } catch (error) {
+      if (!isMissingRpcError(error)) {
+        throw error;
+      }
+    }
+
     const { data, error } = await supabase
       .from("association_invitations")
       .select("*")
