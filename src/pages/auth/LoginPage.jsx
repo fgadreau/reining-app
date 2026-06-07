@@ -38,8 +38,12 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAutoAcceptingInvitation, setIsAutoAcceptingInvitation] =
+    useState(false);
+  const [autoAcceptError, setAutoAcceptError] = useState("");
+  const [autoAcceptAttempt, setAutoAcceptAttempt] = useState(0);
   const [hasAcceptedLegal, setHasAcceptedLegal] = useState(false);
-  const hasTriedAutoRedeemRef = useRef(false);
+  const autoRedeemKeyRef = useRef("");
   const inviteEmailNormalized = normalizeEmail(inviteEmail);
   const authEmailNormalized = normalizeEmail(auth.user?.email);
   const hasInviteSessionMismatch = Boolean(
@@ -47,6 +51,9 @@ function LoginPage() {
       inviteEmailNormalized &&
       authEmailNormalized &&
       inviteEmailNormalized !== authEmailNormalized
+  );
+  const isAcceptingAuthenticatedInvite = Boolean(
+    inviteToken && auth.user && !hasInviteSessionMismatch
   );
   const canUseLocalTestLogin = isAuthAvailable() && isLocalTestAuthAvailable();
 
@@ -92,7 +99,7 @@ function LoginPage() {
   }, [navigate]);
 
   useEffect(() => {
-    if (!inviteToken || !auth.user || hasTriedAutoRedeemRef.current) {
+    if (!inviteToken || !auth.user) {
       return;
     }
 
@@ -106,10 +113,17 @@ function LoginPage() {
       return;
     }
 
+    const autoRedeemKey = `${inviteToken}:${auth.user.id}:${autoAcceptAttempt}`;
+    if (autoRedeemKeyRef.current === autoRedeemKey) {
+      return;
+    }
+    autoRedeemKeyRef.current = autoRedeemKey;
+
     let isMounted = true;
 
     async function autoRedeemInvitation() {
-      hasTriedAutoRedeemRef.current = true;
+      setAutoAcceptError("");
+      setIsAutoAcceptingInvitation(true);
       setIsSubmitting(true);
       setMessage(t("login.acceptingInvitation"));
 
@@ -120,9 +134,13 @@ function LoginPage() {
         navigateAfterAuth(redeemed);
       } catch (error) {
         if (!isMounted) return;
-        setMessage(error.message || t("login.invitationAcceptFailed"));
+        const nextMessage =
+          error.message || t("login.invitationAcceptFailed");
+        setAutoAcceptError(nextMessage);
+        setMessage(nextMessage);
       } finally {
         if (isMounted) {
+          setIsAutoAcceptingInvitation(false);
           setIsSubmitting(false);
         }
       }
@@ -134,6 +152,7 @@ function LoginPage() {
       isMounted = false;
     };
   }, [
+    autoAcceptAttempt,
     auth.user,
     hasInviteSessionMismatch,
     inviteEmail,
@@ -142,6 +161,12 @@ function LoginPage() {
     redeemInvitations,
     t,
   ]);
+
+  function handleRetryInvitationAccept() {
+    setAutoAcceptError("");
+    setMessage("");
+    setAutoAcceptAttempt((attempt) => attempt + 1);
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -292,15 +317,21 @@ function LoginPage() {
       <section style={cardStyle}>
         <div style={eyebrowStyle}>Supabase</div>
         <h1 style={titleStyle}>
-          {mode === "signup" ? t("login.titleSignUp") : t("login.titleSignIn")}
+          {isAcceptingAuthenticatedInvite
+            ? t("login.finalizeInviteTitle")
+            : mode === "signup"
+              ? t("login.titleSignUp")
+              : t("login.titleSignIn")}
         </h1>
         <p style={subtitleStyle}>
-          {inviteToken
-            ? t("login.inviteSubtitle")
-            : t("login.defaultSubtitle")}
+          {isAcceptingAuthenticatedInvite
+            ? t("login.finalizeInviteSubtitle")
+            : inviteToken
+              ? t("login.inviteSubtitle")
+              : t("login.defaultSubtitle")}
         </p>
 
-        {inviteToken && (
+        {inviteToken && !isAcceptingAuthenticatedInvite && (
           <div style={inviteNoticeStyle}>
             {t("login.inviteNotice")}
           </div>
@@ -329,6 +360,32 @@ function LoginPage() {
         {!isAuthAvailable() ? (
           <div style={warningStyle}>
             {t("login.supabaseMissing")}
+          </div>
+        ) : isAcceptingAuthenticatedInvite ? (
+          <div style={acceptanceBoxStyle}>
+            <div style={acceptanceTitleStyle}>
+              {isAutoAcceptingInvitation
+                ? t("login.acceptingInvitation")
+                : autoAcceptError
+                  ? t("login.invitationAcceptFailed")
+                  : t("login.acceptingInvitation")}
+            </div>
+            <div style={helperTextStyle}>
+              {t("login.invitationSignedInAs", {
+                email: auth.user.email || inviteEmail,
+              })}
+            </div>
+            {message && <div style={messageStyle}>{message}</div>}
+            {autoAcceptError && (
+              <button
+                type="button"
+                onClick={handleRetryInvitationAccept}
+                style={primaryButtonStyle}
+                disabled={isSubmitting}
+              >
+                {t("login.invitationRetryButton")}
+              </button>
+            )}
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={formStyle}>
@@ -605,11 +662,26 @@ const localTestCredentialsStyle = {
   fontFamily: "monospace",
 };
 
+const acceptanceBoxStyle = {
+  display: "grid",
+  gap: 12,
+  marginTop: 18,
+  padding: 14,
+  border: "1px solid #bfdbfe",
+  background: "#eff6ff",
+  borderRadius: 8,
+};
+
+const acceptanceTitleStyle = {
+  color: "#1e3a8a",
+  fontWeight: 800,
+};
+
 function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-function withTimeout(promise, timeoutMessage, timeoutMs = 45000) {
+function withTimeout(promise, timeoutMessage, timeoutMs = 20000) {
   let timeoutId;
 
   return Promise.race([

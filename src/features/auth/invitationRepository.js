@@ -342,7 +342,10 @@ export async function redeemAssociationInvitationRepository({ token, user }) {
     return await acceptInvitationWithRpc({ token, user });
   } catch (error) {
     if (!isMissingRpcError(error)) {
-      throw error;
+      console.warn(
+        "Acceptation invitation RPC indisponible, tentative du flux classique:",
+        error?.message || error
+      );
     }
   }
 
@@ -387,7 +390,10 @@ export async function redeemPendingAssociationInvitationsRepository(user) {
       return await acceptPendingInvitationsWithRpc(user);
     } catch (error) {
       if (!isMissingRpcError(error)) {
-        throw error;
+        console.warn(
+          "Acceptation invitations RPC indisponible, tentative du flux classique:",
+          error?.message || error
+        );
       }
     }
 

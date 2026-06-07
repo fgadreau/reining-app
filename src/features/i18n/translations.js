@@ -280,11 +280,16 @@ export const translations = {
       defaultSubtitle:
         "Connecte le poste du secrétariat ou du scribe pour écrire dans le cloud.",
       emailLabel: "Courriel",
+      finalizeInviteSubtitle:
+        "Ton compte est connecté. ShowScore finalise maintenant ton accès à l'association.",
+      finalizeInviteTitle: "Finalisation de l'accès",
       haveAccountButton: "J’ai déjà un compte",
       inviteEmailHelper: "Ce courriel vient du lien d'invitation.",
       invitationAcceptFailed: "Invitation impossible à accepter.",
       invitationAcceptTimeout:
         "L'acceptation de l'invitation prend trop de temps. Réessaie dans quelques secondes.",
+      invitationRetryButton: "Réessayer l'acceptation",
+      invitationSignedInAs: "Connecté avec {{email}}.",
       inviteNotice:
         "Invitation détectée. Utilise le courriel invité pour accepter automatiquement l'accès après la connexion.",
       inviteSessionMismatch:
@@ -1450,11 +1455,16 @@ export const translations = {
       defaultSubtitle:
         "Connect the secretariat or scribe station so it can write to the cloud.",
       emailLabel: "Email",
+      finalizeInviteSubtitle:
+        "Your account is connected. ShowScore is finalizing your association access.",
+      finalizeInviteTitle: "Finalizing access",
       haveAccountButton: "I already have an account",
       inviteEmailHelper: "This email comes from the invitation link.",
       invitationAcceptFailed: "Unable to accept the invitation.",
       invitationAcceptTimeout:
         "Accepting the invitation is taking too long. Try again in a few seconds.",
+      invitationRetryButton: "Retry invitation",
+      invitationSignedInAs: "Signed in as {{email}}.",
       inviteNotice:
         "Invitation detected. Use the invited email to automatically accept access after signing in.",
       inviteSessionMismatch:
