@@ -258,7 +258,7 @@ begin
     target_invitation.association_id,
     target_invitation.role
   )
-  on conflict (user_id, association_id, role) do nothing
+  on conflict do nothing
   returning id into target_membership_id;
 
   if target_membership_id is null then
@@ -336,7 +336,7 @@ begin
       target_invitation.association_id,
       target_invitation.role
     )
-    on conflict (user_id, association_id, role) do nothing
+    on conflict do nothing
     returning id into target_membership_id;
 
     if target_membership_id is null then
