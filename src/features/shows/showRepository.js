@@ -1,4 +1,8 @@
 import { getSupabaseClient } from "../cloud/supabaseClient";
+import {
+  LOCAL_FIRST_SYNC_STATUSES,
+  withLocalFirstSyncState,
+} from "../cloud/localFirstSync";
 import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 import {
   getAllShows,
@@ -128,6 +132,10 @@ export async function getShowRepository(showId) {
 export async function saveShowRepository(show) {
   const supabase = getSupabaseClient();
   const isExistingShow = Boolean(getShowById(show.id));
+  let syncStatus = supabase
+    ? LOCAL_FIRST_SYNC_STATUSES.SYNCED
+    : LOCAL_FIRST_SYNC_STATUSES.LOCAL;
+  let syncError = null;
 
   if (supabase) {
     try {
@@ -140,11 +148,18 @@ export async function saveShowRepository(show) {
             .from("shows")
             .upsert(toLegacyShowRow(show));
           if (legacyError) throw legacyError;
+          syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
+          syncError =
+            "Les colonnes livestream ne sont pas disponibles dans Supabase. Le show est sauvegardé localement, mais le livestream public ne sera pas visible tant que la migration n'est pas appliquée.";
         } catch (legacyError) {
           console.error("Erreur sauvegarde show Supabase:", legacyError);
+          syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
+          syncError = legacyError;
         }
       } else {
         console.error("Erreur sauvegarde show Supabase:", error);
+        syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
+        syncError = error;
       }
     }
   }
@@ -162,7 +177,10 @@ export async function saveShowRepository(show) {
     },
   });
 
-  return savedShow;
+  return withLocalFirstSyncState(savedShow, {
+    status: syncStatus,
+    error: syncError,
+  });
 }
 
 export async function deleteShowRepository(showId) {

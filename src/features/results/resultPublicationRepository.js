@@ -1,4 +1,8 @@
 import { getSupabaseClient } from "../cloud/supabaseClient";
+import {
+  LOCAL_FIRST_SYNC_STATUSES,
+  withLocalFirstSyncState,
+} from "../cloud/localFirstSync";
 import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 import { getClassById } from "../classes/classSelectors";
 import {
@@ -185,6 +189,10 @@ export async function saveClassResultPublicationRepository(classId, updates) {
   const previous = getClassResultPublication(classId);
   const next = saveClassResultPublication(classId, updates);
   const supabase = getSupabaseClient();
+  let syncStatus = supabase
+    ? LOCAL_FIRST_SYNC_STATUSES.SYNCED
+    : LOCAL_FIRST_SYNC_STATUSES.LOCAL;
+  let syncError = null;
 
   if (supabase) {
     try {
@@ -195,6 +203,8 @@ export async function saveClassResultPublicationRepository(classId, updates) {
       if (error) throw error;
     } catch (error) {
       console.error("Erreur sauvegarde publication résultats Supabase:", error);
+      syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
+      syncError = error;
     }
   }
 
@@ -219,7 +229,10 @@ export async function saveClassResultPublicationRepository(classId, updates) {
     });
   }
 
-  return next;
+  return withLocalFirstSyncState(next, {
+    status: syncStatus,
+    error: syncError,
+  });
 }
 
 function normalizeResultPublication(publication) {

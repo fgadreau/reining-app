@@ -138,7 +138,13 @@ function normalizeClassCodes(value) {
   return Array.from(
     new Set(
       (Array.isArray(value) ? value : [])
-        .map((code) => String(code || "").trim().toUpperCase())
+        .map((code) =>
+          String(code || "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .replace(/\s*-\s*/g, "-")
+            .toUpperCase()
+        )
         .filter(Boolean)
     )
   );
@@ -149,7 +155,11 @@ function normalizeBlockClasses(value) {
     new Map(
       (Array.isArray(value) ? value : [])
         .map((classEntry) => {
-          const code = String(classEntry?.code || "").trim().toUpperCase();
+          const code = String(classEntry?.code || "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .replace(/\s*-\s*/g, "-")
+            .toUpperCase();
           if (!code) return null;
 
           return [

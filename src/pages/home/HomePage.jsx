@@ -24,22 +24,7 @@ const BACK_OFFICE_ROLES = [
   ASSOCIATION_ROLES.ANNOUNCER,
 ];
 
-const ASSOCIATION_WORKFLOW_KEYS = [
-  "prepare",
-  "importDraws",
-  "score",
-  "publish",
-];
-
-const SUPPORTED_DISCIPLINES = [
-  "Reining",
-  "Ranch Riding",
-  "Western Riding",
-  "Trail / Obstacle Western",
-  "Western Horsemanship",
-  "Hunt Seat Equitation",
-  "Showmanship",
-];
+const HOME_SIGNAL_KEYS = ["public", "scribe", "offline"];
 
 const LEGAL_LINKS = [
   { to: "/terms", labelKey: "home.terms" },
@@ -113,10 +98,12 @@ function HomePage() {
 
   return (
     <div style={styles.app}>
-      <section style={heroStyle}>
+      <section style={heroStyle} aria-labelledby="showscore-home-title">
         <div style={heroContentStyle}>
-          <div style={eyebrowStyle}>ShowScore</div>
-          <h1 style={titleStyle}>{t("home.title")}</h1>
+          <div style={eyebrowStyle}>{t("home.eyebrow")}</div>
+          <h1 id="showscore-home-title" style={titleStyle}>
+            {t("home.title")}
+          </h1>
           <div style={subtitleStyle}>{t("home.subtitle")}</div>
           <div style={actionRowStyle}>
             <Link to="/public" style={primaryLinkStyle}>
@@ -131,42 +118,30 @@ function HomePage() {
                 {t("home.managerLogin")}
               </Link>
             )}
+            <Link to="/presentation" style={quietLinkStyle}>
+              {t("home.learnMore")}
+            </Link>
           </div>
-        </div>
-        <div style={statusPanelStyle}>
-          <div style={statusLabelStyle}>{t("home.platform")}</div>
-          <div style={statusValueStyle}>
-            {cloudStatus.mode === "local-test"
-              ? t("home.platformLocalTest")
-              : cloudStatus.configured
-              ? cloudStatus.authenticated
-                ? t("home.platformConnected")
-                : t("home.platformPublic")
-              : t("home.platformLocal")}
-          </div>
-          <div style={statusTextStyle}>{t("home.platformText")}</div>
-          <div style={developmentNoticeStyle}>{t("home.developmentNotice")}</div>
-          <div>
-            <div style={statusLabelStyle}>{t("home.supportedDisciplines")}</div>
-            <div style={disciplineListStyle}>
-              {SUPPORTED_DISCIPLINES.map((discipline) => (
-                <span key={discipline} style={disciplinePillStyle}>
-                  {discipline}
-                </span>
-              ))}
+          <div style={audienceRowStyle}>
+            <div style={audienceNoteStyle}>
+              <strong>{t("home.publicPathTitle")}</strong>
+              <span>{t("home.publicPathText")}</span>
+            </div>
+            <div style={audienceNoteStyle}>
+              <strong>{t("home.organizerPathTitle")}</strong>
+              <span>{t("home.organizerPathText")}</span>
             </div>
           </div>
         </div>
       </section>
 
-      <section style={workflowGridStyle}>
-        {ASSOCIATION_WORKFLOW_KEYS.map((key, index) => (
-          <article key={key} style={workflowCardStyle}>
-            <div style={stepNumberStyle}>{index + 1}</div>
+      <section style={signalGridStyle} aria-label={t("home.signalSection")}>
+        {HOME_SIGNAL_KEYS.map((key) => (
+          <article key={key} style={signalCardStyle}>
             <h2 style={workflowTitleStyle}>
-              {t(`home.workflow.${key}.title`)}
+              {t(`home.signals.${key}.title`)}
             </h2>
-            <p style={workflowTextStyle}>{t(`home.workflow.${key}.text`)}</p>
+            <p style={workflowTextStyle}>{t(`home.signals.${key}.text`)}</p>
           </article>
         ))}
       </section>
@@ -243,6 +218,23 @@ function HomePage() {
         </section>
       )}
 
+      <section style={platformStripStyle}>
+        <div>
+          <div style={statusLabelStyle}>{t("home.platform")}</div>
+          <div style={statusValueStyle}>
+            {cloudStatus.mode === "local-test"
+              ? t("home.platformLocalTest")
+              : cloudStatus.configured
+                ? cloudStatus.authenticated
+                  ? t("home.platformConnected")
+                  : t("home.platformPublic")
+                : t("home.platformLocal")}
+          </div>
+        </div>
+        <div style={statusTextStyle}>{t("home.platformText")}</div>
+        <div style={developmentNoticeStyle}>{t("home.developmentNotice")}</div>
+      </section>
+
       <section style={legalPanelStyle}>
         <div>
           <h2 style={sectionTitleStyle}>{t("home.legalTitle")}</h2>
@@ -279,25 +271,25 @@ function AssociationCard({ association, label, to, action }) {
 }
 
 const heroStyle = {
-  background: "#fff",
-  borderRadius: 12,
+  background: "#ffffff",
+  borderRadius: 8,
   padding: 22,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+  boxShadow: "0 8px 24px rgba(16, 24, 39, 0.08)",
   marginBottom: 16,
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-  gap: 18,
-  alignItems: "stretch",
+  border: "1px solid #d8dee8",
+  boxSizing: "border-box",
+  color: "#111827",
 };
 
 const heroContentStyle = {
   display: "grid",
   gap: 12,
   alignContent: "start",
+  maxWidth: 720,
 };
 
 const eyebrowStyle = {
-  color: "#64748b",
+  color: "#166534",
   fontWeight: 800,
   textTransform: "uppercase",
   fontSize: 12,
@@ -306,7 +298,7 @@ const eyebrowStyle = {
 
 const titleStyle = {
   margin: 0,
-  fontSize: 34,
+  fontSize: 38,
   lineHeight: 1.12,
   maxWidth: 760,
 };
@@ -322,16 +314,6 @@ const actionRowStyle = {
   display: "flex",
   gap: 8,
   flexWrap: "wrap",
-};
-
-const statusPanelStyle = {
-  border: "1px solid #e2e8f0",
-  borderRadius: 8,
-  padding: 16,
-  background: "#f8fafc",
-  display: "grid",
-  gap: 8,
-  alignContent: "start",
 };
 
 const statusLabelStyle = {
@@ -350,6 +332,7 @@ const statusValueStyle = {
 const statusTextStyle = {
   color: "#475569",
   lineHeight: 1.4,
+  maxWidth: 520,
 };
 
 const developmentNoticeStyle = {
@@ -362,51 +345,40 @@ const developmentNoticeStyle = {
   lineHeight: 1.35,
 };
 
-const disciplineListStyle = {
+const audienceRowStyle = {
   display: "flex",
-  gap: 6,
+  gap: 10,
   flexWrap: "wrap",
   marginTop: 8,
 };
 
-const disciplinePillStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  padding: "5px 8px",
-  borderRadius: 999,
-  border: "1px solid #cbd5e1",
-  background: "#fff",
-  color: "#334155",
-  fontSize: 12,
-  fontWeight: 700,
+const audienceNoteStyle = {
+  border: "1px solid #d8dee8",
+  borderRadius: 8,
+  background: "#f8fafc",
+  color: "#111827",
+  padding: "10px 12px",
+  display: "grid",
+  gap: 3,
+  minWidth: 220,
+  maxWidth: 310,
+  boxSizing: "border-box",
 };
 
-const workflowGridStyle = {
+const signalGridStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
   gap: 12,
   marginBottom: 16,
 };
 
-const workflowCardStyle = {
+const signalCardStyle = {
   background: "#fff",
   borderRadius: 8,
   padding: 16,
   border: "1px solid #e2e8f0",
   display: "grid",
   gap: 8,
-};
-
-const stepNumberStyle = {
-  width: 30,
-  height: 30,
-  borderRadius: 999,
-  background: "#111827",
-  color: "#fff",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontWeight: 800,
 };
 
 const workflowTitleStyle = {
@@ -477,6 +449,7 @@ const primaryLinkStyle = {
   background: "#111827",
   color: "#fff",
   textDecoration: "none",
+  fontWeight: 850,
 };
 
 const secondaryLinkStyle = {
@@ -489,11 +462,16 @@ const secondaryLinkStyle = {
   background: "#fff",
   color: "#111827",
   textDecoration: "none",
+  fontWeight: 800,
 };
 
 const smallLinkStyle = {
   ...secondaryLinkStyle,
   padding: "8px 12px",
+};
+
+const quietLinkStyle = {
+  ...secondaryLinkStyle,
 };
 
 const emptyStateStyle = {
@@ -509,6 +487,19 @@ const legalPanelStyle = {
   justifyContent: "space-between",
   gap: 12,
   alignItems: "center",
+  flexWrap: "wrap",
+};
+
+const platformStripStyle = {
+  background: "#fff",
+  borderRadius: 8,
+  padding: 16,
+  border: "1px solid #e2e8f0",
+  marginBottom: 16,
+  display: "flex",
+  gap: 14,
+  alignItems: "center",
+  justifyContent: "space-between",
   flexWrap: "wrap",
 };
 

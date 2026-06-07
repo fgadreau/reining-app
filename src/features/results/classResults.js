@@ -14,7 +14,11 @@ import {
 } from "../scoring/multiJudgeOfficialData";
 
 function normalizeClassCode(value) {
-  return String(value || "").trim().toUpperCase();
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\s*-\s*/g, "-")
+    .toUpperCase();
 }
 
 export function normalizeBlockClasses(value) {

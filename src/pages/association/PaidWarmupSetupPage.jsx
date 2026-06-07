@@ -8,14 +8,20 @@ import {
 import {
   PAID_WARMUP_STATUSES,
   getPaidWarmupStats,
+  insertPaidWarmupEntryAfter,
+  movePaidWarmupEntry,
+  normalizePaidWarmupEntries,
 } from "../../features/paidWarmups/paidWarmupStorage";
 import { parsePaidWarmupEntries } from "../../features/paidWarmups/paidWarmupImport";
 import { DRAG_INTERVAL_OPTIONS } from "../../features/classes/classTiming";
 import { getDayById } from "../../features/days/daySelectors";
 import { getShowById } from "../../features/shows/showSelectors";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
+import {
+  formatLocalFirstSyncNotice,
+  getLocalFirstSyncNoticeTone,
+} from "../../features/cloud/localFirstSyncMessages";
 import { useTranslation } from "../../features/i18n/I18nProvider";
-import { createId } from "../../utils/createId";
 import { appStyles as styles } from "../../styles/appStyles";
 
 function PaidWarmupSetupPage() {
@@ -31,6 +37,8 @@ function PaidWarmupSetupPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState("synced");
+  const [positionDrafts, setPositionDrafts] = useState({});
 
   useEffect(() => {
     let isMounted = true;
@@ -78,17 +86,67 @@ function PaidWarmupSetupPage() {
 
       return {
         ...current,
-        entries: [
-          ...current.entries,
-          {
-            id: createId("paid_warmup_entry"),
-            order: current.entries.length + 1,
-            rider: "",
-            status: "pending",
-          },
-        ],
+        entries: insertPaidWarmupEntryAfter(current.entries, null, {
+          rider: "",
+        }),
       };
     });
+  };
+
+  const insertEntryAfter = (entryId) => {
+    setWarmup((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        entries: insertPaidWarmupEntryAfter(current.entries, entryId, {
+          rider: "",
+        }),
+      };
+    });
+  };
+
+  const moveEntry = (entryId, targetIndex) => {
+    setWarmup((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        entries: movePaidWarmupEntry(current.entries, entryId, targetIndex),
+      };
+    });
+  };
+
+  const moveEntryToPosition = (entryId, position) => {
+    const nextPosition = Number.parseInt(position, 10);
+
+    if (!Number.isFinite(nextPosition)) return;
+
+    moveEntry(entryId, nextPosition - 1);
+  };
+
+  const updateEntryPositionDraft = (entryId, value) => {
+    setPositionDrafts((current) => ({
+      ...current,
+      [entryId]: value,
+    }));
+  };
+
+  const commitEntryPositionDraft = (entryId, fallbackPosition) => {
+    const rawPosition =
+      positionDrafts[entryId] == null
+        ? String(fallbackPosition)
+        : positionDrafts[entryId];
+    const nextPosition = Number.parseInt(rawPosition, 10);
+
+    setPositionDrafts((current) => {
+      const next = { ...current };
+      delete next[entryId];
+      return next;
+    });
+
+    if (!Number.isFinite(nextPosition)) return;
+    moveEntryToPosition(entryId, nextPosition);
   };
 
   const removeEntry = (entryId) => {
@@ -97,26 +155,48 @@ function PaidWarmupSetupPage() {
 
       return {
         ...current,
-        entries: current.entries
-          .filter((entry) => entry.id !== entryId)
-          .map((entry, index) => ({ ...entry, order: index + 1 })),
+        entries: normalizePaidWarmupEntries(
+          current.entries.filter((entry) => entry.id !== entryId)
+        ),
       };
     });
   };
 
-  const saveWarmup = async (nextWarmup = warmup) => {
+  const saveWarmup = async (
+    nextWarmup = warmup,
+    successMessage = t("management.paidWarmup.saved")
+  ) => {
     if (!nextWarmup) return;
 
     setIsSaving(true);
-    const saved = await savePaidWarmupRepository({
-      ...nextWarmup,
-      associationId,
-      showId,
-      dayId,
-    });
-    setWarmup(saved);
-    setIsSaving(false);
-    setMessage(t("management.paidWarmup.saved"));
+    try {
+      const saved = await savePaidWarmupRepository({
+        ...nextWarmup,
+        associationId,
+        showId,
+        dayId,
+      });
+      const tone = getLocalFirstSyncNoticeTone(saved);
+      const syncNotice = formatLocalFirstSyncNotice(saved, t);
+
+      setWarmup(saved);
+      setMessageTone(tone);
+      setMessage(
+        tone === "synced" ? successMessage : `${successMessage} ${syncNotice}`
+      );
+      return saved;
+    } catch (error) {
+      console.error("Erreur sauvegarde paid warm up:", error);
+      setMessageTone("warn");
+      setMessage(
+        t("common.localFirstSyncError", {
+          message: error?.message || "",
+        })
+      );
+      return null;
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const importEntries = async () => {
@@ -141,8 +221,8 @@ function PaidWarmupSetupPage() {
     };
 
     setWarmup(nextWarmup);
-    await saveWarmup(nextWarmup);
-    setMessage(
+    await saveWarmup(
+      nextWarmup,
       t("management.paidWarmup.importedCount", {
         count: entries.length,
       })
@@ -222,7 +302,7 @@ function PaidWarmupSetupPage() {
         </button>
       </div>
 
-      {message && <div style={noticeStyle}>{message}</div>}
+      {message && <div style={noticeStyle(messageTone)}>{message}</div>}
 
       <section style={cardStyle}>
         <h2 style={sectionTitleStyle}>{t("management.paidWarmup.settings")}</h2>
@@ -370,7 +450,52 @@ function PaidWarmupSetupPage() {
                 {warmup.entries.map((entry, index) => (
                   <React.Fragment key={entry.id}>
                     <tr>
-                      <td style={tdStyle}>{index + 1}</td>
+                      <td style={tdStyle}>
+                        <div style={orderControlStyle}>
+                          <button
+                            type="button"
+                            onClick={() => moveEntry(entry.id, index - 1)}
+                            style={iconButtonStyle(index === 0)}
+                            disabled={index === 0}
+                            aria-label={t("management.paidWarmup.moveUp")}
+                            title={t("management.paidWarmup.moveUp")}
+                          >
+                            ↑
+                          </button>
+                          <input
+                            type="number"
+                            min="1"
+                            max={warmup.entries.length}
+                            value={positionDrafts[entry.id] ?? index + 1}
+                            onChange={(event) =>
+                              updateEntryPositionDraft(entry.id, event.target.value)
+                            }
+                            onBlur={() =>
+                              commitEntryPositionDraft(entry.id, index + 1)
+                            }
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                commitEntryPositionDraft(entry.id, index + 1);
+                                event.currentTarget.blur();
+                              }
+                            }}
+                            style={orderInputStyle}
+                            aria-label={t("management.paidWarmup.position")}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => moveEntry(entry.id, index + 1)}
+                            style={iconButtonStyle(
+                              index === warmup.entries.length - 1
+                            )}
+                            disabled={index === warmup.entries.length - 1}
+                            aria-label={t("management.paidWarmup.moveDown")}
+                            title={t("management.paidWarmup.moveDown")}
+                          >
+                            ↓
+                          </button>
+                        </div>
+                      </td>
                       <td style={tdStyle}>
                         <input
                           type="text"
@@ -401,13 +526,22 @@ function PaidWarmupSetupPage() {
                         </select>
                       </td>
                       <td style={tdStyle}>
-                        <button
-                          type="button"
-                          onClick={() => removeEntry(entry.id)}
-                          style={dangerButtonStyle}
-                        >
-                          {t("management.access.remove")}
-                        </button>
+                        <div style={rowActionStyle}>
+                          <button
+                            type="button"
+                            onClick={() => insertEntryAfter(entry.id)}
+                            style={secondaryButtonStyle}
+                          >
+                            {t("management.paidWarmup.insertAfter")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeEntry(entry.id)}
+                            style={dangerButtonStyle}
+                          >
+                            {t("management.access.remove")}
+                          </button>
+                        </div>
                       </td>
                     </tr>
 
@@ -558,14 +692,14 @@ const dangerButtonStyle = {
   cursor: "pointer",
 };
 
-const noticeStyle = {
-  background: "#f0fdf4",
-  border: "1px solid #86efac",
-  color: "#166534",
+const noticeStyle = (tone = "synced") => ({
+  border: `1px solid ${tone === "warn" ? "#fdba74" : "#86efac"}`,
+  color: tone === "warn" ? "#9a3412" : "#166534",
+  background: tone === "warn" ? "#fff7ed" : "#f0fdf4",
   borderRadius: 8,
   padding: 12,
   marginBottom: 16,
-};
+});
 
 const emptyStateStyle = {
   background: "#fff",
@@ -596,6 +730,37 @@ const tdStyle = {
   padding: 10,
   borderBottom: "1px solid #e2e8f0",
   verticalAlign: "middle",
+};
+
+const orderControlStyle = {
+  display: "grid",
+  gridTemplateColumns: "34px minmax(54px, 72px) 34px",
+  gap: 6,
+  alignItems: "center",
+};
+
+const orderInputStyle = {
+  ...inputStyle,
+  padding: "8px 6px",
+  textAlign: "center",
+  fontWeight: 800,
+};
+
+const iconButtonStyle = (isDisabled) => ({
+  width: 34,
+  height: 34,
+  borderRadius: 8,
+  border: "1px solid #cbd5e1",
+  background: isDisabled ? "#f8fafc" : "#fff",
+  color: isDisabled ? "#94a3b8" : "#111827",
+  cursor: isDisabled ? "not-allowed" : "pointer",
+  fontWeight: 900,
+});
+
+const rowActionStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 8,
 };
 
 const dragRowStyle = {

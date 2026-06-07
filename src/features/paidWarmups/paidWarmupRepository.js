@@ -1,5 +1,9 @@
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import {
+  LOCAL_FIRST_SYNC_STATUSES,
+  withLocalFirstSyncState,
+} from "../cloud/localFirstSync";
+import {
   deletePaidWarmup,
   getPaidWarmupById,
   getPaidWarmupsByDayId,
@@ -108,6 +112,10 @@ export async function getPaidWarmupRepository(id) {
 export async function savePaidWarmupRepository(item) {
   const savedLocal = savePaidWarmup(item);
   const supabase = getSupabaseClient();
+  let syncStatus = supabase
+    ? LOCAL_FIRST_SYNC_STATUSES.SYNCED
+    : LOCAL_FIRST_SYNC_STATUSES.LOCAL;
+  let syncError = null;
 
   if (supabase) {
     try {
@@ -127,10 +135,15 @@ export async function savePaidWarmupRepository(item) {
       }
     } catch (error) {
       console.error("Erreur sauvegarde paid warmup Supabase:", error);
+      syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
+      syncError = error;
     }
   }
 
-  return savedLocal;
+  return withLocalFirstSyncState(savedLocal, {
+    status: syncStatus,
+    error: syncError,
+  });
 }
 
 export async function deletePaidWarmupRepository(id) {

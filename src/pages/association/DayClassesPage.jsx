@@ -23,6 +23,7 @@ import {
   getPaidWarmupStats,
 } from "../../features/paidWarmups/paidWarmupStorage";
 import { getClassStatus } from "../../features/classes/classStatusSelectors";
+import { buildArenaOptions } from "../../features/classes/arenaOptions";
 import { getDayById } from "../../features/days/daySelectors";
 import { getShowById } from "../../features/shows/showSelectors";
 import { loadAssociations } from "../../features/associations/associationsData";
@@ -75,6 +76,10 @@ function DayClassesPage() {
     pattern: "",
     judgeCount: 1,
   });
+  const arenaOptions = useMemo(
+    () => buildArenaOptions(classes, draft.arena),
+    [classes, draft.arena]
+  );
 
   function resetDraft() {
     return {
@@ -725,6 +730,7 @@ function DayClassesPage() {
                         </label>
                         <input
                           type="text"
+                          list="day-class-arena-options"
                           value={draft.arena}
                           onChange={(e) =>
                             setDraft((prev) => ({
@@ -735,6 +741,13 @@ function DayClassesPage() {
                           placeholder={t("management.classes.arenaPlaceholder")}
                           style={inputStyle}
                         />
+                        {arenaOptions.length > 0 && (
+                          <datalist id="day-class-arena-options">
+                            {arenaOptions.map((arena) => (
+                              <option key={arena} value={arena} />
+                            ))}
+                          </datalist>
+                        )}
                       </div>
 
                       <div>

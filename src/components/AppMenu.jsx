@@ -84,6 +84,10 @@ function AppMenu() {
             <span style={publicBrandLabelStyle}>{t("nav.publicShowcase")}</span>
           </Link>
 
+          <Link to="/" style={publicNavigationLinkStyle}>
+            {t("nav.home")}
+          </Link>
+
           <span style={spacerStyle} />
           <LanguageSwitcher />
           {canOpenManagement ? (
@@ -105,6 +109,12 @@ function AppMenu() {
       <nav style={navStyle} aria-label={t("nav.main")}>
         <Link to="/" style={linkStyle(location.pathname === "/")}>
           {t("nav.home")}
+        </Link>
+        <Link
+          to="/presentation"
+          style={linkStyle(location.pathname === "/presentation")}
+        >
+          {t("nav.presentation")}
         </Link>
         <Link
           to={publicShowcasePath}
@@ -333,6 +343,7 @@ const publicNavStyle = {
   display: "flex",
   alignItems: "center",
   gap: 8,
+  flexWrap: "wrap",
   padding: "8px 12px",
   minHeight: 56,
   boxSizing: "border-box",
@@ -358,6 +369,21 @@ const publicBrandLabelStyle = {
   fontSize: 12,
   fontWeight: 800,
   marginTop: 2,
+};
+
+const publicNavigationLinkStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: 34,
+  padding: "6px 10px",
+  borderRadius: 8,
+  border: "1px solid transparent",
+  color: "#101827",
+  fontSize: 13,
+  fontWeight: 850,
+  textDecoration: "none",
+  whiteSpace: "nowrap",
 };
 
 const publicManagementLinkStyle = {

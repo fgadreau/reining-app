@@ -1,8 +1,12 @@
 import { createId } from "../../utils/createId";
 
 const TRACTOR_LINE_PATTERN = /^\s*(tractor|drag)\s*$/i;
-const CLASS_CODE_PATTERN = /^[A-Z0-9]+(?:,[A-Z0-9]+)*$/;
-const CLASS_HEADER_PATTERN = /\[([A-Z0-9]+)\]\s*$/;
+const CLASS_CODE_TOKEN_SOURCE = "-?[A-Z0-9]+(?:[ -][A-Z0-9]+)*";
+const CLASS_CODE_TOKEN_PATTERN = new RegExp(`^${CLASS_CODE_TOKEN_SOURCE}$`);
+const CLASS_CODE_PATTERN = new RegExp(
+  `^${CLASS_CODE_TOKEN_SOURCE}(?:\\s*,\\s*${CLASS_CODE_TOKEN_SOURCE})*\\s*$`
+);
+const CLASS_HEADER_PATTERN = /\[\s*(-?\s*[A-Z0-9][A-Z0-9\s-]*?)\s*\]\s*$/;
 const REO_CLASS_HEADER_PATTERN =
   /Draw for Class\s+(\d+)\s+(.+?)\s+on\b.*?\(Pattern\s+([^)]+)\)/i;
 const REO_SCORE_BOX_PATTERN = /\|\s*_+\s*\|/g;
@@ -16,7 +20,7 @@ function cleanText(value) {
 }
 
 function normalizeClassCode(value) {
-  return cleanText(value).toUpperCase();
+  return cleanText(value).replace(/\s*-\s*/g, "-").toUpperCase();
 }
 
 function lastItem(values) {
@@ -31,9 +35,14 @@ function normalizeClassCodes(value, allowedCodes = null) {
   return Array.from(
     new Set(
       cleanText(value)
-        .split(",")
+        .split(/\s*,\s*/)
         .map(normalizeClassCode)
-        .filter((code) => code && (!allowed || allowed.has(code)))
+        .filter(
+          (code) =>
+            code &&
+            CLASS_CODE_TOKEN_PATTERN.test(code) &&
+            (!allowed || allowed.has(code))
+        )
     )
   );
 }
@@ -56,37 +65,117 @@ function normalizeBlockClasses(value) {
   return Array.from(classesByCode.values());
 }
 
-function extractBlockClassFromCells(cells) {
-  const classNameCell = cells.find((cell) =>
-    CLASS_HEADER_PATTERN.test(cleanText(cell.text))
+function parseBlockClassText(classNumber, association, classNameText) {
+  const normalizedClassNameText = cleanText(classNameText);
+  const match = normalizedClassNameText.match(CLASS_HEADER_PATTERN);
+  const code = normalizeClassCode(match?.[1]);
+
+  if (!code || !CLASS_CODE_TOKEN_PATTERN.test(code)) return null;
+
+  let name = cleanText(
+    normalizedClassNameText.replace(CLASS_HEADER_PATTERN, "")
   );
+  let detectedAssociation = cleanText(association);
+  const embeddedAssociationMatch = name.match(/^([A-Z0-9]+)\s*-\s*(.+)$/);
+
+  if (!detectedAssociation && embeddedAssociationMatch) {
+    detectedAssociation = embeddedAssociationMatch[1];
+    name = cleanText(embeddedAssociationMatch[2]);
+  }
+
+  return {
+    code,
+    name,
+    classNumber: cleanText(classNumber),
+    association: detectedAssociation,
+  };
+}
+
+function getFunwareBlockClassPartsFromCells(cells) {
+  const classNameCell = cells.find((cell) => {
+    const text = cleanText(cell.text);
+
+    return (
+      cell.x >= 190 &&
+      cell.x < 455 &&
+      (CLASS_HEADER_PATTERN.test(text) ||
+        text.includes("[") ||
+        text.length > 12)
+    );
+  });
 
   if (!classNameCell) return null;
 
-  const classNameText = cleanText(classNameCell.text);
-  const match = classNameText.match(CLASS_HEADER_PATTERN);
-  const code = normalizeClassCode(match?.[1]);
-
-  if (!code) return null;
-
   const classNumberCell = lastItem(
-    cells.filter((cell) => cell.x < classNameCell.x && /^\d+$/.test(cell.text))
+    cells.filter(
+      (cell) =>
+        cell.x >= 145 &&
+        cell.x < 185 &&
+        cell.x < classNameCell.x &&
+        /^\d+$/.test(cell.text)
+    )
   );
+
+  if (!classNumberCell) return null;
+
   const associationCell = lastItem(
     cells.filter(
       (cell) =>
         cell.x < classNameCell.x &&
-        cell.x > (classNumberCell?.x || 0) &&
+        cell.x > classNumberCell.x &&
         /^[A-Z]+$/.test(cell.text)
     )
   );
 
+  const classNameText = cleanText(
+    cells
+      .filter((cell) => cell.x >= classNameCell.x && cell.x < 455)
+      .map((cell) => cell.text)
+      .join(" ")
+  );
+
   return {
-    code,
-    name: classNameText.replace(CLASS_HEADER_PATTERN, "").trim(),
-    classNumber: classNumberCell?.text || "",
+    classNumber: classNumberCell.text,
     association: associationCell?.text || "",
+    classNameText,
   };
+}
+
+function extractBlockClassFromCells(cells) {
+  const parts = getFunwareBlockClassPartsFromCells(cells);
+  if (!parts) return null;
+
+  return parseBlockClassText(
+    parts.classNumber,
+    parts.association,
+    parts.classNameText
+  );
+}
+
+function extractPartialBlockClassFromCells(cells) {
+  const parts = getFunwareBlockClassPartsFromCells(cells);
+  if (!parts || !parts.classNameText) return null;
+
+  if (
+    parseBlockClassText(
+      parts.classNumber,
+      parts.association,
+      parts.classNameText
+    )
+  ) {
+    return null;
+  }
+
+  return parts;
+}
+
+function getFunwareBlockClassContinuationText(cells) {
+  return cleanText(
+    (Array.isArray(cells) ? cells : [])
+      .filter((cell) => cell.x >= 150 && cell.x < 455)
+      .map((cell) => cell.text)
+      .join(" ")
+  );
 }
 
 function cleanReoText(value) {
@@ -614,6 +703,7 @@ function parseFunwarePositionedPdfPages(pages) {
   const blockClassesByCode = new Map();
   let currentRun = null;
   let participantsSinceDrag = 0;
+  let pendingBlockClass = null;
 
   function getAllowedClassCodes() {
     return new Set(blockClassesByCode.keys());
@@ -651,9 +741,37 @@ function parseFunwarePositionedPdfPages(pages) {
 
   pages.forEach((pageLines) => {
     pageLines.forEach((line) => {
+      const lineText = line.cells.map((cell) => cell.text).join(" ");
+      const blockClassContinuationText =
+        getFunwareBlockClassContinuationText(line.cells);
+
+      if (pendingBlockClass && blockClassContinuationText.includes("]")) {
+        const completedBlockClass = parseBlockClassText(
+          pendingBlockClass.classNumber,
+          pendingBlockClass.association,
+          `${pendingBlockClass.classNameText} ${blockClassContinuationText}`
+        );
+
+        if (completedBlockClass) {
+          blockClassesByCode.set(completedBlockClass.code, completedBlockClass);
+          pendingBlockClass = null;
+          return;
+        }
+
+        pendingBlockClass = null;
+      }
+
       const blockClass = extractBlockClassFromCells(line.cells);
       if (blockClass) {
         blockClassesByCode.set(blockClass.code, blockClass);
+        pendingBlockClass = null;
+        return;
+      }
+
+      const partialBlockClass = extractPartialBlockClassFromCells(line.cells);
+      if (partialBlockClass) {
+        pendingBlockClass = partialBlockClass;
+        return;
       }
 
       const drawCell = line.cells.find(
@@ -665,7 +783,6 @@ function parseFunwarePositionedPdfPages(pages) {
         (cell) => cell.x >= 88 && cell.x < 130 && /^\d{1,6}$/.test(cell.text)
       );
       const riderCell = line.cells.find((cell) => cell.x >= 130 && cell.x < 300);
-      const lineText = line.cells.map((cell) => cell.text).join(" ");
 
       if (
         /Showbill #:|Working Order Draw|Page:|Draw Horse Name|Back No\.|Entered in showbill/i.test(
@@ -712,6 +829,14 @@ function parseFunwarePositionedPdfPages(pages) {
           currentRun.rider = riderCell.text;
         } else if (currentRun.riderCandidate) {
           currentRun.rider = currentRun.riderCandidate;
+        }
+        if (ownerCell?.text) {
+          const classCodes = getClassCodesFromCell(ownerCell);
+          if (classCodes.length > 0) {
+            currentRun.classCodes.push(...classCodes);
+          } else {
+            currentRun.ownerLines.push(ownerCell.text);
+          }
         }
         return;
       }

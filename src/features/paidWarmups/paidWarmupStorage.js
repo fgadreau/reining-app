@@ -62,10 +62,58 @@ export function normalizePaidWarmupEntry(entry, index = 0) {
   };
 }
 
+export function normalizePaidWarmupEntries(entries) {
+  return (Array.isArray(entries) ? entries : []).map((entry, index) => ({
+    ...normalizePaidWarmupEntry(entry, index),
+    order: index + 1,
+  }));
+}
+
+export function movePaidWarmupEntry(entries, entryId, targetIndex) {
+  const normalizedEntries = normalizePaidWarmupEntries(entries);
+  const fromIndex = normalizedEntries.findIndex((entry) => entry.id === entryId);
+
+  if (fromIndex < 0 || normalizedEntries.length <= 1) {
+    return normalizedEntries;
+  }
+
+  const parsedTargetIndex = Number(targetIndex);
+  const boundedTargetIndex = Number.isFinite(parsedTargetIndex)
+    ? Math.max(0, Math.min(parsedTargetIndex, normalizedEntries.length - 1))
+    : fromIndex;
+  const nextEntries = [...normalizedEntries];
+  const [movedEntry] = nextEntries.splice(fromIndex, 1);
+
+  nextEntries.splice(boundedTargetIndex, 0, movedEntry);
+
+  return normalizePaidWarmupEntries(nextEntries);
+}
+
+export function insertPaidWarmupEntryAfter(entries, afterEntryId, entry = {}) {
+  const normalizedEntries = normalizePaidWarmupEntries(entries);
+  const foundAfterIndex = afterEntryId
+    ? normalizedEntries.findIndex((current) => current.id === afterEntryId)
+    : normalizedEntries.length - 1;
+  const afterIndex =
+    foundAfterIndex >= 0 ? foundAfterIndex : normalizedEntries.length - 1;
+  const insertIndex = Math.max(0, afterIndex + 1);
+  const nextEntry = normalizePaidWarmupEntry(
+    {
+      ...entry,
+      id: entry?.id || createId("paid_warmup_entry"),
+      status: entry?.status || "pending",
+    },
+    insertIndex
+  );
+  const nextEntries = [...normalizedEntries];
+
+  nextEntries.splice(insertIndex, 0, nextEntry);
+
+  return normalizePaidWarmupEntries(nextEntries);
+}
+
 export function normalizePaidWarmup(item) {
-  const entries = Array.isArray(item?.entries)
-    ? item.entries.map((entry, index) => normalizePaidWarmupEntry(entry, index))
-    : [];
+  const entries = normalizePaidWarmupEntries(item?.entries);
 
   return {
     id: item?.id || createId("paid_warmup"),

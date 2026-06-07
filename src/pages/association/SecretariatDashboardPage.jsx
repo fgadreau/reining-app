@@ -33,6 +33,10 @@ import {
   unpublishClassResultsRepository,
 } from "../../features/results/resultPublicationRepository";
 import {
+  formatLocalFirstSyncNotice,
+  getLocalFirstSyncNoticeTone,
+} from "../../features/cloud/localFirstSyncMessages";
+import {
   loadJudgeScoringSessionsForClassRepository,
   releaseJudgeScoringSessionRepository,
 } from "../../features/scoring/judgeScoringSessionRepository";
@@ -134,10 +138,13 @@ function SecretariatDashboardPage() {
 
   const handlePublishResults = async (classData) => {
     try {
-      await publishClassResultsRepository({
+      const publication = await publishClassResultsRepository({
         classData: prepareClassDataForValidation(classData, t),
         publishedBy: "secretariat",
       });
+      if (getLocalFirstSyncNoticeTone(publication) !== "synced") {
+        alert(formatLocalFirstSyncNotice(publication, t));
+      }
       refresh();
     } catch (error) {
       alert(error.message || t("management.secretariat.resultsPublishFailed"));
@@ -145,7 +152,10 @@ function SecretariatDashboardPage() {
   };
 
   const handleUnpublishResults = async (classId) => {
-    await unpublishClassResultsRepository(classId);
+    const publication = await unpublishClassResultsRepository(classId);
+    if (getLocalFirstSyncNoticeTone(publication) !== "synced") {
+      alert(formatLocalFirstSyncNotice(publication, t));
+    }
     refresh();
   };
 

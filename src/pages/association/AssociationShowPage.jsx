@@ -76,21 +76,26 @@ function AssociationShowPage() {
     };
 
     setIsSaving(true);
-    await saveShowRepository(newShow);
-    setShows((current) => [...current, newShow]);
-    setIsSaving(false);
-
-    setEditingId(newShow.id);
-    setDraft({
-      name: newShow.name,
-      location: newShow.location,
-      venue: newShow.venue,
-      startDate: newShow.startDate,
-      endDate: newShow.endDate,
-      status: newShow.status,
-      isLivestreamPublic: newShow.isLivestreamPublic,
-      livestreamUrl: newShow.livestreamUrl,
-    });
+    try {
+      await saveShowRepository(newShow);
+      setShows((current) => [...current, newShow]);
+      setEditingId(newShow.id);
+      setDraft({
+        name: newShow.name,
+        location: newShow.location,
+        venue: newShow.venue,
+        startDate: newShow.startDate,
+        endDate: newShow.endDate,
+        status: newShow.status,
+        isLivestreamPublic: newShow.isLivestreamPublic,
+        livestreamUrl: newShow.livestreamUrl,
+      });
+    } catch (error) {
+      console.error("Erreur création show:", error);
+      alert(t("common.saveFailed", { message: error?.message || "" }));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const startEditShow = (show) => {
@@ -147,13 +152,19 @@ function AssociationShowPage() {
     };
 
     setIsSaving(true);
-    await saveShowRepository(nextShow);
-    await syncDaysForShowDateRangeRepository(nextShow, { language });
-    setShows((current) =>
-      current.map((show) => (show.id === editingId ? nextShow : show))
-    );
-    setIsSaving(false);
-    setEditingId(null);
+    try {
+      const savedShow = await saveShowRepository(nextShow);
+      await syncDaysForShowDateRangeRepository(nextShow, { language });
+      setShows((current) =>
+        current.map((show) => (show.id === editingId ? savedShow : show))
+      );
+      setEditingId(null);
+    } catch (error) {
+      console.error("Erreur sauvegarde show:", error);
+      alert(t("common.saveFailed", { message: error?.message || "" }));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDeleteShow = async (showId) => {
@@ -161,12 +172,18 @@ function AssociationShowPage() {
     if (!confirmed) return;
 
     setIsSaving(true);
-    await deleteShowRepository(showId);
-    setShows((current) => current.filter((show) => show.id !== showId));
-    setIsSaving(false);
+    try {
+      await deleteShowRepository(showId);
+      setShows((current) => current.filter((show) => show.id !== showId));
 
-    if (editingId === showId) {
-      cancelEdit();
+      if (editingId === showId) {
+        cancelEdit();
+      }
+    } catch (error) {
+      console.error("Erreur suppression show:", error);
+      alert(t("common.deleteFailed", { message: error?.message || "" }));
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -424,41 +441,6 @@ function AssociationShowPage() {
                       </div>
                     </div>
 
-                    <div style={livestreamBoxStyle}>
-                      <label style={checkboxLabelStyle}>
-                        <input
-                          type="checkbox"
-                          checked={draft.isLivestreamPublic}
-                          onChange={(e) =>
-                            setDraft((prev) => ({
-                              ...prev,
-                              isLivestreamPublic: e.target.checked,
-                            }))
-                          }
-                        />
-                        <span>{t("management.shows.livestreamPublicLabel")}</span>
-                      </label>
-
-                      <label style={labelStyle}>
-                        {t("management.shows.livestreamUrlLabel")}
-                      </label>
-                      <input
-                        type="text"
-                        value={draft.livestreamUrl}
-                        onChange={(e) =>
-                          setDraft((prev) => ({
-                            ...prev,
-                            livestreamUrl: e.target.value,
-                          }))
-                        }
-                        placeholder="https://youtube.com/watch?v=..."
-                        style={inputStyle}
-                      />
-                      <div style={helpTextStyle}>
-                        {t("management.shows.livestreamHelp")}
-                      </div>
-                    </div>
-
                     <div style={actionRowStyle}>
                       <button
                         type="button"
@@ -546,32 +528,10 @@ const editGridStyle = {
   gap: 12,
 };
 
-const livestreamBoxStyle = {
-  marginTop: 14,
-  display: "grid",
-  gap: 8,
-  border: "1px solid #dbeafe",
-  background: "#eff6ff",
-  borderRadius: 8,
-  padding: 12,
-};
-
-const checkboxLabelStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 8,
-  fontWeight: 800,
-};
-
 const labelStyle = {
   display: "block",
   marginBottom: 6,
   fontWeight: 600,
-};
-
-const helpTextStyle = {
-  color: "#475569",
-  fontSize: 13,
 };
 
 const inputStyle = {

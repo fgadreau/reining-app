@@ -24,6 +24,7 @@ import PaidWarmupSetupPage from "../../pages/association/PaidWarmupSetupPage";
 import ClassScoringPage from "../../pages/scribe/ClassScoringPage";
 import LoginPage from "../../pages/auth/LoginPage";
 import HomePage from "../../pages/home/HomePage";
+import AppPresentationPage from "../../pages/home/AppPresentationPage";
 import NotFoundPage from "../../pages/common/NotFoundPage";
 import {
   PrivacyPage,
@@ -37,6 +38,7 @@ function AppRouter() {
       <AppMenu />
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/presentation" element={<AppPresentationPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />

@@ -3,6 +3,12 @@ import {
   normalizePaidWarmup,
 } from "./paidWarmupStorage";
 
+export const PAID_WARMUP_TIMER_CUES = {
+  HALF_TIME: "half_time",
+  ONE_MINUTE: "one_minute",
+  FINISHED: "finished",
+};
+
 export function buildPaidWarmupLiveView(warmup, now = new Date()) {
   const normalized = normalizePaidWarmup(warmup);
   const entries = normalized.entries.map((entry, index) => ({
@@ -165,6 +171,28 @@ export function formatPaidWarmupTimer(seconds) {
   const formatted = `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
 
   return seconds < 0 ? `+${formatted}` : formatted;
+}
+
+export function getPaidWarmupTimerCueType(warmup, remainingSeconds) {
+  if (remainingSeconds == null) return null;
+
+  if (remainingSeconds <= 0) {
+    return PAID_WARMUP_TIMER_CUES.FINISHED;
+  }
+
+  if (remainingSeconds <= 60) {
+    return PAID_WARMUP_TIMER_CUES.ONE_MINUTE;
+  }
+
+  const durationSeconds =
+    Number(warmup?.durationSeconds) ||
+    normalizePaidWarmup(warmup).durationMinutesPerRider * 60;
+
+  if (remainingSeconds <= durationSeconds / 2) {
+    return PAID_WARMUP_TIMER_CUES.HALF_TIME;
+  }
+
+  return null;
 }
 
 function calculateRemainingSeconds(startedAt, durationSeconds, now) {

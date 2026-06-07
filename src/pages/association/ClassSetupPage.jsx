@@ -23,6 +23,8 @@ import {
   parseImportedDrawFile,
 } from "../../features/classes/classSetupImport";
 import { getClassRecord } from "../../features/classes/classRecordStorage";
+import { getAllClasses } from "../../features/classes/classSelectors";
+import { buildArenaOptions } from "../../features/classes/arenaOptions";
 import {
   getClassStatus,
 } from "../../features/classes/classStatusSelectors";
@@ -231,6 +233,14 @@ function ClassSetupPage() {
   const [importText, setImportText] = useState("");
   const [importMessage, setImportMessage] = useState("");
   const [showImportBox, setShowImportBox] = useState(false);
+  const arenaOptions = useMemo(
+    () =>
+      buildArenaOptions(
+        getAllClasses().filter((item) => item.showId === classItem?.showId),
+        arena
+      ),
+    [arena, classItem?.showId]
+  );
 
   const scoringStarted = hasScoringStarted(classId);
   const isStructureLocked = scoringStarted;
@@ -1098,12 +1108,20 @@ function ClassSetupPage() {
               </label>
               <input
                 type="text"
+                list="class-setup-arena-options"
                 value={arena}
                 onChange={(e) => setArena(e.target.value)}
                 placeholder={t("management.classes.arenaPlaceholder")}
                 style={inputStyle}
                 disabled={!canManageSetup}
               />
+              {arenaOptions.length > 0 && (
+                <datalist id="class-setup-arena-options">
+                  {arenaOptions.map((arenaOption) => (
+                    <option key={arenaOption} value={arenaOption} />
+                  ))}
+                </datalist>
+              )}
               <div style={helperTextStyle}>
                 {t("management.classSetup.arenaHelper")}
               </div>

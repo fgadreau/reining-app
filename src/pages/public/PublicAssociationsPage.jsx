@@ -21,7 +21,6 @@ import {
   publicMutedTextStyle,
   publicPageStyle,
   publicPrimaryActionStyle,
-  publicSecondaryActionStyle,
   publicSubtitleStyle,
   publicTitleStyle,
 } from "../../styles/publicStyles";
@@ -71,9 +70,6 @@ function PublicAssociationsPage() {
           <h1 style={titleStyle}>{t("public.associations.title")}</h1>
           <div style={subtitleStyle}>{t("public.associations.subtitle")}</div>
         </div>
-        <Link to="/login" style={secondaryLinkStyle}>
-          {t("public.associations.login")}
-        </Link>
       </section>
 
       {isLoading ? (
@@ -239,10 +235,6 @@ const cardActionsStyle = {
 
 const secondaryButtonStyle = {
   minHeight: 42,
-};
-
-const secondaryLinkStyle = {
-  ...publicSecondaryActionStyle,
 };
 
 const emptyStateStyle = {

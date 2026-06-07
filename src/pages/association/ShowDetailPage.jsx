@@ -21,11 +21,18 @@ import {
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import { getDefaultShowRouteForRoles } from "../../features/auth/showRoleRouting";
 import { getCloudSyncStatus } from "../../features/cloud/supabaseStatus";
+import {
+  formatLocalFirstSyncNotice,
+  getLocalFirstSyncNoticeTone,
+} from "../../features/cloud/localFirstSyncMessages";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { getPaidWarmupsForDayRepository } from "../../features/paidWarmups/paidWarmupRepository";
 import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
 import { savePublicationStateRepository } from "../../features/publication/publicationCloudRepository";
-import { getShowRepository } from "../../features/shows/showRepository";
+import {
+  getShowRepository,
+  saveShowRepository,
+} from "../../features/shows/showRepository";
 import { appStyles as styles } from "../../styles/appStyles";
 import { createId } from "../../utils/createId";
 
@@ -44,6 +51,14 @@ function ShowDetailPage() {
   const [newDayDate, setNewDayDate] = useState("");
   const [copiedOverlayKey, setCopiedOverlayKey] = useState("");
   const [overlayArenas, setOverlayArenas] = useState([]);
+  const [selectedOverlayArena, setSelectedOverlayArena] = useState("");
+  const [isLivestreamModalOpen, setIsLivestreamModalOpen] = useState(false);
+  const [livestreamDraft, setLivestreamDraft] = useState({
+    isLivestreamPublic: false,
+    livestreamUrl: "",
+  });
+  const [livestreamMessage, setLivestreamMessage] = useState("");
+  const [livestreamMessageTone, setLivestreamMessageTone] = useState("synced");
   const [copyDraft, setCopyDraft] = useState({
     sourceDayId: "",
     targetDate: "",
@@ -95,6 +110,12 @@ function ShowDetailPage() {
       isMounted = false;
     };
   }, [sortedDays]);
+
+  useEffect(() => {
+    setSelectedOverlayArena((currentArena) =>
+      overlayArenas.includes(currentArena) ? currentArena : overlayArenas[0] || ""
+    );
+  }, [overlayArenas]);
 
   useEffect(() => {
     if (access.isLoadingAccess) return;
@@ -165,10 +186,16 @@ function ShowDetailPage() {
 
     const newDay = buildDayForDate(newDayDate);
     setIsSaving(true);
-    const savedDay = await saveDayRepository(newDay);
-    setDays((current) => sortDaysByDate([...current, savedDay]));
-    setIsSaving(false);
-    cancelCreateDay();
+    try {
+      const savedDay = await saveDayRepository(newDay);
+      setDays((current) => sortDaysByDate([...current, savedDay]));
+      cancelCreateDay();
+    } catch (error) {
+      console.error("Erreur sauvegarde journée:", error);
+      alert(t("common.saveFailed", { message: error?.message || "" }));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const startEditDay = (day) => {
@@ -207,15 +234,20 @@ function ShowDetailPage() {
     };
 
     setIsSaving(true);
-    await saveDayRepository(nextDay);
-    setDays((current) =>
-      sortDaysByDate(
-        current.map((day) => (day.id === editingId ? nextDay : day))
-      )
-    );
-    setIsSaving(false);
-
-    setEditingId(null);
+    try {
+      await saveDayRepository(nextDay);
+      setDays((current) =>
+        sortDaysByDate(
+          current.map((day) => (day.id === editingId ? nextDay : day))
+        )
+      );
+      setEditingId(null);
+    } catch (error) {
+      console.error("Erreur sauvegarde journée:", error);
+      alert(t("common.saveFailed", { message: error?.message || "" }));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDeleteDay = async (dayId) => {
@@ -230,12 +262,63 @@ function ShowDetailPage() {
     if (!confirmed) return;
 
     setIsSaving(true);
-    await deleteDayRepository(dayId);
-    setDays((current) => current.filter((day) => day.id !== dayId));
-    setIsSaving(false);
+    try {
+      await deleteDayRepository(dayId);
+      setDays((current) => current.filter((day) => day.id !== dayId));
 
-    if (editingId === dayId) {
-      cancelEdit();
+      if (editingId === dayId) {
+        cancelEdit();
+      }
+    } catch (error) {
+      console.error("Erreur suppression journée:", error);
+      alert(t("common.deleteFailed", { message: error?.message || "" }));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const openLivestreamSettings = () => {
+    setLivestreamDraft({
+      isLivestreamPublic: Boolean(show?.isLivestreamPublic),
+      livestreamUrl: show?.livestreamUrl || "",
+    });
+    setLivestreamMessage("");
+    setLivestreamMessageTone("synced");
+    setIsLivestreamModalOpen(true);
+  };
+
+  const closeLivestreamSettings = () => {
+    setIsLivestreamModalOpen(false);
+    setCopiedOverlayKey("");
+    setLivestreamMessage("");
+  };
+
+  const saveLivestreamSettings = async () => {
+    if (!show) return;
+
+    const nextShow = {
+      ...show,
+      associationId,
+      livestreamUrl: livestreamDraft.livestreamUrl,
+      isLivestreamPublic: Boolean(livestreamDraft.isLivestreamPublic),
+    };
+
+    setIsSaving(true);
+    try {
+      const savedShow = await saveShowRepository(nextShow);
+      setShow(savedShow);
+      setLivestreamMessage(formatLocalFirstSyncNotice(savedShow, t));
+      setLivestreamMessageTone(getLocalFirstSyncNoticeTone(savedShow));
+    } catch (error) {
+      console.error("Erreur sauvegarde réglages livestream:", error);
+      setLivestreamMessage(
+        t("common.localFirstSyncError", {
+          message: error?.message || "",
+        })
+      );
+      setLivestreamMessageTone("warn");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -397,52 +480,14 @@ function ShowDetailPage() {
         <div style={{ color: "#64748b", marginTop: 4 }}>
           {t("management.shows.statusPrefix")}: {formatShowStatus(show?.status, t)}
         </div>
-        <div style={overlayLinksStyle}>
-          <div style={actionRowStyleNoMargin}>
-            <Link
-              to={getOverlayPath(associationId, showId)}
-              style={linkButtonStyle}
-            >
-              {t("management.shows.openObsOverlayGeneral")}
-            </Link>
-            <button
-              type="button"
-              onClick={() => copyOverlayLink()}
-              style={secondaryButtonStyle}
-            >
-              {copiedOverlayKey === getOverlayCopyKey()
-                ? t("common.linkCopied")
-                : t("management.shows.copyObsOverlayLink")}
-            </button>
-          </div>
-
-          {overlayArenas.length > 0 && (
-            <div style={arenaOverlayListStyle}>
-              <div style={arenaOverlayTitleStyle}>
-                {t("management.shows.obsOverlayArenaTitle")}
-              </div>
-              {overlayArenas.map((arena) => (
-                <div key={arena} style={arenaOverlayRowStyle}>
-                  <span style={arenaOverlayNameStyle}>{arena}</span>
-                  <Link
-                    to={getOverlayPath(associationId, showId, arena)}
-                    style={linkButtonStyle}
-                  >
-                    {t("management.shows.openObsOverlayArena")}
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => copyOverlayLink(arena)}
-                    style={secondaryButtonStyle}
-                  >
-                    {copiedOverlayKey === getOverlayCopyKey(arena)
-                      ? t("common.linkCopied")
-                      : t("management.shows.copyObsOverlayArenaLink")}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+        <div style={actionRowStyle}>
+          <button
+            type="button"
+            onClick={openLivestreamSettings}
+            style={primaryButtonStyle}
+          >
+            {t("management.shows.livestreamSettings")}
+          </button>
         </div>
         <div style={{ marginTop: 10 }}>
           <span style={syncBadgeStyle(cloudStatus.configured)}>
@@ -456,6 +501,197 @@ function ShowDetailPage() {
           </span>
         </div>
       </div>
+
+      {isLivestreamModalOpen && (
+        <div style={modalBackdropStyle} role="presentation">
+          <section
+            style={modalPanelStyle}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="livestream-settings-title"
+          >
+            <div style={modalHeaderStyle}>
+              <div>
+                <div style={modalEyebrowStyle}>
+                  {t("management.shows.livestreamSettings")}
+                </div>
+                <h2 id="livestream-settings-title" style={modalTitleStyle}>
+                  {show?.name || t("common.show")}
+                </h2>
+                <div style={modalDescriptionStyle}>
+                  {t("management.shows.livestreamSettingsHelp")}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeLivestreamSettings}
+                style={iconCloseButtonStyle}
+                aria-label={t("management.days.cancel")}
+              >
+                x
+              </button>
+            </div>
+
+            <div style={modalBodyStyle}>
+              <section style={settingsSectionStyle}>
+                <div>
+                  <h3 style={settingsTitleStyle}>
+                    {t("management.shows.livestreamVideoTitle")}
+                  </h3>
+                  <div style={helpTextStyle}>
+                    {t("management.shows.livestreamHelp")}
+                  </div>
+                </div>
+
+                <label style={checkboxLabelStyle}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(livestreamDraft.isLivestreamPublic)}
+                    onChange={(event) =>
+                      setLivestreamDraft((current) => ({
+                        ...current,
+                        isLivestreamPublic: event.target.checked,
+                      }))
+                    }
+                    disabled={!access.canManageAssociation || isSaving}
+                  />
+                  <span>{t("management.shows.livestreamPublicLabel")}</span>
+                </label>
+
+                <div>
+                  <label style={labelStyle}>
+                    {t("management.shows.livestreamUrlLabel")}
+                  </label>
+                  <input
+                    type="text"
+                    value={livestreamDraft.livestreamUrl}
+                    onChange={(event) =>
+                      setLivestreamDraft((current) => ({
+                        ...current,
+                        livestreamUrl: event.target.value,
+                      }))
+                    }
+                    placeholder="https://youtube.com/watch?v=..."
+                    style={inputStyle}
+                    disabled={!access.canManageAssociation || isSaving}
+                  />
+                </div>
+              </section>
+
+              <section style={settingsSectionStyle}>
+                <div>
+                  <h3 style={settingsTitleStyle}>
+                    {t("management.shows.obsOverlayTitle")}
+                  </h3>
+                  <div style={helpTextStyle}>
+                    {t("management.shows.obsOverlayHelp")}
+                  </div>
+                </div>
+
+                <div style={arenaOverlayRowStyle}>
+                  <span style={arenaOverlayNameStyle}>
+                    {t("management.shows.obsOverlayGeneralTitle")}
+                  </span>
+                  <Link
+                    to={getOverlayPath(associationId, showId)}
+                    style={linkButtonStyle}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {t("management.shows.openObsOverlayGeneral")}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => copyOverlayLink()}
+                    style={secondaryButtonStyle}
+                  >
+                    {copiedOverlayKey === getOverlayCopyKey()
+                      ? t("common.linkCopied")
+                      : t("management.shows.copyObsOverlayLink")}
+                  </button>
+                </div>
+
+                {overlayArenas.length > 0 ? (
+                  <div style={arenaOverlayListStyle}>
+                    <label style={labelStyle}>
+                      {t("management.shows.obsOverlayArenaTitle")}
+                    </label>
+                    <div style={arenaOverlayPickerStyle}>
+                      <select
+                        value={selectedOverlayArena}
+                        onChange={(event) =>
+                          setSelectedOverlayArena(event.target.value)
+                        }
+                        style={inputStyle}
+                      >
+                        {overlayArenas.map((arena) => (
+                          <option key={arena} value={arena}>
+                            {arena}
+                          </option>
+                        ))}
+                      </select>
+                      <Link
+                        to={getOverlayPath(
+                          associationId,
+                          showId,
+                          selectedOverlayArena
+                        )}
+                        style={linkButtonStyle}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {t("management.shows.openObsOverlayArena")}
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => copyOverlayLink(selectedOverlayArena)}
+                        style={secondaryButtonStyle}
+                      >
+                        {copiedOverlayKey === getOverlayCopyKey(selectedOverlayArena)
+                          ? t("common.linkCopied")
+                          : t("management.shows.copyObsOverlayArenaLink")}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={softNoticeStyle}>
+                    {t("management.shows.obsOverlayNoArena")}
+                  </div>
+                )}
+              </section>
+            </div>
+
+            {livestreamMessage && (
+              <div style={syncNoticeStyle(livestreamMessageTone)}>
+                {livestreamMessage}
+              </div>
+            )}
+
+            <div style={modalFooterStyle}>
+              <button
+                type="button"
+                onClick={closeLivestreamSettings}
+                style={secondaryButtonStyle}
+                disabled={isSaving}
+              >
+                {t("management.days.cancel")}
+              </button>
+              {access.canManageAssociation && (
+                <button
+                  type="button"
+                  onClick={saveLivestreamSettings}
+                  style={primaryButtonStyle}
+                  disabled={isSaving}
+                >
+                  {isSaving
+                    ? t("management.shows.saving")
+                    : t("management.shows.save")}
+                </button>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
 
       <div style={headerWrapStyle}>
         <h2 style={{ fontSize: 20, margin: 0 }}>{t("management.days.title")}</h2>
@@ -742,12 +978,6 @@ const copyFormStyle = {
   borderTop: "1px solid #e2e8f0",
 };
 
-const overlayLinksStyle = {
-  display: "grid",
-  gap: 10,
-  marginTop: 14,
-};
-
 const arenaOverlayListStyle = {
   display: "grid",
   gap: 8,
@@ -755,17 +985,18 @@ const arenaOverlayListStyle = {
   borderTop: "1px solid #e2e8f0",
 };
 
-const arenaOverlayTitleStyle = {
-  color: "#475569",
-  fontSize: 13,
-  fontWeight: 800,
-};
-
 const arenaOverlayRowStyle = {
   display: "flex",
   alignItems: "center",
   gap: 10,
   flexWrap: "wrap",
+};
+
+const arenaOverlayPickerStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gap: 10,
+  alignItems: "center",
 };
 
 const arenaOverlayNameStyle = {
@@ -793,6 +1024,127 @@ const inputStyle = {
   border: "1px solid #cbd5e1",
   boxSizing: "border-box",
 };
+
+const helpTextStyle = {
+  color: "#475569",
+  fontSize: 13,
+  lineHeight: 1.35,
+};
+
+const checkboxLabelStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  color: "#111827",
+  fontWeight: 800,
+};
+
+const modalBackdropStyle = {
+  position: "fixed",
+  inset: 0,
+  zIndex: 1000,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 16,
+  background: "rgba(15, 23, 42, 0.48)",
+  boxSizing: "border-box",
+};
+
+const modalPanelStyle = {
+  width: "min(920px, 100%)",
+  maxHeight: "calc(100vh - 32px)",
+  overflow: "auto",
+  background: "#fff",
+  borderRadius: 12,
+  boxShadow: "0 24px 80px rgba(15, 23, 42, 0.28)",
+};
+
+const modalHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 16,
+  padding: 18,
+  borderBottom: "1px solid #e2e8f0",
+};
+
+const modalEyebrowStyle = {
+  color: "#64748b",
+  fontSize: 12,
+  fontWeight: 900,
+  letterSpacing: 0,
+  textTransform: "uppercase",
+};
+
+const modalTitleStyle = {
+  margin: "4px 0",
+  color: "#0f172a",
+};
+
+const modalDescriptionStyle = {
+  color: "#475569",
+};
+
+const iconCloseButtonStyle = {
+  width: 36,
+  height: 36,
+  borderRadius: 8,
+  border: "1px solid #cbd5e1",
+  background: "#fff",
+  color: "#111827",
+  cursor: "pointer",
+  fontSize: 24,
+  lineHeight: 1,
+};
+
+const modalBodyStyle = {
+  display: "grid",
+  gap: 14,
+  padding: 18,
+};
+
+const settingsSectionStyle = {
+  display: "grid",
+  gap: 12,
+  padding: 14,
+  border: "1px solid #e2e8f0",
+  borderRadius: 10,
+  background: "#f8fafc",
+};
+
+const settingsTitleStyle = {
+  margin: 0,
+  color: "#0f172a",
+  fontSize: 18,
+};
+
+const modalFooterStyle = {
+  display: "flex",
+  justifyContent: "flex-end",
+  gap: 10,
+  flexWrap: "wrap",
+  padding: 18,
+  borderTop: "1px solid #e2e8f0",
+};
+
+const softNoticeStyle = {
+  padding: 12,
+  borderRadius: 8,
+  border: "1px dashed #cbd5e1",
+  color: "#475569",
+  background: "#fff",
+};
+
+const syncNoticeStyle = (tone) => ({
+  margin: "0 18px 18px",
+  padding: 12,
+  borderRadius: 8,
+  border: `1px solid ${tone === "warn" ? "#fdba74" : "#86efac"}`,
+  background: tone === "warn" ? "#fff7ed" : "#f0fdf4",
+  color: tone === "warn" ? "#9a3412" : "#166534",
+  fontWeight: 800,
+});
 
 const primaryButtonStyle = {
   padding: "10px 14px",

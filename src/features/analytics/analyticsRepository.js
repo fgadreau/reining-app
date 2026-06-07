@@ -255,6 +255,64 @@ function countBy(items, getKey) {
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }
 
+function getEventDate(event) {
+  if (!event.createdAt) return null;
+  const date = new Date(event.createdAt);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDateKey(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function buildDailyActivity(events, dayCount = 14) {
+  const safeDayCount = Math.min(Math.max(Number(dayCount) || 14, 1), 60);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const buckets = [];
+
+  for (let index = safeDayCount - 1; index >= 0; index -= 1) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - index);
+    buckets.push({
+      date: formatDateKey(date),
+      total: 0,
+      pageViews: 0,
+      publicViews: 0,
+      auditEvents: 0,
+    });
+  }
+
+  const bucketMap = new Map(buckets.map((bucket) => [bucket.date, bucket]));
+
+  events.forEach((event) => {
+    const date = getEventDate(event);
+    if (!date) return;
+
+    const key = formatDateKey(date);
+    const bucket = bucketMap.get(key);
+    if (!bucket) return;
+
+    bucket.total += 1;
+
+    if (
+      event.eventType === APP_EVENT_TYPES.ANALYTICS &&
+      event.eventName === "page_view"
+    ) {
+      bucket.pageViews += 1;
+      if (event.metadata?.isPublicPath === true || event.path.startsWith("/public")) {
+        bucket.publicViews += 1;
+      }
+    }
+
+    if (event.eventType === APP_EVENT_TYPES.AUDIT) {
+      bucket.auditEvents += 1;
+    }
+  });
+
+  return buckets;
+}
+
 export function buildAnalyticsSummary(events) {
   const safeEvents = Array.isArray(events) ? events.map(normalizeEvent) : [];
   const pageViews = safeEvents.filter(
@@ -268,20 +326,60 @@ export function buildAnalyticsSummary(events) {
   const uniqueVisitors = new Set(
     pageViews.map((event) => event.sessionId).filter(Boolean)
   );
+  const publicPageViews = pageViews.filter(
+    (event) => event.metadata?.isPublicPath === true || event.path.startsWith("/public")
+  );
+  const scribePageViews = pageViews.filter(
+    (event) =>
+      event.metadata?.pageCategory === "scribe_class" ||
+      event.path.includes("/scribe/")
+  );
+  const managementPageViews = pageViews.filter(
+    (event) =>
+      !publicPageViews.includes(event) &&
+      !scribePageViews.includes(event)
+  );
+  const authenticatedPageViews = pageViews.filter(
+    (event) => event.metadata?.isAuthenticated === true
+  );
+  const publicVisitors = new Set(
+    publicPageViews.map((event) => event.sessionId).filter(Boolean)
+  );
+  const authenticatedVisitors = new Set(
+    authenticatedPageViews.map((event) => event.sessionId).filter(Boolean)
+  );
   const accountEvents = auditEvents.filter((event) =>
     event.eventName.startsWith("auth_")
   );
+  const latestEventDate = safeEvents
+    .map(getEventDate)
+    .filter(Boolean)
+    .sort((a, b) => b.getTime() - a.getTime())[0];
 
   return {
     totalEvents: safeEvents.length,
     pageViewCount: pageViews.length,
-    publicPageViewCount: pageViews.filter(
-      (event) => event.metadata?.isPublicPath === true
-    ).length,
+    publicPageViewCount: publicPageViews.length,
+    managementPageViewCount: managementPageViews.length,
+    scribePageViewCount: scribePageViews.length,
     uniqueVisitorCount: uniqueVisitors.size,
+    publicVisitorCount: publicVisitors.size,
+    authenticatedVisitorCount: authenticatedVisitors.size,
     auditEventCount: auditEvents.length,
     accountEventCount: accountEvents.length,
+    latestEventAt: latestEventDate ? latestEventDate.toISOString() : "",
     topPages: countBy(pageViews, (event) => event.path).slice(0, 8),
     topEvents: countBy(safeEvents, (event) => event.eventName).slice(0, 8),
+    topAssociations: countBy(safeEvents, (event) => event.associationId).slice(0, 8),
+    topShows: countBy(safeEvents, (event) => event.showId).slice(0, 8),
+    topClasses: countBy(safeEvents, (event) => event.classId).slice(0, 8),
+    pageCategories: countBy(
+      pageViews,
+      (event) => event.metadata?.pageCategory || "unknown"
+    ),
+    eventTypes: countBy(safeEvents, (event) => event.eventType),
+    topLocales: countBy(safeEvents, (event) => event.locale).slice(0, 6),
+    topTimezones: countBy(safeEvents, (event) => event.timezone).slice(0, 6),
+    dailyActivity: buildDailyActivity(safeEvents),
   };
 }

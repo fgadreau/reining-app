@@ -10,8 +10,10 @@ import { normalizeClassScheduleDetails } from "../../features/classes/classSched
 import { formatLiveDataFreshness } from "../../features/live/liveFreshness";
 import { savePaidWarmupRepository } from "../../features/paidWarmups/paidWarmupRepository";
 import {
+  PAID_WARMUP_TIMER_CUES,
   formatPaidWarmupTimer,
   getPaidWarmupRemainingSeconds,
+  getPaidWarmupTimerCueType,
   resetPaidWarmupTimer,
   setPaidWarmupEntryStatus,
   startPaidWarmupEntry,
@@ -23,6 +25,86 @@ import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepo
 import { getShowById } from "../../features/shows/showSelectors";
 import { appStyles as styles } from "../../styles/appStyles";
 
+let paidWarmupAudioContext = null;
+
+const PAID_WARMUP_SOUND_SEQUENCES = {
+  [PAID_WARMUP_TIMER_CUES.HALF_TIME]: [
+    { at: 0, frequency: 740, duration: 0.16, gain: 0.14, type: "sine" },
+  ],
+  [PAID_WARMUP_TIMER_CUES.ONE_MINUTE]: [
+    { at: 0, frequency: 880, duration: 0.12, gain: 0.16, type: "square" },
+    { at: 0.2, frequency: 880, duration: 0.12, gain: 0.16, type: "square" },
+  ],
+  [PAID_WARMUP_TIMER_CUES.FINISHED]: [
+    { at: 0, frequency: 1175, duration: 0.18, gain: 0.2, type: "triangle" },
+    { at: 0.24, frequency: 988, duration: 0.18, gain: 0.2, type: "triangle" },
+    { at: 0.48, frequency: 784, duration: 0.28, gain: 0.22, type: "triangle" },
+  ],
+};
+
+function getPaidWarmupAudioContext({ shouldCreate = true } = {}) {
+  if (typeof window === "undefined") return null;
+
+  const AudioContextConstructor =
+    window.AudioContext || window.webkitAudioContext;
+
+  if (!AudioContextConstructor) return null;
+
+  if (!paidWarmupAudioContext && !shouldCreate) {
+    return null;
+  }
+
+  if (!paidWarmupAudioContext) {
+    paidWarmupAudioContext = new AudioContextConstructor();
+  }
+
+  if (paidWarmupAudioContext.state === "suspended") {
+    paidWarmupAudioContext.resume().catch(() => {});
+  }
+
+  return paidWarmupAudioContext;
+}
+
+function primePaidWarmupCueAudio() {
+  return Boolean(getPaidWarmupAudioContext());
+}
+
+function playPaidWarmupCueAudio(cueType) {
+  const audioContext = getPaidWarmupAudioContext({ shouldCreate: false });
+  const sequence = PAID_WARMUP_SOUND_SEQUENCES[cueType];
+
+  if (!audioContext || !sequence) return false;
+
+  const startAt = audioContext.currentTime + 0.02;
+
+  sequence.forEach((note) => {
+    playTone(audioContext, {
+      ...note,
+      startAt: startAt + note.at,
+    });
+  });
+
+  return true;
+}
+
+function playTone(audioContext, note) {
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+  const startAt = note.startAt;
+  const endAt = startAt + note.duration;
+
+  oscillator.type = note.type;
+  oscillator.frequency.setValueAtTime(note.frequency, startAt);
+  gainNode.gain.setValueAtTime(0.0001, startAt);
+  gainNode.gain.exponentialRampToValueAtTime(note.gain, startAt + 0.02);
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, endAt);
+
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+  oscillator.start(startAt);
+  oscillator.stop(endAt + 0.04);
+}
+
 function AnnouncerDashboardPage() {
   const { associationId, showId } = useParams();
   const navigate = useNavigate();
@@ -33,7 +115,9 @@ function AnnouncerDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
   const [rankingClass, setRankingClass] = useState(null);
+  const [isPaidWarmupAudioReady, setIsPaidWarmupAudioReady] = useState(false);
   const autoCompletedPaidWarmupKeyRef = useRef(null);
+  const paidWarmupAudioCueKeysRef = useRef(new Set());
   const liveClassIdsKey = useMemo(
     () => getLiveViewClassIds(liveView).join("|"),
     [liveView]
@@ -66,10 +150,12 @@ function AnnouncerDashboardPage() {
   }, [refreshLiveViewNow]);
 
   const handleStartPaidWarmupEntry = (warmup, entryId) => {
+    setIsPaidWarmupAudioReady(primePaidWarmupCueAudio());
     return savePaidWarmupUpdate(startPaidWarmupEntry(warmup, entryId, new Date()));
   };
 
   const handleResetPaidWarmupTimer = (warmup) => {
+    setIsPaidWarmupAudioReady(primePaidWarmupCueAudio());
     return savePaidWarmupUpdate(resetPaidWarmupTimer(warmup, new Date()));
   };
 
@@ -80,6 +166,39 @@ function AnnouncerDashboardPage() {
   const handleSetPaidWarmupEntryStatus = (warmup, entryId, status) => {
     return savePaidWarmupUpdate(setPaidWarmupEntryStatus(warmup, entryId, status));
   };
+
+  const handleEnablePaidWarmupAudio = () => {
+    setIsPaidWarmupAudioReady(primePaidWarmupCueAudio());
+  };
+
+  useEffect(() => {
+    const warmup = liveView.activePaidWarmup;
+
+    if (!warmup?.activeEntry) {
+      return;
+    }
+
+    const remainingSeconds = getPaidWarmupRemainingSeconds(warmup, now);
+    const cueType = getPaidWarmupTimerCueType(warmup, remainingSeconds);
+
+    if (!cueType) {
+      return;
+    }
+
+    const cueKey = [
+      warmup.id,
+      warmup.activeEntry.id,
+      warmup.activeStartedAt,
+      cueType,
+    ].join(":");
+
+    if (paidWarmupAudioCueKeysRef.current.has(cueKey)) {
+      return;
+    }
+
+    paidWarmupAudioCueKeysRef.current.add(cueKey);
+    setIsPaidWarmupAudioReady(playPaidWarmupCueAudio(cueType));
+  }, [liveView.activePaidWarmup, now]);
 
   useEffect(() => {
     const warmup = liveView.activePaidWarmup;
@@ -193,14 +312,25 @@ function AnnouncerDashboardPage() {
             {show.venue || show.location || t("public.results.venueTbd")}
           </div>
         </div>
-        {access.canManageAssociation && (
-          <Link
-            to={`/associations/${associationId}/shows/${showId}/secretariat`}
-            style={linkButtonStyle}
+        <div style={heroActionRowStyle}>
+          <button
+            type="button"
+            onClick={handleEnablePaidWarmupAudio}
+            style={secondaryButtonStyle}
           >
-            {t("nav.secretariat")}
-          </Link>
-        )}
+            {isPaidWarmupAudioReady
+              ? t("management.announcer.soundAlertsReady")
+              : t("management.announcer.enableSoundAlerts")}
+          </button>
+          {access.canManageAssociation && (
+            <Link
+              to={`/associations/${associationId}/shows/${showId}/secretariat`}
+              style={linkButtonStyle}
+            >
+              {t("nav.secretariat")}
+            </Link>
+          )}
+        </div>
       </section>
 
       {isLoading && (
@@ -691,29 +821,28 @@ function PaidWarmupEntryIdentity({ entry }) {
 function PaidWarmupTimerCue({ warmup, remainingSeconds }) {
   const { t } = useTranslation();
 
-  if (remainingSeconds == null) return null;
-
-  if (remainingSeconds <= 0) {
-    return <div style={timerCueStyle("danger")}>{t("public.results.timeOver")}</div>;
+  switch (getPaidWarmupTimerCueType(warmup, remainingSeconds)) {
+    case PAID_WARMUP_TIMER_CUES.FINISHED:
+      return (
+        <div style={timerCueStyle("danger")}>
+          {t("public.results.timeOver")}
+        </div>
+      );
+    case PAID_WARMUP_TIMER_CUES.ONE_MINUTE:
+      return (
+        <div style={timerCueStyle("danger")}>
+          {t("management.announcer.announceOneMinute")}
+        </div>
+      );
+    case PAID_WARMUP_TIMER_CUES.HALF_TIME:
+      return (
+        <div style={timerCueStyle("warn")}>
+          {t("management.announcer.announceHalfTime")}
+        </div>
+      );
+    default:
+      return null;
   }
-
-  if (remainingSeconds <= 60) {
-    return (
-      <div style={timerCueStyle("danger")}>
-        {t("management.announcer.announceOneMinute")}
-      </div>
-    );
-  }
-
-  if (remainingSeconds <= warmup.durationSeconds / 2) {
-    return (
-      <div style={timerCueStyle("warn")}>
-        {t("management.announcer.announceHalfTime")}
-      </div>
-    );
-  }
-
-  return null;
 }
 
 function ClassLiveCard({
@@ -1299,6 +1428,13 @@ const heroStyle = {
   gap: 16,
   alignItems: "flex-start",
   flexWrap: "wrap",
+};
+
+const heroActionRowStyle = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
 };
 
 const eyebrowStyle = {

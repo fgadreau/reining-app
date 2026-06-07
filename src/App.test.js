@@ -43,6 +43,15 @@ import {
 } from "./features/results/classResults";
 import { buildAnnouncerClassView } from "./features/live/liveViewRepository";
 import {
+  PAID_WARMUP_TIMER_CUES,
+  buildPaidWarmupLiveView,
+  getPaidWarmupTimerCueType,
+} from "./features/paidWarmups/paidWarmupLive";
+import {
+  insertPaidWarmupEntryAfter,
+  movePaidWarmupEntry,
+} from "./features/paidWarmups/paidWarmupStorage";
+import {
   ASSOCIATION_ROLES,
   canAdminAssociation,
   canEditImportedDrawAssociation,
@@ -772,6 +781,276 @@ test("parses imported draw class codes when a code column is present", () => {
   expect(importedDraw.runs).toHaveLength(2);
   expect(importedDraw.runs[0].classCodes).toEqual(["NHO", "NH2", "OPEN"]);
   expect(importedDraw.runs[1].classCodes).toEqual(["NHNP", "NONP"]);
+});
+
+test("parses Funware positioned PDF class codes with spaces and split headers", () => {
+  const importedDraw = parsePositionedPdfPages([
+    [
+      {
+        cells: [
+          { x: 36, text: "Showbill #:" },
+          { x: 92, text: "105" },
+          { x: 128, text: "Class:" },
+          { x: 161, text: "5300" },
+          { x: 205, text: "NRHA - Rookie Level 1 [ROK 1 ]" },
+        ],
+      },
+      {
+        cells: [
+          { x: 112, text: "Held with:" },
+          { x: 161, text: "5301" },
+          { x: 197, text: "NRHA" },
+          { x: 233, text: "Prime Time Rookie [PTR]" },
+        ],
+      },
+      {
+        cells: [
+          { x: 161, text: "5310" },
+          { x: 197, text: "NRHA" },
+          { x: 233, text: "Rookie Level 2 [ROK2]" },
+        ],
+      },
+      {
+        cells: [
+          { x: 161, text: "5395" },
+          { x: 197, text: "AQR" },
+          { x: 233, text: "Aqr Rookie Sliding D [D CLAS]" },
+        ],
+      },
+      {
+        cells: [
+          { x: 161, text: "5399" },
+          { x: 197, text: "AQR" },
+          { x: 233, text: "Debutant I / Beginner I [DEB-I]" },
+        ],
+      },
+      {
+        cells: [
+          { x: 161, text: "5400" },
+          { x: 197, text: "AQR" },
+          { x: 233, text: "Debutant II / Beginner II [DEB-II]" },
+        ],
+      },
+      {
+        cells: [
+          { x: 161, text: "5406" },
+          { x: 197, text: "AQR" },
+          { x: 233, text: "Sr 1st Yr Green [DE1-" },
+        ],
+      },
+      {
+        cells: [{ x: 161, text: "SR]" }],
+      },
+      {
+        cells: [
+          { x: 50, text: "-1" },
+          { x: 141, text: "One Ofa Morning Star" },
+          { x: 317, text: "AMELIE DESCHENES" },
+        ],
+      },
+      {
+        cells: [{ x: 317, text: "DE1-SR" }],
+      },
+      {
+        cells: [
+          { x: 108, text: "2585" },
+          { x: 141, text: "AMELIE DESCHENES" },
+        ],
+      },
+      {
+        cells: [
+          { x: 54, text: "1" },
+          { x: 141, text: "GrDunit" },
+          { x: 317, text: "KAREN MERCIER / Levis" },
+        ],
+      },
+      {
+        cells: [{ x: 317, text: "ROK2,DEB-II,ROK 1 ,D CLAS" }],
+      },
+      {
+        cells: [
+          { x: 108, text: "4030" },
+          { x: 141, text: "ELENA DORE" },
+        ],
+      },
+    ],
+  ]);
+
+  expect(importedDraw.blockClasses).toEqual([
+    {
+      code: "ROK 1",
+      name: "Rookie Level 1",
+      classNumber: "5300",
+      association: "NRHA",
+    },
+    {
+      code: "PTR",
+      name: "Prime Time Rookie",
+      classNumber: "5301",
+      association: "NRHA",
+    },
+    {
+      code: "ROK2",
+      name: "Rookie Level 2",
+      classNumber: "5310",
+      association: "NRHA",
+    },
+    {
+      code: "D CLAS",
+      name: "Aqr Rookie Sliding D",
+      classNumber: "5395",
+      association: "AQR",
+    },
+    {
+      code: "DEB-I",
+      name: "Debutant I / Beginner I",
+      classNumber: "5399",
+      association: "AQR",
+    },
+    {
+      code: "DEB-II",
+      name: "Debutant II / Beginner II",
+      classNumber: "5400",
+      association: "AQR",
+    },
+    {
+      code: "DE1-SR",
+      name: "Sr 1st Yr Green",
+      classNumber: "5406",
+      association: "AQR",
+    },
+  ]);
+  expect(importedDraw.runs).toHaveLength(2);
+  expect(importedDraw.runs[0]).toMatchObject({
+    draw: -1,
+    backNumber: "2585",
+    rider: "AMELIE DESCHENES",
+    classCodes: ["DE1-SR"],
+  });
+  expect(importedDraw.runs[1]).toMatchObject({
+    draw: 1,
+    backNumber: "4030",
+    rider: "ELENA DORE",
+    classCodes: ["ROK2", "DEB-II", "ROK 1", "D CLAS"],
+  });
+});
+
+test("parses Funware split leading-hyphen classes and scratched owners", () => {
+  const importedDraw = parsePositionedPdfPages([
+    [
+      {
+        cells: [
+          { x: 36, text: "Showbill #:" },
+          { x: 92, text: "121" },
+          { x: 128, text: "Class:" },
+          { x: 161, text: "3100" },
+          { x: 205, text: "NRHA - Youth 13 & Under [Y13]" },
+        ],
+      },
+      {
+        cells: [
+          { x: 112, text: "Held with:" },
+          { x: 161, text: "5396" },
+          { x: 197, text: "AQR" },
+          { x: 233, text: "Young Rider 14-21 [JC1421]" },
+        ],
+      },
+      {
+        cells: [
+          { x: 161, text: "5397" },
+          { x: 197, text: "AQR" },
+          { x: 233, text: "Youth Beginner [-" },
+        ],
+      },
+      {
+        cells: [{ x: 161, text: "18AQR]" }],
+      },
+      {
+        cells: [
+          { x: 161, text: "5407" },
+          { x: 197, text: "AQR" },
+          { x: 233, text: "1st Yr Green Youth" },
+        ],
+      },
+      {
+        cells: [{ x: 161, text: "[DE1-J]" }],
+      },
+      {
+        cells: [
+          { x: 54, text: "1" },
+          { x: 141, text: "RM WILD CHIKA PEP" },
+          { x: 317, text: "MARCO GAUDETTE / ST-LIBOIRE, QC" },
+        ],
+      },
+      {
+        cells: [{ x: 317, text: "JC1421,-18AQR" }],
+      },
+      {
+        cells: [
+          { x: 108, text: "4038" },
+          { x: 141, text: "MADISON GAUDETTE" },
+        ],
+      },
+      {
+        cells: [
+          { x: 54, text: "2" },
+          { x: 141, text: "ITS A SMART WHIZ" },
+          { x: 317, text: "MARTIN BRISEBOIS / ST-" },
+        ],
+      },
+      {
+        cells: [
+          { x: 46, text: "Scratched" },
+          { x: 108, text: "2563" },
+          { x: 141, text: "NAOMIE BRISEBOIS" },
+          { x: 317, text: "APOLLINAIRE, QC" },
+        ],
+      },
+      {
+        cells: [{ x: 317, text: "JC1421" }],
+      },
+    ],
+  ]);
+
+  expect(importedDraw.blockClasses).toEqual([
+    {
+      code: "Y13",
+      name: "Youth 13 & Under",
+      classNumber: "3100",
+      association: "NRHA",
+    },
+    {
+      code: "JC1421",
+      name: "Young Rider 14-21",
+      classNumber: "5396",
+      association: "AQR",
+    },
+    {
+      code: "-18AQR",
+      name: "Youth Beginner",
+      classNumber: "5397",
+      association: "AQR",
+    },
+    {
+      code: "DE1-J",
+      name: "1st Yr Green Youth",
+      classNumber: "5407",
+      association: "AQR",
+    },
+  ]);
+  expect(importedDraw.runs[0]).toMatchObject({
+    draw: 1,
+    backNumber: "4038",
+    rider: "MADISON GAUDETTE",
+    classCodes: ["JC1421", "-18AQR"],
+  });
+  expect(importedDraw.runs[1]).toMatchObject({
+    draw: 2,
+    backNumber: "2563",
+    rider: "NAOMIE BRISEBOIS",
+    owner: "MARTIN BRISEBOIS / ST- APOLLINAIRE, QC - Scratched",
+    classCodes: ["JC1421"],
+  });
 });
 
 test("parses REO positioned PDF draws with owners and division codes", () => {
@@ -1855,6 +2134,53 @@ test("public live view exposes a drag break before the next run", () => {
   expect(classView.dragBreak.nextRun.draw).toBe(3);
 });
 
+test("paid warmup live follows edited rider order while running", () => {
+  const entries = [
+    { id: "entry-1", order: 1, rider: "Marie", status: "pending" },
+    { id: "entry-2", order: 2, rider: "Alex", status: "pending" },
+    { id: "entry-3", order: 3, rider: "Félix", status: "pending" },
+  ];
+  const movedEntries = movePaidWarmupEntry(entries, "entry-3", 1);
+  const insertedEntries = insertPaidWarmupEntryAfter(movedEntries, "entry-3", {
+    id: "entry-4",
+    rider: "Late add",
+  });
+  const liveView = buildPaidWarmupLiveView({
+    id: "warmup-1",
+    name: "Paid warm up",
+    activeEntryId: "entry-1",
+    activeStartedAt: "2026-05-25T14:00:00.000Z",
+    entries: insertedEntries,
+  });
+
+  expect(insertedEntries.map((entry) => entry.rider)).toEqual([
+    "Marie",
+    "Félix",
+    "Late add",
+    "Alex",
+  ]);
+  expect(insertedEntries.map((entry) => entry.order)).toEqual([1, 2, 3, 4]);
+  expect(liveView.activeEntry.rider).toBe("Marie");
+  expect(liveView.nextEntry.rider).toBe("Félix");
+});
+
+test("paid warmup timer cues trigger at half time, one minute, and finish", () => {
+  const warmup = {
+    durationSeconds: 300,
+  };
+
+  expect(getPaidWarmupTimerCueType(warmup, 151)).toBeNull();
+  expect(getPaidWarmupTimerCueType(warmup, 150)).toBe(
+    PAID_WARMUP_TIMER_CUES.HALF_TIME
+  );
+  expect(getPaidWarmupTimerCueType(warmup, 60)).toBe(
+    PAID_WARMUP_TIMER_CUES.ONE_MINUTE
+  );
+  expect(getPaidWarmupTimerCueType(warmup, 0)).toBe(
+    PAID_WARMUP_TIMER_CUES.FINISHED
+  );
+});
+
 test("scopes secretary access to attached associations", () => {
   const memberships = [
     {
@@ -1950,6 +2276,7 @@ test("builds analytics route context and summary", () => {
       sessionId: "session-1",
       path: "/public",
       metadata: { isPublicPath: true },
+      createdAt: "2026-06-06T12:00:00.000Z",
     },
     {
       eventType: "analytics",
@@ -1957,18 +2284,42 @@ test("builds analytics route context and summary", () => {
       sessionId: "session-1",
       path: "/associations",
       metadata: { isPublicPath: false },
+      associationId: "association-1",
+      showId: "show-1",
+      createdAt: "2026-06-06T12:05:00.000Z",
+    },
+    {
+      eventType: "analytics",
+      eventName: "page_view",
+      sessionId: "session-2",
+      path: "/associations/association-1/scribe/classes/class-1",
+      metadata: { pageCategory: "scribe_class", isPublicPath: false },
+      associationId: "association-1",
+      classId: "class-1",
+      createdAt: "2026-06-06T12:10:00.000Z",
     },
     {
       eventType: "audit",
       eventName: "auth_signup_attempt",
+      createdAt: "2026-06-06T12:15:00.000Z",
     },
   ]);
 
-  expect(summary.pageViewCount).toBe(2);
+  expect(summary.pageViewCount).toBe(3);
   expect(summary.publicPageViewCount).toBe(1);
-  expect(summary.uniqueVisitorCount).toBe(1);
+  expect(summary.managementPageViewCount).toBe(1);
+  expect(summary.scribePageViewCount).toBe(1);
+  expect(summary.uniqueVisitorCount).toBe(2);
+  expect(summary.publicVisitorCount).toBe(1);
   expect(summary.accountEventCount).toBe(1);
   expect(summary.topPages[0]).toEqual({ label: "/associations", count: 1 });
+  expect(summary.topAssociations[0]).toEqual({
+    label: "association-1",
+    count: 2,
+  });
+  expect(summary.topShows[0]).toEqual({ label: "show-1", count: 1 });
+  expect(summary.topClasses[0]).toEqual({ label: "class-1", count: 1 });
+  expect(summary.latestEventAt).toBe("2026-06-06T12:15:00.000Z");
 });
 
 test("announcer latest score ignores public publication restrictions", () => {
