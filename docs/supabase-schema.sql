@@ -1017,6 +1017,7 @@ returns table (
 declare
   target_invitation public.association_invitations%rowtype;
   target_membership_id uuid;
+  current_user_email text;
 begin
   if auth.uid() is null then
     raise exception 'Authentication required'
@@ -1028,21 +1029,36 @@ begin
       using errcode = '22023';
   end if;
 
+  select coalesce(nullif(btrim(u.email), ''), nullif(btrim(auth.email()), ''))
+  into current_user_email
+  from auth.users u
+  where u.id = auth.uid();
+
+  if current_user_email is null then
+    raise exception 'Authenticated user email is required'
+      using errcode = '28000';
+  end if;
+
   select *
   into target_invitation
   from public.association_invitations i
   where i.token = btrim(target_token)
-    and i.status = 'pending'
-  limit 1;
+  limit 1
+  for update;
 
   if target_invitation.id is null then
-    raise exception 'Invitation introuvable ou deja acceptee. Verifie le lien d''invitation.'
+    raise exception 'Invitation introuvable. Verifie le lien d''invitation.'
       using errcode = '22023';
   end if;
 
-  if lower(target_invitation.email) <> lower(auth.email()) then
+  if lower(target_invitation.email) <> lower(current_user_email) then
     raise exception 'Cette invitation est liee a un autre courriel. Connecte-toi avec le courriel invite.'
       using errcode = '28000';
+  end if;
+
+  if target_invitation.status = 'cancelled' then
+    raise exception 'Cette invitation a ete annulee.'
+      using errcode = '22023';
   end if;
 
   insert into public.association_memberships (
@@ -1099,18 +1115,30 @@ returns table (
 declare
   target_invitation public.association_invitations%rowtype;
   target_membership_id uuid;
+  current_user_email text;
 begin
   if auth.uid() is null then
     raise exception 'Authentication required'
       using errcode = '28000';
   end if;
 
+  select coalesce(nullif(btrim(u.email), ''), nullif(btrim(auth.email()), ''))
+  into current_user_email
+  from auth.users u
+  where u.id = auth.uid();
+
+  if current_user_email is null then
+    raise exception 'Authenticated user email is required'
+      using errcode = '28000';
+  end if;
+
   for target_invitation in
     select *
     from public.association_invitations i
-    where lower(i.email) = lower(auth.email())
+    where lower(i.email) = lower(current_user_email)
       and i.status = 'pending'
     order by i.created_at
+    for update
   loop
     target_membership_id := null;
 

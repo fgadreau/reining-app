@@ -44,6 +44,7 @@ function LoginPage() {
   const [autoAcceptAttempt, setAutoAcceptAttempt] = useState(0);
   const [hasAcceptedLegal, setHasAcceptedLegal] = useState(false);
   const autoRedeemKeyRef = useRef("");
+  const redeemInFlightRef = useRef(null);
   const inviteEmailNormalized = normalizeEmail(inviteEmail);
   const authEmailNormalized = normalizeEmail(auth.user?.email);
   const hasInviteSessionMismatch = Boolean(
@@ -72,21 +73,47 @@ function LoginPage() {
       return null;
     }
 
-    if (inviteToken) {
-      return withTimeout(
-        redeemAssociationInvitationRepository({
-          token: inviteToken,
-          user,
-        }),
-        t("login.invitationAcceptTimeout")
-      );
+    const redeemKey = `${inviteToken || "pending"}:${user.id}`;
+    if (redeemInFlightRef.current?.key === redeemKey) {
+      return redeemInFlightRef.current.promise;
     }
 
-    const redeemed = await withTimeout(
-      redeemPendingAssociationInvitationsRepository(user),
-      t("login.pendingInvitesTimeout")
-    );
-    return redeemed[0] || null;
+    const redeemPromise = (async () => {
+      if (inviteToken) {
+        const redeemedInvitation = await withTimeout(
+          redeemAssociationInvitationRepository({
+            token: inviteToken,
+            user,
+          }),
+          t("login.invitationAcceptTimeout")
+        );
+
+        if (!redeemedInvitation) {
+          throw new Error(t("login.invitationAcceptFailed"));
+        }
+
+        return redeemedInvitation;
+      }
+
+      const redeemed = await withTimeout(
+        redeemPendingAssociationInvitationsRepository(user),
+        t("login.pendingInvitesTimeout")
+      );
+      return redeemed[0] || null;
+    })();
+
+    redeemInFlightRef.current = {
+      key: redeemKey,
+      promise: redeemPromise,
+    };
+
+    try {
+      return await redeemPromise;
+    } finally {
+      if (redeemInFlightRef.current?.key === redeemKey) {
+        redeemInFlightRef.current = null;
+      }
+    }
   }, [inviteToken, t]);
 
   const navigateAfterAuth = useCallback((redeemed) => {
