@@ -452,6 +452,21 @@ returns boolean as $$
   );
 $$ language sql stable security definer set search_path = public;
 
+create or replace function public.current_auth_user_email()
+returns text as $$
+  select coalesce(
+    (
+      select nullif(btrim(u.email), '')
+      from auth.users u
+      where u.id = auth.uid()
+    ),
+    nullif(btrim(auth.email()), '')
+  );
+$$ language sql stable security definer set search_path = public;
+
+grant execute on function public.current_auth_user_email()
+to authenticated;
+
 create or replace function public.current_user_has_pending_invitation(
   target_association_id text,
   target_role text
@@ -461,7 +476,7 @@ returns boolean as $$
     select 1
     from public.association_invitations i
     where i.association_id = target_association_id
-      and lower(i.email) = lower(auth.email())
+      and lower(i.email) = lower(public.current_auth_user_email())
       and i.role = target_role
       and i.status = 'pending'
   );
@@ -988,7 +1003,7 @@ create policy "Invited users can read own pending invitations"
 on public.association_invitations for select to authenticated
 using (
   status = 'pending'
-  and lower(email) = lower(auth.email())
+  and lower(email) = lower(public.current_auth_user_email())
 );
 
 drop policy if exists "Invited users can accept own pending invitations" on public.association_invitations;
@@ -996,10 +1011,10 @@ create policy "Invited users can accept own pending invitations"
 on public.association_invitations for update to authenticated
 using (
   status = 'pending'
-  and lower(email) = lower(auth.email())
+  and lower(email) = lower(public.current_auth_user_email())
 )
 with check (
-  lower(email) = lower(auth.email())
+  lower(email) = lower(public.current_auth_user_email())
   and status in ('pending', 'accepted')
   and (accepted_by is null or accepted_by = auth.uid())
 );
@@ -1029,10 +1044,7 @@ begin
       using errcode = '22023';
   end if;
 
-  select coalesce(nullif(btrim(u.email), ''), nullif(btrim(auth.email()), ''))
-  into current_user_email
-  from auth.users u
-  where u.id = auth.uid();
+  current_user_email := public.current_auth_user_email();
 
   if current_user_email is null then
     raise exception 'Authenticated user email is required'
@@ -1122,10 +1134,7 @@ begin
       using errcode = '28000';
   end if;
 
-  select coalesce(nullif(btrim(u.email), ''), nullif(btrim(auth.email()), ''))
-  into current_user_email
-  from auth.users u
-  where u.id = auth.uid();
+  current_user_email := public.current_auth_user_email();
 
   if current_user_email is null then
     raise exception 'Authenticated user email is required'
