@@ -4,6 +4,7 @@ import {
   getClassesForDay,
 } from "../classes/classRepository";
 import { loadAssociations } from "../associations/associationsData";
+import { normalizeSponsorLogos } from "../associations/sponsorLogos";
 import { getShowsByAssociationId, getShowById } from "../shows/showSelectors";
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import { getDaysByShowRepository } from "../days/dayRepository";
@@ -51,16 +52,6 @@ import {
   getLiveScoreDisplayMode,
   isLivePublicationStatus,
 } from "./publicationRepository";
-
-function normalizeSponsorLogos(value) {
-  return (Array.isArray(value) ? value : [])
-    .map((logo, index) => ({
-      id: String(logo?.id || `sponsor-${index + 1}`),
-      name: String(logo?.name || "").trim(),
-      logoDataUrl: String(logo?.logoDataUrl || logo?.logo_data_url || "").trim(),
-    }))
-    .filter((logo) => logo.logoDataUrl);
-}
 
 function toAssociation(row) {
   return {

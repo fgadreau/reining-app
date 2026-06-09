@@ -15,7 +15,6 @@ import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import { getCloudSyncStatus } from "../../features/cloud/supabaseStatus";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
-import { createId } from "../../utils/createId";
 
 function AssociationSettingsPage() {
   const { associationId } = useParams();
@@ -77,54 +76,6 @@ function AssociationSettingsPage() {
     reader.readAsDataURL(file);
   }
 
-  function handleSponsorLogoFilesChange(event) {
-    const files = Array.from(event.target.files || []);
-
-    if (!files.length) return;
-
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const logoDataUrl = String(reader.result || "");
-
-        if (!logoDataUrl) return;
-
-        setForm((current) => ({
-          ...current,
-          sponsorLogos: [
-            ...current.sponsorLogos,
-            {
-              id: createId("sponsor"),
-              name: file.name.replace(/\.[^.]+$/, ""),
-              logoDataUrl,
-            },
-          ],
-        }));
-      };
-      reader.readAsDataURL(file);
-    });
-
-    event.target.value = "";
-  }
-
-  function updateSponsorLogo(sponsorId, updates) {
-    setForm((current) => ({
-      ...current,
-      sponsorLogos: current.sponsorLogos.map((sponsor) =>
-        sponsor.id === sponsorId ? { ...sponsor, ...updates } : sponsor
-      ),
-    }));
-  }
-
-  function removeSponsorLogo(sponsorId) {
-    setForm((current) => ({
-      ...current,
-      sponsorLogos: current.sponsorLogos.filter(
-        (sponsor) => sponsor.id !== sponsorId
-      ),
-    }));
-  }
-
   async function handleSubmit(event) {
     event.preventDefault();
     if (!association) return;
@@ -134,14 +85,6 @@ function AssociationSettingsPage() {
     const timezone = normalizeAssociationTimezone(form.timezone);
     const logoDataUrl = form.logoDataUrl.trim();
     const websiteUrl = normalizeAssociationWebsiteUrl(form.websiteUrl);
-    const sponsorLogos = form.sponsorLogos
-      .map((sponsor) => ({
-        id: sponsor.id,
-        name: sponsor.name.trim(),
-        logoDataUrl: sponsor.logoDataUrl.trim(),
-      }))
-      .filter((sponsor) => sponsor.logoDataUrl);
-
     if (!name) {
       alert(t("management.associations.nameRequired"));
       return;
@@ -168,7 +111,7 @@ function AssociationSettingsPage() {
         timezone,
         logoDataUrl,
         websiteUrl,
-        sponsorLogos,
+        sponsorLogos: association.sponsorLogos || [],
       });
 
       setAssociation(savedAssociation);
@@ -335,66 +278,6 @@ function AssociationSettingsPage() {
           </div>
         ) : null}
 
-        <section style={sponsorSectionStyle}>
-          <div>
-            <h2 style={sectionTitleStyle}>
-              {t("management.associationSettings.sponsorLogosTitle")}
-            </h2>
-            <div style={helperTextStyle}>
-              {t("management.associationSettings.sponsorLogosHelp")}
-            </div>
-          </div>
-
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleSponsorLogoFilesChange}
-            style={fileInputStyle}
-          />
-
-          {form.sponsorLogos.length ? (
-            <div style={sponsorGridStyle}>
-              {form.sponsorLogos.map((sponsor) => (
-                <div key={sponsor.id} style={sponsorCardStyle}>
-                  <div style={sponsorPreviewStyle}>
-                    <img
-                      src={sponsor.logoDataUrl}
-                      alt={
-                        sponsor.name ||
-                        t("management.associationSettings.sponsorLogo")
-                      }
-                      style={sponsorImageStyle}
-                    />
-                  </div>
-                  <input
-                    value={sponsor.name}
-                    onChange={(event) =>
-                      updateSponsorLogo(sponsor.id, {
-                        name: event.target.value,
-                      })
-                    }
-                    placeholder={t("management.associationSettings.sponsorName")}
-                    style={inputStyle}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeSponsorLogo(sponsor.id)}
-                    disabled={isSaving}
-                    style={secondaryButtonStyle}
-                  >
-                    {t("management.associationSettings.removeSponsorLogo")}
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={softEmptyStyle}>
-              {t("management.associationSettings.noSponsorLogos")}
-            </div>
-          )}
-        </section>
-
         <div style={actionRowStyle}>
           <button type="submit" disabled={isSaving} style={primaryButtonStyle}>
             {isSaving
@@ -420,9 +303,6 @@ function createForm(detectedTimezone, association = null) {
     timezone: association?.timezone || detectedTimezone,
     logoDataUrl: association?.logoDataUrl || "",
     websiteUrl: association?.websiteUrl || "",
-    sponsorLogos: Array.isArray(association?.sponsorLogos)
-      ? association.sponsorLogos
-      : [],
   };
 }
 
@@ -475,11 +355,6 @@ const helperTextStyle = {
   fontWeight: 400,
 };
 
-const sectionTitleStyle = {
-  margin: "0 0 4px",
-  fontSize: 18,
-};
-
 const inputStyle = {
   width: "100%",
   padding: "10px 12px",
@@ -512,53 +387,6 @@ const logoPreviewRowStyle = {
   alignItems: "center",
   gap: 12,
   flexWrap: "wrap",
-};
-
-const sponsorSectionStyle = {
-  marginTop: 16,
-  display: "grid",
-  gap: 12,
-  borderTop: "1px solid #e2e8f0",
-  paddingTop: 16,
-};
-
-const sponsorGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-  gap: 12,
-};
-
-const sponsorCardStyle = {
-  border: "1px solid #e2e8f0",
-  borderRadius: 8,
-  padding: 12,
-  display: "grid",
-  gap: 10,
-};
-
-const sponsorPreviewStyle = {
-  minHeight: 74,
-  border: "1px solid #e2e8f0",
-  borderRadius: 8,
-  background: "#f8fafc",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: 8,
-};
-
-const sponsorImageStyle = {
-  maxWidth: "100%",
-  maxHeight: 60,
-  objectFit: "contain",
-};
-
-const softEmptyStyle = {
-  border: "1px dashed #cbd5e1",
-  borderRadius: 8,
-  padding: 12,
-  color: "#64748b",
-  background: "#f8fafc",
 };
 
 const actionRowStyle = {

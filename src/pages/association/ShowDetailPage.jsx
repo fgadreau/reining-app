@@ -5,6 +5,15 @@ import {
   saveClassItemRepository,
 } from "../../features/classes/classRepository";
 import {
+  getAssociationRepository,
+  saveAssociationRepository,
+} from "../../features/associations/associationRepository";
+import {
+  formatSponsorLogoDetails,
+  normalizeSponsorLogos,
+  optimizeSponsorLogoFile,
+} from "../../features/associations/sponsorLogos";
+import {
   dayHasScheduleItemsRepository,
   deleteDayRepository,
   getDaysByShowRepository,
@@ -41,6 +50,7 @@ function ShowDetailPage() {
   const navigate = useNavigate();
   const { t, language } = useTranslation();
 
+  const [association, setAssociation] = useState(null);
   const [show, setShow] = useState(null);
   const [days, setDays] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,6 +67,8 @@ function ShowDetailPage() {
     isLivestreamPublic: false,
     livestreamUrl: "",
   });
+  const [sponsorLogosDraft, setSponsorLogosDraft] = useState([]);
+  const [isOptimizingSponsors, setIsOptimizingSponsors] = useState(false);
   const [livestreamMessage, setLivestreamMessage] = useState("");
   const [livestreamMessageTone, setLivestreamMessageTone] = useState("synced");
   const [copyDraft, setCopyDraft] = useState({
@@ -76,12 +88,16 @@ function ShowDetailPage() {
 
     async function load() {
       setIsLoading(true);
-      const nextShow = await getShowRepository(showId);
+      const [nextShow, nextAssociation] = await Promise.all([
+        getShowRepository(showId),
+        getAssociationRepository(associationId),
+      ]);
       const nextDays = nextShow
         ? await syncDaysForShowDateRangeRepository(nextShow, { language })
         : await getDaysByShowRepository(showId);
 
       if (!isMounted) return;
+      setAssociation(nextAssociation);
       setShow(nextShow);
       setDays(nextDays);
       setIsLoading(false);
@@ -92,7 +108,7 @@ function ShowDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [language, showId]);
+  }, [associationId, language, showId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -282,6 +298,8 @@ function ShowDetailPage() {
       isLivestreamPublic: Boolean(show?.isLivestreamPublic),
       livestreamUrl: show?.livestreamUrl || "",
     });
+    setSponsorLogosDraft(normalizeSponsorLogos(association?.sponsorLogos));
+    setIsOptimizingSponsors(false);
     setLivestreamMessage("");
     setLivestreamMessageTone("synced");
     setIsLivestreamModalOpen(true);
@@ -291,6 +309,64 @@ function ShowDetailPage() {
     setIsLivestreamModalOpen(false);
     setCopiedOverlayKey("");
     setLivestreamMessage("");
+    setIsOptimizingSponsors(false);
+  };
+
+  const handleSponsorLogoFilesChange = async (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+
+    if (!files.length) return;
+
+    setIsOptimizingSponsors(true);
+    setLivestreamMessage("");
+
+    try {
+      const nextSponsorLogos = await Promise.all(
+        files.map(async (file) => {
+          const optimizedLogo = await optimizeSponsorLogoFile(file);
+
+          return {
+            id: createId("sponsor"),
+            name: file.name.replace(/\.[^.]+$/, ""),
+            logoDataUrl: optimizedLogo.dataUrl,
+            width: optimizedLogo.width,
+            height: optimizedLogo.height,
+            originalBytes: optimizedLogo.originalBytes,
+            optimizedBytes: optimizedLogo.optimizedBytes,
+            mimeType: optimizedLogo.mimeType,
+          };
+        })
+      );
+
+      setSponsorLogosDraft((current) =>
+        normalizeSponsorLogos([...current, ...nextSponsorLogos])
+      );
+    } catch (error) {
+      console.error("Erreur ajout logos commanditaires:", error);
+      setLivestreamMessage(
+        t("management.shows.sponsorLogosOptimizeFailed", {
+          message: error?.message || "",
+        })
+      );
+      setLivestreamMessageTone("warn");
+    } finally {
+      setIsOptimizingSponsors(false);
+    }
+  };
+
+  const updateSponsorLogo = (sponsorId, updates) => {
+    setSponsorLogosDraft((current) =>
+      current.map((sponsor) =>
+        sponsor.id === sponsorId ? { ...sponsor, ...updates } : sponsor
+      )
+    );
+  };
+
+  const removeSponsorLogo = (sponsorId) => {
+    setSponsorLogosDraft((current) =>
+      current.filter((sponsor) => sponsor.id !== sponsorId)
+    );
   };
 
   const saveLivestreamSettings = async () => {
@@ -302,11 +378,24 @@ function ShowDetailPage() {
       livestreamUrl: livestreamDraft.livestreamUrl,
       isLivestreamPublic: Boolean(livestreamDraft.isLivestreamPublic),
     };
+    const sponsorLogos = normalizeSponsorLogos(sponsorLogosDraft);
 
     setIsSaving(true);
     try {
-      const savedShow = await saveShowRepository(nextShow);
+      const [savedShow, savedAssociation] = await Promise.all([
+        saveShowRepository(nextShow),
+        association
+          ? saveAssociationRepository({
+              ...association,
+              sponsorLogos,
+            })
+          : Promise.resolve(null),
+      ]);
       setShow(savedShow);
+      if (savedAssociation) {
+        setAssociation(savedAssociation);
+        setSponsorLogosDraft(normalizeSponsorLogos(savedAssociation.sponsorLogos));
+      }
       setLivestreamMessage(formatLocalFirstSyncNotice(savedShow, t));
       setLivestreamMessageTone(getLocalFirstSyncNoticeTone(savedShow));
     } catch (error) {
@@ -658,6 +747,93 @@ function ShowDetailPage() {
                     {t("management.shows.obsOverlayNoArena")}
                   </div>
                 )}
+
+                <div style={overlaySponsorSectionStyle}>
+                  <div>
+                    <h4 style={overlaySponsorTitleStyle}>
+                      {t("management.shows.overlaySponsorLogosTitle")}
+                    </h4>
+                    <div style={helpTextStyle}>
+                      {t("management.shows.overlaySponsorLogosHelp")}
+                    </div>
+                  </div>
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleSponsorLogoFilesChange}
+                    style={fileInputStyle}
+                    disabled={
+                      !access.canManageAssociation ||
+                      isSaving ||
+                      isOptimizingSponsors
+                    }
+                  />
+
+                  {isOptimizingSponsors ? (
+                    <div style={softNoticeStyle}>
+                      {t("management.shows.sponsorLogosOptimizing")}
+                    </div>
+                  ) : null}
+
+                  {sponsorLogosDraft.length ? (
+                    <div style={sponsorGridStyle}>
+                      {sponsorLogosDraft.map((sponsor) => {
+                        const logoDetails = formatSponsorLogoDetails(sponsor);
+
+                        return (
+                          <div key={sponsor.id} style={sponsorCardStyle}>
+                            <div style={sponsorPreviewStyle}>
+                              <img
+                                src={sponsor.logoDataUrl}
+                                alt={
+                                  sponsor.name ||
+                                  t("management.shows.sponsorLogo")
+                                }
+                                style={sponsorImageStyle}
+                              />
+                            </div>
+                            <input
+                              value={sponsor.name}
+                              onChange={(event) =>
+                                updateSponsorLogo(sponsor.id, {
+                                  name: event.target.value,
+                                })
+                              }
+                              placeholder={t("management.shows.sponsorName")}
+                              style={inputStyle}
+                              disabled={
+                                !access.canManageAssociation ||
+                                isSaving ||
+                                isOptimizingSponsors
+                              }
+                            />
+                            {logoDetails ? (
+                              <div style={sponsorMetaStyle}>{logoDetails}</div>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => removeSponsorLogo(sponsor.id)}
+                              disabled={
+                                !access.canManageAssociation ||
+                                isSaving ||
+                                isOptimizingSponsors
+                              }
+                              style={secondaryButtonStyle}
+                            >
+                              {t("management.shows.removeSponsorLogo")}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={softNoticeStyle}>
+                      {t("management.shows.noSponsorLogos")}
+                    </div>
+                  )}
+                </div>
               </section>
             </div>
 
@@ -681,7 +857,7 @@ function ShowDetailPage() {
                   type="button"
                   onClick={saveLivestreamSettings}
                   style={primaryButtonStyle}
-                  disabled={isSaving}
+                  disabled={isSaving || isOptimizingSponsors}
                 >
                   {isSaving
                     ? t("management.shows.saving")
@@ -1003,6 +1179,66 @@ const arenaOverlayNameStyle = {
   minWidth: 120,
   color: "#111827",
   fontWeight: 800,
+};
+
+const overlaySponsorSectionStyle = {
+  display: "grid",
+  gap: 12,
+  paddingTop: 12,
+  borderTop: "1px solid #e2e8f0",
+};
+
+const overlaySponsorTitleStyle = {
+  margin: 0,
+  color: "#0f172a",
+  fontSize: 15,
+};
+
+const fileInputStyle = {
+  width: "100%",
+  padding: 8,
+  borderRadius: 8,
+  border: "1px dashed #cbd5e1",
+  boxSizing: "border-box",
+  background: "#fff",
+};
+
+const sponsorGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+  gap: 12,
+};
+
+const sponsorCardStyle = {
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  padding: 10,
+  display: "grid",
+  gap: 8,
+  background: "#fff",
+};
+
+const sponsorPreviewStyle = {
+  minHeight: 76,
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  background: "#f8fafc",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 8,
+};
+
+const sponsorImageStyle = {
+  maxWidth: "100%",
+  maxHeight: 62,
+  objectFit: "contain",
+};
+
+const sponsorMetaStyle = {
+  color: "#64748b",
+  fontSize: 12,
+  fontWeight: 700,
 };
 
 const editGridStyle = {

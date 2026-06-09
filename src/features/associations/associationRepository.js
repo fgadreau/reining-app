@@ -3,18 +3,9 @@ import {
   loadAssociations,
   saveAssociations,
 } from "./associationsData";
+import { normalizeSponsorLogos } from "./sponsorLogos";
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
-
-function normalizeSponsorLogos(value) {
-  return (Array.isArray(value) ? value : [])
-    .map((logo, index) => ({
-      id: String(logo?.id || `sponsor-${index + 1}`),
-      name: String(logo?.name || "").trim(),
-      logoDataUrl: String(logo?.logoDataUrl || logo?.logo_data_url || "").trim(),
-    }))
-    .filter((logo) => logo.logoDataUrl);
-}
 
 function toAssociation(row) {
   return {
