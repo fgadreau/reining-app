@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import AssociationLogo from "../../components/AssociationLogo";
-import PublicAppInstallPrompt from "../../components/PublicAppInstallPrompt";
 import SeoMeta from "../../components/SeoMeta";
 import ShareButton from "../../components/ShareButton";
 import { getAssociationWebsiteHref } from "../../features/associations/associationProfile";
@@ -62,7 +61,6 @@ function PublicAssociationsPage() {
         description={seo.description}
         canonicalPath="/public"
       />
-      <PublicAppInstallPrompt />
 
       <section style={heroStyle}>
         <div>

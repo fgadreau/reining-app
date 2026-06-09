@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getAssociationRepository } from "../../features/associations/associationRepository";
+import { ASSOCIATION_ROLES } from "../../features/auth/accessRoles";
+import { getDefaultShowRouteForRoles } from "../../features/auth/showRoleRouting";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import { getCloudSyncStatus } from "../../features/cloud/supabaseStatus";
 import { syncDaysForShowDateRangeRepository } from "../../features/days/dayRepository";
@@ -269,6 +271,12 @@ function AssociationShowPage() {
         <div style={{ display: "grid", gap: 12 }}>
           {shows.map((show) => {
             const isEditing = editingId === show.id;
+            const showEntryPath = getDefaultShowRouteForRoles({
+              associationId,
+              showId: show.id,
+              roles: access.associationRoles,
+            });
+            const showEntryLabel = getShowEntryLabel(access.associationRoles, t);
 
             return (
               <div key={show.id} style={cardStyle}>
@@ -303,10 +311,10 @@ function AssociationShowPage() {
 
                     <div style={actionRowStyle}>
                       <Link
-                        to={`/associations/${associationId}/shows/${show.id}`}
+                        to={showEntryPath}
                         style={linkButtonStyle}
                       >
-                        {t("management.shows.openShow")}
+                        {showEntryLabel}
                       </Link>
 
                       {access.canManageAssociation && (
@@ -475,6 +483,25 @@ function formatStatus(status, t) {
   if (status === "active") return t("management.shows.statusActive");
   if (status === "completed") return t("management.shows.statusCompleted");
   return t("management.shows.statusDraft");
+}
+
+function getShowEntryLabel(roles, t) {
+  const uniqueRoles = Array.from(new Set(Array.isArray(roles) ? roles : []));
+
+  if (uniqueRoles.length !== 1) {
+    return t("management.shows.openShow");
+  }
+
+  switch (uniqueRoles[0]) {
+    case ASSOCIATION_ROLES.SCRIBE:
+      return t("management.shows.openScribeView");
+    case ASSOCIATION_ROLES.ANNOUNCER:
+      return t("management.shows.openAnnouncerView");
+    case ASSOCIATION_ROLES.SECRETARY:
+      return t("management.shows.openSecretariatView");
+    default:
+      return t("management.shows.openShow");
+  }
 }
 
 const headerWrapStyle = {

@@ -291,7 +291,7 @@ export function getPublicShowView(showId) {
     0
   );
   const primaryLiveClass = findPrimaryLiveClass(liveClasses);
-  const activePaidWarmupCount = countActivePaidWarmups(livePaidWarmups);
+  const publicPaidWarmupCount = countPublicLivePaidWarmups(livePaidWarmups);
   const primaryLivePaidWarmup = findPrimaryLivePaidWarmup(livePaidWarmups);
   const timingByClassId = buildLocalPublicTimingByClassId(
     timingSections,
@@ -309,7 +309,7 @@ export function getPublicShowView(showId) {
     liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
     liveClasses: timedLiveClasses,
     livePaidWarmup: primaryLivePaidWarmup,
-    liveClassCount: liveClasses.length + activePaidWarmupCount,
+    liveClassCount: liveClasses.length + publicPaidWarmupCount,
     classIds,
   };
 }
@@ -393,7 +393,7 @@ export async function getPublicShowViewRepository(showId) {
     0
   );
   const primaryLiveClass = findPrimaryLiveClass(liveClasses);
-  const activePaidWarmupCount = countActivePaidWarmups(livePaidWarmups);
+  const publicPaidWarmupCount = countPublicLivePaidWarmups(livePaidWarmups);
   const primaryLivePaidWarmup = findPrimaryLivePaidWarmup(livePaidWarmups);
   const timingByClassId = buildLocalPublicTimingByClassId(
     timingSections,
@@ -411,7 +411,7 @@ export async function getPublicShowViewRepository(showId) {
     liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
     liveClasses: timedLiveClasses,
     livePaidWarmup: primaryLivePaidWarmup,
-    liveClassCount: liveClasses.length + activePaidWarmupCount,
+    liveClassCount: liveClasses.length + publicPaidWarmupCount,
     classIds,
   };
 }
@@ -699,7 +699,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
       0
     );
     const primaryLiveClass = findPrimaryLiveClass(liveClasses);
-    const activePaidWarmupCount = countActivePaidWarmups(livePaidWarmups);
+    const publicPaidWarmupCount = countPublicLivePaidWarmups(livePaidWarmups);
     const primaryLivePaidWarmup = findPrimaryLivePaidWarmup(livePaidWarmups);
     const timedLiveClasses = liveClasses.map((classView) =>
       attachPublicTiming(classView, timingByClassId)
@@ -713,7 +713,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
       liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
       liveClasses: timedLiveClasses,
       livePaidWarmup: primaryLivePaidWarmup,
-      liveClassCount: liveClasses.length + activePaidWarmupCount,
+      liveClassCount: liveClasses.length + publicPaidWarmupCount,
       classIds: allClassIds,
     };
   } catch (error) {
@@ -1348,14 +1348,13 @@ function findPrimaryLivePaidWarmup(livePaidWarmups) {
   return (
     livePaidWarmups.find((warmup) => warmup.activeEntry) ||
     livePaidWarmups.find((warmup) => warmup.isDragDue) ||
+    livePaidWarmups[0] ||
     null
   );
 }
 
-function countActivePaidWarmups(livePaidWarmups) {
-  return livePaidWarmups.filter(
-    (warmup) => warmup.activeEntry || warmup.isDragDue
-  ).length;
+function countPublicLivePaidWarmups(livePaidWarmups) {
+  return Array.isArray(livePaidWarmups) ? livePaidWarmups.length : 0;
 }
 
 function buildPublicClassDragBreak({

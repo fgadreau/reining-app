@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import AssociationLogo from "../../components/AssociationLogo";
-import PublicAppInstallPrompt from "../../components/PublicAppInstallPrompt";
 import SeoMeta from "../../components/SeoMeta";
 import ShareButton from "../../components/ShareButton";
 import {
@@ -197,8 +196,6 @@ function PublicResultsPage() {
           imageUrl={association?.logoDataUrl}
           robots={isPublicRoute ? "index,follow" : "noindex,follow"}
         />
-        {isPublicRoute && <PublicAppInstallPrompt />}
-
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
           {t("public.results.back")}
         </button>
@@ -216,8 +213,6 @@ function PublicResultsPage() {
         imageUrl={association?.logoDataUrl}
         robots={isPublicRoute ? "index,follow" : "noindex,follow"}
       />
-      {isPublicRoute && <PublicAppInstallPrompt />}
-
       <div style={navBackRowStyle}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
           {t("public.results.back")}
@@ -1048,6 +1043,12 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
   const dragRemainingSeconds = isDragDue
     ? getPaidWarmupDragRemainingSeconds(warmup, now)
     : null;
+  const secondNextEntry = warmup.secondNextEntry;
+  const statusLabel = isDragDue
+    ? t("public.results.drag")
+    : warmup.activeEntry
+      ? t("public.results.inProgress")
+      : t("public.results.paidWarmupStatusPending");
 
   return (
     <section style={livePanelStyle}>
@@ -1065,9 +1066,7 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
         </div>
         <div style={badgeStackStyle}>
           <LiveFreshnessBadge updatedAt={warmup.updatedAt} now={now} />
-          <Badge>
-            {isDragDue ? t("public.results.drag") : t("public.results.inProgress")}
-          </Badge>
+          <Badge>{statusLabel}</Badge>
         </div>
       </div>
 
@@ -1095,14 +1094,19 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
           )}
         </div>
 
-        <div style={liveBlockStyle}>
-          <div style={runLabelStyle}>{t("public.results.nextParticipant")}</div>
-          {warmup.nextEntry ? (
-            <PublicPaidWarmupEntry entry={warmup.nextEntry} />
-          ) : (
-            <div style={mutedTextStyle}>—</div>
-          )}
-        </div>
+        <PublicPaidWarmupEntryBlock
+          label={t("public.results.nextParticipant")}
+          entry={warmup.nextEntry}
+          statusLabel={t("public.results.statusPreparation")}
+          status="preparation"
+        />
+
+        <PublicPaidWarmupEntryBlock
+          label={t("public.results.secondNextParticipant")}
+          entry={secondNextEntry}
+          statusLabel={t("public.results.statusWaiting")}
+          status="waiting"
+        />
 
         <div style={liveBlockStyle}>
           <div style={runLabelStyle}>{t("public.results.lastTwoPassed")}</div>
@@ -1118,6 +1122,24 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
         </div>
       </div>
     </section>
+  );
+}
+
+function PublicPaidWarmupEntryBlock({ label, entry, statusLabel, status }) {
+  return (
+    <div style={liveBlockStyle}>
+      <div style={liveBlockHeaderStyle}>
+        <div style={runLabelStyle}>{label}</div>
+        {entry && (
+          <span style={orderStatusBadgeStyle(status)}>{statusLabel}</span>
+        )}
+      </div>
+      {entry ? (
+        <PublicPaidWarmupEntry entry={entry} />
+      ) : (
+        <div style={mutedTextStyle}>—</div>
+      )}
+    </div>
   );
 }
 

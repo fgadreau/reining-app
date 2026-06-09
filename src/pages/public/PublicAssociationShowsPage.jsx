@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import AssociationLogo from "../../components/AssociationLogo";
-import PublicAppInstallPrompt from "../../components/PublicAppInstallPrompt";
 import SeoMeta from "../../components/SeoMeta";
 import ShareButton from "../../components/ShareButton";
 import { getAssociationWebsiteHref } from "../../features/associations/associationProfile";
@@ -72,7 +71,6 @@ function PublicAssociationShowsPage() {
         canonicalPath={`/public/associations/${associationId}`}
         imageUrl={association?.logoDataUrl}
       />
-      <PublicAppInstallPrompt />
 
       <div style={{ marginBottom: 16 }}>
         <Link to="/public" style={secondaryLinkStyle}>

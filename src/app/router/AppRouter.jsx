@@ -1,8 +1,10 @@
-import React from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import React, { useEffect } from "react";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import AppMenu from "../../components/AppMenu";
+import PublicAppInstallPrompt from "../../components/PublicAppInstallPrompt";
 import AnalyticsRouteTracker from "../../features/analytics/AnalyticsRouteTracker";
+import { dispatchAppRouteChanged } from "../../features/pwa/appUpdateSafety";
 import PlatformAnalyticsPage from "../../pages/admin/PlatformAnalyticsPage";
 import AssociationsPage from "../../pages/association/AssociationsPage";
 import AssociationShowPage from "../../pages/association/AssociationShowPage";
@@ -35,7 +37,9 @@ function AppRouter() {
   return (
     <BrowserRouter>
       <AnalyticsRouteTracker />
+      <AppRouteChangeNotifier />
       <AppMenu />
+      <PublicAppInstallPrompt />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/presentation" element={<AppPresentationPage />} />
@@ -118,6 +122,16 @@ function AppRouter() {
       </Routes>
     </BrowserRouter>
   );
+}
+
+function AppRouteChangeNotifier() {
+  const location = useLocation();
+
+  useEffect(() => {
+    dispatchAppRouteChanged(location.pathname);
+  }, [location.pathname]);
+
+  return null;
 }
 
 export default AppRouter;

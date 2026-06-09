@@ -947,7 +947,10 @@ export const translations = {
         obsOverlayNoArena:
           "Aucun manège détecté pour l’instant. Ajoute un manège dans les blocs du show pour créer des liens dédiés.",
         obsOverlayPrompt: "Lien OBS à donner au vidéographe",
+        openAnnouncerView: "Ouvrir le tableau annonceur",
         openShow: "Ouvrir le show",
+        openScribeView: "Ouvrir la vue scribe",
+        openSecretariatView: "Ouvrir le secrétariat",
         obsOverlayArenaTitle: "Overlays OBS par manège",
         obsOverlayTitle: "Overlays OBS",
         openObsOverlay: "Ouvrir overlay OBS",
@@ -1004,12 +1007,12 @@ export const translations = {
     },
     public: {
       appPrompt: {
-        install: "Installer",
+        install: "Ajouter à l’écran d’accueil",
         installText:
-          "Ajoute ShowScore à l’écran d’accueil pour y revenir rapidement pendant le show.",
-        installTitle: "Installer ShowScore",
+          "Ajoute ShowScore comme app sur ton téléphone pour y revenir rapidement pendant le show.",
+        installTitle: "Ajouter ShowScore au cell",
         iosInstallText:
-          "Sur iPhone ou iPad, ajoute ShowScore à l’écran d’accueil depuis le menu de partage.",
+          "Sur iPhone ou iPad, touche Partager, puis Sur l’écran d’accueil. Apple ne permet pas encore de le faire automatiquement avec un bouton.",
         later: "Plus tard",
         reload: "Recharger",
         updateText: "Une nouvelle version de ShowScore est prête.",
@@ -1099,7 +1102,7 @@ export const translations = {
         noScoresNotice:
           "Ce bloc est visible en live. Les scores ne sont pas affichés pour l’instant.",
         noSheets:
-          "Aucun résultat ni feuille de pointage officielle publié pour l’instant. Le live public apparaît ici seulement si un bloc du show est autorisé dans le setup.",
+          "Aucun résultat ni feuille de pointage officielle publié pour l’instant. Le live public apparaît ici si un bloc ou un paid warm up du show est autorisé.",
         officialScoresheet: "Feuille de pointage officielle",
         officialResults: "Résultats officiels",
         onCourse: "En piste",
@@ -2121,7 +2124,10 @@ export const translations = {
         obsOverlayNoArena:
           "No arena detected yet. Add an arena on show blocks to create dedicated overlay links.",
         obsOverlayPrompt: "OBS link to send to the videographer",
+        openAnnouncerView: "Open announcer dashboard",
         openShow: "Open show",
+        openScribeView: "Open scribe view",
+        openSecretariatView: "Open secretariat",
         obsOverlayArenaTitle: "OBS overlays by arena",
         obsOverlayTitle: "OBS overlays",
         openObsOverlay: "Open OBS overlay",
@@ -2178,12 +2184,12 @@ export const translations = {
     },
     public: {
       appPrompt: {
-        install: "Install",
+        install: "Add to home screen",
         installText:
-          "Add ShowScore to your home screen for quick access during the show.",
-        installTitle: "Install ShowScore",
+          "Add ShowScore as an app on your phone for quick access during the show.",
+        installTitle: "Add ShowScore to your phone",
         iosInstallText:
-          "On iPhone or iPad, add ShowScore to the home screen from the share menu.",
+          "On iPhone or iPad, tap Share, then Add to Home Screen. Apple does not yet allow this to happen automatically from a button.",
         later: "Later",
         reload: "Reload",
         updateText: "A new version of ShowScore is ready.",
@@ -2274,7 +2280,7 @@ export const translations = {
         noScoresNotice:
           "This block is visible live. Scores are not displayed for now.",
         noSheets:
-          "No official result or score sheet has been published yet. Public live appears here only if a block in the show is enabled in setup.",
+          "No official result or score sheet has been published yet. Public live appears here when a block or paid warm up in the show is enabled.",
         officialScoresheet: "Official score sheet",
         officialResults: "Official results",
         onCourse: "In the arena",

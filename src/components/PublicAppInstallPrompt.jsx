@@ -1,7 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { useTranslation } from "../features/i18n/I18nProvider";
+import { canReloadForAppUpdate } from "../features/pwa/appUpdateSafety";
 
 const INSTALL_DISMISS_KEY = "showscore.publicInstallPromptDismissed";
+const INSTALL_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
+const PUBLIC_OVERLAY_PATH_PATTERN =
+  /^\/public\/associations\/[^/]+\/shows\/[^/]+\/overlay/;
 
 function getPublicAssetPath(path) {
   const publicUrl = process.env.PUBLIC_URL || "";
@@ -26,7 +31,8 @@ function isIosDevice() {
 
 function getStoredInstallDismissed() {
   try {
-    return window.localStorage.getItem(INSTALL_DISMISS_KEY) === "1";
+    const value = Number(window.localStorage.getItem(INSTALL_DISMISS_KEY));
+    return Number.isFinite(value) && value > Date.now();
   } catch (error) {
     return false;
   }
@@ -34,7 +40,10 @@ function getStoredInstallDismissed() {
 
 function setStoredInstallDismissed() {
   try {
-    window.localStorage.setItem(INSTALL_DISMISS_KEY, "1");
+    window.localStorage.setItem(
+      INSTALL_DISMISS_KEY,
+      String(Date.now() + INSTALL_SNOOZE_MS)
+    );
   } catch (error) {
     // Local storage can be unavailable in private browsing.
   }
@@ -42,12 +51,14 @@ function setStoredInstallDismissed() {
 
 function PublicAppInstallPrompt() {
   const { t } = useTranslation();
+  const location = useLocation();
   const initialManifestSignatureRef = useRef(null);
+  const isReloadingForUpdateRef = useRef(false);
+  const hasDeferredManifestUpdateRef = useRef(false);
   const [installPrompt, setInstallPrompt] = useState(null);
   const [isInstallDismissed, setIsInstallDismissed] = useState(() =>
     getStoredInstallDismissed()
   );
-  const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
   const [canShowIosInstall, setCanShowIosInstall] = useState(false);
 
   useEffect(() => {
@@ -77,6 +88,20 @@ function PublicAppInstallPrompt() {
   useEffect(() => {
     let isMounted = true;
 
+    function reloadForFreshBuild() {
+      if (!isMounted || isReloadingForUpdateRef.current) {
+        return;
+      }
+
+      if (!canReloadForAppUpdate()) {
+        hasDeferredManifestUpdateRef.current = true;
+        return;
+      }
+
+      isReloadingForUpdateRef.current = true;
+      window.location.reload();
+    }
+
     async function checkForFreshBuild() {
       try {
         const response = await fetch(
@@ -100,7 +125,7 @@ function PublicAppInstallPrompt() {
         }
 
         if (signature !== initialManifestSignatureRef.current && isMounted) {
-          setIsUpdateAvailable(true);
+          reloadForFreshBuild();
         }
       } catch (error) {
         // The manifest is only available in production builds.
@@ -113,32 +138,39 @@ function PublicAppInstallPrompt() {
       }
     }
 
-    function handleServiceWorkerUpdate() {
-      setIsUpdateAvailable(true);
-    }
-
     checkForFreshBuild();
     const interval = window.setInterval(checkForFreshBuild, 5 * 60 * 1000);
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("showscore:update-available", handleServiceWorkerUpdate);
 
     return () => {
       isMounted = false;
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener(
-        "showscore:update-available",
-        handleServiceWorkerUpdate
-      );
     };
   }, []);
+
+  useEffect(() => {
+    if (
+      !hasDeferredManifestUpdateRef.current ||
+      isReloadingForUpdateRef.current ||
+      !canReloadForAppUpdate(location.pathname)
+    ) {
+      return;
+    }
+
+    isReloadingForUpdateRef.current = true;
+    window.location.reload();
+  }, [location.pathname]);
 
   const canInstall =
     !isInstallDismissed &&
     !isStandaloneDisplay() &&
     (Boolean(installPrompt) || canShowIosInstall);
 
-  if (!isUpdateAvailable && !canInstall) {
+  if (
+    PUBLIC_OVERLAY_PATH_PATTERN.test(location.pathname) ||
+    !canInstall
+  ) {
     return null;
   }
 
@@ -149,10 +181,13 @@ function PublicAppInstallPrompt() {
 
     try {
       await installPrompt.prompt();
-      await installPrompt.userChoice;
+      const choice = await installPrompt.userChoice;
       setInstallPrompt(null);
-      setIsInstallDismissed(true);
-      setStoredInstallDismissed();
+
+      if (choice?.outcome !== "accepted") {
+        setIsInstallDismissed(true);
+        setStoredInstallDismissed();
+      }
     } catch (error) {
       console.error("Installation ShowScore impossible:", error);
     }
@@ -163,46 +198,28 @@ function PublicAppInstallPrompt() {
     setStoredInstallDismissed();
   }
 
-  function reloadApp() {
-    window.location.reload();
-  }
-
   return (
     <aside style={promptStyle}>
-      {isUpdateAvailable ? (
-        <div style={promptSectionStyle}>
-          <div>
-            <div style={promptTitleStyle}>{t("public.appPrompt.updateTitle")}</div>
-            <div style={promptTextStyle}>{t("public.appPrompt.updateText")}</div>
+      <div style={promptSectionStyle}>
+        <div>
+          <div style={promptTitleStyle}>{t("public.appPrompt.installTitle")}</div>
+          <div style={promptTextStyle}>
+            {installPrompt
+              ? t("public.appPrompt.installText")
+              : t("public.appPrompt.iosInstallText")}
           </div>
-          <button type="button" onClick={reloadApp} style={primaryButtonStyle}>
-            {t("public.appPrompt.reload")}
+        </div>
+        <div style={actionRowStyle}>
+          {installPrompt ? (
+            <button type="button" onClick={handleInstall} style={primaryButtonStyle}>
+              {t("public.appPrompt.install")}
+            </button>
+          ) : null}
+          <button type="button" onClick={dismissInstall} style={secondaryButtonStyle}>
+            {t("public.appPrompt.later")}
           </button>
         </div>
-      ) : null}
-
-      {canInstall ? (
-        <div style={promptSectionStyle}>
-          <div>
-            <div style={promptTitleStyle}>{t("public.appPrompt.installTitle")}</div>
-            <div style={promptTextStyle}>
-              {installPrompt
-                ? t("public.appPrompt.installText")
-                : t("public.appPrompt.iosInstallText")}
-            </div>
-          </div>
-          <div style={actionRowStyle}>
-            {installPrompt ? (
-              <button type="button" onClick={handleInstall} style={primaryButtonStyle}>
-                {t("public.appPrompt.install")}
-              </button>
-            ) : null}
-            <button type="button" onClick={dismissInstall} style={secondaryButtonStyle}>
-              {t("public.appPrompt.later")}
-            </button>
-          </div>
-        </div>
-      ) : null}
+      </div>
     </aside>
   );
 }

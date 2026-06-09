@@ -664,6 +664,7 @@ function PaidWarmupLiveCard({
   const remainingSeconds = getPaidWarmupRemainingSeconds(warmup, now);
   const activeEntry = warmup.activeEntry;
   const nextEntry = warmup.nextEntry;
+  const secondNextEntry = warmup.secondNextEntry;
 
   return (
     <div style={classCardStyle}>
@@ -719,16 +720,21 @@ function PaidWarmupLiveCard({
           )}
         </div>
 
-        <div style={runBlockStyle}>
-          <div style={runLabelStyle}>{t("management.announcer.next")}</div>
-          {nextEntry ? (
-            <PaidWarmupEntryIdentity entry={nextEntry} />
-          ) : (
-            <div style={mutedTextStyle}>
-              {t("management.announcer.noWaitingRider")}
-            </div>
-          )}
-        </div>
+        <PaidWarmupEntryBlock
+          label={t("public.results.nextParticipant")}
+          entry={nextEntry}
+          statusLabel={t("public.results.statusPreparation")}
+          status="preparation"
+          emptyLabel={t("management.announcer.noPreparationRun")}
+        />
+
+        <PaidWarmupEntryBlock
+          label={t("public.results.secondNextParticipant")}
+          entry={secondNextEntry}
+          statusLabel={t("public.results.statusWaiting")}
+          status="waiting"
+          emptyLabel={t("management.announcer.noWaitingRider")}
+        />
 
         <div style={runBlockStyle}>
           <div style={runLabelStyle}>{t("management.announcer.stats")}</div>
@@ -801,6 +807,28 @@ function PaidWarmupLiveCard({
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function PaidWarmupEntryBlock({
+  label,
+  entry,
+  statusLabel,
+  status,
+  emptyLabel,
+}) {
+  return (
+    <div style={runBlockStyle}>
+      <div style={liveBlockHeaderStyle}>
+        <div style={runLabelStyle}>{label}</div>
+        {entry && <Badge tone={getOrderStatusTone(status)}>{statusLabel}</Badge>}
+      </div>
+      {entry ? (
+        <PaidWarmupEntryIdentity entry={entry} />
+      ) : (
+        <div style={mutedTextStyle}>{emptyLabel || "—"}</div>
+      )}
     </div>
   );
 }

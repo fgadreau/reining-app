@@ -20,7 +20,9 @@ export function buildPaidWarmupLiveView(warmup, now = new Date()) {
   const activeIndex = activeEntry
     ? entries.findIndex((entry) => entry.id === activeEntry.id)
     : -1;
-  const nextEntry = findNextPendingEntry(entries, activeIndex);
+  const upcomingEntries = findNextPendingEntries(entries, activeIndex, 2);
+  const nextEntry = upcomingEntries[0] || null;
+  const secondNextEntry = upcomingEntries[1] || null;
   const lastPassedEntries = findLastPassedEntries(entries, activeIndex, 2);
   const durationSeconds = normalized.durationMinutesPerRider * 60;
   const remainingSeconds = activeEntry
@@ -49,6 +51,8 @@ export function buildPaidWarmupLiveView(warmup, now = new Date()) {
     entries,
     activeEntry,
     nextEntry,
+    secondNextEntry,
+    upcomingEntries,
     lastPassedEntries,
     stats: getPaidWarmupStats(entries),
     durationSeconds,
@@ -205,14 +209,16 @@ function calculateRemainingSeconds(startedAt, durationSeconds, now) {
   return Math.round(durationSeconds - (now.getTime() - started) / 1000);
 }
 
-function findNextPendingEntry(entries, activeIndex) {
+function findNextPendingEntries(entries, activeIndex, count) {
   const startIndex = activeIndex >= 0 ? activeIndex + 1 : 0;
+  const orderedEntries = [
+    ...entries.slice(startIndex),
+    ...entries.slice(0, startIndex),
+  ];
 
-  return (
-    entries.slice(startIndex).find((entry) => entry.status === "pending") ||
-    entries.find((entry) => entry.status === "pending") ||
-    null
-  );
+  return orderedEntries
+    .filter((entry) => entry.status === "pending")
+    .slice(0, count);
 }
 
 function findLastPassedEntries(entries, activeIndex, count) {

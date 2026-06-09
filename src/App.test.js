@@ -35,6 +35,7 @@ import {
 import {
   buildPublicClassView,
   buildPublicLiveClassView,
+  getPublicShowView,
   sortPublicResults,
 } from "./features/publication/publicViewRepository";
 import {
@@ -50,7 +51,10 @@ import {
 import {
   insertPaidWarmupEntryAfter,
   movePaidWarmupEntry,
+  savePaidWarmup,
 } from "./features/paidWarmups/paidWarmupStorage";
+import { saveDays } from "./features/days/dayStorage";
+import { saveClasses } from "./features/classes/classStorage";
 import {
   ASSOCIATION_ROLES,
   canAdminAssociation,
@@ -101,6 +105,10 @@ import {
   getJudgeSignatureEntries,
 } from "./features/scoring/multiJudgeOfficialData";
 import { saveActiveManoeuvre } from "./features/scoring/scoringRepository";
+import {
+  canReloadForAppUpdate,
+  isScribeScoringPath,
+} from "./features/pwa/appUpdateSafety";
 
 beforeEach(() => {
   localStorage.clear();
@@ -2162,6 +2170,48 @@ test("paid warmup live follows edited rider order while running", () => {
   expect(insertedEntries.map((entry) => entry.order)).toEqual([1, 2, 3, 4]);
   expect(liveView.activeEntry.rider).toBe("Marie");
   expect(liveView.nextEntry.rider).toBe("Félix");
+  expect(liveView.secondNextEntry.rider).toBe("Late add");
+});
+
+test("public show view exposes a public paid warmup before the timer starts", () => {
+  saveDays([
+    {
+      id: "day-public-warmup",
+      associationId: "association-public-warmup",
+      showId: "show-public-warmup",
+      label: "Friday",
+      date: "2026-06-01",
+      sortOrder: 1,
+    },
+  ]);
+  saveClasses([]);
+  savePaidWarmup({
+    id: "warmup-public",
+    associationId: "association-public-warmup",
+    showId: "show-public-warmup",
+    dayId: "day-public-warmup",
+    name: "Warm up public",
+    isPublicLive: true,
+    entries: [
+      { id: "entry-1", rider: "Marie", status: "pending" },
+      { id: "entry-2", rider: "Alex", status: "pending" },
+    ],
+  });
+
+  const publicView = getPublicShowView("show-public-warmup");
+
+  expect(publicView.liveClassCount).toBe(1);
+  expect(publicView.livePaidWarmup).toMatchObject({
+    id: "warmup-public",
+    name: "Warm up public",
+  });
+  expect(publicView.livePaidWarmup.activeEntry).toBeNull();
+  expect(publicView.livePaidWarmup.nextEntry).toMatchObject({
+    rider: "Marie",
+  });
+  expect(publicView.livePaidWarmup.secondNextEntry).toMatchObject({
+    rider: "Alex",
+  });
 });
 
 test("paid warmup timer cues trigger at half time, one minute, and finish", () => {
@@ -2244,6 +2294,19 @@ test("routes show entry by a single operational role", () => {
       roles: [ASSOCIATION_ROLES.ADMIN],
     })
   ).toBe("/associations/association-1/shows/show-1");
+});
+
+test("defers automatic app reloads on scribe scoring pages", () => {
+  const scribeScoringPath = "/associations/association-1/scribe/classes/class-1";
+
+  expect(isScribeScoringPath(scribeScoringPath)).toBe(true);
+  expect(canReloadForAppUpdate(scribeScoringPath)).toBe(false);
+  expect(
+    canReloadForAppUpdate("/associations/association-1/shows/show-1/scribe")
+  ).toBe(true);
+  expect(
+    canReloadForAppUpdate("/associations/association-1/shows/show-1/announcer")
+  ).toBe(true);
 });
 
 test("builds analytics route context and summary", () => {
