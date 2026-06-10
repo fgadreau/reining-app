@@ -1299,14 +1299,46 @@ function PublicNextScheduleItem({ item }) {
   ]
     .filter(Boolean)
     .join(" · ");
+  const startLabel = formatNextScheduleStart(item, t);
 
   return (
     <div style={nextScheduleItemStyle}>
       <span style={runLabelStyle}>{t("public.results.nextScheduleItem")}</span>
       <span style={nextScheduleNameStyle}>{item.name || "—"}</span>
+      {startLabel && <span style={nextScheduleTimeStyle}>{startLabel}</span>}
       {meta && <span style={mutedTextStyle}>{meta}</span>}
     </div>
   );
+}
+
+function formatNextScheduleStart(item, t) {
+  if (!item?.startAt) {
+    return item?.dayDate
+      ? t("public.results.nextScheduleUnknownStartOnDate", {
+          date: formatPublicDate(item.dayDate),
+        })
+      : t("public.results.nextScheduleUnknownStart");
+  }
+
+  const date = formatPublicDate(item.startAt);
+  const time = formatClockTime(item.startAt);
+
+  return item.startKind === "fixed"
+    ? t("public.results.nextScheduleFixedStart", { date, time })
+    : t("public.results.nextScheduleEstimatedStart", { date, time });
+}
+
+function formatPublicDate(value) {
+  const normalizedValue = /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))
+    ? `${value}T00:00:00`
+    : value;
+  const date = new Date(normalizedValue);
+
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return new Intl.DateTimeFormat("fr-CA", {
+    dateStyle: "medium",
+  }).format(date);
 }
 
 function PublicPaidWarmupEntryBlock({ label, entry, statusLabel, status }) {
@@ -2213,6 +2245,11 @@ const nextScheduleItemStyle = {
 const nextScheduleNameStyle = {
   color: publicColors.text,
   fontWeight: 900,
+};
+
+const nextScheduleTimeStyle = {
+  color: publicColors.green,
+  fontWeight: 850,
 };
 
 const paidWarmupCueStyle = (tone) => ({

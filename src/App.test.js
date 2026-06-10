@@ -2369,6 +2369,8 @@ test("public live shows a pending paid warmup scheduled before a live class", ()
       dayId: "day-public-warmup-before-class",
       name: "First class",
       arena: "Main",
+      scheduleStartMode: CLASS_START_MODE_FIXED,
+      scheduleStartTime: "10:30",
       sortOrder: 2,
     },
   ]);
@@ -2396,7 +2398,9 @@ test("public live shows a pending paid warmup scheduled before a live class", ()
     itemId: "public-warmup-live-class",
     name: "First class",
     arena: "Main",
+    startKind: "fixed",
   });
+  expect(publicView.livePaidWarmup.nextScheduleItem.startAt).toBeTruthy();
 });
 
 test("completed live skips the next class when its planned live is hidden", async () => {

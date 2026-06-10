@@ -24,6 +24,7 @@ import {
   getClassPatternValue,
 } from "../classes/classTimeAnalytics";
 import {
+  buildShowScheduleSections,
   buildShowSchedulePreviewSections,
   countScheduleItems,
 } from "../schedule/showSchedule";
@@ -1410,6 +1411,7 @@ function buildResolvedPublicLiveState({
   timingByClassId,
 }) {
   const scheduleItems = buildPublicLiveScheduleItems(timingSections);
+  const scheduleRowsByItemKey = buildScheduleRowsByItemKey(timingSections);
   const paidWarmupViewsById = buildPaidWarmupViewsById({
     timingSections,
     scheduleItems,
@@ -1435,6 +1437,7 @@ function buildResolvedPublicLiveState({
         attachNextScheduleItem({
           view: explicitWarmup,
           scheduleItems,
+          scheduleRowsByItemKey,
           type: LIVE_SCHEDULE_ITEM_TYPES.PAID_WARMUP,
           itemId: explicitWarmup.id,
         })
@@ -1462,6 +1465,7 @@ function buildResolvedPublicLiveState({
         attachNextScheduleItem({
           view: pendingWarmupView,
           scheduleItems,
+          scheduleRowsByItemKey,
           type: LIVE_SCHEDULE_ITEM_TYPES.PAID_WARMUP,
           itemId: pendingWarmupView.id,
         })
@@ -1473,6 +1477,7 @@ function buildResolvedPublicLiveState({
       attachNextScheduleItem({
         view: attachPublicTiming(explicitClass, timingByClassId),
         scheduleItems,
+        scheduleRowsByItemKey,
         type: LIVE_SCHEDULE_ITEM_TYPES.CLASS,
         itemId: explicitClass.classId,
       })
@@ -1498,6 +1503,20 @@ function buildPublicLiveScheduleItems(timingSections) {
   );
 
   return buildLiveScheduleItems({ classes, paidWarmups, days });
+}
+
+function buildScheduleRowsByItemKey(timingSections) {
+  const sections = buildShowScheduleSections({ daySections: timingSections });
+  const rows = sections.flatMap((section) => section.rows || []);
+
+  return new Map(
+    rows
+      .filter((row) => Boolean(row?.itemId || row?.classId))
+      .map((row) => [
+        getScheduleItemKey(row.itemType, row.itemId || row.classId),
+        row,
+      ])
+  );
 }
 
 function buildPaidWarmupViewsById({ timingSections, scheduleItems }) {
@@ -1534,10 +1553,19 @@ function attachScheduleArenaToWarmup(warmup, scheduleItems) {
   };
 }
 
-function attachNextScheduleItem({ view, scheduleItems, type, itemId }) {
+function attachNextScheduleItem({
+  view,
+  scheduleItems,
+  scheduleRowsByItemKey,
+  type,
+  itemId,
+}) {
   if (!view) return null;
 
   const scheduleItem = findScheduleItem(scheduleItems, type, itemId);
+  const scheduleRow = scheduleRowsByItemKey?.get(
+    getScheduleItemKey(type, itemId)
+  );
   const nextScheduleItem = scheduleItem
     ? findNextScheduleItemInArena(
         scheduleItems,
@@ -1549,8 +1577,49 @@ function attachNextScheduleItem({ view, scheduleItems, type, itemId }) {
   return {
     ...view,
     arena: view.arena || scheduleItem?.effectiveArena || "",
-    nextScheduleItem: toPublicScheduleItem(nextScheduleItem),
+    nextScheduleItem: buildPublicNextScheduleItem({
+      scheduleItem: nextScheduleItem,
+      scheduleRow: nextScheduleItem
+        ? scheduleRowsByItemKey?.get(
+            getScheduleItemKey(nextScheduleItem.type, nextScheduleItem.itemId)
+          )
+        : null,
+      currentScheduleRow: scheduleRow,
+    }),
   };
+}
+
+function buildPublicNextScheduleItem({
+  scheduleItem,
+  scheduleRow,
+  currentScheduleRow,
+}) {
+  const publicItem = toPublicScheduleItem(scheduleItem);
+
+  if (!publicItem) return null;
+
+  const hasFixedStart = Boolean(
+    scheduleRow?.scheduleStartMode === "fixed" && scheduleRow?.plannedStartAt
+  );
+  const estimatedStartAt =
+    scheduleRow?.estimatedStartAt || currentScheduleRow?.estimatedEndAt || null;
+  const startAt = hasFixedStart
+    ? scheduleRow.plannedStartAt
+    : estimatedStartAt;
+
+  return {
+    ...publicItem,
+    dayDate: scheduleRow?.dayDate || "",
+    dayLabel: scheduleRow?.dayLabel || "",
+    startAt: startAt || null,
+    startKind: hasFixedStart ? "fixed" : startAt ? "estimated" : "unknown",
+    plannedStartAt: scheduleRow?.plannedStartAt || null,
+    estimatedStartAt: estimatedStartAt || null,
+  };
+}
+
+function getScheduleItemKey(type, itemId) {
+  return `${type || LIVE_SCHEDULE_ITEM_TYPES.CLASS}:${itemId || ""}`;
 }
 
 function findPrimaryLiveClassesByArena(liveClasses) {
