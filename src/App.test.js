@@ -67,7 +67,10 @@ import {
   normalizePaidWarmup,
   savePaidWarmup,
 } from "./features/paidWarmups/paidWarmupStorage";
-import { mergePaidWarmupsForDay } from "./features/paidWarmups/paidWarmupRepository";
+import {
+  buildPaidWarmupMergeResult,
+  mergePaidWarmupsForDay,
+} from "./features/paidWarmups/paidWarmupRepository";
 import {
   SHOW_SCHEDULE_ITEM_TYPES,
   buildShowSchedulePreviewSections,
@@ -2826,6 +2829,45 @@ test("paid warmup day sync keeps local warmups missing from remote rows", () => 
   expect(merged.find((warmup) => warmup.id === "remote-warmup").name).toBe(
     "Remote warm up"
   );
+});
+
+test("paid warmup merge flags newer local fixed starts for cloud resync", () => {
+  const mergeResult = buildPaidWarmupMergeResult(
+    {
+      id: "warmup-stale-cloud",
+      association_id: "association-1",
+      show_id: "show-1",
+      day_id: "day-1",
+      name: "Warm-up vendredi",
+      duration_minutes_per_rider: 7,
+      drag_duration_minutes: 8,
+      entries: [],
+      sort_order: 1,
+      schedule_start_mode: CLASS_START_MODE_AFTER_PREVIOUS,
+      schedule_start_time: null,
+      updated_at: "2026-06-10T12:00:00.000Z",
+    },
+    {
+      id: "warmup-stale-cloud",
+      associationId: "association-1",
+      showId: "show-1",
+      dayId: "day-1",
+      name: "Warm-up vendredi",
+      durationMinutesPerRider: 7,
+      dragDurationMinutes: 8,
+      entries: [],
+      sortOrder: 1,
+      scheduleStartMode: CLASS_START_MODE_FIXED,
+      scheduleStartTime: "07:00",
+      updatedAt: "2026-06-10T12:05:00.000Z",
+    }
+  );
+
+  expect(mergeResult.shouldSyncLocal).toBe(true);
+  expect(mergeResult.warmup).toMatchObject({
+    scheduleStartMode: CLASS_START_MODE_FIXED,
+    scheduleStartTime: "07:00",
+  });
 });
 
 test("paid warmup timer cues trigger at half time, one minute, and finish", () => {

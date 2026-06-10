@@ -85,17 +85,23 @@ function shouldKeepLocalWarmup(localWarmup, remoteWarmup) {
   );
 }
 
-function mergePaidWarmupRow(row, localWarmup = null) {
+export function buildPaidWarmupMergeResult(row, localWarmup = null) {
   const remoteWarmup = toPaidWarmup(row, localWarmup);
 
   if (shouldKeepLocalWarmup(localWarmup, remoteWarmup)) {
-    return normalizePaidWarmup({
-      ...remoteWarmup,
-      ...localWarmup,
-    });
+    return {
+      warmup: normalizePaidWarmup({
+        ...remoteWarmup,
+        ...localWarmup,
+      }),
+      shouldSyncLocal: true,
+    };
   }
 
-  return remoteWarmup;
+  return {
+    warmup: remoteWarmup,
+    shouldSyncLocal: false,
+  };
 }
 
 function cachePaidWarmupSnapshot(warmup) {
@@ -188,14 +194,28 @@ export async function getPaidWarmupsForDayRepository(dayId) {
 
     const localWarmups = getPaidWarmupsByDayId(dayId);
     const localWarmupsById = new Map(localWarmups.map((item) => [item.id, item]));
-    const remoteWarmups = Array.isArray(data)
-      ? data.map((row) => mergePaidWarmupRow(row, localWarmupsById.get(row.id)))
+    const remoteIds = new Set(
+      (Array.isArray(data) ? data : []).map((row) => row.id).filter(Boolean)
+    );
+    const remoteMergeResults = Array.isArray(data)
+      ? data.map((row) =>
+          buildPaidWarmupMergeResult(row, localWarmupsById.get(row.id))
+        )
       : [];
+    const remoteWarmups = remoteMergeResults.map((result) => result.warmup);
     const warmups = mergePaidWarmupsForDay(localWarmups, remoteWarmups);
     const otherLocalWarmups = loadPaidWarmups().filter(
       (item) => item.dayId !== dayId
     );
     savePaidWarmups([...otherLocalWarmups, ...warmups]);
+    await syncNewerLocalPaidWarmups(
+      [
+        ...remoteMergeResults
+          .filter((result) => result.shouldSyncLocal)
+          .map((result) => result.warmup),
+        ...localWarmups.filter((warmup) => warmup.id && !remoteIds.has(warmup.id)),
+      ]
+    );
 
     return warmups;
   } catch (error) {
@@ -219,14 +239,37 @@ export async function getPaidWarmupRepository(id) {
       .maybeSingle();
 
     if (error) throw error;
-    if (!data) return getPaidWarmupById(id);
+    if (!data) {
+      const localWarmup = getPaidWarmupById(id);
+      return localWarmup ? await savePaidWarmupRepository(localWarmup) : localWarmup;
+    }
 
-    const warmup = mergePaidWarmupRow(data, getPaidWarmupById(id));
+    const mergeResult = buildPaidWarmupMergeResult(data, getPaidWarmupById(id));
+    const warmup = mergeResult.shouldSyncLocal
+      ? await syncNewerLocalPaidWarmup(mergeResult.warmup)
+      : mergeResult.warmup;
     cachePaidWarmupSnapshot(warmup);
     return warmup;
   } catch (error) {
     console.error("Erreur chargement paid warmup Supabase:", error);
     return getPaidWarmupById(id);
+  }
+}
+
+async function syncNewerLocalPaidWarmups(warmups) {
+  const sourceWarmups = Array.isArray(warmups) ? warmups : [];
+  await Promise.all(sourceWarmups.map((warmup) => syncNewerLocalPaidWarmup(warmup)));
+}
+
+async function syncNewerLocalPaidWarmup(warmup) {
+  try {
+    return await savePaidWarmupRepository(warmup);
+  } catch (error) {
+    console.error("Erreur resynchronisation paid warmup local:", error);
+    return withLocalFirstSyncState(warmup, {
+      status: LOCAL_FIRST_SYNC_STATUSES.ERROR,
+      error,
+    });
   }
 }
 
