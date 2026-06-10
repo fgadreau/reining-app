@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "../cloud/supabaseClient";
+import { publishClassRepository } from "../publication/publicationCloudRepository";
 import { getClassRecord, saveClassRecord } from "./classRecordStorage";
 
 function toOfficialResult(row) {
@@ -169,6 +170,8 @@ export async function saveOfficialResultRepository(classId, updates) {
 export async function validateOfficialResultRepository({
   classData,
   validatedAt = new Date().toISOString(),
+  publishScoresheet = true,
+  publishedBy = "secretariat",
 }) {
   const classId = classData?.classItem?.id;
   const official = classData?.official || {};
@@ -188,7 +191,7 @@ export async function validateOfficialResultRepository({
     throw new Error("Le bloc doit être signé par le juge avant validation.");
   }
 
-  return saveOfficialResultRepository(classId, {
+  const officialResult = await saveOfficialResultRepository(classId, {
     judgeName: official.judgeName,
     judgeSignature: official.judgeSignature,
     finalized: true,
@@ -205,4 +208,10 @@ export async function validateOfficialResultRepository({
       ? classData.scoringRuns
       : [],
   });
+
+  if (publishScoresheet) {
+    await publishClassRepository(classId, publishedBy);
+  }
+
+  return officialResult;
 }

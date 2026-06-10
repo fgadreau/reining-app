@@ -42,6 +42,11 @@ import {
   buildClassResultGroups,
   normalizeResultGroups,
 } from "./features/results/classResults";
+import {
+  getClassResultPublication,
+  RESULT_PUBLICATION_STATUSES,
+} from "./features/results/resultPublicationRepository";
+import { validateOfficialResultRepository } from "./features/classes/officialResultRepository";
 import { buildAnnouncerClassView } from "./features/live/liveViewRepository";
 import {
   PAID_WARMUP_TIMER_CUES,
@@ -1577,6 +1582,53 @@ test("keeps public results hidden until secretariat validation", () => {
       note: "Penalty explained to participant.",
     },
   ]);
+});
+
+test("secretariat validation publishes the public scoresheet without publishing class results", async () => {
+  const classData = {
+    classItem: {
+      id: "class-auto-publication",
+      name: "Open",
+      pattern: "R1",
+    },
+    setup: {
+      pattern: "R1",
+    },
+    official: {
+      isFinalized: true,
+      judgeName: "Judge A",
+      judgeSignature: "data:image/png;base64,signature",
+      finalizedAt: "2026-06-09T12:00:00.000Z",
+      judgeSignedAt: "2026-06-09T12:00:00.000Z",
+    },
+    scoringRuns: [
+      {
+        id: "run-1",
+        draw: 1,
+        backNumber: "101",
+        rider: "Felix Gadreau",
+        horse: "Smart Spook",
+        scores: ["0"],
+        penalties: [""],
+        scoreTotal: "70",
+        penTotal: "0",
+      },
+    ],
+  };
+
+  const officialResult = await validateOfficialResultRepository({
+    classData,
+    validatedAt: "2026-06-09T13:00:00.000Z",
+  });
+  const scoresheetPublication = getPublicationState("class-auto-publication");
+  const resultPublication = getClassResultPublication("class-auto-publication");
+
+  expect(officialResult.secretariatValidatedAt).toBe(
+    "2026-06-09T13:00:00.000Z"
+  );
+  expect(scoresheetPublication.status).toBe(PUBLICATION_STATUSES.PUBLISHED);
+  expect(scoresheetPublication.publishedBy).toBe("secretariat");
+  expect(resultPublication.status).toBe(RESULT_PUBLICATION_STATUSES.HIDDEN);
 });
 
 test("public live view exposes active, next, and last passed runs", () => {
