@@ -27,6 +27,13 @@ export const LIVE_PUBLICATION_STATUSES = [
   PUBLICATION_STATUSES.LIVE_FINISHED,
 ];
 
+export const PLANNED_LIVE_PUBLICATION_STATUSES = [
+  PUBLICATION_STATUSES.HIDDEN,
+  PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  PUBLICATION_STATUSES.LIVE_SCORING,
+  PUBLICATION_STATUSES.LIVE,
+];
+
 export const SCORE_VISIBLE_PUBLICATION_STATUSES = [
   PUBLICATION_STATUSES.LIVE,
   PUBLICATION_STATUSES.LIVE_SCORING,
@@ -43,6 +50,36 @@ export const LIVE_SCORE_DISPLAY_MODES = {
 
 export function isLivePublicationStatus(status) {
   return LIVE_PUBLICATION_STATUSES.includes(status);
+}
+
+export function normalizePlannedLiveStatus(
+  status,
+  fallback = PUBLICATION_STATUSES.HIDDEN
+) {
+  const normalizedStatus =
+    status === PUBLICATION_STATUSES.LIVE_FINISHED
+      ? PUBLICATION_STATUSES.LIVE_SCORING
+      : status;
+
+  return PLANNED_LIVE_PUBLICATION_STATUSES.includes(normalizedStatus)
+    ? normalizedStatus
+    : fallback;
+}
+
+export function getPlannedLiveStatus(
+  publication,
+  fallback = PUBLICATION_STATUSES.LIVE_SCORING
+) {
+  const plannedStatus = normalizePlannedLiveStatus(
+    publication?.plannedLiveStatus,
+    null
+  );
+
+  if (plannedStatus) return plannedStatus;
+
+  return isLivePublicationStatus(publication?.status)
+    ? normalizePlannedLiveStatus(publication.status, fallback)
+    : fallback;
 }
 
 export function canPublicationStatusShowScores(status) {
@@ -120,15 +157,24 @@ export function getDefaultPublicationState(classId) {
     publishedAt: null,
     publishedBy: null,
     publicUrl: null,
+    plannedLiveStatus: PUBLICATION_STATUSES.LIVE_SCORING,
     visibleFields: DEFAULT_VISIBLE_FIELDS,
   };
 }
 
 export function getPublicationState(classId) {
   const all = loadAllPublicationStates();
+  const storedState = all[classId] || {};
+  const defaultState = getDefaultPublicationState(classId);
+
   return {
-    ...getDefaultPublicationState(classId),
-    ...(all[classId] || {}),
+    ...defaultState,
+    ...storedState,
+    plannedLiveStatus: storedState.plannedLiveStatus
+      ? normalizePlannedLiveStatus(storedState.plannedLiveStatus)
+      : isLivePublicationStatus(storedState.status)
+        ? normalizePlannedLiveStatus(storedState.status)
+        : defaultState.plannedLiveStatus,
   };
 }
 
@@ -140,6 +186,10 @@ export function savePublicationState(classId, updates) {
     ...current,
     ...updates,
     classId,
+    plannedLiveStatus: normalizePlannedLiveStatus(
+      updates?.plannedLiveStatus,
+      current.plannedLiveStatus
+    ),
     visibleFields: Array.isArray(updates?.visibleFields)
       ? updates.visibleFields
       : current.visibleFields,

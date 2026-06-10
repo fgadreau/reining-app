@@ -6,6 +6,9 @@
 alter table public.classes
 add column if not exists arena text;
 
+alter table public.publication_states
+add column if not exists planned_live_status text not null default 'live_scoring';
+
 create or replace function public.class_is_publicly_visible(
   target_class_id text
 )

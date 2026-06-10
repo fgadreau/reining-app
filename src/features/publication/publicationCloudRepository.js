@@ -7,6 +7,7 @@ import {
   loadPaidWarmups,
   savePaidWarmup,
 } from "../paidWarmups/paidWarmupStorage";
+import { isNoPatternValue } from "../patterns/patternDefinitions";
 import {
   LIVE_SCHEDULE_ITEM_TYPES,
   buildLiveScheduleItems,
@@ -19,9 +20,11 @@ import {
   deletePublicationState,
   getDefaultPublicationState,
   getPublicationState,
+  getPlannedLiveStatus,
   isLivePublicationStatus,
   LIVE_PUBLICATION_STATUSES,
   loadAllPublicationStates,
+  normalizePlannedLiveStatus,
   PUBLICATION_STATUSES,
   saveAllPublicationStates,
   savePublicationState,
@@ -34,6 +37,12 @@ function toPublicationState(row) {
     publishedAt: row.published_at || null,
     publishedBy: row.published_by || null,
     publicUrl: row.public_url || null,
+    plannedLiveStatus: normalizePlannedLiveStatus(
+      row.planned_live_status,
+      isLivePublicationStatus(row.status)
+        ? normalizePlannedLiveStatus(row.status)
+        : getDefaultPublicationState(row.class_id).plannedLiveStatus
+    ),
     visibleFields: Array.isArray(row.visible_fields)
       ? row.visible_fields
       : getDefaultPublicationState(row.class_id).visibleFields,
@@ -53,8 +62,13 @@ function toPublicationRow(classId, publication) {
     published_at: state.publishedAt || null,
     published_by: state.publishedBy || null,
     public_url: state.publicUrl || null,
+    planned_live_status: normalizePlannedLiveStatus(state.plannedLiveStatus),
     visible_fields: state.visibleFields,
   };
+}
+
+function isPlannedLiveStatusColumnMissingError(error) {
+  return String(error?.message || "").includes("planned_live_status");
 }
 
 export async function getPublicationStateRepository(classId) {
@@ -75,7 +89,14 @@ export async function getPublicationStateRepository(classId) {
     if (error) throw error;
     if (!data) return localState;
 
-    const state = toPublicationState(data);
+    const remoteState = toPublicationState(data);
+    const state = {
+      ...remoteState,
+      plannedLiveStatus:
+        Object.prototype.hasOwnProperty.call(data, "planned_live_status")
+          ? remoteState.plannedLiveStatus
+          : localState.plannedLiveStatus,
+    };
     savePublicationState(classId, state);
     return state;
   } catch (error) {
@@ -112,7 +133,17 @@ export async function getPublicationStatesForClassesRepository(classIds) {
     });
 
     (data || []).forEach((row) => {
-      const state = toPublicationState(row);
+      const remoteState = toPublicationState(row);
+      const state = {
+        ...remoteState,
+        plannedLiveStatus: Object.prototype.hasOwnProperty.call(
+          row,
+          "planned_live_status"
+        )
+          ? remoteState.plannedLiveStatus
+          : result[remoteState.classId]?.plannedLiveStatus ||
+            getDefaultPublicationState(remoteState.classId).plannedLiveStatus,
+      };
       nextStates[state.classId] = state;
       result[state.classId] = state;
     });
@@ -141,7 +172,22 @@ export async function savePublicationStateRepository(classId, updates) {
 
       if (error) throw error;
     } catch (error) {
-      console.error("Erreur sauvegarde publication Supabase:", error);
+      if (isPlannedLiveStatusColumnMissingError(error)) {
+        try {
+          const legacyRow = toPublicationRow(classId, nextState);
+          delete legacyRow.planned_live_status;
+
+          const { error: legacyError } = await supabase
+            .from("publication_states")
+            .upsert(legacyRow);
+
+          if (legacyError) throw legacyError;
+        } catch (legacyError) {
+          console.error("Erreur sauvegarde publication Supabase:", legacyError);
+        }
+      } else {
+        console.error("Erreur sauvegarde publication Supabase:", error);
+      }
     }
   }
 
@@ -505,8 +551,16 @@ export async function saveArenaCurrentLiveClassRepository({
     classId,
   });
 
+  const classLiveStatus = await getClassActivationStatusRepository({
+    classId,
+    explicitStatus: status,
+    classItem: localScheduleItem?.source || null,
+  });
+
   return savePublicationStateRepository(classId, {
-    status,
+    status: isLivePublicationStatus(classLiveStatus)
+      ? classLiveStatus
+      : PUBLICATION_STATUSES.HIDDEN,
     publishedAt: null,
     publishedBy: null,
   });
@@ -552,7 +606,7 @@ export async function advanceArenaLiveClassAfterCompletionRepository({
   showId,
   arena,
   classId,
-  nextStatus = PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  nextStatus = null,
 }) {
   const normalizedShowId = String(showId || "");
   const normalizedClassId = String(classId || "");
@@ -561,20 +615,24 @@ export async function advanceArenaLiveClassAfterCompletionRepository({
     return null;
   }
 
+  const localScheduleItems = getLocalShowLiveSchedule(normalizedShowId);
   const localNextItem = findNextArenaLiveItem({
-    scheduleItems: getLocalShowLiveSchedule(normalizedShowId),
+    scheduleItems: localScheduleItems,
     completedType: LIVE_SCHEDULE_ITEM_TYPES.CLASS,
     completedItemId: normalizedClassId,
     arena,
   });
 
   if (localNextItem) {
-    return saveArenaCurrentLiveItemRepository({
+    const activatedItem = await activateArenaLiveItemRepository({
       showId: normalizedShowId,
       arena: localNextItem.effectiveArena || arena,
+      scheduleItems: localScheduleItems,
       item: localNextItem,
       status: nextStatus,
     });
+
+    if (activatedItem) return activatedItem;
   }
 
   const supabase = getSupabaseClient();
@@ -593,12 +651,15 @@ export async function advanceArenaLiveClassAfterCompletionRepository({
       });
 
       if (remoteNextItem) {
-        return saveArenaCurrentLiveItemRepository({
+        const activatedItem = await activateArenaLiveItemRepository({
           showId: normalizedShowId,
           arena: remoteNextItem.effectiveArena || arena,
+          scheduleItems: remoteScheduleItems,
           item: remoteNextItem,
           status: nextStatus,
         });
+
+        if (activatedItem) return activatedItem;
       }
     } catch (error) {
       console.error("Erreur avancement live Supabase:", error);
@@ -616,7 +677,7 @@ export async function advanceArenaLivePaidWarmupAfterCompletionRepository({
   showId,
   arena,
   paidWarmupId,
-  nextStatus = PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  nextStatus = null,
 }) {
   const normalizedShowId = String(showId || "");
   const normalizedPaidWarmupId = String(paidWarmupId || "");
@@ -625,8 +686,9 @@ export async function advanceArenaLivePaidWarmupAfterCompletionRepository({
     return null;
   }
 
+  const localScheduleItems = getLocalShowLiveSchedule(normalizedShowId);
   const localNextItem = findNextArenaLiveItem({
-    scheduleItems: getLocalShowLiveSchedule(normalizedShowId),
+    scheduleItems: localScheduleItems,
     completedType: LIVE_SCHEDULE_ITEM_TYPES.PAID_WARMUP,
     completedItemId: normalizedPaidWarmupId,
     arena,
@@ -638,12 +700,15 @@ export async function advanceArenaLivePaidWarmupAfterCompletionRepository({
   });
 
   if (localNextItem) {
-    return saveArenaCurrentLiveItemRepository({
+    const activatedItem = await activateArenaLiveItemRepository({
       showId: normalizedShowId,
       arena: localNextItem.effectiveArena || arena,
+      scheduleItems: localScheduleItems,
       item: localNextItem,
       status: nextStatus,
     });
+
+    if (activatedItem) return activatedItem;
   }
 
   const supabase = getSupabaseClient();
@@ -662,12 +727,15 @@ export async function advanceArenaLivePaidWarmupAfterCompletionRepository({
       });
 
       if (remoteNextItem) {
-        return saveArenaCurrentLiveItemRepository({
+        const activatedItem = await activateArenaLiveItemRepository({
           showId: normalizedShowId,
           arena: remoteNextItem.effectiveArena || arena,
+          scheduleItems: remoteScheduleItems,
           item: remoteNextItem,
           status: nextStatus,
         });
+
+        if (activatedItem) return activatedItem;
       }
     } catch (error) {
       console.error("Erreur avancement live paid warmup Supabase:", error);
@@ -675,6 +743,84 @@ export async function advanceArenaLivePaidWarmupAfterCompletionRepository({
   }
 
   return null;
+}
+
+async function activateArenaLiveItemRepository({
+  showId,
+  arena,
+  scheduleItems,
+  item,
+  status,
+}) {
+  let currentItem = item;
+  let explicitStatus = status;
+
+  while (currentItem) {
+    if (currentItem.type === LIVE_SCHEDULE_ITEM_TYPES.PAID_WARMUP) {
+      return saveArenaCurrentLivePaidWarmupRepository({
+        showId,
+        arena: currentItem.effectiveArena || arena,
+        paidWarmupId: currentItem.itemId,
+      });
+    }
+
+    if (currentItem.type === LIVE_SCHEDULE_ITEM_TYPES.CLASS) {
+      const classLiveStatus = await getClassActivationStatusRepository({
+        classId: currentItem.itemId,
+        explicitStatus,
+        classItem: currentItem.source,
+      });
+
+      if (isLivePublicationStatus(classLiveStatus)) {
+        return saveArenaCurrentLiveItemRepository({
+          showId,
+          arena: currentItem.effectiveArena || arena,
+          item: currentItem,
+          status: classLiveStatus,
+        });
+      }
+
+      await savePublicationStateRepository(currentItem.itemId, {
+        status: PUBLICATION_STATUSES.HIDDEN,
+        publishedAt: null,
+        publishedBy: null,
+      });
+    }
+
+    currentItem = findNextScheduleItemInArena(
+      scheduleItems,
+      currentItem,
+      currentItem.effectiveArena || arena
+    );
+    explicitStatus = null;
+  }
+
+  return null;
+}
+
+async function getClassActivationStatusRepository({
+  classId,
+  explicitStatus,
+  classItem = null,
+}) {
+  const normalizedExplicitStatus = normalizePlannedLiveStatus(
+    explicitStatus,
+    null
+  );
+
+  if (normalizedExplicitStatus) {
+    return isNoPatternValue(classItem?.pattern) &&
+      isLivePublicationStatus(normalizedExplicitStatus)
+      ? PUBLICATION_STATUSES.LIVE_NO_SCORE
+      : normalizedExplicitStatus;
+  }
+
+  const publication = await getPublicationStateRepository(classId);
+  const plannedStatus = getPlannedLiveStatus(publication);
+
+  return isNoPatternValue(classItem?.pattern) && isLivePublicationStatus(plannedStatus)
+    ? PUBLICATION_STATUSES.LIVE_NO_SCORE
+    : plannedStatus;
 }
 
 async function saveArenaCurrentLiveItemRepository({

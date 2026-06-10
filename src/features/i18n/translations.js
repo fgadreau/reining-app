@@ -768,19 +768,21 @@ export const translations = {
         ownerPlaceholder: "Nom du owner",
         participantCount: "Nombre de participants",
         publicChooseDescription:
-          "Choisis comment ce bloc apparaît dans la vitrine publique.",
-        publicHiddenDescription: "Le bloc n’apparaît pas en live public.",
+          "Choisis comment ce bloc apparaîtra quand il arrivera dans l’horaire live.",
+        publicCurrentStatus: "État actuel: {{status}}.",
+        publicHiddenDescription:
+          "Le bloc sera sauté dans le live public quand son tour arrivera.",
         publicLiveDescription:
-          "Affiche les scores de manoeuvres et pénalités à mesure.",
+          "Affichera les scores de manoeuvres et pénalités quand ce sera son tour.",
         publicLiveFallbackDescription:
-          "Affiche la run en cours, la prochaine et les deux derniers passés dans la vitrine publique.",
+          "Affichera la run en cours, la prochaine et les deux derniers passés quand ce sera son tour.",
         publicLiveMultiJudgeLimited:
           "Le live détaillé est désactivé en multi-juges. Utilise live scores complétés.",
         publicLiveNoScoreDescription:
-          "Affiche le bloc et les participants sans pointage.",
+          "Affichera le bloc et les participants sans pointage quand ce sera son tour.",
         publicLiveScoringDescription:
-          "Affiche seulement le total quand la run est complétée.",
-        publicLiveStatus: "Statut live public",
+          "Affichera seulement le total quand la run est complétée.",
+        publicLiveStatus: "Type de live prévu",
         replaceRunsWithImport: "Remplacer les runs avec cet import",
         removeJudge: "Retirer",
         riderColumn: "Rider",
@@ -2012,19 +2014,21 @@ export const translations = {
         ownerPlaceholder: "Owner name",
         participantCount: "Number of participants",
         publicChooseDescription:
-          "Choose how this block appears in the public showcase.",
-        publicHiddenDescription: "The block does not appear in public live.",
+          "Choose how this block will appear when it reaches the live schedule.",
+        publicCurrentStatus: "Current state: {{status}}.",
+        publicHiddenDescription:
+          "The block will be skipped in public live when its turn comes.",
         publicLiveDescription:
-          "Shows maneuver scores and penalties as they are entered.",
+          "Will show maneuver scores and penalties when this block is live.",
         publicLiveFallbackDescription:
-          "Shows the active run, next participant, and last two completed runs in the public showcase.",
+          "Will show the active run, next participant, and last two completed runs when this block is live.",
         publicLiveMultiJudgeLimited:
           "Detailed live is disabled for multi-judge blocks. Use completed live scores.",
         publicLiveNoScoreDescription:
-          "Shows the block and participants without scores.",
+          "Will show the block and participants without scores when this block is live.",
         publicLiveScoringDescription:
-          "Shows only the total once the run is completed.",
-        publicLiveStatus: "Public live status",
+          "Will show only the total once the run is completed.",
+        publicLiveStatus: "Planned live type",
         replaceRunsWithImport: "Replace runs with this import",
         removeJudge: "Remove",
         riderColumn: "Rider",

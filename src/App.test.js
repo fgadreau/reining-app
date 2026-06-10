@@ -2232,7 +2232,7 @@ test("completed arena live advances to the next class in the same arena", async 
     PUBLICATION_STATUSES.HIDDEN
   );
   expect(getPublicationState("advance-main-next").status).toBe(
-    PUBLICATION_STATUSES.LIVE_NO_SCORE
+    PUBLICATION_STATUSES.LIVE_SCORING
   );
   expect(getPublicationState("advance-secondary-current").status).toBe(
     PUBLICATION_STATUSES.LIVE_NO_SCORE
@@ -2345,7 +2345,7 @@ test("completed paid warmup advances to the next class in the same arena", async
 
   expect(getPaidWarmupById("warmup-advance-current").isPublicLive).toBe(false);
   expect(getPublicationState("warmup-advance-class-next").status).toBe(
-    PUBLICATION_STATUSES.LIVE_NO_SCORE
+    PUBLICATION_STATUSES.LIVE_SCORING
   );
   expect(getPublicationState("warmup-advance-secondary").status).toBe(
     PUBLICATION_STATUSES.LIVE_NO_SCORE
@@ -2397,6 +2397,69 @@ test("public live shows a pending paid warmup scheduled before a live class", ()
     name: "First class",
     arena: "Main",
   });
+});
+
+test("completed live skips the next class when its planned live is hidden", async () => {
+  saveDays([
+    {
+      id: "day-advance-skip-hidden",
+      showId: "show-advance-skip-hidden",
+      label: "Jour 1",
+      date: "2026-06-15",
+      sortOrder: 1,
+    },
+  ]);
+  saveClasses([
+    {
+      id: "advance-skip-current",
+      showId: "show-advance-skip-hidden",
+      dayId: "day-advance-skip-hidden",
+      name: "Main current",
+      arena: "Main",
+      sortOrder: 1,
+    },
+    {
+      id: "advance-skip-hidden",
+      showId: "show-advance-skip-hidden",
+      dayId: "day-advance-skip-hidden",
+      name: "Skip me",
+      arena: "Main",
+      sortOrder: 2,
+    },
+    {
+      id: "advance-skip-next-live",
+      showId: "show-advance-skip-hidden",
+      dayId: "day-advance-skip-hidden",
+      name: "Next live",
+      arena: "Main",
+      sortOrder: 3,
+    },
+  ]);
+  savePublicationState("advance-skip-current", {
+    status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  });
+  savePublicationState("advance-skip-hidden", {
+    plannedLiveStatus: PUBLICATION_STATUSES.HIDDEN,
+  });
+  savePublicationState("advance-skip-next-live", {
+    plannedLiveStatus: PUBLICATION_STATUSES.LIVE,
+  });
+
+  await advanceArenaLiveClassAfterCompletionRepository({
+    showId: "show-advance-skip-hidden",
+    arena: "Main",
+    classId: "advance-skip-current",
+  });
+
+  expect(getPublicationState("advance-skip-current").status).toBe(
+    PUBLICATION_STATUSES.HIDDEN
+  );
+  expect(getPublicationState("advance-skip-hidden").status).toBe(
+    PUBLICATION_STATUSES.HIDDEN
+  );
+  expect(getPublicationState("advance-skip-next-live").status).toBe(
+    PUBLICATION_STATUSES.LIVE
+  );
 });
 
 test("supports schedule-only classes without scoring patterns", () => {

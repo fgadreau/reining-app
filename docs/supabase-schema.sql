@@ -247,12 +247,16 @@ add column if not exists custom_pattern jsonb;
 create table if not exists public.publication_states (
   class_id text primary key references public.classes(id) on delete cascade,
   status text not null default 'hidden',
+  planned_live_status text not null default 'live_scoring',
   published_at timestamptz,
   published_by text,
   public_url text,
   visible_fields jsonb not null default '["draw","backNumber","rider","horse","owner","scoreTotal","status"]'::jsonb,
   updated_at timestamptz not null default now()
 );
+
+alter table public.publication_states
+add column if not exists planned_live_status text not null default 'live_scoring';
 
 create table if not exists public.class_result_publications (
   class_id text primary key references public.classes(id) on delete cascade,

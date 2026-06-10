@@ -51,11 +51,10 @@ import {
   DRAG_INTERVAL_OPTIONS,
 } from "../../features/classes/classTiming";
 import {
+  getPlannedLiveStatus,
   PUBLICATION_STATUSES,
-  isLivePublicationStatus,
 } from "../../features/publication/publicationRepository";
 import {
-  saveArenaCurrentLiveClassRepository,
   savePublicationStateRepository,
 } from "../../features/publication/publicationCloudRepository";
 import {
@@ -127,6 +126,13 @@ function normalizePublicationStatusForJudges(status, judges) {
   }
 
   return normalizedStatus;
+}
+
+function normalizePlannedLiveStatusForSetup(publication, judges) {
+  return normalizePublicationStatusForJudges(
+    getPlannedLiveStatus(publication),
+    judges
+  );
 }
 
 function getPublicLiveStatusOptions(judges, isScheduleOnly = false) {
@@ -232,8 +238,8 @@ function ClassSetupPage() {
   const [dragDurationMinutes, setDragDurationMinutes] = useState(
     String(classSetup?.dragDurationMinutes || DEFAULT_DRAG_DURATION_MINUTES)
   );
-  const [publicationStatus, setPublicationStatus] = useState(
-    normalizeSetupPublicationStatus(classData?.publication?.status)
+  const [plannedLiveStatus, setPlannedLiveStatus] = useState(
+    normalizePlannedLiveStatusForSetup(classData?.publication, classSetup?.judges)
   );
   const [isFinalized, setIsFinalized] = useState(
     isOfficiallyFinalized(classRecord)
@@ -260,7 +266,7 @@ function ClassSetupPage() {
   const isPublicationLocked = [
     PUBLICATION_STATUSES.OFFICIAL,
     PUBLICATION_STATUSES.PUBLISHED,
-  ].includes(publicationStatus);
+  ].includes(classData?.publication?.status);
   const hasRunClassCodes = runs.some(
     (run) => Array.isArray(run.classCodes) && run.classCodes.length > 0
   );
@@ -347,11 +353,8 @@ function ClassSetupPage() {
       setDragDurationMinutes(
         String(nextSetup.dragDurationMinutes || DEFAULT_DRAG_DURATION_MINUTES)
       );
-      setPublicationStatus(
-        normalizePublicationStatusForJudges(
-          resolvedData.publication?.status,
-          nextJudges
-        )
+      setPlannedLiveStatus(
+        normalizePlannedLiveStatusForSetup(resolvedData.publication, nextJudges)
       );
       setIsFinalized(isOfficiallyFinalized(nextRecord));
       setRunCountInput(String(nextRuns.length));
@@ -510,7 +513,7 @@ function ClassSetupPage() {
     });
   };
 
-  const updatePublicationStatus = useCallback(async (nextStatus) => {
+  const updatePlannedLiveStatus = useCallback(async (nextStatus) => {
     if (!canManageSetup || !hasLoadedSetup || isPublicationLocked) {
       return;
     }
@@ -519,21 +522,13 @@ function ClassSetupPage() {
       nextStatus,
       judges
     );
-    const savedPublication =
-      isLivePublicationStatus(normalizedNextStatus) && classItem?.showId
-        ? await saveArenaCurrentLiveClassRepository({
-            showId: classItem.showId,
-            arena,
-            classId,
-            status: normalizedNextStatus,
-          })
-        : await savePublicationStateRepository(classId, {
-            status: normalizedNextStatus,
-            publishedAt: null,
-            publishedBy: null,
-          });
+    const savedPublication = await savePublicationStateRepository(classId, {
+      plannedLiveStatus: normalizedNextStatus,
+    });
 
-    setPublicationStatus(savedPublication.status);
+    setPlannedLiveStatus(
+      normalizePlannedLiveStatusForSetup(savedPublication, judges)
+    );
     setClassData((currentData) =>
       currentData
         ? {
@@ -548,8 +543,6 @@ function ClassSetupPage() {
     hasLoadedSetup,
     isPublicationLocked,
     judges,
-    classItem?.showId,
-    arena,
   ]);
 
   useEffect(() => {
@@ -559,29 +552,29 @@ function ClassSetupPage() {
 
     if (
       isScheduleOnly &&
-      publicationStatus !== PUBLICATION_STATUSES.HIDDEN &&
-      publicationStatus !== PUBLICATION_STATUSES.LIVE_NO_SCORE
+      plannedLiveStatus !== PUBLICATION_STATUSES.HIDDEN &&
+      plannedLiveStatus !== PUBLICATION_STATUSES.LIVE_NO_SCORE
     ) {
-      updatePublicationStatus(PUBLICATION_STATUSES.LIVE_NO_SCORE);
+      updatePlannedLiveStatus(PUBLICATION_STATUSES.LIVE_NO_SCORE);
       return;
     }
 
     const normalizedStatus = normalizePublicationStatusForJudges(
-      publicationStatus,
+      plannedLiveStatus,
       judges
     );
 
-    if (normalizedStatus !== publicationStatus) {
-      updatePublicationStatus(normalizedStatus);
+    if (normalizedStatus !== plannedLiveStatus) {
+      updatePlannedLiveStatus(normalizedStatus);
     }
   }, [
     judges,
-    publicationStatus,
+    plannedLiveStatus,
     hasLoadedSetup,
     canManageSetup,
     isPublicationLocked,
     isScheduleOnly,
-    updatePublicationStatus,
+    updatePlannedLiveStatus,
   ]);
 
   const addRun = () => {
@@ -1397,8 +1390,8 @@ function ClassSetupPage() {
                 {t("management.classSetup.publicLiveStatus")}
               </label>
               <select
-                value={publicationStatus}
-                onChange={(event) => updatePublicationStatus(event.target.value)}
+                value={plannedLiveStatus}
+                onChange={(event) => updatePlannedLiveStatus(event.target.value)}
                 style={inputStyle}
                 disabled={isPublicationLocked}
               >
@@ -1408,8 +1401,8 @@ function ClassSetupPage() {
                   </option>
                 ))}
                 {isPublicationLocked && (
-                  <option value={publicationStatus}>
-                    {getPublicationStatusLabel(publicationStatus, t)}
+                  <option value={plannedLiveStatus}>
+                    {getPublicationStatusLabel(plannedLiveStatus, t)}
                   </option>
                 )}
               </select>
@@ -1417,9 +1410,16 @@ function ClassSetupPage() {
                 {isPublicationLocked
                   ? t("management.classSetup.finalPublicationAtSecretariat")
                   : judges.length > 1 &&
-                      publicationStatus === PUBLICATION_STATUSES.LIVE_SCORING
+                      plannedLiveStatus === PUBLICATION_STATUSES.LIVE_SCORING
                     ? t("management.classSetup.publicLiveMultiJudgeLimited")
-                    : getPublicationStatusDescription(publicationStatus, t)}
+                    : getPublicationStatusDescription(plannedLiveStatus, t)}
+                {" "}
+                {t("management.classSetup.publicCurrentStatus", {
+                  status: getPublicationStatusLabel(
+                    classData?.publication?.status || PUBLICATION_STATUSES.HIDDEN,
+                    t
+                  ),
+                })}
               </div>
             </div>
           )}
