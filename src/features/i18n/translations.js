@@ -571,6 +571,8 @@ export const translations = {
           "Ce rôle n’a pas accès à la gestion des paid warm ups.",
         addRider: "+ Ajouter un cavalier",
         allowPublicLive: "Autoriser le live public pour ce paid warm up",
+        autosaved: "Sauvegarde automatique active",
+        autosaving: "Sauvegarde...",
         dragAfterEachRider: "Après chaque {{count}} {{ridersLabel}}",
         dragRow: "Drag de surface • {{minutes}} min",
         emptyEntries:
@@ -1821,6 +1823,8 @@ export const translations = {
           "This role does not have access to paid warm up management.",
         addRider: "+ Add rider",
         allowPublicLive: "Allow public live for this paid warm up",
+        autosaved: "Auto-save active",
+        autosaving: "Saving...",
         dragAfterEachRider: "After every {{count}} {{ridersLabel}}",
         dragRow: "Ground drag • {{minutes}} min",
         emptyEntries:

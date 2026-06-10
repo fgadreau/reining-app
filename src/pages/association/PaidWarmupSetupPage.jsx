@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import {
@@ -12,6 +12,7 @@ import {
   insertPaidWarmupEntryAfter,
   movePaidWarmupEntry,
   normalizePaidWarmupEntries,
+  savePaidWarmup as savePaidWarmupLocal,
 } from "../../features/paidWarmups/paidWarmupStorage";
 import { parsePaidWarmupEntries } from "../../features/paidWarmups/paidWarmupImport";
 import { DRAG_INTERVAL_OPTIONS } from "../../features/classes/classTiming";
@@ -29,6 +30,39 @@ import {
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
 
+const PAID_WARMUP_AUTOSAVE_DELAY_MS = 650;
+
+function buildPaidWarmupAutosaveSignature(warmup) {
+  if (!warmup) return "";
+
+  return JSON.stringify({
+    id: warmup.id,
+    associationId: warmup.associationId,
+    showId: warmup.showId,
+    dayId: warmup.dayId,
+    name: warmup.name || "",
+    arena: warmup.arena || "",
+    durationMinutesPerRider: warmup.durationMinutesPerRider || "",
+    dragInterval: warmup.dragInterval || null,
+    dragDurationMinutes: warmup.dragDurationMinutes || 0,
+    scheduleStartMode: warmup.scheduleStartMode || "",
+    scheduleStartTime: warmup.scheduleStartTime || "",
+    isPublicLive: Boolean(warmup.isPublicLive),
+    activeEntryId: warmup.activeEntryId || null,
+    activeStartedAt: warmup.activeStartedAt || null,
+    sortOrder: warmup.sortOrder || 0,
+    entries: (Array.isArray(warmup.entries) ? warmup.entries : []).map(
+      (entry) => ({
+        id: entry.id,
+        order: entry.order,
+        rider: entry.rider || "",
+        status: entry.status || "",
+        completedAt: entry.completedAt || null,
+      })
+    ),
+  });
+}
+
 function PaidWarmupSetupPage() {
   const { associationId, showId, dayId, paidWarmupId } = useParams();
   const navigate = useNavigate();
@@ -44,6 +78,11 @@ function PaidWarmupSetupPage() {
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState("synced");
   const [positionDrafts, setPositionDrafts] = useState({});
+  const autosaveTimerRef = useRef(null);
+  const draftRevisionRef = useRef(0);
+  const lastSavedSignatureRef = useRef("");
+  const saveSequenceRef = useRef(0);
+  const warmupRef = useRef(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -52,6 +91,8 @@ function PaidWarmupSetupPage() {
       setIsLoading(true);
       const item = await getPaidWarmupRepository(paidWarmupId);
       if (!isMounted) return;
+      lastSavedSignatureRef.current = buildPaidWarmupAutosaveSignature(item);
+      warmupRef.current = item;
       setWarmup(item);
       setIsLoading(false);
     }
@@ -68,58 +109,192 @@ function PaidWarmupSetupPage() {
     [warmup]
   );
 
+  useEffect(() => {
+    warmupRef.current = warmup;
+  }, [warmup]);
+
+  useEffect(
+    () => () => {
+      if (autosaveTimerRef.current) {
+        window.clearTimeout(autosaveTimerRef.current);
+      }
+    },
+    []
+  );
+
+  const persistWarmupDraft = useCallback(
+    (nextWarmup) => {
+      const nextDraft = {
+        ...nextWarmup,
+        associationId,
+        showId,
+        dayId,
+      };
+
+      draftRevisionRef.current += 1;
+      savePaidWarmupLocal(nextDraft);
+
+      return nextDraft;
+    },
+    [associationId, dayId, showId]
+  );
+
+  const commitWarmupDraft = useCallback(
+    (updater) => {
+      const current = warmupRef.current;
+      if (!current) return null;
+
+      const nextWarmup =
+        typeof updater === "function" ? updater(current) : updater;
+      const savedDraft = persistWarmupDraft(nextWarmup);
+
+      warmupRef.current = savedDraft;
+      setWarmup(savedDraft);
+
+      return savedDraft;
+    },
+    [persistWarmupDraft]
+  );
+
+  const saveWarmup = useCallback(
+    async (
+      nextWarmup,
+      successMessage = t("management.paidWarmup.saved"),
+      options = {}
+    ) => {
+      if (!nextWarmup) return null;
+
+      const saveSequence = saveSequenceRef.current + 1;
+      const saveRevision = draftRevisionRef.current;
+      saveSequenceRef.current = saveSequence;
+      setIsSaving(true);
+
+      try {
+        const saved = await savePaidWarmupRepository({
+          ...nextWarmup,
+          associationId,
+          showId,
+          dayId,
+        });
+        const liveSaved = saved?.isPublicLive
+          ? await saveArenaCurrentLivePaidWarmupRepository({
+              showId,
+              arena: saved.arena,
+              paidWarmupId: saved.id,
+            })
+          : saved;
+        const nextSavedWarmup = liveSaved ? { ...saved, ...liveSaved } : saved;
+        const tone = getLocalFirstSyncNoticeTone(saved);
+        const syncNotice = formatLocalFirstSyncNotice(saved, t);
+        const isLatestSave = saveSequence === saveSequenceRef.current;
+        const isCurrentDraft = saveRevision === draftRevisionRef.current;
+
+        if (isLatestSave) {
+          lastSavedSignatureRef.current =
+            buildPaidWarmupAutosaveSignature(nextSavedWarmup);
+        }
+
+        if (isLatestSave && isCurrentDraft) {
+          warmupRef.current = nextSavedWarmup;
+          setWarmup(nextSavedWarmup);
+          setMessageTone(tone);
+
+          if (options.silentSuccess && tone === "synced") {
+            setMessage("");
+          } else {
+            setMessage(
+              tone === "synced"
+                ? successMessage
+                : `${successMessage} ${syncNotice}`
+            );
+          }
+        }
+
+        return nextSavedWarmup;
+      } catch (error) {
+        console.error("Erreur sauvegarde paid warm up:", error);
+
+        if (saveSequence === saveSequenceRef.current) {
+          setMessageTone("warn");
+          setMessage(
+            t("common.localFirstSyncError", {
+              message: error?.message || "",
+            })
+          );
+        }
+
+        return null;
+      } finally {
+        if (saveSequence === saveSequenceRef.current) {
+          setIsSaving(false);
+        }
+      }
+    },
+    [associationId, dayId, showId, t]
+  );
+
+  useEffect(() => {
+    if (!warmup || isLoading || !access.canManageAssociation) return undefined;
+
+    const signature = buildPaidWarmupAutosaveSignature(warmup);
+    if (!signature || signature === lastSavedSignatureRef.current) {
+      return undefined;
+    }
+
+    if (autosaveTimerRef.current) {
+      window.clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = window.setTimeout(() => {
+      autosaveTimerRef.current = null;
+      saveWarmup(warmup, t("management.paidWarmup.saved"), {
+        silentSuccess: true,
+      });
+    }, PAID_WARMUP_AUTOSAVE_DELAY_MS);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        window.clearTimeout(autosaveTimerRef.current);
+      }
+    };
+  }, [access.canManageAssociation, isLoading, saveWarmup, t, warmup]);
+
   const updateWarmup = (updates) => {
-    setWarmup((current) => (current ? { ...current, ...updates } : current));
+    commitWarmupDraft((current) => ({ ...current, ...updates }));
   };
 
   const updateEntry = (entryId, updates) => {
-    setWarmup((current) => {
-      if (!current) return current;
-
-      return {
-        ...current,
-        entries: current.entries.map((entry) =>
-          entry.id === entryId ? { ...entry, ...updates } : entry
-        ),
-      };
-    });
+    commitWarmupDraft((current) => ({
+      ...current,
+      entries: current.entries.map((entry) =>
+        entry.id === entryId ? { ...entry, ...updates } : entry
+      ),
+    }));
   };
 
   const addEntry = () => {
-    setWarmup((current) => {
-      if (!current) return current;
-
-      return {
-        ...current,
-        entries: insertPaidWarmupEntryAfter(current.entries, null, {
-          rider: "",
-        }),
-      };
-    });
+    commitWarmupDraft((current) => ({
+      ...current,
+      entries: insertPaidWarmupEntryAfter(current.entries, null, {
+        rider: "",
+      }),
+    }));
   };
 
   const insertEntryAfter = (entryId) => {
-    setWarmup((current) => {
-      if (!current) return current;
-
-      return {
-        ...current,
-        entries: insertPaidWarmupEntryAfter(current.entries, entryId, {
-          rider: "",
-        }),
-      };
-    });
+    commitWarmupDraft((current) => ({
+      ...current,
+      entries: insertPaidWarmupEntryAfter(current.entries, entryId, {
+        rider: "",
+      }),
+    }));
   };
 
   const moveEntry = (entryId, targetIndex) => {
-    setWarmup((current) => {
-      if (!current) return current;
-
-      return {
-        ...current,
-        entries: movePaidWarmupEntry(current.entries, entryId, targetIndex),
-      };
-    });
+    commitWarmupDraft((current) => ({
+      ...current,
+      entries: movePaidWarmupEntry(current.entries, entryId, targetIndex),
+    }));
   };
 
   const moveEntryToPosition = (entryId, position) => {
@@ -155,61 +330,12 @@ function PaidWarmupSetupPage() {
   };
 
   const removeEntry = (entryId) => {
-    setWarmup((current) => {
-      if (!current) return current;
-
-      return {
-        ...current,
-        entries: normalizePaidWarmupEntries(
-          current.entries.filter((entry) => entry.id !== entryId)
-        ),
-      };
-    });
-  };
-
-  const saveWarmup = async (
-    nextWarmup = warmup,
-    successMessage = t("management.paidWarmup.saved")
-  ) => {
-    if (!nextWarmup) return;
-
-    setIsSaving(true);
-    try {
-      const saved = await savePaidWarmupRepository({
-        ...nextWarmup,
-        associationId,
-        showId,
-        dayId,
-      });
-      const liveSaved = saved?.isPublicLive
-        ? await saveArenaCurrentLivePaidWarmupRepository({
-            showId,
-            arena: saved.arena,
-            paidWarmupId: saved.id,
-          })
-        : saved;
-      const nextSavedWarmup = liveSaved ? { ...saved, ...liveSaved } : saved;
-      const tone = getLocalFirstSyncNoticeTone(saved);
-      const syncNotice = formatLocalFirstSyncNotice(saved, t);
-
-      setWarmup(nextSavedWarmup);
-      setMessageTone(tone);
-      setMessage(
-        tone === "synced" ? successMessage : `${successMessage} ${syncNotice}`
-      );
-      return nextSavedWarmup;
-    } catch (error) {
-      console.error("Erreur sauvegarde paid warm up:", error);
-      setMessageTone("warn");
-      setMessage(
-        t("common.localFirstSyncError", {
-          message: error?.message || "",
-        })
-      );
-      return null;
-    } finally {
-      setIsSaving(false);
-    }
+    commitWarmupDraft((current) => ({
+      ...current,
+      entries: normalizePaidWarmupEntries(
+        current.entries.filter((entry) => entry.id !== entryId)
+      ),
+    }));
   };
 
   const importEntries = async () => {
@@ -233,12 +359,14 @@ function PaidWarmupSetupPage() {
       entries,
     };
 
-    setWarmup(nextWarmup);
+    const savedDraft = commitWarmupDraft(nextWarmup);
+    if (!savedDraft) return;
     await saveWarmup(
-      nextWarmup,
+      savedDraft,
       t("management.paidWarmup.importedCount", {
         count: entries.length,
-      })
+      }),
+      { silentSuccess: false }
     );
   };
 
@@ -303,16 +431,11 @@ function PaidWarmupSetupPage() {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => saveWarmup()}
-          style={primaryButtonStyle}
-          disabled={isSaving}
-        >
+        <div style={autosaveStatusStyle(isSaving)}>
           {isSaving
-            ? t("management.paidWarmup.saving")
-            : t("management.paidWarmup.save")}
-        </button>
+            ? t("management.paidWarmup.autosaving")
+            : t("management.paidWarmup.autosaved")}
+        </div>
       </div>
 
       {message && <div style={noticeStyle(messageTone)}>{message}</div>}
@@ -731,15 +854,6 @@ const textareaStyle = {
   marginBottom: 10,
 };
 
-const primaryButtonStyle = {
-  padding: "10px 14px",
-  borderRadius: 8,
-  border: "1px solid #111827",
-  background: "#111827",
-  color: "#fff",
-  cursor: "pointer",
-};
-
 const secondaryButtonStyle = {
   padding: "10px 14px",
   borderRadius: 8,
@@ -757,6 +871,18 @@ const dangerButtonStyle = {
   color: "#991b1b",
   cursor: "pointer",
 };
+
+const autosaveStatusStyle = (isSaving) => ({
+  alignSelf: "center",
+  border: `1px solid ${isSaving ? "#fdba74" : "#86efac"}`,
+  background: isSaving ? "#fff7ed" : "#f0fdf4",
+  color: isSaving ? "#9a3412" : "#166534",
+  borderRadius: 999,
+  padding: "8px 12px",
+  fontSize: 13,
+  fontWeight: 700,
+  whiteSpace: "nowrap",
+});
 
 const noticeStyle = (tone = "synced") => ({
   border: `1px solid ${tone === "warn" ? "#fdba74" : "#86efac"}`,

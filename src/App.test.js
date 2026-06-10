@@ -67,6 +67,7 @@ import {
   normalizePaidWarmup,
   savePaidWarmup,
 } from "./features/paidWarmups/paidWarmupStorage";
+import { mergePaidWarmupsForDay } from "./features/paidWarmups/paidWarmupRepository";
 import {
   SHOW_SCHEDULE_ITEM_TYPES,
   buildShowSchedulePreviewSections,
@@ -2682,6 +2683,41 @@ test("public show view exposes a public paid warmup before the timer starts", ()
   expect(publicView.livePaidWarmup.secondNextEntry).toMatchObject({
     rider: "Alex",
   });
+});
+
+test("paid warmup day sync keeps local warmups missing from remote rows", () => {
+  const merged = mergePaidWarmupsForDay(
+    [
+      {
+        id: "remote-warmup",
+        dayId: "day-sync",
+        name: "Remote local draft",
+        sortOrder: 1,
+      },
+      {
+        id: "local-only-warmup",
+        dayId: "day-sync",
+        name: "Local warm up",
+        sortOrder: 2,
+      },
+    ],
+    [
+      {
+        id: "remote-warmup",
+        dayId: "day-sync",
+        name: "Remote warm up",
+        sortOrder: 1,
+      },
+    ]
+  );
+
+  expect(merged.map((warmup) => warmup.id)).toEqual([
+    "remote-warmup",
+    "local-only-warmup",
+  ]);
+  expect(merged.find((warmup) => warmup.id === "remote-warmup").name).toBe(
+    "Remote warm up"
+  );
 });
 
 test("paid warmup timer cues trigger at half time, one minute, and finish", () => {
