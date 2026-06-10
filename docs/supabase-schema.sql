@@ -79,6 +79,7 @@ create table if not exists public.shows (
   status text not null default 'draft',
   livestream_url text,
   is_livestream_public boolean not null default false,
+  is_schedule_public boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -105,6 +106,8 @@ create table if not exists public.classes (
   pattern text,
   custom_pattern jsonb,
   judge_name text,
+  schedule_start_mode text not null default 'after_previous',
+  schedule_start_time text,
   sort_order integer not null default 1,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -119,6 +122,8 @@ create table if not exists public.paid_warmups (
   duration_minutes_per_rider integer not null default 5,
   drag_interval integer,
   drag_duration_minutes integer not null default 8,
+  schedule_start_mode text not null default 'after_previous',
+  schedule_start_time text,
   is_public_live boolean not null default false,
   active_entry_id text,
   active_started_at timestamptz,
@@ -133,6 +138,21 @@ add column if not exists custom_pattern jsonb;
 
 alter table public.classes
 add column if not exists arena text;
+
+alter table public.classes
+add column if not exists schedule_start_mode text not null default 'after_previous';
+
+alter table public.classes
+add column if not exists schedule_start_time text;
+
+alter table public.shows
+add column if not exists is_schedule_public boolean not null default false;
+
+alter table public.paid_warmups
+add column if not exists schedule_start_mode text not null default 'after_previous';
+
+alter table public.paid_warmups
+add column if not exists schedule_start_time text;
 
 create table if not exists public.class_setups (
   class_id text primary key references public.classes(id) on delete cascade,
@@ -1592,6 +1612,19 @@ returns boolean as $$
     );
 $$ language sql stable security definer set search_path = public;
 
+create or replace function public.class_is_public_schedule_item(
+  target_class_id text
+)
+returns boolean as $$
+  select exists (
+    select 1
+    from public.classes c
+    join public.shows s on s.id = c.show_id
+    where c.id = target_class_id
+      and s.is_schedule_public is true
+  );
+$$ language sql stable security definer set search_path = public;
+
 create or replace function public.show_has_public_class(
   target_show_id text
 )
@@ -1616,6 +1649,19 @@ returns boolean as $$
   );
 $$ language sql stable security definer set search_path = public;
 
+create or replace function public.paid_warmup_is_public_schedule_item(
+  target_paid_warmup_id text
+)
+returns boolean as $$
+  select exists (
+    select 1
+    from public.paid_warmups p
+    join public.shows s on s.id = p.show_id
+    where p.id = target_paid_warmup_id
+      and s.is_schedule_public is true
+  );
+$$ language sql stable security definer set search_path = public;
+
 create or replace function public.show_has_public_livestream(
   target_show_id text
 )
@@ -1626,6 +1672,18 @@ returns boolean as $$
     where s.id = target_show_id
       and s.is_livestream_public is true
       and nullif(btrim(coalesce(s.livestream_url, '')), '') is not null
+  );
+$$ language sql stable security definer set search_path = public;
+
+create or replace function public.show_has_public_schedule(
+  target_show_id text
+)
+returns boolean as $$
+  select exists (
+    select 1
+    from public.shows s
+    where s.id = target_show_id
+      and s.is_schedule_public is true
   );
 $$ language sql stable security definer set search_path = public;
 
@@ -1650,6 +1708,19 @@ returns boolean as $$
     from public.paid_warmups p
     where p.day_id = target_day_id
       and p.is_public_live is true
+  );
+$$ language sql stable security definer set search_path = public;
+
+create or replace function public.day_has_public_schedule(
+  target_day_id text
+)
+returns boolean as $$
+  select exists (
+    select 1
+    from public.days d
+    join public.shows s on s.id = d.show_id
+    where d.id = target_day_id
+      and s.is_schedule_public is true
   );
 $$ language sql stable security definer set search_path = public;
 
@@ -1689,6 +1760,18 @@ returns boolean as $$
   );
 $$ language sql stable security definer set search_path = public;
 
+create or replace function public.association_has_public_schedule(
+  target_association_id text
+)
+returns boolean as $$
+  select exists (
+    select 1
+    from public.shows s
+    where s.association_id = target_association_id
+      and s.is_schedule_public is true
+  );
+$$ language sql stable security definer set search_path = public;
+
 drop policy if exists "Anyone can read associations with public classes" on public.associations;
 create policy "Anyone can read associations with public classes"
 on public.associations for select to anon, authenticated
@@ -1696,6 +1779,7 @@ using (
   public.association_has_public_class(id)
   or public.association_has_public_paid_warmup(id)
   or public.association_has_public_livestream(id)
+  or public.association_has_public_schedule(id)
 );
 
 drop policy if exists "Anyone can read shows with published official results" on public.shows;
@@ -1706,6 +1790,7 @@ using (
   public.show_has_public_class(id)
   or public.show_has_public_paid_warmup(id)
   or public.show_has_public_livestream(id)
+  or public.show_has_public_schedule(id)
 );
 
 drop policy if exists "Anyone can read days with published official results" on public.days;
@@ -1715,13 +1800,22 @@ on public.days for select to anon, authenticated
 using (
   public.day_has_public_class(id)
   or public.day_has_public_paid_warmup(id)
+  or public.day_has_public_schedule(id)
 );
 
 drop policy if exists "Anyone can read published classes" on public.classes;
 drop policy if exists "Anyone can read public classes" on public.classes;
 create policy "Anyone can read public classes"
 on public.classes for select to anon, authenticated
-using (public.class_is_publicly_visible(id));
+using (
+  public.class_is_publicly_visible(id)
+  or public.class_is_public_schedule_item(id)
+);
+
+drop policy if exists "Anyone can read public schedule paid warmups" on public.paid_warmups;
+create policy "Anyone can read public schedule paid warmups"
+on public.paid_warmups for select to anon, authenticated
+using (public.paid_warmup_is_public_schedule_item(id));
 
 drop policy if exists "Anyone can read published publication states" on public.publication_states;
 drop policy if exists "Anyone can read public publication states" on public.publication_states;

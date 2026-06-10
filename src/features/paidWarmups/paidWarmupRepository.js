@@ -23,6 +23,8 @@ function toPaidWarmup(row) {
     durationMinutesPerRider: row.duration_minutes_per_rider,
     dragInterval: row.drag_interval,
     dragDurationMinutes: row.drag_duration_minutes,
+    scheduleStartMode: row.schedule_start_mode,
+    scheduleStartTime: row.schedule_start_time,
     isPublicLive: Boolean(row.is_public_live),
     activeEntryId: row.active_entry_id || null,
     activeStartedAt: row.active_started_at || null,
@@ -33,10 +35,10 @@ function toPaidWarmup(row) {
   });
 }
 
-function toPaidWarmupRow(item) {
+function toPaidWarmupRow(item, options = {}) {
   const warmup = normalizePaidWarmup(item);
-
-  return {
+  const includeScheduleStart = options.includeScheduleStart !== false;
+  const row = {
     id: warmup.id,
     association_id: warmup.associationId,
     show_id: warmup.showId,
@@ -51,6 +53,21 @@ function toPaidWarmupRow(item) {
     entries: warmup.entries,
     sort_order: warmup.sortOrder,
   };
+
+  if (includeScheduleStart) {
+    row.schedule_start_mode = warmup.scheduleStartMode;
+    row.schedule_start_time = warmup.scheduleStartTime || null;
+  }
+
+  return row;
+}
+
+function isScheduleStartColumnMissingError(error) {
+  const message = String(error?.message || "");
+  return (
+    message.includes("schedule_start_mode") ||
+    message.includes("schedule_start_time")
+  );
 }
 
 export async function getPaidWarmupsForDayRepository(dayId) {
@@ -134,9 +151,38 @@ export async function savePaidWarmupRepository(item) {
         if (insertError) throw insertError;
       }
     } catch (error) {
-      console.error("Erreur sauvegarde paid warmup Supabase:", error);
-      syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
-      syncError = error;
+      if (isScheduleStartColumnMissingError(error)) {
+        try {
+          const row = toPaidWarmupRow(savedLocal, {
+            includeScheduleStart: false,
+          });
+          const { data, error: legacyError } = await supabase
+            .from("paid_warmups")
+            .update(row)
+            .eq("id", savedLocal.id)
+            .select("id");
+          if (legacyError) throw legacyError;
+
+          if (!Array.isArray(data) || data.length === 0) {
+            const { error: insertError } = await supabase
+              .from("paid_warmups")
+              .insert(row);
+            if (insertError) throw insertError;
+          }
+
+          syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
+          syncError =
+            "Les colonnes d'horaire des paid warm ups ne sont pas disponibles dans Supabase. Exécute la migration public schedule pour les synchroniser.";
+        } catch (legacyError) {
+          console.error("Erreur sauvegarde paid warmup Supabase:", legacyError);
+          syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
+          syncError = legacyError;
+        }
+      } else {
+        console.error("Erreur sauvegarde paid warmup Supabase:", error);
+        syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
+        syncError = error;
+      }
     }
   }
 

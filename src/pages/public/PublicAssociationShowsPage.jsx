@@ -145,6 +145,13 @@ function PublicAssociationShowsPage() {
                         })}
                       </Badge>
                     )}
+                    {show.scheduleItemCount > 0 && (
+                      <Badge>
+                        {t("public.associationShows.scheduleItems", {
+                          count: show.scheduleItemCount,
+                        })}
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 <div style={cardActionsStyle}>

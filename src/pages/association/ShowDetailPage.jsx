@@ -66,6 +66,7 @@ function ShowDetailPage() {
   const [livestreamDraft, setLivestreamDraft] = useState({
     isLivestreamPublic: false,
     livestreamUrl: "",
+    isSchedulePublic: false,
   });
   const [sponsorLogosDraft, setSponsorLogosDraft] = useState([]);
   const [isOptimizingSponsors, setIsOptimizingSponsors] = useState(false);
@@ -297,6 +298,7 @@ function ShowDetailPage() {
     setLivestreamDraft({
       isLivestreamPublic: Boolean(show?.isLivestreamPublic),
       livestreamUrl: show?.livestreamUrl || "",
+      isSchedulePublic: Boolean(show?.isSchedulePublic),
     });
     setSponsorLogosDraft(normalizeSponsorLogos(association?.sponsorLogos));
     setIsOptimizingSponsors(false);
@@ -377,6 +379,7 @@ function ShowDetailPage() {
       associationId,
       livestreamUrl: livestreamDraft.livestreamUrl,
       isLivestreamPublic: Boolean(livestreamDraft.isLivestreamPublic),
+      isSchedulePublic: Boolean(livestreamDraft.isSchedulePublic),
     };
     const sponsorLogos = normalizeSponsorLogos(sponsorLogosDraft);
 
@@ -577,7 +580,18 @@ function ShowDetailPage() {
           >
             {t("management.shows.livestreamSettings")}
           </button>
+          <Link
+            to={`/associations/${associationId}/shows/${showId}/time`}
+            style={linkButtonStyle}
+          >
+            {t("management.shows.showSchedule")}
+          </Link>
         </div>
+        {show?.isSchedulePublic && (
+          <div style={schedulePublicBadgeStyle}>
+            {t("management.shows.schedulePublicEnabled")}
+          </div>
+        )}
         <div style={{ marginTop: 10 }}>
           <span style={syncBadgeStyle(cloudStatus.configured)}>
             {t("management.sync.label")}: {getSyncLabel(cloudStatus, t)}
@@ -665,6 +679,40 @@ function ShowDetailPage() {
                     disabled={!access.canManageAssociation || isSaving}
                   />
                 </div>
+              </section>
+
+              <section style={settingsSectionStyle}>
+                <div>
+                  <h3 style={settingsTitleStyle}>
+                    {t("management.shows.publicScheduleTitle")}
+                  </h3>
+                  <div style={helpTextStyle}>
+                    {t("management.shows.publicScheduleHelp")}
+                  </div>
+                </div>
+
+                <label style={checkboxLabelStyle}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(livestreamDraft.isSchedulePublic)}
+                    onChange={(event) =>
+                      setLivestreamDraft((current) => ({
+                        ...current,
+                        isSchedulePublic: event.target.checked,
+                      }))
+                    }
+                    disabled={!access.canManageAssociation || isSaving}
+                  />
+                  <span>{t("management.shows.publicScheduleLabel")}</span>
+                </label>
+
+                <Link
+                  to={`/associations/${associationId}/shows/${showId}/time`}
+                  style={linkButtonStyle}
+                  onClick={closeLivestreamSettings}
+                >
+                  {t("management.shows.openSchedule")}
+                </Link>
               </section>
 
               <section style={settingsSectionStyle}>
@@ -1437,6 +1485,19 @@ const warningBadgeStyle = {
   border: "1px solid #fdba74",
   background: "#fff7ed",
   color: "#9a3412",
+  fontWeight: 700,
+  fontSize: 13,
+};
+
+const schedulePublicBadgeStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  marginTop: 10,
+  padding: "6px 10px",
+  borderRadius: 999,
+  border: "1px solid #93c5fd",
+  background: "#eff6ff",
+  color: "#1d4ed8",
   fontWeight: 700,
   fontSize: 13,
 };

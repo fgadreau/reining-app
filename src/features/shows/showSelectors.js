@@ -7,6 +7,7 @@ function normalizeShow(show) {
     ...show,
     livestreamUrl: show?.livestreamUrl || "",
     isLivestreamPublic: Boolean(show?.isLivestreamPublic),
+    isSchedulePublic: Boolean(show?.isSchedulePublic),
   };
 }
 

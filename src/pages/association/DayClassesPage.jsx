@@ -17,6 +17,7 @@ import {
   CLASS_START_MODE_AFTER_PREVIOUS,
   CLASS_START_MODE_FIXED,
   normalizeClassScheduleDetails,
+  normalizeClassScheduleStart,
 } from "../../features/classes/classSchedule";
 import {
   deletePaidWarmupRepository,
@@ -159,6 +160,8 @@ function DayClassesPage() {
       arena: "",
       pattern: "",
       customPattern: null,
+      scheduleStartMode: CLASS_START_MODE_AFTER_PREVIOUS,
+      scheduleStartTime: "",
       judgeName: "",
       showName: show?.name || "",
       date: day?.date || "",
@@ -205,6 +208,8 @@ function DayClassesPage() {
       showId,
       associationId,
       name: t("management.classes.newPaidWarmupName"),
+      scheduleStartMode: CLASS_START_MODE_AFTER_PREVIOUS,
+      scheduleStartTime: "",
       durationMinutesPerRider: DEFAULT_PAID_WARMUP_DURATION_MINUTES,
       dragInterval: null,
       dragDurationMinutes: 8,
@@ -229,7 +234,15 @@ function DayClassesPage() {
       judges: setup?.judges,
       judgeName: setup?.judgeName || item.judgeName,
     });
-    const scheduleDetails = normalizeClassScheduleDetails(setup?.scheduleDetails);
+    const scheduleStart = normalizeClassScheduleStart({
+      ...item,
+      ...setup?.scheduleDetails,
+    });
+    const scheduleDetails = normalizeClassScheduleDetails({
+      ...setup?.scheduleDetails,
+      startMode: scheduleStart.startMode,
+      startTime: scheduleStart.startTime,
+    });
     setClassSetups((current) => ({
       ...current,
       [item.id]: setup,
@@ -276,6 +289,7 @@ function DayClassesPage() {
       startMode: draft.scheduleStartMode,
       startTime: draft.scheduleStartTime,
     });
+    const scheduleStart = normalizeClassScheduleStart(scheduleDetails);
     const nextClass = {
       ...currentClass,
       name: draft.name,
@@ -283,6 +297,8 @@ function DayClassesPage() {
       arena: draft.arena,
       pattern: draft.pattern,
       customPattern,
+      scheduleStartMode: scheduleStart.startMode,
+      scheduleStartTime: scheduleStart.startTime,
       judgeName: primaryJudgeName,
       showId,
       associationId,
@@ -569,6 +585,7 @@ function DayClassesPage() {
             if (scheduleItem.type === "paid_warmup") {
               const warmup = scheduleItem.item;
               const stats = getPaidWarmupStats(warmup.entries);
+              const warmupScheduleStart = normalizeClassScheduleStart(warmup);
 
               return (
                 <div key={warmup.id} style={cardStyle}>
@@ -585,6 +602,10 @@ function DayClassesPage() {
                         {t("management.classes.riderCount", {
                           count: stats.total,
                         })}
+                      </div>
+                      <div style={scheduleMetaStyle}>
+                        {t("management.classes.scheduleStartLabel")}:{" "}
+                        {formatClassScheduleStart(warmupScheduleStart, t)}
                       </div>
                       <div style={warmupStatsStyle}>
                         {t("management.classes.warmupStats", {
@@ -638,9 +659,15 @@ function DayClassesPage() {
             const isScheduleOnly = isNoPatternValue(item.pattern);
             const scoringDisabled = status === "draft" || isScheduleOnly;
             const isCompleted = status === "completed";
-            const scheduleDetails = normalizeClassScheduleDetails(
-              classSetups[item.id]?.scheduleDetails
-            );
+            const scheduleStart = normalizeClassScheduleStart({
+              ...item,
+              ...classSetups[item.id]?.scheduleDetails,
+            });
+            const scheduleDetails = normalizeClassScheduleDetails({
+              ...classSetups[item.id]?.scheduleDetails,
+              startMode: scheduleStart.startMode,
+              startTime: scheduleStart.startTime,
+            });
 
             return (
               <div key={item.id} style={cardStyle}>

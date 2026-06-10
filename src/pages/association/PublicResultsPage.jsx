@@ -71,6 +71,9 @@ function PublicResultsPage() {
     : publicView.liveClass
       ? [publicView.liveClass]
       : [];
+  const scheduleSections = Array.isArray(publicView.scheduleSections)
+    ? publicView.scheduleSections
+    : [];
   const resultSections = Array.isArray(publicView.resultSections)
     ? publicView.resultSections
     : [];
@@ -286,6 +289,10 @@ function PublicResultsPage() {
         </div>
       )}
 
+      {scheduleSections.length > 0 && (
+        <PublicScheduleSections sections={scheduleSections} />
+      )}
+
       <section style={summaryStyle}>
         <div style={summaryValueStyle}>
           {(publicView.publishedResultClassCount || 0) +
@@ -306,13 +313,22 @@ function PublicResultsPage() {
             })}
           </div>
         )}
+        {(publicView.scheduleItemCount || 0) > 0 && (
+          <div style={summarySubLabelStyle}>
+            {t("public.results.scheduleItems", {
+              count: publicView.scheduleItemCount,
+            })}
+          </div>
+        )}
       </section>
 
       {isLoading ? (
         <div style={emptyStateStyle}>{t("public.results.loading")}</div>
-      ) : publicView.sections.length === 0 && resultSections.length === 0 ? (
+      ) : publicView.sections.length === 0 &&
+        resultSections.length === 0 &&
+        scheduleSections.length === 0 ? (
         <div style={emptyStateStyle}>{t("public.results.noSheets")}</div>
-      ) : (
+      ) : publicView.sections.length > 0 || resultSections.length > 0 ? (
         <div style={{ display: "grid", gap: 16 }}>
           {resultSections.map((section) => {
             const resultBlocks = groupResultClassesByBlock(section.classes);
@@ -380,9 +396,90 @@ function PublicResultsPage() {
             </section>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
+}
+
+function PublicScheduleSections({ sections }) {
+  const { t } = useTranslation();
+
+  return (
+    <section style={cardStyle}>
+      <div style={sectionHeaderStyle}>
+        <div>
+          <div style={eyebrowStyle}>{t("public.results.scheduleEyebrow")}</div>
+          <h2 style={sectionTitleStyle}>{t("public.results.scheduleTitle")}</h2>
+          <div style={mutedTextStyle}>
+            {t("public.results.scheduleHelp")}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gap: 16 }}>
+        {sections.map((section) => (
+          <div key={section.day.id || section.day.date} style={scheduleDayStyle}>
+            <div style={scheduleDayHeaderStyle}>
+              <div>
+                <h3 style={scheduleDayTitleStyle}>
+                  {section.day.label || t("public.results.day")}
+                </h3>
+                <div style={mutedTextStyle}>
+                  {section.day.date || t("public.results.dateTbd")}
+                </div>
+              </div>
+              <div style={scheduleDayEndStyle}>
+                {t("public.results.dayEnd")}{" "}
+                <strong>{formatClockTime(section.summary?.estimatedEndAt)}</strong>
+              </div>
+            </div>
+
+            <div style={resultTableWrapStyle}>
+              <table style={scheduleTableStyle}>
+                <thead>
+                  <tr>
+                    <th style={scheduleThStyle}>{t("public.results.scheduleStart")}</th>
+                    <th style={scheduleThStyle}>{t("public.results.sourceBlock")}</th>
+                    <th style={scheduleThStyle}>{t("public.results.pattern")}</th>
+                    <th style={scheduleThStyle}>{t("management.time.estimatedEndHeader")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {section.rows.map((row) => (
+                    <tr key={`${row.itemType || "class"}-${row.classId}`}>
+                      <td style={scheduleTdStyle}>
+                        <strong>{formatClockTime(row.estimatedStartAt)}</strong>
+                        <div style={mutedTextStyle}>
+                          {getPublicScheduleStartLabel(row, t)}
+                        </div>
+                      </td>
+                      <td style={scheduleTdStyle}>{row.className}</td>
+                      <td style={scheduleTdStyle}>{row.pattern || "—"}</td>
+                      <td style={scheduleTdStyle}>
+                        {formatClockTime(row.estimatedEndAt)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function getPublicScheduleStartLabel(row, t) {
+  if (row.scheduleStartMode === "fixed") {
+    return t("management.time.fixedStart");
+  }
+
+  if (row.scheduleStartUsesFallback) {
+    return t("management.time.afterPreviousFallback");
+  }
+
+  return t("management.time.afterPrevious");
 }
 
 function PublicLivestreamPanel({ show, isOpen, onToggle }) {
@@ -2193,6 +2290,51 @@ const searchInputStyle = {
 const scoresheetListStyle = {
   display: "grid",
   gap: 9,
+};
+
+const scheduleDayStyle = {
+  borderTop: `1px solid ${publicColors.border}`,
+  paddingTop: 12,
+};
+
+const scheduleDayHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 12,
+  flexWrap: "wrap",
+  marginBottom: 10,
+};
+
+const scheduleDayTitleStyle = {
+  margin: 0,
+  fontSize: 18,
+};
+
+const scheduleDayEndStyle = {
+  color: publicColors.softText,
+  fontWeight: 750,
+};
+
+const scheduleTableStyle = {
+  width: "100%",
+  minWidth: 560,
+  borderCollapse: "collapse",
+};
+
+const scheduleThStyle = {
+  padding: "8px 9px",
+  textAlign: "left",
+  borderBottom: `1px solid ${publicColors.border}`,
+  color: publicColors.softText,
+  fontSize: 12,
+  textTransform: "uppercase",
+};
+
+const scheduleTdStyle = {
+  padding: "9px",
+  borderBottom: `1px solid ${publicColors.border}`,
+  verticalAlign: "top",
 };
 
 const resultTableWrapStyle = {

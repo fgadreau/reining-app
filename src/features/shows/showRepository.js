@@ -28,11 +28,13 @@ function toShow(row) {
     status: row.status || "draft",
     livestreamUrl: row.livestream_url || "",
     isLivestreamPublic: Boolean(row.is_livestream_public),
+    isSchedulePublic: Boolean(row.is_schedule_public),
   };
 }
 
-function toShowRow(show) {
-  return {
+function toShowRow(show, options = {}) {
+  const includePublicSchedule = options.includePublicSchedule !== false;
+  const row = {
     id: show.id,
     association_id: show.associationId,
     name: show.name || "",
@@ -44,10 +46,16 @@ function toShowRow(show) {
     livestream_url: show.livestreamUrl || "",
     is_livestream_public: Boolean(show.isLivestreamPublic),
   };
+
+  if (includePublicSchedule) {
+    row.is_schedule_public = Boolean(show.isSchedulePublic);
+  }
+
+  return row;
 }
 
 function toLegacyShowRow(show) {
-  const row = toShowRow(show);
+  const row = toShowRow(show, { includePublicSchedule: false });
   delete row.livestream_url;
   delete row.is_livestream_public;
   return row;
@@ -57,6 +65,10 @@ function isLivestreamSchemaMissing(error) {
   const message = String(error?.message || "");
 
   return /livestream_url|is_livestream_public/i.test(message);
+}
+
+function isScheduleSchemaMissing(error) {
+  return /is_schedule_public/i.test(String(error?.message || ""));
 }
 
 function saveShowLocally(show) {
@@ -142,15 +154,19 @@ export async function saveShowRepository(show) {
       const { error } = await supabase.from("shows").upsert(toShowRow(show));
       if (error) throw error;
     } catch (error) {
-      if (isLivestreamSchemaMissing(error)) {
+      if (isLivestreamSchemaMissing(error) || isScheduleSchemaMissing(error)) {
         try {
           const { error: legacyError } = await supabase
             .from("shows")
-            .upsert(toLegacyShowRow(show));
+            .upsert(
+              isLivestreamSchemaMissing(error)
+                ? toLegacyShowRow(show)
+                : toShowRow(show, { includePublicSchedule: false })
+            );
           if (legacyError) throw legacyError;
           syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
           syncError =
-            "Les colonnes livestream ne sont pas disponibles dans Supabase. Le show est sauvegardé localement, mais le livestream public ne sera pas visible tant que la migration n'est pas appliquée.";
+            "Certaines colonnes publiques du show ne sont pas disponibles dans Supabase. Le show est sauvegardé localement, mais ces réglages publics ne seront visibles qu'après la migration.";
         } catch (legacyError) {
           console.error("Erreur sauvegarde show Supabase:", legacyError);
           syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;

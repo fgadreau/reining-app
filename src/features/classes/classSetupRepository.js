@@ -1,7 +1,10 @@
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 import { getClassById } from "./classSelectors";
-import { normalizeClassScheduleDetails } from "./classSchedule";
+import {
+  hasClassScheduleDetails,
+  normalizeClassScheduleDetails,
+} from "./classSchedule";
 import {
   deleteClassSetup,
   getClassSetup,
@@ -16,6 +19,12 @@ function hasOwn(value, key) {
 
 function toSetup(row, localSetup = {}) {
   const remoteHasJudges = hasOwn(row, "judges");
+  const remoteScheduleDetails = normalizeClassScheduleDetails(
+    row.schedule_details
+  );
+  const localScheduleDetails = normalizeClassScheduleDetails(
+    localSetup?.scheduleDetails
+  );
   const fallbackJudges = Array.isArray(localSetup?.judges)
     ? localSetup.judges
     : [];
@@ -35,7 +44,9 @@ function toSetup(row, localSetup = {}) {
     blockClasses: Array.isArray(row.block_classes)
       ? row.block_classes
       : localSetup?.blockClasses || [],
-    scheduleDetails: normalizeClassScheduleDetails(row.schedule_details),
+    scheduleDetails: hasClassScheduleDetails(remoteScheduleDetails)
+      ? remoteScheduleDetails
+      : localScheduleDetails,
     startedAt: row.started_at || null,
     dragInterval: row.drag_interval || null,
     dragDurationMinutes: row.drag_duration_minutes,

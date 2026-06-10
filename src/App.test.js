@@ -54,10 +54,15 @@ import {
   getPaidWarmupTimerCueType,
 } from "./features/paidWarmups/paidWarmupLive";
 import {
+  calculatePaidWarmupScheduleSummary,
   insertPaidWarmupEntryAfter,
   movePaidWarmupEntry,
   savePaidWarmup,
 } from "./features/paidWarmups/paidWarmupStorage";
+import {
+  SHOW_SCHEDULE_ITEM_TYPES,
+  buildShowScheduleSections,
+} from "./features/schedule/showSchedule";
 import { saveDays } from "./features/days/dayStorage";
 import { saveClasses } from "./features/classes/classStorage";
 import {
@@ -2893,6 +2898,17 @@ test("normalizes planned class start details", () => {
     startMode: CLASS_START_MODE_AFTER_PREVIOUS,
     startTime: "",
   });
+
+  expect(
+    normalizeClassScheduleDetails({
+      scheduleStartMode: CLASS_START_MODE_FIXED,
+      scheduleStartTime: "07:45",
+      startMode: CLASS_START_MODE_AFTER_PREVIOUS,
+    })
+  ).toMatchObject({
+    startMode: CLASS_START_MODE_FIXED,
+    startTime: "07:45",
+  });
 });
 
 test("builds a day schedule from fixed and follow-up block starts", () => {
@@ -2943,4 +2959,61 @@ test("builds a day schedule from fixed and follow-up block starts", () => {
   );
   expect(new Date(rows[2].estimatedStartAt).getHours()).toBe(9);
   expect(summary.estimatedEndAt).toBe(rows[2].estimatedEndAt);
+});
+
+test("builds show schedule rows for paid warmups", () => {
+  const sections = buildShowScheduleSections({
+    daySections: [
+      {
+        day: { id: "day-1", label: "Jour 1", date: "2026-06-15" },
+        classRows: [],
+        paidWarmups: [
+          {
+            id: "warmup-1",
+            name: "Paid warm up",
+            scheduleStartMode: CLASS_START_MODE_FIXED,
+            scheduleStartTime: "08:00",
+            durationMinutesPerRider: 5,
+            dragDurationMinutes: 8,
+            entries: [
+              { id: "entry-1", rider: "A" },
+              { id: "entry-2", rider: "B" },
+            ],
+            sortOrder: 1,
+          },
+        ],
+      },
+    ],
+    now: new Date("2026-06-15T07:30:00"),
+  });
+  const [row] = sections[0].rows;
+
+  expect(row.itemType).toBe(SHOW_SCHEDULE_ITEM_TYPES.PAID_WARMUP);
+  expect(new Date(row.estimatedStartAt).getHours()).toBe(8);
+  expect(Date.parse(row.estimatedEndAt) - Date.parse(row.estimatedStartAt)).toBe(
+    10 * 60 * 1000
+  );
+});
+
+test("calculates remaining paid warmup schedule time", () => {
+  const summary = calculatePaidWarmupScheduleSummary(
+    {
+      durationMinutesPerRider: 5,
+      dragInterval: 2,
+      dragDurationMinutes: 8,
+      entries: [
+        { id: "entry-1", status: "done" },
+        { id: "entry-2", status: "pending" },
+        { id: "entry-3", status: "pending" },
+      ],
+    },
+    new Date("2026-06-15T08:00:00")
+  );
+
+  expect(summary).toMatchObject({
+    completedRuns: 1,
+    remainingRuns: 2,
+    remainingDragBreaks: 1,
+    remainingSeconds: 18 * 60,
+  });
 });

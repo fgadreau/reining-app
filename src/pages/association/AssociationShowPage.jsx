@@ -35,6 +35,7 @@ function AssociationShowPage() {
     status: "draft",
     isLivestreamPublic: false,
     livestreamUrl: "",
+    isSchedulePublic: false,
   });
   const access = useAssociationAccess(associationId);
 
@@ -75,6 +76,7 @@ function AssociationShowPage() {
       status: "draft",
       isLivestreamPublic: false,
       livestreamUrl: "",
+      isSchedulePublic: false,
     };
 
     setIsSaving(true);
@@ -91,6 +93,7 @@ function AssociationShowPage() {
         status: newShow.status,
         isLivestreamPublic: newShow.isLivestreamPublic,
         livestreamUrl: newShow.livestreamUrl,
+        isSchedulePublic: newShow.isSchedulePublic,
       });
     } catch (error) {
       console.error("Erreur création show:", error);
@@ -111,6 +114,7 @@ function AssociationShowPage() {
       status: show.status || "draft",
       isLivestreamPublic: Boolean(show.isLivestreamPublic),
       livestreamUrl: show.livestreamUrl || "",
+      isSchedulePublic: Boolean(show.isSchedulePublic),
     });
   };
 
@@ -125,6 +129,7 @@ function AssociationShowPage() {
       status: "draft",
       isLivestreamPublic: false,
       livestreamUrl: "",
+      isSchedulePublic: false,
     });
   };
 
@@ -306,6 +311,12 @@ function AssociationShowPage() {
                     {hasPublicLivestream(show) && (
                       <div style={liveMetaStyle}>
                         {t("management.shows.livestreamPublicEnabled")}
+                      </div>
+                    )}
+
+                    {show.isSchedulePublic && (
+                      <div style={liveMetaStyle}>
+                        {t("management.shows.schedulePublicEnabled")}
                       </div>
                     )}
 

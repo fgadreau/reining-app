@@ -10,7 +10,12 @@ import {
   createEmptyRun,
   resequenceRuns,
 } from "../../features/classes/classSetupStorage";
-import { normalizeClassScheduleDetails } from "../../features/classes/classSchedule";
+import {
+  CLASS_START_MODE_AFTER_PREVIOUS,
+  CLASS_START_MODE_FIXED,
+  normalizeClassScheduleDetails,
+  normalizeClassScheduleStart,
+} from "../../features/classes/classSchedule";
 import {
   MAX_CLASS_JUDGES,
   createClassJudge,
@@ -210,7 +215,10 @@ function ClassSetupPage() {
     classSetup?.blockClasses || []
   );
   const [scheduleDetails, setScheduleDetails] = useState(() =>
-    normalizeClassScheduleDetails(classSetup?.scheduleDetails)
+    normalizeClassScheduleDetails({
+      ...classItem,
+      ...classSetup?.scheduleDetails,
+    })
   );
   const [isDrawImported, setIsDrawImported] = useState(
     Boolean(classSetup?.isDrawImported)
@@ -320,7 +328,17 @@ function ClassSetupPage() {
       setJudges(nextJudges);
       setRuns(nextRuns);
       setBlockClasses(nextBlockClasses);
-      setScheduleDetails(normalizeClassScheduleDetails(nextSetup.scheduleDetails));
+      const nextScheduleStart = normalizeClassScheduleStart({
+        ...nextClassItem,
+        ...nextSetup.scheduleDetails,
+      });
+      setScheduleDetails(
+        normalizeClassScheduleDetails({
+          ...nextSetup.scheduleDetails,
+          startMode: nextScheduleStart.startMode,
+          startTime: nextScheduleStart.startTime,
+        })
+      );
       setIsDrawImported(Boolean(nextSetup.isDrawImported));
       setDragInterval(String(nextSetup.dragInterval || ""));
       setDragDurationMinutes(
@@ -382,11 +400,16 @@ function ClassSetupPage() {
       });
 
       const classCustomPattern = nextCustomPattern || null;
+      const scheduleStart = normalizeClassScheduleStart(scheduleDetails);
       const shouldSyncClassPattern =
         canManageSetup &&
         classItem?.id &&
         (classItem.pattern !== pattern ||
           String(classItem.arena || "") !== String(arena || "") ||
+          String(classItem.scheduleStartMode || "") !==
+            String(scheduleStart.startMode || "") ||
+          String(classItem.scheduleStartTime || "") !==
+            String(scheduleStart.startTime || "") ||
           String(classItem.judgeName || "") !== String(primaryJudgeName || "") ||
           JSON.stringify(classItem.customPattern || null) !==
             JSON.stringify(classCustomPattern));
@@ -400,6 +423,8 @@ function ClassSetupPage() {
           arena,
           judgeName: primaryJudgeName,
           customPattern: classCustomPattern,
+          scheduleStartMode: scheduleStart.startMode,
+          scheduleStartTime: scheduleStart.startTime,
         });
       }
 
@@ -1151,6 +1176,62 @@ function ClassSetupPage() {
                 </button>
               </div>
             </div>
+          )}
+
+          {canManageSetup && (
+            <>
+              <div>
+                <label style={labelStyle}>
+                  {t("management.classes.scheduleStartLabel")}
+                </label>
+                <select
+                  value={scheduleDetails.startMode}
+                  onChange={(event) =>
+                    setScheduleDetails((current) =>
+                      normalizeClassScheduleDetails({
+                        ...current,
+                        startMode: event.target.value,
+                        startTime:
+                          event.target.value === CLASS_START_MODE_FIXED
+                            ? current.startTime
+                            : "",
+                      })
+                    )
+                  }
+                  style={inputStyle}
+                  disabled={!canManageSetup || isFinalized}
+                >
+                  <option value={CLASS_START_MODE_AFTER_PREVIOUS}>
+                    {t("management.classes.startAfterPrevious")}
+                  </option>
+                  <option value={CLASS_START_MODE_FIXED}>
+                    {t("management.classes.startFixed")}
+                  </option>
+                </select>
+              </div>
+
+              {scheduleDetails.startMode === CLASS_START_MODE_FIXED && (
+                <div>
+                  <label style={labelStyle}>
+                    {t("management.classes.startTimeLabel")}
+                  </label>
+                  <input
+                    type="time"
+                    value={scheduleDetails.startTime}
+                    onChange={(event) =>
+                      setScheduleDetails((current) =>
+                        normalizeClassScheduleDetails({
+                          ...current,
+                          startTime: event.target.value,
+                        })
+                      )
+                    }
+                    style={inputStyle}
+                    disabled={!canManageSetup || isFinalized}
+                  />
+                </div>
+              )}
+            </>
           )}
 
           {canManageSetup && isScheduleOnly && (

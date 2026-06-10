@@ -46,9 +46,18 @@ import { getSupabaseClient } from "../cloud/supabaseClient";
 import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 import { buildPatternTimingStats } from "./classTimeAnalytics";
 import { MIN_MEASURED_RUN_SECONDS } from "./classTiming";
+import {
+  CLASS_START_MODE_AFTER_PREVIOUS,
+  normalizeClassScheduleStart,
+} from "./classSchedule";
 import { getPatternDisplayName } from "../patterns/patternDefinitions";
 
 function toClass(row) {
+  const scheduleStart = normalizeClassScheduleStart({
+    startMode: row.schedule_start_mode,
+    startTime: row.schedule_start_time,
+  });
+
   return {
     id: row.id,
     associationId: row.association_id,
@@ -62,6 +71,8 @@ function toClass(row) {
       row.custom_pattern && typeof row.custom_pattern === "object"
         ? row.custom_pattern
         : null,
+    scheduleStartMode: scheduleStart.startMode,
+    scheduleStartTime: scheduleStart.startTime,
     judgeName: row.judge_name || "",
     sortOrder: row.sort_order || 1,
   };
@@ -69,6 +80,8 @@ function toClass(row) {
 
 function toClassRow(classItem, options = {}) {
   const includeCustomPattern = options.includeCustomPattern !== false;
+  const includeScheduleStart = options.includeScheduleStart !== false;
+  const scheduleStart = normalizeClassScheduleStart(classItem);
   const row = {
     id: classItem.id,
     association_id: classItem.associationId,
@@ -86,6 +99,12 @@ function toClassRow(classItem, options = {}) {
     row.custom_pattern = classItem.customPattern || null;
   }
 
+  if (includeScheduleStart) {
+    row.schedule_start_mode =
+      scheduleStart.startMode || CLASS_START_MODE_AFTER_PREVIOUS;
+    row.schedule_start_time = scheduleStart.startTime || null;
+  }
+
   return row;
 }
 
@@ -95,6 +114,14 @@ function isCustomPatternColumnMissingError(error) {
 
 function isArenaColumnMissingError(error) {
   return String(error?.message || "").includes("arena");
+}
+
+function isScheduleStartColumnMissingError(error) {
+  const message = String(error?.message || "");
+  return (
+    message.includes("schedule_start_mode") ||
+    message.includes("schedule_start_time")
+  );
 }
 
 function saveClassLocally(classItem) {
@@ -379,12 +406,19 @@ export async function saveClassItemRepository(classItem) {
       const { error } = await supabase.from("classes").upsert(toClassRow(classItem));
       if (error) throw error;
     } catch (error) {
-      if (isCustomPatternColumnMissingError(error) || isArenaColumnMissingError(error)) {
+      if (
+        isCustomPatternColumnMissingError(error) ||
+        isArenaColumnMissingError(error) ||
+        isScheduleStartColumnMissingError(error)
+      ) {
         try {
           const legacyRow = toClassRow(classItem, {
             includeCustomPattern: !isCustomPatternColumnMissingError(error),
+            includeScheduleStart: !isScheduleStartColumnMissingError(error),
           });
-          delete legacyRow.arena;
+          if (isArenaColumnMissingError(error)) {
+            delete legacyRow.arena;
+          }
 
           const { error: legacyError } = await supabase
             .from("classes")

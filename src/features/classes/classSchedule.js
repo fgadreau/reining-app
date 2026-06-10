@@ -17,6 +17,31 @@ export function normalizeClassStartTime(value) {
   return CLOCK_TIME_PATTERN.test(text) ? text : "";
 }
 
+export function normalizeClassScheduleStart(input = {}) {
+  const setupStartMode = normalizeClassStartMode(
+    input.startMode || input.start_mode
+  );
+  const classStartMode = normalizeClassStartMode(input.scheduleStartMode);
+  const startMode =
+    setupStartMode === CLASS_START_MODE_FIXED
+      ? setupStartMode
+      : classStartMode;
+  const setupStartTime = input.startTime || input.start_time;
+  const classStartTime = input.scheduleStartTime;
+
+  return {
+    startMode,
+    startTime:
+      startMode === CLASS_START_MODE_FIXED
+        ? normalizeClassStartTime(
+            setupStartMode === CLASS_START_MODE_FIXED
+              ? setupStartTime || classStartTime
+              : classStartTime || setupStartTime
+          )
+        : "",
+  };
+}
+
 function normalizePositiveIntegerText(value) {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed > 0 ? String(parsed) : "";
@@ -39,9 +64,7 @@ export function normalizeClassScheduleDetails(details = {}) {
   const sectionSize = normalizePositiveIntegerText(details.sectionSize);
   const hasFinal = Boolean(details.hasFinal);
   const isCompleted = Boolean(details.isCompleted);
-  const startMode = normalizeClassStartMode(
-    details.startMode || details.start_mode
-  );
+  const { startMode, startTime } = normalizeClassScheduleStart(details);
 
   return {
     participantCount,
@@ -57,10 +80,7 @@ export function normalizeClassScheduleDetails(details = {}) {
     completedAt: isCompleted ? details.completedAt || null : null,
     note: String(details.note || "").slice(0, MAX_NOTE_LENGTH),
     startMode,
-    startTime:
-      startMode === CLASS_START_MODE_FIXED
-        ? normalizeClassStartTime(details.startTime || details.start_time)
-        : "",
+    startTime,
   };
 }
 

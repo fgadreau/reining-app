@@ -137,7 +137,10 @@ export function buildClassTimingRow({
 }) {
   const pattern = getClassPatternValue(classData);
   const scheduleDetails = normalizeClassScheduleDetails(
-    classData?.setup?.scheduleDetails
+    {
+      ...classData?.classItem,
+      ...classData?.setup?.scheduleDetails,
+    }
   );
   const maneuverCount = getClassManeuverCount(classData);
   const runs = getClassScoringRuns(classData);

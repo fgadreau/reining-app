@@ -14,6 +14,10 @@ import {
 } from "../../features/paidWarmups/paidWarmupStorage";
 import { parsePaidWarmupEntries } from "../../features/paidWarmups/paidWarmupImport";
 import { DRAG_INTERVAL_OPTIONS } from "../../features/classes/classTiming";
+import {
+  CLASS_START_MODE_AFTER_PREVIOUS,
+  CLASS_START_MODE_FIXED,
+} from "../../features/classes/classSchedule";
 import { getDayById } from "../../features/days/daySelectors";
 import { getShowById } from "../../features/shows/showSelectors";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
@@ -333,6 +337,48 @@ function PaidWarmupSetupPage() {
               style={inputStyle}
             />
           </div>
+
+          <div>
+            <label style={labelStyle}>
+              {t("management.classes.scheduleStartLabel")}
+            </label>
+            <select
+              value={warmup.scheduleStartMode}
+              onChange={(event) =>
+                updateWarmup({
+                  scheduleStartMode: event.target.value,
+                  scheduleStartTime:
+                    event.target.value === CLASS_START_MODE_FIXED
+                      ? warmup.scheduleStartTime
+                      : "",
+                })
+              }
+              style={inputStyle}
+            >
+              <option value={CLASS_START_MODE_AFTER_PREVIOUS}>
+                {t("management.classes.startAfterPrevious")}
+              </option>
+              <option value={CLASS_START_MODE_FIXED}>
+                {t("management.classes.startFixed")}
+              </option>
+            </select>
+          </div>
+
+          {warmup.scheduleStartMode === CLASS_START_MODE_FIXED && (
+            <div>
+              <label style={labelStyle}>
+                {t("management.classes.startTimeLabel")}
+              </label>
+              <input
+                type="time"
+                value={warmup.scheduleStartTime}
+                onChange={(event) =>
+                  updateWarmup({ scheduleStartTime: event.target.value })
+                }
+                style={inputStyle}
+              />
+            </div>
+          )}
 
           <div>
             <label style={labelStyle}>{t("public.results.dragSurface")}</label>

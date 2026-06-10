@@ -2,24 +2,25 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import {
-  buildClassTimingRow,
-  buildDayScheduleRows,
-  buildDayScheduleSummary,
   buildPatternTimingStats,
   calculateClassTimeSimulation,
 } from "../../features/classes/classTimeAnalytics";
+import {
+  SHOW_SCHEDULE_ITEM_TYPES,
+  buildShowScheduleSections,
+} from "../../features/schedule/showSchedule";
 import {
   getClassFullDataRepository,
   getClassesForDayRepository,
   getGlobalPatternTimingStatsRepository,
 } from "../../features/classes/classRepository";
+import { getPaidWarmupsForDayRepository } from "../../features/paidWarmups/paidWarmupRepository";
 import {
   DEFAULT_DRAG_DURATION_MINUTES,
   DRAG_INTERVAL_OPTIONS,
   formatClockTime,
   formatDuration,
 } from "../../features/classes/classTiming";
-import { getPatternDisplayName } from "../../features/patterns/patternDefinitions";
 import { getDaysByShowRepository } from "../../features/days/dayRepository";
 import { getShowRepository } from "../../features/shows/showRepository";
 import { useTranslation } from "../../features/i18n/I18nProvider";
@@ -59,7 +60,10 @@ function ShowTimeManagementPage() {
       ]);
       const nextSections = await Promise.all(
         days.map(async (day) => {
-          const classes = await getClassesForDayRepository(day.id);
+          const [classes, paidWarmups] = await Promise.all([
+            getClassesForDayRepository(day.id),
+            getPaidWarmupsForDayRepository(day.id),
+          ]);
           const classRows = await Promise.all(
             classes.map((classItem) => getClassFullDataRepository(classItem.id))
           );
@@ -67,6 +71,7 @@ function ShowTimeManagementPage() {
           return {
             day,
             classRows,
+            paidWarmups,
           };
         })
       );
@@ -122,30 +127,10 @@ function ShowTimeManagementPage() {
     ]
   );
   const dayTimingSections = useMemo(() => {
-    return daySections.map(({ day, classRows }) => {
-      const rows = classRows.map((classData) =>
-        buildClassTimingRow({
-          classData,
-          day,
-          now,
-          patternAverageRunSeconds:
-            patternAverageByValue.get(
-              getPatternDisplayName(
-                classData?.setup?.pattern || classData?.classItem?.pattern || "—",
-                classData?.setup?.customPattern ||
-                  classData?.classItem?.customPattern ||
-                  null
-              ) || "—"
-            ) || null,
-        })
-      );
-      const scheduledRows = buildDayScheduleRows(rows, { day, now });
-
-      return {
-        day,
-        rows: scheduledRows,
-        summary: buildDayScheduleSummary(scheduledRows, now),
-      };
+    return buildShowScheduleSections({
+      daySections,
+      now,
+      patternAverageByValue,
     });
   }, [daySections, now, patternAverageByValue]);
   const classTimingRows = useMemo(
@@ -497,17 +482,25 @@ function ShowTimeManagementPage() {
                                 <td style={tdStyle}>
                                   <div style={actionRowStyle}>
                                     <Link
-                                      to={`/associations/${associationId}/classes/${row.classId}/setup`}
+                                      to={
+                                        row.itemType ===
+                                        SHOW_SCHEDULE_ITEM_TYPES.PAID_WARMUP
+                                          ? `/associations/${associationId}/shows/${showId}/days/${section.day.id}/paid-warmups/${row.classId}/setup`
+                                          : `/associations/${associationId}/classes/${row.classId}/setup`
+                                      }
                                       style={smallLinkButtonStyle}
                                     >
                                       {t("management.secretariat.setup")}
                                     </Link>
-                                    <Link
-                                      to={`/associations/${associationId}/scribe/classes/${row.classId}`}
-                                      style={smallLinkButtonStyle}
-                                    >
-                                      {t("management.secretariat.scoring")}
-                                    </Link>
+                                    {row.itemType !==
+                                      SHOW_SCHEDULE_ITEM_TYPES.PAID_WARMUP && (
+                                      <Link
+                                        to={`/associations/${associationId}/scribe/classes/${row.classId}`}
+                                        style={smallLinkButtonStyle}
+                                      >
+                                        {t("management.secretariat.scoring")}
+                                      </Link>
+                                    )}
                                   </div>
                                 </td>
                               </tr>

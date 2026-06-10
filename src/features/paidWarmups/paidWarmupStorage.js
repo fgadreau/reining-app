@@ -1,4 +1,5 @@
 import { createId } from "../../utils/createId";
+import { normalizeClassScheduleStart } from "../classes/classSchedule";
 
 const STORAGE_KEY = "reining_paid_warmups_v1";
 
@@ -114,6 +115,7 @@ export function insertPaidWarmupEntryAfter(entries, afterEntryId, entry = {}) {
 
 export function normalizePaidWarmup(item) {
   const entries = normalizePaidWarmupEntries(item?.entries);
+  const scheduleStart = normalizeClassScheduleStart(item);
 
   return {
     id: item?.id || createId("paid_warmup"),
@@ -127,6 +129,8 @@ export function normalizePaidWarmup(item) {
     ),
     dragInterval: normalizeNullablePositiveInteger(item?.dragInterval),
     dragDurationMinutes: normalizeNonNegativeInteger(item?.dragDurationMinutes, 8),
+    scheduleStartMode: scheduleStart.startMode,
+    scheduleStartTime: scheduleStart.startTime,
     isPublicLive: Boolean(item?.isPublicLive),
     activeEntryId: item?.activeEntryId || null,
     activeStartedAt: item?.activeStartedAt || null,
@@ -135,6 +139,65 @@ export function normalizePaidWarmup(item) {
     createdAt: item?.createdAt || new Date().toISOString(),
     updatedAt: item?.updatedAt || new Date().toISOString(),
   };
+}
+
+export function calculatePaidWarmupScheduleSummary(warmup, now = new Date()) {
+  const normalized = normalizePaidWarmup(warmup);
+  const entries = normalized.entries;
+  const completedEntries = entries.filter((entry) =>
+    ["done", "no_show", "scratch"].includes(entry.status)
+  ).length;
+  const activeEntry =
+    normalized.activeEntryId &&
+    entries.find((entry) => entry.id === normalized.activeEntryId);
+  const remainingEntries = entries.filter((entry) => {
+    if (activeEntry && entry.id === activeEntry.id) return true;
+    return !["done", "no_show", "scratch"].includes(entry.status);
+  }).length;
+  const totalDragBreaks = normalized.dragInterval
+    ? Math.floor(Math.max(entries.length - 1, 0) / normalized.dragInterval)
+    : 0;
+  const completedDragBreaks =
+    normalized.dragInterval && completedEntries > 0
+      ? Math.floor(Math.max(completedEntries - 1, 0) / normalized.dragInterval)
+      : 0;
+  const remainingDragBreaks = Math.max(totalDragBreaks - completedDragBreaks, 0);
+  const durationSeconds = normalized.durationMinutesPerRider * 60;
+  const activeRemainingSeconds = activeEntry
+    ? calculateActivePaidWarmupRemainingSeconds(
+        normalized.activeStartedAt,
+        durationSeconds,
+        now
+      )
+    : null;
+  const remainingWholeEntries = activeEntry
+    ? Math.max(remainingEntries - 1, 0)
+    : remainingEntries;
+  const remainingSeconds =
+    (activeRemainingSeconds == null
+      ? remainingEntries * durationSeconds
+      : Math.max(activeRemainingSeconds, 0) +
+        remainingWholeEntries * durationSeconds) +
+    remainingDragBreaks * normalized.dragDurationMinutes * 60;
+
+  return {
+    completedRuns: completedEntries,
+    runCount: entries.length,
+    remainingRuns: remainingEntries,
+    averageRunSeconds: durationSeconds,
+    remainingDragBreaks,
+    remainingSeconds,
+  };
+}
+
+function calculateActivePaidWarmupRemainingSeconds(startedAt, durationSeconds, now) {
+  const started = Date.parse(startedAt);
+
+  if (!Number.isFinite(started)) {
+    return durationSeconds;
+  }
+
+  return Math.round(durationSeconds - (now.getTime() - started) / 1000);
 }
 
 export function loadPaidWarmups() {
