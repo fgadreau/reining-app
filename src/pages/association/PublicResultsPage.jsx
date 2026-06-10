@@ -1045,7 +1045,6 @@ function PublicLivePanel({ classView, now }) {
                 t("public.results.scheduleOnly")
               : `${t("public.results.pattern")} ${classView.pattern || "—"}`}
           </div>
-          <PublicNextScheduleItem item={classView.nextScheduleItem} />
         </div>
         <div style={badgeStackStyle}>
           <LiveFreshnessBadge updatedAt={classView.liveUpdatedAt} now={now} />
@@ -1070,7 +1069,10 @@ function PublicLivePanel({ classView, now }) {
           {!isScheduleOnly && <PublicTimingSummary timing={classView.timing} />}
 
           {isScheduleOnly ? (
-            <ScheduleOnlyLiveDetails classView={classView} />
+            <>
+              <ScheduleOnlyLiveDetails classView={classView} />
+              <PublicNextScheduleItem item={classView.nextScheduleItem} />
+            </>
           ) : !showScores && (
             <div style={noScoreNoticeStyle}>
               {t("public.results.noScoresNotice")}
@@ -1141,6 +1143,10 @@ function PublicLivePanel({ classView, now }) {
                 </div>
               )}
             </div>
+          )}
+
+          {!isScheduleOnly && (
+            <PublicNextScheduleItem item={classView.nextScheduleItem} />
           )}
 
           {!isScheduleOnly && (
@@ -1215,7 +1221,6 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
               minutes: warmup.durationMinutesPerRider,
             })}
           </div>
-          <PublicNextScheduleItem item={warmup.nextScheduleItem} />
         </div>
         <div style={badgeStackStyle}>
           <LiveFreshnessBadge updatedAt={warmup.updatedAt} now={now} />
@@ -1274,6 +1279,8 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
           )}
         </div>
       </div>
+
+      <PublicNextScheduleItem item={warmup.nextScheduleItem} />
     </section>
   );
 }

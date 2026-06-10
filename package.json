@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=20",
+    "node": "20.x",
     "npm": ">=10"
   },
   "dependencies": {
@@ -22,7 +22,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "DISABLE_ESLINT_PLUGIN=true GENERATE_SOURCEMAP=false NODE_OPTIONS=--max_old_space_size=6144 react-scripts build",
     "test": "react-scripts test",
     "test:e2e": "playwright test",
     "test:e2e:visible": "E2E_SHOW_STEPS=1 E2E_SLOW_MO=1200 E2E_STEP_PAUSE=3500 playwright test --headed --project=chromium",
