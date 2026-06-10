@@ -4,6 +4,7 @@ import { getClassById } from "./classSelectors";
 import {
   hasClassScheduleDetails,
   normalizeClassScheduleDetails,
+  normalizeClassScheduleStart,
 } from "./classSchedule";
 import {
   deleteClassSetup,
@@ -11,6 +12,7 @@ import {
   normalizeClassSetup,
   saveClassSetup,
 } from "./classSetupStorage";
+import { updateClass } from "./classStorage";
 import { NO_PATTERN_ID, isNoPatternValue } from "../patterns/patternDefinitions";
 
 function hasOwn(value, key) {
@@ -284,6 +286,7 @@ export async function saveClassScheduleDetailsRepository(classId, details) {
   const supabase = getSupabaseClient();
 
   saveClassSetup(classId, nextLocalSetup);
+  await syncClassScheduleStartFields(classId, normalizedDetails);
 
   if (supabase) {
     try {
@@ -309,6 +312,45 @@ export async function saveClassScheduleDetailsRepository(classId, details) {
   }
 
   return nextLocalSetup;
+}
+
+async function syncClassScheduleStartFields(classId, details) {
+  const classItem = getClassById(classId);
+
+  if (!classItem) return;
+
+  const scheduleStart = normalizeClassScheduleStart(details);
+
+  if (
+    String(classItem.scheduleStartMode || "") ===
+      String(scheduleStart.startMode || "") &&
+    String(classItem.scheduleStartTime || "") === String(scheduleStart.startTime || "")
+  ) {
+    return;
+  }
+
+  updateClass(classId, {
+    scheduleStartMode: scheduleStart.startMode,
+    scheduleStartTime: scheduleStart.startTime,
+  });
+
+  const supabase = getSupabaseClient();
+
+  if (!supabase) return;
+
+  try {
+    const { error } = await supabase
+      .from("classes")
+      .update({
+        schedule_start_mode: scheduleStart.startMode,
+        schedule_start_time: scheduleStart.startTime || null,
+      })
+      .eq("id", classId);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Erreur synchronisation heure du bloc Supabase:", error);
+  }
 }
 
 export async function deleteClassSetupRepository(classId) {

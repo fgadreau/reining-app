@@ -125,6 +125,8 @@ function buildLiveScheduleItem({ type, item }) {
     arena: String(item?.arena || "").trim(),
     effectiveArena: String(item?.arena || "").trim(),
     sortOrder: item?.sortOrder || item?.sort_order || 1,
+    scheduleStartMode: item?.scheduleStartMode || item?.schedule_start_mode || "",
+    scheduleStartTime: item?.scheduleStartTime || item?.schedule_start_time || "",
     source: item,
   };
 }

@@ -75,12 +75,14 @@ function toClass(row) {
     scheduleStartTime: scheduleStart.startTime,
     judgeName: row.judge_name || "",
     sortOrder: row.sort_order || 1,
+    updatedAt: row.updated_at || null,
   };
 }
 
 function toClassRow(classItem, options = {}) {
   const includeCustomPattern = options.includeCustomPattern !== false;
   const includeScheduleStart = options.includeScheduleStart !== false;
+  const includeArena = options.includeArena !== false;
   const scheduleStart = normalizeClassScheduleStart(classItem);
   const row = {
     id: classItem.id,
@@ -89,11 +91,14 @@ function toClassRow(classItem, options = {}) {
     day_id: classItem.dayId,
     name: classItem.name || "",
     class_code: classItem.classCode || "",
-    arena: classItem.arena || "",
     pattern: classItem.pattern || "",
     judge_name: classItem.judgeName || "",
     sort_order: Number(classItem.sortOrder) || 1,
   };
+
+  if (includeArena) {
+    row.arena = classItem.arena || "";
+  }
 
   if (includeCustomPattern) {
     row.custom_pattern = classItem.customPattern || null;
@@ -141,6 +146,94 @@ function mergeClassesById(currentClasses, nextClasses) {
   currentClasses.forEach((classItem) => merged.set(classItem.id, classItem));
   nextClasses.forEach((classItem) => merged.set(classItem.id, classItem));
   return Array.from(merged.values());
+}
+
+export function buildClassWithSetupScheduleStart(classItem, setup) {
+  if (!classItem) return classItem;
+
+  const scheduleStart = normalizeClassScheduleStart({
+    ...classItem,
+    ...setup?.scheduleDetails,
+  });
+
+  if (
+    String(classItem.scheduleStartMode || "") ===
+      String(scheduleStart.startMode || "") &&
+    String(classItem.scheduleStartTime || "") ===
+      String(scheduleStart.startTime || "")
+  ) {
+    return classItem;
+  }
+
+  return {
+    ...classItem,
+    scheduleStartMode: scheduleStart.startMode,
+    scheduleStartTime: scheduleStart.startTime,
+  };
+}
+
+async function upsertClassRowWithColumnFallback(supabase, classItem) {
+  const options = {
+    includeCustomPattern: true,
+    includeScheduleStart: true,
+    includeArena: true,
+  };
+  let lastError = null;
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      const { error } = await supabase
+        .from("classes")
+        .upsert(toClassRow(classItem, options));
+
+      if (error) throw error;
+      return;
+    } catch (error) {
+      lastError = error;
+
+      if (isCustomPatternColumnMissingError(error) && options.includeCustomPattern) {
+        options.includeCustomPattern = false;
+        continue;
+      }
+
+      if (isArenaColumnMissingError(error) && options.includeArena) {
+        options.includeArena = false;
+        continue;
+      }
+
+      if (
+        isScheduleStartColumnMissingError(error) &&
+        options.includeScheduleStart
+      ) {
+        options.includeScheduleStart = false;
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw lastError;
+}
+
+async function syncClassScheduleStartFromSetupRepository(classItem, setup) {
+  const nextClass = buildClassWithSetupScheduleStart(classItem, setup);
+
+  if (!nextClass || nextClass === classItem) {
+    return classItem;
+  }
+
+  const supabase = getSupabaseClient();
+
+  if (supabase) {
+    try {
+      await upsertClassRowWithColumnFallback(supabase, nextClass);
+    } catch (error) {
+      console.error("Erreur resynchronisation horaire bloc Supabase:", error);
+    }
+  }
+
+  return saveClassLocally(nextClass);
 }
 
 async function buildTimingDataForClasses(classes) {
@@ -375,17 +468,30 @@ export async function getClassesForDayRepository(dayId) {
       (classItem) => classItem.dayId !== dayId
     );
     saveClasses([...otherLocalClasses, ...classes]);
-    await Promise.all(
-      classes.flatMap((classItem) => [
-        getClassSetupRepository(classItem.id),
-        getOfficialResultRepository(classItem.id),
-      ])
+    const classesWithSetups = await Promise.all(
+      classes.map(async (classItem) => {
+        const [setup] = await Promise.all([
+          getClassSetupRepository(classItem.id),
+          getOfficialResultRepository(classItem.id),
+        ]);
+
+        return {
+          classItem,
+          setup,
+        };
+      })
     );
+    const syncedClasses = await Promise.all(
+      classesWithSetups.map(({ classItem, setup }) =>
+        syncClassScheduleStartFromSetupRepository(classItem, setup)
+      )
+    );
+    saveClasses([...otherLocalClasses, ...syncedClasses]);
     await getPublicationStatesForClassesRepository(
-      classes.map((classItem) => classItem.id)
+      syncedClasses.map((classItem) => classItem.id)
     );
 
-    return classes;
+    return syncedClasses;
   } catch (error) {
     console.error("Erreur chargement blocs Supabase:", error);
     return getClassesByDayId(dayId);
@@ -403,39 +509,8 @@ export async function saveClassItemRepository(classItem) {
 
   if (supabase) {
     try {
-      const { error } = await supabase.from("classes").upsert(toClassRow(classItem));
-      if (error) throw error;
+      await upsertClassRowWithColumnFallback(supabase, classItem);
     } catch (error) {
-      if (
-        isCustomPatternColumnMissingError(error) ||
-        isArenaColumnMissingError(error) ||
-        isScheduleStartColumnMissingError(error)
-      ) {
-        try {
-          const legacyRow = toClassRow(classItem, {
-            includeCustomPattern: !isCustomPatternColumnMissingError(error),
-            includeScheduleStart: !isScheduleStartColumnMissingError(error),
-          });
-          if (isArenaColumnMissingError(error)) {
-            delete legacyRow.arena;
-          }
-
-          const { error: legacyError } = await supabase
-            .from("classes")
-            .upsert(legacyRow);
-
-          if (legacyError) throw legacyError;
-          const savedLegacyClass = saveClassLocally(classItem);
-          trackClassSaveEvent(savedLegacyClass, isExistingClass);
-          return savedLegacyClass;
-        } catch (legacyError) {
-          console.error("Erreur sauvegarde bloc Supabase:", legacyError);
-          const savedFallbackClass = saveClassLocally(classItem);
-          trackClassSaveEvent(savedFallbackClass, isExistingClass);
-          return savedFallbackClass;
-        }
-      }
-
       console.error("Erreur sauvegarde bloc Supabase:", error);
     }
   }

@@ -237,7 +237,9 @@ async function getRemoteShowLiveSchedule(supabase, showId) {
   const [classesResult, daysResult, paidWarmupsResult] = await Promise.all([
     supabase
       .from("classes")
-      .select("id, show_id, day_id, name, arena, sort_order")
+      .select(
+        "id, show_id, day_id, name, arena, sort_order, schedule_start_mode, schedule_start_time"
+      )
       .eq("show_id", showId),
     supabase
       .from("days")

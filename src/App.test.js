@@ -38,6 +38,7 @@ import {
   advanceArenaLivePaidWarmupAfterCompletionRepository,
   saveArenaCurrentLiveClassRepository,
 } from "./features/publication/publicationCloudRepository";
+import { buildClassWithSetupScheduleStart } from "./features/classes/classRepository";
 import {
   buildPublicClassView,
   buildPublicLiveClassView,
@@ -76,6 +77,7 @@ import {
   buildShowSchedulePreviewSections,
   buildShowScheduleSections,
 } from "./features/schedule/showSchedule";
+import { buildLiveScheduleItems } from "./features/schedule/liveSchedule";
 import { saveDays } from "./features/days/dayStorage";
 import { saveClasses } from "./features/classes/classStorage";
 import {
@@ -3585,6 +3587,49 @@ test("builds show schedule rows for paid warmups", () => {
   expect(Date.parse(row.estimatedEndAt) - Date.parse(row.estimatedStartAt)).toBe(
     10 * 60 * 1000
   );
+});
+
+test("syncs fixed class setup starts onto class schedule fields", () => {
+  const classItem = buildClassWithSetupScheduleStart(
+    {
+      id: "class-setup-start",
+      name: "Novice Horse",
+      scheduleStartMode: CLASS_START_MODE_AFTER_PREVIOUS,
+      scheduleStartTime: "",
+    },
+    {
+      scheduleDetails: {
+        startMode: CLASS_START_MODE_FIXED,
+        startTime: "07:00",
+      },
+    }
+  );
+
+  expect(classItem).toMatchObject({
+    scheduleStartMode: CLASS_START_MODE_FIXED,
+    scheduleStartTime: "07:00",
+  });
+});
+
+test("live schedule items keep class start fields from remote rows", () => {
+  const [item] = buildLiveScheduleItems({
+    classes: [
+      {
+        id: "class-remote-start",
+        show_id: "show-1",
+        day_id: "day-1",
+        name: "Novice Horse",
+        schedule_start_mode: CLASS_START_MODE_FIXED,
+        schedule_start_time: "07:00",
+      },
+    ],
+    days: [{ id: "day-1", date: "2026-06-26", sort_order: 1 }],
+  });
+
+  expect(item).toMatchObject({
+    scheduleStartMode: CLASS_START_MODE_FIXED,
+    scheduleStartTime: "07:00",
+  });
 });
 
 test("normalizes paid warmup starts from Supabase schedule fields", () => {
