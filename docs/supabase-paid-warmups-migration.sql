@@ -9,6 +9,7 @@ create table if not exists public.paid_warmups (
   show_id text not null references public.shows(id) on delete cascade,
   day_id text not null references public.days(id) on delete cascade,
   name text not null,
+  arena text,
   duration_minutes_per_rider integer not null default 5,
   drag_interval integer,
   drag_duration_minutes integer not null default 8,
@@ -17,6 +18,9 @@ create table if not exists public.paid_warmups (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.paid_warmups
+add column if not exists arena text;
 
 alter table public.paid_warmups
 add column if not exists is_public_live boolean not null default false;

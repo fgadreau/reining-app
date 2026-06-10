@@ -195,12 +195,14 @@ function DayClassesPage() {
   };
 
   const startCreatePaidWarmup = async () => {
+    const defaultArena = classes.find((item) => item.arena)?.arena || "";
     const newWarmup = {
       id: createId("paid_warmup"),
       dayId,
       showId,
       associationId,
       name: t("management.classes.newPaidWarmupName"),
+      arena: defaultArena,
       scheduleStartMode: CLASS_START_MODE_AFTER_PREVIOUS,
       scheduleStartTime: "",
       durationMinutesPerRider: DEFAULT_PAID_WARMUP_DURATION_MINUTES,
@@ -585,6 +587,9 @@ function DayClassesPage() {
                         {t("management.classes.minutesPerRider", {
                           minutes: warmup.durationMinutesPerRider,
                         })}{" "}
+                        {warmup.arena
+                          ? `• ${t("management.classes.arenaLabel")}: ${warmup.arena} `
+                          : ""}
                         • {formatPaidWarmupDrag(warmup, t)} •{" "}
                         {t("management.classes.riderCount", {
                           count: stats.total,

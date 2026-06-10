@@ -5,6 +5,7 @@ import {
   getPaidWarmupRepository,
   savePaidWarmupRepository,
 } from "../../features/paidWarmups/paidWarmupRepository";
+import { saveArenaCurrentLivePaidWarmupRepository } from "../../features/publication/publicationCloudRepository";
 import {
   PAID_WARMUP_STATUSES,
   getPaidWarmupStats,
@@ -180,15 +181,23 @@ function PaidWarmupSetupPage() {
         showId,
         dayId,
       });
+      const liveSaved = saved?.isPublicLive
+        ? await saveArenaCurrentLivePaidWarmupRepository({
+            showId,
+            arena: saved.arena,
+            paidWarmupId: saved.id,
+          })
+        : saved;
+      const nextSavedWarmup = liveSaved ? { ...saved, ...liveSaved } : saved;
       const tone = getLocalFirstSyncNoticeTone(saved);
       const syncNotice = formatLocalFirstSyncNotice(saved, t);
 
-      setWarmup(saved);
+      setWarmup(nextSavedWarmup);
       setMessageTone(tone);
       setMessage(
         tone === "synced" ? successMessage : `${successMessage} ${syncNotice}`
       );
-      return saved;
+      return nextSavedWarmup;
     } catch (error) {
       console.error("Erreur sauvegarde paid warm up:", error);
       setMessageTone("warn");
@@ -317,6 +326,17 @@ function PaidWarmupSetupPage() {
               type="text"
               value={warmup.name}
               onChange={(event) => updateWarmup({ name: event.target.value })}
+              style={inputStyle}
+            />
+          </div>
+
+          <div>
+            <label style={labelStyle}>{t("management.classes.arenaLabel")}</label>
+            <input
+              type="text"
+              value={warmup.arena || ""}
+              onChange={(event) => updateWarmup({ arena: event.target.value })}
+              placeholder={t("management.classes.arenaPlaceholder")}
               style={inputStyle}
             />
           </div>

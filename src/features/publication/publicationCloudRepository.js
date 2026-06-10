@@ -3,6 +3,19 @@ import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 import { getAllClasses, getClassById } from "../classes/classSelectors";
 import { getDaysByShowId } from "../days/daySelectors";
 import {
+  getPaidWarmupById,
+  loadPaidWarmups,
+  savePaidWarmup,
+} from "../paidWarmups/paidWarmupStorage";
+import {
+  LIVE_SCHEDULE_ITEM_TYPES,
+  buildLiveScheduleItems,
+  findFirstPendingPaidWarmupBeforeItem,
+  findNextScheduleItemInArena,
+  findScheduleItem,
+  isSameScheduleArena,
+} from "../schedule/liveSchedule";
+import {
   deletePublicationState,
   getDefaultPublicationState,
   getPublicationState,
@@ -159,52 +172,23 @@ export async function savePublicationStateRepository(classId, updates) {
   return nextState;
 }
 
-function getArenaKey(arena) {
-  return String(arena || "").trim().toLocaleLowerCase() || "__no_arena__";
-}
-
 function isSameArena(firstArena, secondArena) {
-  return getArenaKey(firstArena) === getArenaKey(secondArena);
+  return isSameScheduleArena(firstArena, secondArena);
 }
 
-function sortClassesForLiveSchedule(classes, days) {
-  const dayOrderById = new Map(
-    (Array.isArray(days) ? days : []).map((day, index) => [
-      day.id,
-      {
-        sortOrder: day.sortOrder || index + 1,
-        date: day.date || "",
-      },
-    ])
+function getLocalShowLiveSchedule(showId) {
+  const days = getDaysByShowId(showId);
+  const dayIds = new Set(days.map((day) => day.id));
+  const classes = getAllClasses().filter((classItem) => classItem.showId === showId);
+  const paidWarmups = loadPaidWarmups().filter(
+    (warmup) => warmup.showId === showId || dayIds.has(warmup.dayId)
   );
 
-  return [...(Array.isArray(classes) ? classes : [])].sort((a, b) => {
-    const firstDay = dayOrderById.get(a.dayId || a.day_id) || {};
-    const secondDay = dayOrderById.get(b.dayId || b.day_id) || {};
-    const daySort = (firstDay.sortOrder || 0) - (secondDay.sortOrder || 0);
-    if (daySort !== 0) return daySort;
-
-    const dateSort = String(firstDay.date || "").localeCompare(
-      String(secondDay.date || "")
-    );
-    if (dateSort !== 0) return dateSort;
-
-    const classSort = (a.sortOrder || a.sort_order || 0) - (b.sortOrder || b.sort_order || 0);
-    if (classSort !== 0) return classSort;
-
-    return String(a.name || "").localeCompare(String(b.name || ""));
-  });
+  return buildLiveScheduleItems({ classes, paidWarmups, days });
 }
 
-function getLocalArenaClasses(showId, arena) {
-  return getAllClasses().filter(
-    (classItem) =>
-      classItem.showId === showId && isSameArena(classItem.arena, arena)
-  );
-}
-
-async function getRemoteShowClassesAndDays(supabase, showId) {
-  const [classesResult, daysResult] = await Promise.all([
+async function getRemoteShowLiveSchedule(supabase, showId) {
+  const [classesResult, daysResult, paidWarmupsResult] = await Promise.all([
     supabase
       .from("classes")
       .select("id, show_id, day_id, name, arena, sort_order")
@@ -213,24 +197,129 @@ async function getRemoteShowClassesAndDays(supabase, showId) {
       .from("days")
       .select("id, date, sort_order")
       .eq("show_id", showId),
+    supabase.from("paid_warmups").select("*").eq("show_id", showId),
   ]);
 
   if (classesResult.error) throw classesResult.error;
   if (daysResult.error) throw daysResult.error;
+  if (paidWarmupsResult.error) throw paidWarmupsResult.error;
 
-  return {
+  return buildLiveScheduleItems({
     classes: Array.isArray(classesResult.data) ? classesResult.data : [],
+    paidWarmups: Array.isArray(paidWarmupsResult.data)
+      ? paidWarmupsResult.data.map((row) => ({
+          id: row.id,
+          associationId: row.association_id,
+          showId: row.show_id,
+          dayId: row.day_id,
+          name: row.name || "",
+          arena: row.arena || "",
+          entries: Array.isArray(row.entries) ? row.entries : [],
+          sortOrder: row.sort_order || 1,
+        }))
+      : [],
     days: Array.isArray(daysResult.data) ? daysResult.data : [],
-  };
+  });
 }
 
-function findNextArenaClass(classes, days, completedClassId) {
-  const sortedClasses = sortClassesForLiveSchedule(classes, days);
-  const completedIndex = sortedClasses.findIndex(
-    (classItem) => classItem.id === completedClassId
+function findNextArenaLiveItem({
+  scheduleItems,
+  completedType,
+  completedItemId,
+  arena,
+}) {
+  const currentItem = findScheduleItem(
+    scheduleItems,
+    completedType,
+    completedItemId
   );
 
-  return completedIndex >= 0 ? sortedClasses[completedIndex + 1] || null : null;
+  if (!currentItem) return null;
+
+  return findNextScheduleItemInArena(
+    scheduleItems,
+    currentItem,
+    arena || currentItem.effectiveArena
+  );
+}
+
+async function findPendingPaidWarmupBeforeClassRepository({
+  showId,
+  arena,
+  classId,
+}) {
+  const localScheduleItems = getLocalShowLiveSchedule(showId);
+  const localClassItem = findScheduleItem(
+    localScheduleItems,
+    LIVE_SCHEDULE_ITEM_TYPES.CLASS,
+    classId
+  );
+  const localPendingWarmup = localClassItem
+    ? findFirstPendingPaidWarmupBeforeItem(localScheduleItems, {
+        ...localClassItem,
+        effectiveArena: arena || localClassItem.effectiveArena,
+      })
+    : null;
+
+  if (localPendingWarmup) {
+    return localPendingWarmup;
+  }
+
+  const supabase = getSupabaseClient();
+
+  if (!supabase) return null;
+
+  try {
+    const remoteScheduleItems = await getRemoteShowLiveSchedule(supabase, showId);
+    const remoteClassItem = findScheduleItem(
+      remoteScheduleItems,
+      LIVE_SCHEDULE_ITEM_TYPES.CLASS,
+      classId
+    );
+
+    return remoteClassItem
+      ? findFirstPendingPaidWarmupBeforeItem(remoteScheduleItems, {
+          ...remoteClassItem,
+          effectiveArena: arena || remoteClassItem.effectiveArena,
+        })
+      : null;
+  } catch (error) {
+    console.error("Erreur détection paid warmup live Supabase:", error);
+    return null;
+  }
+}
+
+async function savePaidWarmupLiveStateRepository({
+  paidWarmupId,
+  isPublicLive,
+  paidWarmup = null,
+}) {
+  const normalizedPaidWarmupId = String(paidWarmupId || "");
+  if (!normalizedPaidWarmupId) return null;
+
+  const localWarmup = paidWarmup || getPaidWarmupById(normalizedPaidWarmupId);
+  const savedLocal = localWarmup
+    ? savePaidWarmup({
+        ...localWarmup,
+        isPublicLive: Boolean(isPublicLive),
+      })
+    : null;
+  const supabase = getSupabaseClient();
+
+  if (supabase) {
+    try {
+      const { error } = await supabase
+        .from("paid_warmups")
+        .update({ is_public_live: Boolean(isPublicLive) })
+        .eq("id", normalizedPaidWarmupId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Erreur sauvegarde live paid warmup Supabase:", error);
+    }
+  }
+
+  return savedLocal || { id: normalizedPaidWarmupId, isPublicLive };
 }
 
 export async function hideOtherArenaLiveClassesRepository({
@@ -241,7 +330,7 @@ export async function hideOtherArenaLiveClassesRepository({
   const normalizedShowId = String(showId || "");
   const normalizedClassId = String(classId || "");
 
-  if (!normalizedShowId || !normalizedClassId) {
+  if (!normalizedShowId) {
     return;
   }
 
@@ -252,7 +341,7 @@ export async function hideOtherArenaLiveClassesRepository({
         isSameArena(classItem.arena, arena)
     )
     .map((classItem) => classItem.id)
-    .filter((id) => id && id !== normalizedClassId);
+    .filter((id) => id && (!normalizedClassId || id !== normalizedClassId));
 
   localClassIds.forEach((otherClassId) => {
     const currentState = getPublicationState(otherClassId);
@@ -273,15 +362,19 @@ export async function hideOtherArenaLiveClassesRepository({
   }
 
   try {
-    const { classes } = await getRemoteShowClassesAndDays(
+    const remoteScheduleItems = await getRemoteShowLiveSchedule(
       supabase,
       normalizedShowId
     );
 
-    const remoteClassIds = classes
-      .filter((classItem) => isSameArena(classItem.arena, arena))
-      .map((row) => row.id)
-      .filter((id) => id && id !== normalizedClassId);
+    const remoteClassIds = remoteScheduleItems
+      .filter(
+        (item) =>
+          item.type === LIVE_SCHEDULE_ITEM_TYPES.CLASS &&
+          isSameArena(item.effectiveArena, arena)
+      )
+      .map((item) => item.itemId)
+      .filter((id) => id && (!normalizedClassId || id !== normalizedClassId));
 
     if (remoteClassIds.length === 0) return;
 
@@ -301,18 +394,157 @@ export async function hideOtherArenaLiveClassesRepository({
   }
 }
 
+export async function hideOtherArenaLivePaidWarmupsRepository({
+  showId,
+  arena,
+  paidWarmupId,
+}) {
+  const normalizedShowId = String(showId || "");
+  const normalizedPaidWarmupId = String(paidWarmupId || "");
+
+  if (!normalizedShowId) {
+    return;
+  }
+
+  const localWarmupIds = getLocalShowLiveSchedule(normalizedShowId)
+    .filter(
+      (item) =>
+        item.type === LIVE_SCHEDULE_ITEM_TYPES.PAID_WARMUP &&
+        isSameArena(item.effectiveArena, arena)
+    )
+    .map((item) => item.itemId)
+    .filter(
+      (id) => id && (!normalizedPaidWarmupId || id !== normalizedPaidWarmupId)
+    );
+
+  localWarmupIds.forEach((otherWarmupId) => {
+    const currentWarmup = getPaidWarmupById(otherWarmupId);
+
+    if (!currentWarmup?.isPublicLive) return;
+
+    savePaidWarmup({
+      ...currentWarmup,
+      isPublicLive: false,
+    });
+  });
+
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return;
+  }
+
+  try {
+    const remoteScheduleItems = await getRemoteShowLiveSchedule(
+      supabase,
+      normalizedShowId
+    );
+    const remoteWarmupIds = remoteScheduleItems
+      .filter(
+        (item) =>
+          item.type === LIVE_SCHEDULE_ITEM_TYPES.PAID_WARMUP &&
+          isSameArena(item.effectiveArena, arena)
+      )
+      .map((item) => item.itemId)
+      .filter(
+        (id) => id && (!normalizedPaidWarmupId || id !== normalizedPaidWarmupId)
+      );
+
+    if (remoteWarmupIds.length === 0) return;
+
+    const { error } = await supabase
+      .from("paid_warmups")
+      .update({ is_public_live: false })
+      .in("id", remoteWarmupIds);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Erreur masquage des autres paid warmups Supabase:", error);
+  }
+}
+
 export async function saveArenaCurrentLiveClassRepository({
   showId,
   arena,
   classId,
   status,
 }) {
-  await hideOtherArenaLiveClassesRepository({ showId, arena, classId });
+  const localScheduleItem = findScheduleItem(
+    getLocalShowLiveSchedule(showId),
+    LIVE_SCHEDULE_ITEM_TYPES.CLASS,
+    classId
+  );
+  const effectiveArena = arena || localScheduleItem?.effectiveArena || "";
+  const pendingWarmup = await findPendingPaidWarmupBeforeClassRepository({
+    showId,
+    arena: effectiveArena,
+    classId,
+  });
+
+  if (pendingWarmup) {
+    await saveArenaCurrentLivePaidWarmupRepository({
+      showId,
+      arena: pendingWarmup.effectiveArena || effectiveArena,
+      paidWarmupId: pendingWarmup.itemId,
+    });
+
+    return savePublicationStateRepository(classId, {
+      status: PUBLICATION_STATUSES.HIDDEN,
+      publishedAt: null,
+      publishedBy: null,
+    });
+  }
+
+  await hideOtherArenaLivePaidWarmupsRepository({
+    showId,
+    arena: effectiveArena,
+  });
+  await hideOtherArenaLiveClassesRepository({
+    showId,
+    arena: effectiveArena,
+    classId,
+  });
 
   return savePublicationStateRepository(classId, {
     status,
     publishedAt: null,
     publishedBy: null,
+  });
+}
+
+export async function saveArenaCurrentLivePaidWarmupRepository({
+  showId,
+  arena,
+  paidWarmupId,
+}) {
+  const normalizedShowId = String(showId || "");
+  const normalizedPaidWarmupId = String(paidWarmupId || "");
+
+  if (!normalizedShowId || !normalizedPaidWarmupId) {
+    return null;
+  }
+
+  const scheduleItem = findScheduleItem(
+    getLocalShowLiveSchedule(normalizedShowId),
+    LIVE_SCHEDULE_ITEM_TYPES.PAID_WARMUP,
+    normalizedPaidWarmupId
+  );
+  const effectiveArena = arena || scheduleItem?.effectiveArena || "";
+
+  await hideOtherArenaLiveClassesRepository({
+    showId: normalizedShowId,
+    arena: effectiveArena,
+  });
+  await hideOtherArenaLivePaidWarmupsRepository({
+    showId: normalizedShowId,
+    arena: effectiveArena,
+    paidWarmupId: normalizedPaidWarmupId,
+  });
+
+  return savePaidWarmupLiveStateRepository({
+    paidWarmupId: normalizedPaidWarmupId,
+    isPublicLive: true,
+    paidWarmup: scheduleItem?.source || null,
   });
 }
 
@@ -329,17 +561,18 @@ export async function advanceArenaLiveClassAfterCompletionRepository({
     return null;
   }
 
-  const localNextClass = findNextArenaClass(
-    getLocalArenaClasses(normalizedShowId, arena),
-    getDaysByShowId(normalizedShowId),
-    normalizedClassId
-  );
+  const localNextItem = findNextArenaLiveItem({
+    scheduleItems: getLocalShowLiveSchedule(normalizedShowId),
+    completedType: LIVE_SCHEDULE_ITEM_TYPES.CLASS,
+    completedItemId: normalizedClassId,
+    arena,
+  });
 
-  if (localNextClass) {
-    return saveArenaCurrentLiveClassRepository({
+  if (localNextItem) {
+    return saveArenaCurrentLiveItemRepository({
       showId: normalizedShowId,
-      arena,
-      classId: localNextClass.id,
+      arena: localNextItem.effectiveArena || arena,
+      item: localNextItem,
       status: nextStatus,
     });
   }
@@ -348,21 +581,22 @@ export async function advanceArenaLiveClassAfterCompletionRepository({
 
   if (supabase) {
     try {
-      const { classes, days } = await getRemoteShowClassesAndDays(
+      const remoteScheduleItems = await getRemoteShowLiveSchedule(
         supabase,
         normalizedShowId
       );
-      const remoteNextClass = findNextArenaClass(
-        classes.filter((classItem) => isSameArena(classItem.arena, arena)),
-        days,
-        normalizedClassId
-      );
+      const remoteNextItem = findNextArenaLiveItem({
+        scheduleItems: remoteScheduleItems,
+        completedType: LIVE_SCHEDULE_ITEM_TYPES.CLASS,
+        completedItemId: normalizedClassId,
+        arena,
+      });
 
-      if (remoteNextClass) {
-        return saveArenaCurrentLiveClassRepository({
+      if (remoteNextItem) {
+        return saveArenaCurrentLiveItemRepository({
           showId: normalizedShowId,
-          arena,
-          classId: remoteNextClass.id,
+          arena: remoteNextItem.effectiveArena || arena,
+          item: remoteNextItem,
           status: nextStatus,
         });
       }
@@ -376,6 +610,103 @@ export async function advanceArenaLiveClassAfterCompletionRepository({
     publishedAt: null,
     publishedBy: null,
   });
+}
+
+export async function advanceArenaLivePaidWarmupAfterCompletionRepository({
+  showId,
+  arena,
+  paidWarmupId,
+  nextStatus = PUBLICATION_STATUSES.LIVE_NO_SCORE,
+}) {
+  const normalizedShowId = String(showId || "");
+  const normalizedPaidWarmupId = String(paidWarmupId || "");
+
+  if (!normalizedShowId || !normalizedPaidWarmupId) {
+    return null;
+  }
+
+  const localNextItem = findNextArenaLiveItem({
+    scheduleItems: getLocalShowLiveSchedule(normalizedShowId),
+    completedType: LIVE_SCHEDULE_ITEM_TYPES.PAID_WARMUP,
+    completedItemId: normalizedPaidWarmupId,
+    arena,
+  });
+
+  await savePaidWarmupLiveStateRepository({
+    paidWarmupId: normalizedPaidWarmupId,
+    isPublicLive: false,
+  });
+
+  if (localNextItem) {
+    return saveArenaCurrentLiveItemRepository({
+      showId: normalizedShowId,
+      arena: localNextItem.effectiveArena || arena,
+      item: localNextItem,
+      status: nextStatus,
+    });
+  }
+
+  const supabase = getSupabaseClient();
+
+  if (supabase) {
+    try {
+      const remoteScheduleItems = await getRemoteShowLiveSchedule(
+        supabase,
+        normalizedShowId
+      );
+      const remoteNextItem = findNextArenaLiveItem({
+        scheduleItems: remoteScheduleItems,
+        completedType: LIVE_SCHEDULE_ITEM_TYPES.PAID_WARMUP,
+        completedItemId: normalizedPaidWarmupId,
+        arena,
+      });
+
+      if (remoteNextItem) {
+        return saveArenaCurrentLiveItemRepository({
+          showId: normalizedShowId,
+          arena: remoteNextItem.effectiveArena || arena,
+          item: remoteNextItem,
+          status: nextStatus,
+        });
+      }
+    } catch (error) {
+      console.error("Erreur avancement live paid warmup Supabase:", error);
+    }
+  }
+
+  return null;
+}
+
+async function saveArenaCurrentLiveItemRepository({
+  showId,
+  arena,
+  item,
+  status,
+}) {
+  if (item?.type === LIVE_SCHEDULE_ITEM_TYPES.PAID_WARMUP) {
+    return saveArenaCurrentLivePaidWarmupRepository({
+      showId,
+      arena,
+      paidWarmupId: item.itemId,
+    });
+  }
+
+  if (item?.type === LIVE_SCHEDULE_ITEM_TYPES.CLASS) {
+    await hideOtherArenaLivePaidWarmupsRepository({ showId, arena });
+    await hideOtherArenaLiveClassesRepository({
+      showId,
+      arena,
+      classId: item.itemId,
+    });
+
+    return savePublicationStateRepository(item.itemId, {
+      status,
+      publishedAt: null,
+      publishedBy: null,
+    });
+  }
+
+  return null;
 }
 
 export function publishClassRepository(classId, publishedBy = null) {

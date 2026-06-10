@@ -74,13 +74,18 @@ function PublicResultsPage() {
     : publicView.liveClass
       ? [publicView.liveClass]
       : [];
+  const livePaidWarmups = Array.isArray(publicView.livePaidWarmups)
+    ? publicView.livePaidWarmups
+    : publicView.livePaidWarmup
+      ? [publicView.livePaidWarmup]
+      : [];
   const scheduleSections = Array.isArray(publicView.scheduleSections)
     ? publicView.scheduleSections
     : [];
   const resultSections = Array.isArray(publicView.resultSections)
     ? publicView.resultSections
     : [];
-  const hasLiveClass = Boolean(liveClasses.length || publicView.livePaidWarmup);
+  const hasLiveClass = Boolean(liveClasses.length || livePaidWarmups.length);
   const hasLivestreamVideo = hasPublicLivestream(show);
   const canonicalPublicPath = `/public/associations/${associationId}/shows/${showId}`;
   const seo = useMemo(
@@ -276,8 +281,16 @@ function PublicResultsPage() {
         />
       )}
 
-      {publicView.livePaidWarmup && (
-        <PublicPaidWarmupLivePanel warmup={publicView.livePaidWarmup} now={now} />
+      {livePaidWarmups.length > 0 && (
+        <div style={liveStackStyle}>
+          {livePaidWarmups.map((warmup) => (
+            <PublicPaidWarmupLivePanel
+              key={warmup.id}
+              warmup={warmup}
+              now={now}
+            />
+          ))}
+        </div>
       )}
 
       {liveClasses.length > 0 && (
@@ -1032,6 +1045,7 @@ function PublicLivePanel({ classView, now }) {
                 t("public.results.scheduleOnly")
               : `${t("public.results.pattern")} ${classView.pattern || "—"}`}
           </div>
+          <PublicNextScheduleItem item={classView.nextScheduleItem} />
         </div>
         <div style={badgeStackStyle}>
           <LiveFreshnessBadge updatedAt={classView.liveUpdatedAt} now={now} />
@@ -1194,10 +1208,14 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
             {warmup.name || t("public.results.paidWarmup")}
           </h2>
           <div style={mutedTextStyle}>
+            {warmup.arena
+              ? `${t("public.results.arena")} ${warmup.arena} · `
+              : ""}
             {t("public.results.paidWarmupMinutes", {
               minutes: warmup.durationMinutesPerRider,
             })}
           </div>
+          <PublicNextScheduleItem item={warmup.nextScheduleItem} />
         </div>
         <div style={badgeStackStyle}>
           <LiveFreshnessBadge updatedAt={warmup.updatedAt} now={now} />
@@ -1257,6 +1275,30 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
         </div>
       </div>
     </section>
+  );
+}
+
+function PublicNextScheduleItem({ item }) {
+  const { t } = useTranslation();
+
+  if (!item) return null;
+
+  const itemTypeLabel = item.isPaidWarmup
+    ? t("public.results.paidWarmup")
+    : t("public.results.sourceBlock");
+  const meta = [
+    itemTypeLabel,
+    item.arena ? `${t("public.results.arena")} ${item.arena}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <div style={nextScheduleItemStyle}>
+      <span style={runLabelStyle}>{t("public.results.nextScheduleItem")}</span>
+      <span style={nextScheduleNameStyle}>{item.name || "—"}</span>
+      {meta && <span style={mutedTextStyle}>{meta}</span>}
+    </div>
   );
 }
 
@@ -2151,6 +2193,19 @@ const paidWarmupNoticeStyle = {
   color: "#854d0e",
   fontWeight: 800,
   marginBottom: 12,
+};
+
+const nextScheduleItemStyle = {
+  display: "grid",
+  gap: 2,
+  marginTop: 8,
+  paddingTop: 8,
+  borderTop: `1px solid ${publicColors.border}`,
+};
+
+const nextScheduleNameStyle = {
+  color: publicColors.text,
+  fontWeight: 900,
 };
 
 const paidWarmupCueStyle = (tone) => ({

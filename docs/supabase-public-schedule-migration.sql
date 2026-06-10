@@ -12,6 +12,9 @@ alter table public.classes
 add column if not exists schedule_start_time text;
 
 alter table public.paid_warmups
+add column if not exists arena text;
+
+alter table public.paid_warmups
 add column if not exists schedule_start_mode text not null default 'after_previous';
 
 alter table public.paid_warmups

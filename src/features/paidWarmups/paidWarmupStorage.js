@@ -123,6 +123,7 @@ export function normalizePaidWarmup(item) {
     showId: item?.showId || "",
     dayId: item?.dayId || "",
     name: item?.name || "Paid warm up",
+    arena: String(item?.arena || "").trim(),
     durationMinutesPerRider: normalizePositiveInteger(
       item?.durationMinutesPerRider,
       DEFAULT_PAID_WARMUP_DURATION_MINUTES

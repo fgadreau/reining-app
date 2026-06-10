@@ -51,6 +51,7 @@ function toPaidWarmup(row, localWarmup = null) {
     showId: row.show_id,
     dayId: row.day_id,
     name: row.name || "",
+    arena: row.arena || localWarmup?.arena || "",
     durationMinutesPerRider: row.duration_minutes_per_rider,
     dragInterval: row.drag_interval,
     dragDurationMinutes: row.drag_duration_minutes,
@@ -75,6 +76,7 @@ function toPaidWarmupRow(item, options = {}) {
     show_id: warmup.showId,
     day_id: warmup.dayId,
     name: warmup.name || "Paid warm up",
+    arena: warmup.arena || null,
     duration_minutes_per_rider: warmup.durationMinutesPerRider,
     drag_interval: warmup.dragInterval,
     drag_duration_minutes: warmup.dragDurationMinutes,
@@ -99,6 +101,10 @@ function isScheduleStartColumnMissingError(error) {
     message.includes("schedule_start_mode") ||
     message.includes("schedule_start_time")
   );
+}
+
+function isArenaColumnMissingError(error) {
+  return String(error?.message || "").includes("arena");
 }
 
 export async function getPaidWarmupsForDayRepository(dayId) {
@@ -187,11 +193,17 @@ export async function savePaidWarmupRepository(item) {
         if (insertError) throw insertError;
       }
     } catch (error) {
-      if (isScheduleStartColumnMissingError(error)) {
+      if (
+        isScheduleStartColumnMissingError(error) ||
+        isArenaColumnMissingError(error)
+      ) {
         try {
           const row = toPaidWarmupRow(savedLocal, {
-            includeScheduleStart: false,
+            includeScheduleStart: !isScheduleStartColumnMissingError(error),
           });
+          if (isArenaColumnMissingError(error)) {
+            delete row.arena;
+          }
           const { data, error: legacyError } = await supabase
             .from("paid_warmups")
             .update(row)
@@ -208,7 +220,7 @@ export async function savePaidWarmupRepository(item) {
 
           syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
           syncError =
-            "Les colonnes d'horaire des paid warm ups ne sont pas disponibles dans Supabase. Exécute la migration public schedule pour les synchroniser.";
+            "Certaines colonnes des paid warm ups ne sont pas disponibles dans Supabase. Exécute les migrations public schedule et paid warmup arena pour les synchroniser.";
         } catch (legacyError) {
           console.error("Erreur sauvegarde paid warmup Supabase:", legacyError);
           syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;

@@ -8,7 +8,10 @@ import {
 import { saveClassScheduleDetailsRepository } from "../../features/classes/classSetupRepository";
 import { normalizeClassScheduleDetails } from "../../features/classes/classSchedule";
 import { formatLiveDataFreshness } from "../../features/live/liveFreshness";
-import { advanceArenaLiveClassAfterCompletionRepository } from "../../features/publication/publicationCloudRepository";
+import {
+  advanceArenaLiveClassAfterCompletionRepository,
+  advanceArenaLivePaidWarmupAfterCompletionRepository,
+} from "../../features/publication/publicationCloudRepository";
 import { savePaidWarmupRepository } from "../../features/paidWarmups/paidWarmupRepository";
 import {
   PAID_WARMUP_TIMER_CUES,
@@ -42,6 +45,18 @@ const PAID_WARMUP_SOUND_SEQUENCES = {
     { at: 0.48, frequency: 784, duration: 0.28, gain: 0.22, type: "triangle" },
   ],
 };
+
+function isPaidWarmupComplete(warmup) {
+  const entries = Array.isArray(warmup?.entries) ? warmup.entries : [];
+
+  return (
+    entries.length > 0 &&
+    !warmup?.activeEntryId &&
+    entries.every((entry) =>
+      ["done", "no_show", "scratch"].includes(entry?.status)
+    )
+  );
+}
 
 function getPaidWarmupAudioContext({ shouldCreate = true } = {}) {
   if (typeof window === "undefined") return null;
@@ -141,9 +156,18 @@ function AnnouncerDashboardPage() {
   }, [showId]);
 
   const savePaidWarmupUpdate = useCallback(async (nextWarmup) => {
-    await savePaidWarmupRepository(nextWarmup);
+    const saved = await savePaidWarmupRepository(nextWarmup);
+
+    if (saved?.isPublicLive && isPaidWarmupComplete(saved)) {
+      await advanceArenaLivePaidWarmupAfterCompletionRepository({
+        showId,
+        arena: saved.arena,
+        paidWarmupId: saved.id,
+      });
+    }
+
     await refreshLiveViewNow();
-  }, [refreshLiveViewNow]);
+  }, [refreshLiveViewNow, showId]);
 
   const saveScheduleDetailsUpdate = useCallback(async (classView, details) => {
     await saveClassScheduleDetailsRepository(classView.classId, details);

@@ -35,6 +35,7 @@ import {
 } from "./features/publication/publicationRepository";
 import {
   advanceArenaLiveClassAfterCompletionRepository,
+  advanceArenaLivePaidWarmupAfterCompletionRepository,
   saveArenaCurrentLiveClassRepository,
 } from "./features/publication/publicationCloudRepository";
 import {
@@ -60,6 +61,7 @@ import {
 } from "./features/paidWarmups/paidWarmupLive";
 import {
   calculatePaidWarmupScheduleSummary,
+  getPaidWarmupById,
   insertPaidWarmupEntryAfter,
   movePaidWarmupEntry,
   normalizePaidWarmup,
@@ -2235,6 +2237,166 @@ test("completed arena live advances to the next class in the same arena", async 
   expect(getPublicationState("advance-secondary-current").status).toBe(
     PUBLICATION_STATUSES.LIVE_NO_SCORE
   );
+});
+
+test("completed arena live advances to the next paid warmup in the same arena", async () => {
+  saveDays([
+    {
+      id: "day-advance-warmup",
+      showId: "show-advance-warmup",
+      label: "Jour 1",
+      date: "2026-06-15",
+      sortOrder: 1,
+    },
+  ]);
+  saveClasses([
+    {
+      id: "advance-warmup-current",
+      showId: "show-advance-warmup",
+      dayId: "day-advance-warmup",
+      name: "Main current",
+      arena: "Main",
+      sortOrder: 1,
+    },
+    {
+      id: "advance-warmup-next-class",
+      showId: "show-advance-warmup",
+      dayId: "day-advance-warmup",
+      name: "Main next class",
+      arena: "Main",
+      sortOrder: 3,
+    },
+  ]);
+  savePaidWarmup({
+    id: "advance-warmup-next",
+    showId: "show-advance-warmup",
+    dayId: "day-advance-warmup",
+    name: "Paid warm up next",
+    arena: "Main",
+    sortOrder: 2,
+    entries: [{ id: "entry-1", rider: "Marie", status: "pending" }],
+  });
+  savePublicationState("advance-warmup-current", {
+    status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  });
+
+  await advanceArenaLiveClassAfterCompletionRepository({
+    showId: "show-advance-warmup",
+    arena: "Main",
+    classId: "advance-warmup-current",
+  });
+
+  expect(getPublicationState("advance-warmup-current").status).toBe(
+    PUBLICATION_STATUSES.HIDDEN
+  );
+  expect(getPaidWarmupById("advance-warmup-next").isPublicLive).toBe(true);
+  expect(getPublicationState("advance-warmup-next-class").status).toBe(
+    PUBLICATION_STATUSES.HIDDEN
+  );
+});
+
+test("completed paid warmup advances to the next class in the same arena", async () => {
+  saveDays([
+    {
+      id: "day-warmup-advance-class",
+      showId: "show-warmup-advance-class",
+      label: "Jour 1",
+      date: "2026-06-15",
+      sortOrder: 1,
+    },
+  ]);
+  saveClasses([
+    {
+      id: "warmup-advance-class-next",
+      showId: "show-warmup-advance-class",
+      dayId: "day-warmup-advance-class",
+      name: "Main next",
+      arena: "Main",
+      sortOrder: 2,
+    },
+    {
+      id: "warmup-advance-secondary",
+      showId: "show-warmup-advance-class",
+      dayId: "day-warmup-advance-class",
+      name: "Secondary current",
+      arena: "Secondary",
+      sortOrder: 3,
+    },
+  ]);
+  savePaidWarmup({
+    id: "warmup-advance-current",
+    showId: "show-warmup-advance-class",
+    dayId: "day-warmup-advance-class",
+    name: "Paid warm up current",
+    arena: "Main",
+    sortOrder: 1,
+    isPublicLive: true,
+    entries: [{ id: "entry-1", rider: "Marie", status: "done" }],
+  });
+  savePublicationState("warmup-advance-secondary", {
+    status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  });
+
+  await advanceArenaLivePaidWarmupAfterCompletionRepository({
+    showId: "show-warmup-advance-class",
+    arena: "Main",
+    paidWarmupId: "warmup-advance-current",
+  });
+
+  expect(getPaidWarmupById("warmup-advance-current").isPublicLive).toBe(false);
+  expect(getPublicationState("warmup-advance-class-next").status).toBe(
+    PUBLICATION_STATUSES.LIVE_NO_SCORE
+  );
+  expect(getPublicationState("warmup-advance-secondary").status).toBe(
+    PUBLICATION_STATUSES.LIVE_NO_SCORE
+  );
+});
+
+test("public live shows a pending paid warmup scheduled before a live class", () => {
+  saveDays([
+    {
+      id: "day-public-warmup-before-class",
+      showId: "show-public-warmup-before-class",
+      label: "Jour 1",
+      date: "2026-06-15",
+      sortOrder: 1,
+    },
+  ]);
+  saveClasses([
+    {
+      id: "public-warmup-live-class",
+      showId: "show-public-warmup-before-class",
+      dayId: "day-public-warmup-before-class",
+      name: "First class",
+      arena: "Main",
+      sortOrder: 2,
+    },
+  ]);
+  savePaidWarmup({
+    id: "public-warmup-before-class",
+    showId: "show-public-warmup-before-class",
+    dayId: "day-public-warmup-before-class",
+    name: "Morning paid warm up",
+    sortOrder: 1,
+    entries: [{ id: "entry-1", rider: "Marie", status: "pending" }],
+  });
+  savePublicationState("public-warmup-live-class", {
+    status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  });
+
+  const publicView = getPublicShowView("show-public-warmup-before-class");
+
+  expect(publicView.liveClasses).toEqual([]);
+  expect(publicView.livePaidWarmup).toMatchObject({
+    id: "public-warmup-before-class",
+    name: "Morning paid warm up",
+    arena: "Main",
+  });
+  expect(publicView.livePaidWarmup.nextScheduleItem).toMatchObject({
+    itemId: "public-warmup-live-class",
+    name: "First class",
+    arena: "Main",
+  });
 });
 
 test("supports schedule-only classes without scoring patterns", () => {

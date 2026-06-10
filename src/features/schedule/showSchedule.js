@@ -24,6 +24,7 @@ export function buildPaidWarmupScheduleRow({ warmup, day, now = new Date() }) {
     itemId: warmup?.id,
     itemType: SHOW_SCHEDULE_ITEM_TYPES.PAID_WARMUP,
     className: warmup?.name || "Paid warm up",
+    arena: warmup?.arena || "",
     dayLabel: day?.label || "Journée",
     dayDate: day?.date || "",
     pattern: "Paid warm up",
@@ -79,6 +80,7 @@ export function buildShowScheduleSections({
       }),
       itemId: classData?.classItem?.id,
       itemType: SHOW_SCHEDULE_ITEM_TYPES.CLASS,
+      arena: classData?.classItem?.arena || "",
       sortOrder: classData?.classItem?.sortOrder || 1,
     }));
     const paidWarmupRows = (section.paidWarmups || []).map((warmup) =>
@@ -127,6 +129,7 @@ export function buildShowSchedulePreviewSections({
         ...timingRow,
         itemId: classData?.classItem?.id,
         itemType: SHOW_SCHEDULE_ITEM_TYPES.CLASS,
+        arena: classData?.classItem?.arena || "",
         sortOrder: classData?.classItem?.sortOrder || 1,
         estimatedDurationSeconds: timingRow.remainingSeconds,
       };
