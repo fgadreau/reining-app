@@ -82,9 +82,16 @@ import {
 import { getScoreRuleLines } from "./features/scoring/scoringRuleText";
 import {
   buildClassTimingRow,
+  buildDayScheduleRows,
+  buildDayScheduleSummary,
   buildPatternTimingStats,
   calculateClassTimeSimulation,
 } from "./features/classes/classTimeAnalytics";
+import {
+  CLASS_START_MODE_AFTER_PREVIOUS,
+  CLASS_START_MODE_FIXED,
+  normalizeClassScheduleDetails,
+} from "./features/classes/classSchedule";
 import {
   isCustomPatternReady,
   normalizeCustomPattern,
@@ -2859,4 +2866,81 @@ test("summarizes class timing by pattern", () => {
     dragBreaks: 2,
     totalSeconds: 2460,
   });
+});
+
+test("normalizes planned class start details", () => {
+  expect(
+    normalizeClassScheduleDetails({
+      startMode: CLASS_START_MODE_FIXED,
+      startTime: "08:30",
+    })
+  ).toMatchObject({
+    startMode: CLASS_START_MODE_FIXED,
+    startTime: "08:30",
+  });
+
+  expect(
+    normalizeClassScheduleDetails({
+      start_mode: CLASS_START_MODE_FIXED,
+      start_time: "25:99",
+    })
+  ).toMatchObject({
+    startMode: CLASS_START_MODE_FIXED,
+    startTime: "",
+  });
+
+  expect(normalizeClassScheduleDetails({ startMode: "later" })).toMatchObject({
+    startMode: CLASS_START_MODE_AFTER_PREVIOUS,
+    startTime: "",
+  });
+});
+
+test("builds a day schedule from fixed and follow-up block starts", () => {
+  const rows = buildDayScheduleRows(
+    [
+      {
+        classId: "block-a",
+        className: "Open",
+        dayDate: "2026-06-15",
+        scheduleStartMode: CLASS_START_MODE_FIXED,
+        scheduleStartTime: "08:00",
+        remainingRuns: 10,
+        remainingSeconds: 30 * 60,
+      },
+      {
+        classId: "block-b",
+        className: "Rookie",
+        dayDate: "2026-06-15",
+        scheduleStartMode: CLASS_START_MODE_AFTER_PREVIOUS,
+        remainingRuns: 5,
+        remainingSeconds: 15 * 60,
+      },
+      {
+        classId: "block-c",
+        className: "Youth",
+        dayDate: "2026-06-15",
+        scheduleStartMode: CLASS_START_MODE_FIXED,
+        scheduleStartTime: "09:00",
+        remainingRuns: 4,
+        remainingSeconds: 10 * 60,
+      },
+    ],
+    {
+      day: { date: "2026-06-15" },
+      now: new Date("2026-06-15T07:30:00"),
+    }
+  );
+  const summary = buildDayScheduleSummary(
+    rows,
+    new Date("2026-06-15T07:30:00")
+  );
+
+  expect(new Date(rows[0].estimatedStartAt).getHours()).toBe(8);
+  expect(Date.parse(rows[0].estimatedEndAt) - Date.parse(rows[0].estimatedStartAt))
+    .toBe(30 * 60 * 1000);
+  expect(Date.parse(rows[1].estimatedStartAt)).toBe(
+    Date.parse(rows[0].estimatedEndAt)
+  );
+  expect(new Date(rows[2].estimatedStartAt).getHours()).toBe(9);
+  expect(summary.estimatedEndAt).toBe(rows[2].estimatedEndAt);
 });

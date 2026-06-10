@@ -14,6 +14,11 @@ import {
 } from "../../features/classes/classJudges";
 import { getClassSetupRepository } from "../../features/classes/classSetupRepository";
 import {
+  CLASS_START_MODE_AFTER_PREVIOUS,
+  CLASS_START_MODE_FIXED,
+  normalizeClassScheduleDetails,
+} from "../../features/classes/classSchedule";
+import {
   deletePaidWarmupRepository,
   getPaidWarmupsForDayRepository,
   savePaidWarmupRepository,
@@ -65,6 +70,7 @@ function DayClassesPage() {
   }, [associationId]);
 
   const [classes, setClasses] = useState([]);
+  const [classSetups, setClassSetups] = useState({});
   const [paidWarmups, setPaidWarmups] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -75,6 +81,8 @@ function DayClassesPage() {
     arena: "",
     pattern: "",
     judgeCount: 1,
+    scheduleStartMode: CLASS_START_MODE_AFTER_PREVIOUS,
+    scheduleStartTime: "",
   });
   const arenaOptions = useMemo(
     () => buildArenaOptions(classes, draft.arena),
@@ -88,6 +96,8 @@ function DayClassesPage() {
       arena: "",
       pattern: "",
       judgeCount: 1,
+      scheduleStartMode: CLASS_START_MODE_AFTER_PREVIOUS,
+      scheduleStartTime: "",
     };
   }
 
@@ -117,8 +127,15 @@ function DayClassesPage() {
         getClassesForDayRepository(dayId),
         getPaidWarmupsForDayRepository(dayId),
       ]);
+      const setupEntries = await Promise.all(
+        nextClasses.map(async (classItem) => [
+          classItem.id,
+          await getClassSetupRepository(classItem.id),
+        ])
+      );
       if (!isMounted) return;
       setClasses(nextClasses);
+      setClassSetups(Object.fromEntries(setupEntries));
       setPaidWarmups(nextPaidWarmups);
       setIsLoading(false);
     }
@@ -148,12 +165,14 @@ function DayClassesPage() {
       dayLabel: day?.label || "",
       sortOrder: classes.length + paidWarmups.length + 1,
     };
+    const scheduleDetails = normalizeClassScheduleDetails();
 
     setIsSaving(true);
     await saveClassItemRepository(newClass);
-    await saveSetupForClassRepository(newClass.id, {
+    const savedSetup = await saveSetupForClassRepository(newClass.id, {
       judges,
       judgeName: getPrimaryJudgeName({ judges }),
+      scheduleDetails,
     });
     await savePublicationStateRepository(newClass.id, {
       status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
@@ -161,6 +180,10 @@ function DayClassesPage() {
       publishedBy: null,
     });
     setClasses((current) => [...current, newClass]);
+    setClassSetups((current) => ({
+      ...current,
+      [newClass.id]: savedSetup,
+    }));
     setIsSaving(false);
 
     setEditingId(newClass.id);
@@ -170,6 +193,8 @@ function DayClassesPage() {
       arena: newClass.arena,
       pattern: newClass.pattern,
       judgeCount: judges.length,
+      scheduleStartMode: scheduleDetails.startMode,
+      scheduleStartTime: scheduleDetails.startTime,
     });
   };
 
@@ -204,6 +229,11 @@ function DayClassesPage() {
       judges: setup?.judges,
       judgeName: setup?.judgeName || item.judgeName,
     });
+    const scheduleDetails = normalizeClassScheduleDetails(setup?.scheduleDetails);
+    setClassSetups((current) => ({
+      ...current,
+      [item.id]: setup,
+    }));
 
     setDraft({
       name: item.name || "",
@@ -211,6 +241,8 @@ function DayClassesPage() {
       arena: item.arena || "",
       pattern: item.pattern || "",
       judgeCount: judges.length,
+      scheduleStartMode: scheduleDetails.startMode,
+      scheduleStartTime: scheduleDetails.startTime,
     });
   };
 
@@ -239,6 +271,11 @@ function DayClassesPage() {
           draft.pattern
         )
       : null;
+    const scheduleDetails = normalizeClassScheduleDetails({
+      ...currentSetup?.scheduleDetails,
+      startMode: draft.scheduleStartMode,
+      startTime: draft.scheduleStartTime,
+    });
     const nextClass = {
       ...currentClass,
       name: draft.name,
@@ -256,16 +293,21 @@ function DayClassesPage() {
 
     setIsSaving(true);
     await saveClassItemRepository(nextClass);
-    await saveSetupForClassRepository(editingId, {
+    const savedSetup = await saveSetupForClassRepository(editingId, {
       ...currentSetup,
       pattern: currentSetup?.pattern || draft.pattern,
       customPattern: currentSetup?.customPattern || customPattern,
       judges,
       judgeName: primaryJudgeName,
+      scheduleDetails,
     });
     setClasses((current) =>
       current.map((item) => (item.id === editingId ? nextClass : item))
     );
+    setClassSetups((current) => ({
+      ...current,
+      [editingId]: savedSetup,
+    }));
     setIsSaving(false);
 
     setEditingId(null);
@@ -278,6 +320,11 @@ function DayClassesPage() {
     setIsSaving(true);
     await deleteClassCompletelyRepository(id);
     setClasses((current) => current.filter((item) => item.id !== id));
+    setClassSetups((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
     setIsSaving(false);
 
     if (editingId === id) {
@@ -324,6 +371,11 @@ function DayClassesPage() {
         ...sourceSetup,
         pattern: sourcePattern,
         customPattern,
+        scheduleDetails: normalizeClassScheduleDetails({
+          ...sourceSetup.scheduleDetails,
+          startMode: CLASS_START_MODE_AFTER_PREVIOUS,
+          startTime: "",
+        }),
         runs: [],
         isDrawImported: false,
         startedAt: null,
@@ -338,7 +390,7 @@ function DayClassesPage() {
       };
 
       const savedClass = await saveClassItemRepository(newClass);
-      await saveSetupForClassRepository(savedClass.id, newSetup);
+      const savedSetup = await saveSetupForClassRepository(savedClass.id, newSetup);
       await savePublicationStateRepository(savedClass.id, {
         status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
         publishedAt: null,
@@ -346,6 +398,10 @@ function DayClassesPage() {
       });
 
       setClasses((current) => [...current, savedClass]);
+      setClassSetups((current) => ({
+        ...current,
+        [savedClass.id]: savedSetup,
+      }));
     } finally {
       setIsSaving(false);
     }
@@ -582,6 +638,9 @@ function DayClassesPage() {
             const isScheduleOnly = isNoPatternValue(item.pattern);
             const scoringDisabled = status === "draft" || isScheduleOnly;
             const isCompleted = status === "completed";
+            const scheduleDetails = normalizeClassScheduleDetails(
+              classSetups[item.id]?.scheduleDetails
+            );
 
             return (
               <div key={item.id} style={cardStyle}>
@@ -607,6 +666,10 @@ function DayClassesPage() {
                           {item.arena
                             ? ` • ${t("public.results.arena")} ${item.arena}`
                             : ""}
+                        </div>
+                        <div style={scheduleMetaStyle}>
+                          {t("management.classes.scheduleStartLabel")}:{" "}
+                          {formatClassScheduleStart(scheduleDetails, t)}
                         </div>
                       </div>
 
@@ -802,6 +865,52 @@ function DayClassesPage() {
                           ))}
                         </select>
                       </div>
+
+                      <div>
+                        <label style={labelStyle}>
+                          {t("management.classes.scheduleStartLabel")}
+                        </label>
+                        <select
+                          value={draft.scheduleStartMode}
+                          onChange={(e) =>
+                            setDraft((prev) => ({
+                              ...prev,
+                              scheduleStartMode: e.target.value,
+                              scheduleStartTime:
+                                e.target.value === CLASS_START_MODE_FIXED
+                                  ? prev.scheduleStartTime
+                                  : "",
+                            }))
+                          }
+                          style={inputStyle}
+                        >
+                          <option value={CLASS_START_MODE_AFTER_PREVIOUS}>
+                            {t("management.classes.startAfterPrevious")}
+                          </option>
+                          <option value={CLASS_START_MODE_FIXED}>
+                            {t("management.classes.startFixed")}
+                          </option>
+                        </select>
+                      </div>
+
+                      {draft.scheduleStartMode === CLASS_START_MODE_FIXED && (
+                        <div>
+                          <label style={labelStyle}>
+                            {t("management.classes.startTimeLabel")}
+                          </label>
+                          <input
+                            type="time"
+                            value={draft.scheduleStartTime}
+                            onChange={(e) =>
+                              setDraft((prev) => ({
+                                ...prev,
+                                scheduleStartTime: e.target.value,
+                              }))
+                            }
+                            style={inputStyle}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     <div style={actionRowStyle}>
@@ -872,6 +981,12 @@ const cardTitleStyle = {
 const cardMetaStyle = {
   color: "#64748b",
   marginTop: 6,
+};
+
+const scheduleMetaStyle = {
+  color: "#475569",
+  marginTop: 6,
+  fontSize: 14,
 };
 
 const warmupStatsStyle = {
@@ -988,6 +1103,18 @@ function formatPaidWarmupDrag(warmup, t) {
         : "management.classes.riderSingular"
     ),
   });
+}
+
+function formatClassScheduleStart(scheduleDetails, t) {
+  const details = normalizeClassScheduleDetails(scheduleDetails);
+
+  if (details.startMode === CLASS_START_MODE_FIXED) {
+    return details.startTime
+      ? t("management.classes.startFixedAt", { time: details.startTime })
+      : t("management.classes.startFixedMissing");
+  }
+
+  return t("management.classes.startAfterPrevious");
 }
 
 function getClassStatusLabel(status, t) {

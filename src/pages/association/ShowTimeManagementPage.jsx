@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import {
   buildClassTimingRow,
+  buildDayScheduleRows,
+  buildDayScheduleSummary,
   buildPatternTimingStats,
   calculateClassTimeSimulation,
 } from "../../features/classes/classTimeAnalytics";
@@ -137,11 +139,12 @@ function ShowTimeManagementPage() {
             ) || null,
         })
       );
+      const scheduledRows = buildDayScheduleRows(rows, { day, now });
 
       return {
         day,
-        rows,
-        summary: buildDayTimeSummary(rows, now),
+        rows: scheduledRows,
+        summary: buildDayScheduleSummary(scheduledRows, now),
       };
     });
   }, [daySections, now, patternAverageByValue]);
@@ -440,6 +443,7 @@ function ShowTimeManagementPage() {
                         <table style={tableStyle}>
                           <thead>
                             <tr>
+                              <th style={thStyle}>{t("management.time.scheduleStart")}</th>
                               <th style={thStyle}>{t("management.secretariat.class")}</th>
                               <th style={thStyle}>{t("public.results.pattern")}</th>
                               <th style={thStyle}>{t("management.time.progress")}</th>
@@ -453,6 +457,21 @@ function ShowTimeManagementPage() {
                           <tbody>
                             {section.rows.map((row) => (
                               <tr key={row.classId}>
+                                <td style={tdStyle}>
+                                  <div style={classNameStyle}>
+                                    {formatClockTime(row.estimatedStartAt)}
+                                  </div>
+                                  <div style={metaStyle}>
+                                    {getScheduleStartLabel(row, t)}
+                                  </div>
+                                  {row.isDelayedFromFixedStart && (
+                                    <div style={warningMetaStyle}>
+                                      {t("management.time.delayedFromFixed", {
+                                        time: formatClockTime(row.plannedStartAt),
+                                      })}
+                                    </div>
+                                  )}
+                                </td>
                                 <td style={tdStyle}>
                                   <div style={classNameStyle}>{row.className}</div>
                                 </td>
@@ -556,27 +575,16 @@ function SummaryTile({ label, value, tone = "default" }) {
   );
 }
 
-function buildDayTimeSummary(rows, now) {
-  const remainingRuns = rows.reduce(
-    (total, row) => total + Math.max(row.remainingRuns || 0, 0),
-    0
-  );
-  const remainingSecondsValues = rows
-    .map((row) => row.remainingSeconds)
-    .filter((value) => Number.isFinite(value) && value >= 0);
-  const remainingSeconds = remainingSecondsValues.length
-    ? remainingSecondsValues.reduce((total, value) => total + value, 0)
-    : null;
-  const estimatedEndAt =
-    remainingSeconds == null
-      ? null
-      : new Date(now.getTime() + remainingSeconds * 1000).toISOString();
+function getScheduleStartLabel(row, t) {
+  if (row.scheduleStartMode === "fixed") {
+    return t("management.time.fixedStart");
+  }
 
-  return {
-    remainingRuns,
-    remainingSeconds,
-    estimatedEndAt,
-  };
+  if (row.scheduleStartUsesFallback) {
+    return t("management.time.afterPreviousFallback");
+  }
+
+  return t("management.time.afterPrevious");
 }
 
 const heroStyle = {
@@ -722,6 +730,12 @@ const classNameStyle = {
 
 const metaStyle = {
   color: "#64748b",
+  fontSize: 13,
+  marginTop: 4,
+};
+
+const warningMetaStyle = {
+  color: "#b45309",
   fontSize: 13,
   marginTop: 4,
 };

@@ -548,8 +548,14 @@ export const translations = {
         riderSingular: "cavalier",
         ridersPlural: "cavaliers",
         save: "Enregistrer",
+        scheduleStartLabel: "Départ",
         scoringNotReady:
           "Ce bloc n’est pas prêt pour le scoring. Complète d’abord le setup avec un pattern et des runs.",
+        startAfterPrevious: "À la suite du bloc précédent",
+        startFixed: "Heure fixe",
+        startFixedAt: "Heure fixe: {{time}}",
+        startFixedMissing: "Heure fixe à définir",
+        startTimeLabel: "Heure de départ",
         statusCompleted: "Terminée",
         statusDraft: "Draft",
         statusInProgress: "En cours",
@@ -871,13 +877,17 @@ export const translations = {
       },
       time: {
         accessDenied: "Ce rôle n’a pas accès à la gestion du temps.",
+        afterPrevious: "À la suite",
+        afterPreviousFallback: "À la suite · départ estimé maintenant",
         afterEach: "Après chaque {{count}}",
         averagePerRun: "Moyenne/run",
         byPattern: "Par pattern",
+        delayedFromFixed: "décalé depuis {{time}}",
         dragDuration: "Durée drag",
         drags: "Drags",
         estimatedEnd: "Fin estimée: {{time}}",
         estimatedEndHeader: "Fin estimée",
+        fixedStart: "Heure fixe",
         globalAveragesHelp:
           "Moyennes globales anonymisées de l’app. Les runs de moins de 2 min 30 sont ignorés.",
         insufficientPatternData:
@@ -896,6 +906,7 @@ export const translations = {
         remainingRuns: "Runs restants",
         remainingRunsCount: "{{count}} run(s) restant(s)",
         remainingTime: "Temps restant",
+        scheduleStart: "Départ",
         showAverage: "Moyenne/show",
         showDays: "Journées du show",
         showDaysHelp:
@@ -1735,8 +1746,14 @@ export const translations = {
         riderSingular: "rider",
         ridersPlural: "riders",
         save: "Save",
+        scheduleStartLabel: "Start",
         scoringNotReady:
           "This block is not ready for scoring. Complete the setup with a pattern and runs first.",
+        startAfterPrevious: "After previous block",
+        startFixed: "Fixed time",
+        startFixedAt: "Fixed time: {{time}}",
+        startFixedMissing: "Fixed time to set",
+        startTimeLabel: "Start time",
         statusCompleted: "Completed",
         statusDraft: "Draft",
         statusInProgress: "In progress",
@@ -2058,13 +2075,17 @@ export const translations = {
       },
       time: {
         accessDenied: "This role does not have access to time management.",
+        afterPrevious: "After previous",
+        afterPreviousFallback: "After previous · estimated from now",
         afterEach: "After every {{count}}",
         averagePerRun: "Average/run",
         byPattern: "By pattern",
+        delayedFromFixed: "delayed from {{time}}",
         dragDuration: "Drag duration",
         drags: "Drags",
         estimatedEnd: "Estimated end: {{time}}",
         estimatedEndHeader: "Estimated end",
+        fixedStart: "Fixed time",
         globalAveragesHelp:
           "Anonymized global app averages. Runs under 2 min 30 are ignored.",
         insufficientPatternData:
@@ -2083,6 +2104,7 @@ export const translations = {
         remainingRuns: "Remaining runs",
         remainingRunsCount: "{{count}} remaining run(s)",
         remainingTime: "Remaining time",
+        scheduleStart: "Start",
         showAverage: "Show average",
         showDays: "Show days",
         showDaysHelp:

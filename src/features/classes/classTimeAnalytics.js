@@ -1,12 +1,18 @@
 import {
   getPatternDisplayName,
   getPatternHeaders,
+  isNoPatternValue,
 } from "../patterns/patternDefinitions";
 import {
   calculateClassTimingSummary,
   getRunDurationSeconds,
   isMeasuredRunDurationUsable,
 } from "./classTiming";
+import {
+  CLASS_START_MODE_AFTER_PREVIOUS,
+  CLASS_START_MODE_FIXED,
+  normalizeClassScheduleDetails,
+} from "./classSchedule";
 
 export function getClassPatternValue(classData) {
   const patternValue = String(
@@ -30,9 +36,23 @@ function getClassCustomPattern(classData) {
 export function getClassRunCount(classData) {
   const setupRuns = classData?.setup?.runs;
   const scoringRuns = classData?.scoringRuns;
+  const scheduleDetails = normalizeClassScheduleDetails(
+    classData?.setup?.scheduleDetails
+  );
+  const scheduleParticipantCount = Number.parseInt(
+    scheduleDetails.participantCount,
+    10
+  );
 
   if (Array.isArray(setupRuns) && setupRuns.length) return setupRuns.length;
-  if (Array.isArray(scoringRuns)) return scoringRuns.length;
+  if (Array.isArray(scoringRuns) && scoringRuns.length) return scoringRuns.length;
+  if (
+    isNoPatternValue(getClassPatternRawValue(classData)) &&
+    Number.isFinite(scheduleParticipantCount) &&
+    scheduleParticipantCount > 0
+  ) {
+    return scheduleParticipantCount;
+  }
   return 0;
 }
 
@@ -116,6 +136,9 @@ export function buildClassTimingRow({
   patternAverageRunSeconds = null,
 }) {
   const pattern = getClassPatternValue(classData);
+  const scheduleDetails = normalizeClassScheduleDetails(
+    classData?.setup?.scheduleDetails
+  );
   const maneuverCount = getClassManeuverCount(classData);
   const runs = getClassScoringRuns(classData);
   const runCount = getClassRunCount(classData);
@@ -166,8 +189,154 @@ export function buildClassTimingRow({
     remainingSeconds,
     estimatedEndAt,
     startedAt: classData?.setup?.startedAt || null,
+    scheduleStartMode: scheduleDetails.startMode,
+    scheduleStartTime: scheduleDetails.startTime,
+    plannedStartAt: null,
+    estimatedStartAt: null,
+    scheduleStartUsesFallback: false,
+    isDelayedFromFixedStart: false,
     isComplete: runCount > 0 && summary.completedRuns >= runCount,
     status: classData?.status || "draft",
+  };
+}
+
+function parseDateAndClockTime(dayDate, timeValue) {
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(String(dayDate || "")) ||
+    !/^\d{2}:\d{2}$/.test(String(timeValue || ""))
+  ) {
+    return null;
+  }
+
+  const [year, month, day] = String(dayDate).split("-").map(Number);
+  const [hours, minutes] = String(timeValue).split(":").map(Number);
+  const date = new Date(year, month - 1, day, hours, minutes, 0, 0);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day ||
+    date.getHours() !== hours ||
+    date.getMinutes() !== minutes
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
+function parseDateTime(value) {
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? new Date(timestamp) : null;
+}
+
+function toIsoString(date) {
+  return date instanceof Date && !Number.isNaN(date.getTime())
+    ? date.toISOString()
+    : null;
+}
+
+function addSeconds(date, seconds) {
+  if (!(date instanceof Date) || !Number.isFinite(seconds)) return null;
+  return new Date(date.getTime() + Math.max(seconds, 0) * 1000);
+}
+
+function maxDate(first, second) {
+  if (!first) return second || null;
+  if (!second) return first || null;
+  return first.getTime() >= second.getTime() ? first : second;
+}
+
+export function buildDayScheduleRows(rows, { day, now = new Date() } = {}) {
+  const fallbackNow =
+    now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date();
+  let cursor = null;
+
+  return (Array.isArray(rows) ? rows : []).map((row) => {
+    const mode =
+      row.scheduleStartMode === CLASS_START_MODE_FIXED
+        ? CLASS_START_MODE_FIXED
+        : CLASS_START_MODE_AFTER_PREVIOUS;
+    const fixedStartDate =
+      mode === CLASS_START_MODE_FIXED
+        ? parseDateAndClockTime(row.dayDate || day?.date, row.scheduleStartTime)
+        : null;
+    const actualStartedDate = parseDateTime(row.startedAt);
+    const remainingSeconds = Number.isFinite(row.remainingSeconds)
+      ? Math.max(row.remainingSeconds, 0)
+      : null;
+    const isRunning = Boolean(actualStartedDate && !row.isComplete);
+    let estimatedStartDate = null;
+    let scheduleStartUsesFallback = false;
+
+    if (isRunning) {
+      estimatedStartDate = actualStartedDate;
+    } else if (fixedStartDate) {
+      estimatedStartDate = maxDate(cursor, fixedStartDate);
+    } else if (cursor) {
+      estimatedStartDate = cursor;
+    } else {
+      estimatedStartDate = fallbackNow;
+      scheduleStartUsesFallback = true;
+    }
+
+    const endBaseDate = isRunning ? fallbackNow : estimatedStartDate;
+    const estimatedEndDate =
+      remainingSeconds == null ? null : addSeconds(endBaseDate, remainingSeconds);
+
+    if (estimatedEndDate) {
+      cursor = estimatedEndDate;
+    } else if (!cursor && estimatedStartDate) {
+      cursor = estimatedStartDate;
+    } else if (fixedStartDate) {
+      cursor = maxDate(cursor, fixedStartDate);
+    }
+
+    return {
+      ...row,
+      scheduleStartMode: mode,
+      scheduleStartTime: mode === CLASS_START_MODE_FIXED ? row.scheduleStartTime : "",
+      plannedStartAt: toIsoString(fixedStartDate),
+      estimatedStartAt: toIsoString(estimatedStartDate),
+      estimatedEndAt: toIsoString(estimatedEndDate) || row.estimatedEndAt,
+      scheduleStartUsesFallback,
+      isDelayedFromFixedStart: Boolean(
+        fixedStartDate &&
+          estimatedStartDate &&
+          estimatedStartDate.getTime() > fixedStartDate.getTime()
+      ),
+    };
+  });
+}
+
+export function buildDayScheduleSummary(rows, now = new Date()) {
+  const validNow =
+    now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date();
+  const remainingRuns = (Array.isArray(rows) ? rows : []).reduce(
+    (total, row) => total + Math.max(row.remainingRuns || 0, 0),
+    0
+  );
+  const lastEstimatedEndAt = [...(Array.isArray(rows) ? rows : [])]
+    .reverse()
+    .map((row) => parseDateTime(row.estimatedEndAt))
+    .find(Boolean);
+  const remainingSecondsValues = (Array.isArray(rows) ? rows : [])
+    .map((row) => row.remainingSeconds)
+    .filter((value) => Number.isFinite(value) && value >= 0);
+  const fallbackRemainingSeconds = remainingSecondsValues.length
+    ? remainingSecondsValues.reduce((total, value) => total + value, 0)
+    : null;
+  const remainingSeconds = lastEstimatedEndAt
+    ? Math.max(
+        0,
+        Math.round((lastEstimatedEndAt.getTime() - validNow.getTime()) / 1000)
+      )
+    : fallbackRemainingSeconds;
+
+  return {
+    remainingRuns,
+    remainingSeconds,
+    estimatedEndAt: toIsoString(lastEstimatedEndAt),
   };
 }
 
