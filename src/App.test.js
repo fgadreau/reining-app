@@ -2404,6 +2404,114 @@ test("public live shows a pending paid warmup scheduled before a live class", ()
   expect(publicView.livePaidWarmup.nextScheduleItem.startAt).toBeTruthy();
 });
 
+test("public live estimates the next block from a fixed paid warmup start", () => {
+  saveDays([
+    {
+      id: "day-public-warmup-fixed-start",
+      showId: "show-public-warmup-fixed-start",
+      label: "Vendredi",
+      date: "2026-06-26",
+      sortOrder: 1,
+    },
+  ]);
+  saveClasses([
+    {
+      id: "public-warmup-fixed-next-class",
+      showId: "show-public-warmup-fixed-start",
+      dayId: "day-public-warmup-fixed-start",
+      name: "Novice Horse",
+      arena: "Main",
+      scheduleStartMode: CLASS_START_MODE_AFTER_PREVIOUS,
+      sortOrder: 2,
+    },
+  ]);
+  savePaidWarmup({
+    id: "public-warmup-fixed-start",
+    showId: "show-public-warmup-fixed-start",
+    dayId: "day-public-warmup-fixed-start",
+    name: "Warm-up vendredi 40 chevaux",
+    arena: "Main",
+    scheduleStartMode: CLASS_START_MODE_FIXED,
+    scheduleStartTime: "07:00",
+    durationMinutesPerRider: 7,
+    entries: Array.from({ length: 40 }, (_, index) => ({
+      id: `entry-${index + 1}`,
+      rider: `Rider ${index + 1}`,
+      status: "pending",
+    })),
+    sortOrder: 1,
+  });
+  savePublicationState("public-warmup-fixed-next-class", {
+    status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  });
+
+  const publicView = getPublicShowView("show-public-warmup-fixed-start");
+  const nextItem = publicView.livePaidWarmup.nextScheduleItem;
+  const start = new Date(nextItem.startAt);
+
+  expect(nextItem).toMatchObject({
+    itemId: "public-warmup-fixed-next-class",
+    name: "Novice Horse",
+    startKind: "estimated",
+  });
+  expect(start.getFullYear()).toBe(2026);
+  expect(start.getMonth()).toBe(5);
+  expect(start.getDate()).toBe(26);
+  expect(start.getHours()).toBe(11);
+  expect(start.getMinutes()).toBe(40);
+});
+
+test("public live hides now-based next block estimates when schedule has no anchor", () => {
+  saveDays([
+    {
+      id: "day-public-warmup-unanchored",
+      showId: "show-public-warmup-unanchored",
+      label: "Vendredi",
+      date: "2026-06-26",
+      sortOrder: 1,
+    },
+  ]);
+  saveClasses([
+    {
+      id: "public-warmup-unanchored-next-class",
+      showId: "show-public-warmup-unanchored",
+      dayId: "day-public-warmup-unanchored",
+      name: "Novice Horse",
+      arena: "Main",
+      scheduleStartMode: CLASS_START_MODE_AFTER_PREVIOUS,
+      sortOrder: 2,
+    },
+  ]);
+  savePaidWarmup({
+    id: "public-warmup-unanchored",
+    showId: "show-public-warmup-unanchored",
+    dayId: "day-public-warmup-unanchored",
+    name: "Warm-up vendredi 40 chevaux",
+    arena: "Main",
+    scheduleStartMode: CLASS_START_MODE_AFTER_PREVIOUS,
+    durationMinutesPerRider: 7,
+    entries: Array.from({ length: 40 }, (_, index) => ({
+      id: `entry-${index + 1}`,
+      rider: `Rider ${index + 1}`,
+      status: "pending",
+    })),
+    sortOrder: 1,
+  });
+  savePublicationState("public-warmup-unanchored-next-class", {
+    status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  });
+
+  const publicView = getPublicShowView("show-public-warmup-unanchored");
+  const nextItem = publicView.livePaidWarmup.nextScheduleItem;
+
+  expect(nextItem).toMatchObject({
+    itemId: "public-warmup-unanchored-next-class",
+    dayDate: "2026-06-26",
+    startAt: null,
+    startKind: "unknown",
+  });
+});
+
 test("completed live skips the next class when its planned live is hidden", async () => {
   saveDays([
     {

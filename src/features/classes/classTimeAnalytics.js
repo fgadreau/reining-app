@@ -254,6 +254,7 @@ export function buildDayScheduleRows(rows, { day, now = new Date() } = {}) {
   const fallbackNow =
     now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date();
   let cursor = null;
+  let cursorUsesFallback = false;
 
   return (Array.isArray(rows) ? rows : []).map((row) => {
     const mode =
@@ -276,8 +277,14 @@ export function buildDayScheduleRows(rows, { day, now = new Date() } = {}) {
       estimatedStartDate = actualStartedDate;
     } else if (fixedStartDate) {
       estimatedStartDate = maxDate(cursor, fixedStartDate);
+      scheduleStartUsesFallback = Boolean(
+        cursor &&
+          cursorUsesFallback &&
+          estimatedStartDate?.getTime() === cursor.getTime()
+      );
     } else if (cursor) {
       estimatedStartDate = cursor;
+      scheduleStartUsesFallback = cursorUsesFallback;
     } else {
       estimatedStartDate = fallbackNow;
       scheduleStartUsesFallback = true;
@@ -289,10 +296,15 @@ export function buildDayScheduleRows(rows, { day, now = new Date() } = {}) {
 
     if (estimatedEndDate) {
       cursor = estimatedEndDate;
+      cursorUsesFallback = scheduleStartUsesFallback;
     } else if (!cursor && estimatedStartDate) {
       cursor = estimatedStartDate;
+      cursorUsesFallback = scheduleStartUsesFallback;
     } else if (fixedStartDate) {
       cursor = maxDate(cursor, fixedStartDate);
+      cursorUsesFallback = Boolean(
+        cursor && cursorUsesFallback && cursor.getTime() !== fixedStartDate.getTime()
+      );
     }
 
     return {

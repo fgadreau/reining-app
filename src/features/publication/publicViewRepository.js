@@ -1601,8 +1601,14 @@ function buildPublicNextScheduleItem({
   const hasFixedStart = Boolean(
     scheduleRow?.scheduleStartMode === "fixed" && scheduleRow?.plannedStartAt
   );
+  const scheduleEstimatedStartAt = scheduleRow?.scheduleStartUsesFallback
+    ? null
+    : scheduleRow?.estimatedStartAt || null;
+  const currentEstimatedEndAt = currentScheduleRow?.scheduleStartUsesFallback
+    ? null
+    : currentScheduleRow?.estimatedEndAt || null;
   const estimatedStartAt =
-    scheduleRow?.estimatedStartAt || currentScheduleRow?.estimatedEndAt || null;
+    scheduleEstimatedStartAt || currentEstimatedEndAt || null;
   const startAt = hasFixedStart
     ? scheduleRow.plannedStartAt
     : estimatedStartAt;
