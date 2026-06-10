@@ -50,6 +50,7 @@ import {
   claimJudgeScoringSessionRepository,
   saveJudgeScoringSessionRepository,
 } from "../../features/scoring/judgeScoringSessionRepository";
+import { advanceArenaLiveClassAfterCompletionRepository } from "../../features/publication/publicationCloudRepository";
 import {
   calculateClassTimingSummary,
   formatClockTime,
@@ -1377,6 +1378,11 @@ function ClassScoringPage() {
 
       pdf.save(fileName);
       await saveFinalPdfFileName(classId, fileName);
+      await advanceArenaLiveClassAfterCompletionRepository({
+        showId: classItem?.showId,
+        arena: classItem?.arena,
+        classId,
+      });
 
       const nextData = await getClassFullDataRepository(classId);
       setClassData(nextData);

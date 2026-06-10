@@ -53,8 +53,6 @@ import { getClassOfficialData } from "../../features/classes/classOfficialData";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
 import { createId } from "../../utils/createId";
-import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
-import { savePublicationStateRepository } from "../../features/publication/publicationCloudRepository";
 
 function DayClassesPage() {
   const { associationId, showId, dayId } = useParams();
@@ -176,11 +174,6 @@ function DayClassesPage() {
       judges,
       judgeName: getPrimaryJudgeName({ judges }),
       scheduleDetails,
-    });
-    await savePublicationStateRepository(newClass.id, {
-      status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
-      publishedAt: null,
-      publishedBy: null,
     });
     setClasses((current) => [...current, newClass]);
     setClassSetups((current) => ({
@@ -407,12 +400,6 @@ function DayClassesPage() {
 
       const savedClass = await saveClassItemRepository(newClass);
       const savedSetup = await saveSetupForClassRepository(savedClass.id, newSetup);
-      await savePublicationStateRepository(savedClass.id, {
-        status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
-        publishedAt: null,
-        publishedBy: null,
-      });
-
       setClasses((current) => [...current, savedClass]);
       setClassSetups((current) => ({
         ...current,

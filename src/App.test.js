@@ -30,8 +30,13 @@ import {
   getPublicationState,
   publishClass,
   PUBLICATION_STATUSES,
+  savePublicationState,
   unpublishClass,
 } from "./features/publication/publicationRepository";
+import {
+  advanceArenaLiveClassAfterCompletionRepository,
+  saveArenaCurrentLiveClassRepository,
+} from "./features/publication/publicationCloudRepository";
 import {
   buildPublicClassView,
   buildPublicLiveClassView,
@@ -2060,6 +2065,176 @@ test("public live class remains visible without scoring session runs", () => {
     nextRun: null,
     latestScore: null,
   });
+});
+
+test("public show view keeps one live class per arena", () => {
+  saveDays([
+    {
+      id: "day-live-arenas",
+      showId: "show-live-arenas",
+      label: "Jour 1",
+      date: "2026-06-15",
+      sortOrder: 1,
+    },
+  ]);
+  saveClasses([
+    {
+      id: "arena-a-first",
+      showId: "show-live-arenas",
+      dayId: "day-live-arenas",
+      name: "Arena A first",
+      arena: "Arena A",
+      pattern: "2",
+      sortOrder: 1,
+    },
+    {
+      id: "arena-a-second",
+      showId: "show-live-arenas",
+      dayId: "day-live-arenas",
+      name: "Arena A second",
+      arena: "Arena A",
+      pattern: "2",
+      sortOrder: 2,
+    },
+    {
+      id: "arena-b-first",
+      showId: "show-live-arenas",
+      dayId: "day-live-arenas",
+      name: "Arena B first",
+      arena: "Arena B",
+      pattern: "2",
+      sortOrder: 3,
+    },
+  ]);
+  savePublicationState("arena-a-first", {
+    status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  });
+  savePublicationState("arena-a-second", {
+    status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  });
+  savePublicationState("arena-b-first", {
+    status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  });
+
+  const view = getPublicShowView("show-live-arenas");
+
+  expect(view.liveClasses.map((classView) => classView.classId)).toEqual([
+    "arena-a-first",
+    "arena-b-first",
+  ]);
+  expect(view.liveClassCount).toBe(2);
+});
+
+test("setting an arena live class hides only the previous live in that arena", async () => {
+  saveClasses([
+    {
+      id: "arena-main-current",
+      showId: "show-current-live",
+      dayId: "day-current-live",
+      name: "Main current",
+      arena: "Main",
+      sortOrder: 1,
+    },
+    {
+      id: "arena-main-next",
+      showId: "show-current-live",
+      dayId: "day-current-live",
+      name: "Main next",
+      arena: "Main",
+      sortOrder: 2,
+    },
+    {
+      id: "arena-secondary-current",
+      showId: "show-current-live",
+      dayId: "day-current-live",
+      name: "Secondary current",
+      arena: "Secondary",
+      sortOrder: 3,
+    },
+  ]);
+  savePublicationState("arena-main-current", {
+    status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  });
+  savePublicationState("arena-secondary-current", {
+    status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  });
+
+  await saveArenaCurrentLiveClassRepository({
+    showId: "show-current-live",
+    arena: "Main",
+    classId: "arena-main-next",
+    status: PUBLICATION_STATUSES.LIVE_SCORING,
+  });
+
+  expect(getPublicationState("arena-main-current").status).toBe(
+    PUBLICATION_STATUSES.HIDDEN
+  );
+  expect(getPublicationState("arena-main-next").status).toBe(
+    PUBLICATION_STATUSES.LIVE_SCORING
+  );
+  expect(getPublicationState("arena-secondary-current").status).toBe(
+    PUBLICATION_STATUSES.LIVE_NO_SCORE
+  );
+});
+
+test("completed arena live advances to the next class in the same arena", async () => {
+  saveDays([
+    {
+      id: "day-advance-live",
+      showId: "show-advance-live",
+      label: "Jour 1",
+      date: "2026-06-15",
+      sortOrder: 1,
+    },
+  ]);
+  saveClasses([
+    {
+      id: "advance-main-current",
+      showId: "show-advance-live",
+      dayId: "day-advance-live",
+      name: "Main current",
+      arena: "Main",
+      sortOrder: 1,
+    },
+    {
+      id: "advance-main-next",
+      showId: "show-advance-live",
+      dayId: "day-advance-live",
+      name: "Main next",
+      arena: "Main",
+      sortOrder: 2,
+    },
+    {
+      id: "advance-secondary-current",
+      showId: "show-advance-live",
+      dayId: "day-advance-live",
+      name: "Secondary current",
+      arena: "Secondary",
+      sortOrder: 3,
+    },
+  ]);
+  savePublicationState("advance-main-current", {
+    status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  });
+  savePublicationState("advance-secondary-current", {
+    status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  });
+
+  await advanceArenaLiveClassAfterCompletionRepository({
+    showId: "show-advance-live",
+    arena: "Main",
+    classId: "advance-main-current",
+  });
+
+  expect(getPublicationState("advance-main-current").status).toBe(
+    PUBLICATION_STATUSES.HIDDEN
+  );
+  expect(getPublicationState("advance-main-next").status).toBe(
+    PUBLICATION_STATUSES.LIVE_NO_SCORE
+  );
+  expect(getPublicationState("advance-secondary-current").status).toBe(
+    PUBLICATION_STATUSES.LIVE_NO_SCORE
+  );
 });
 
 test("supports schedule-only classes without scoring patterns", () => {

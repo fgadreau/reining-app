@@ -54,7 +54,10 @@ import {
   PUBLICATION_STATUSES,
   isLivePublicationStatus,
 } from "../../features/publication/publicationRepository";
-import { savePublicationStateRepository } from "../../features/publication/publicationCloudRepository";
+import {
+  saveArenaCurrentLiveClassRepository,
+  savePublicationStateRepository,
+} from "../../features/publication/publicationCloudRepository";
 import {
   buildScorePdfFileName,
   generateScorePdf,
@@ -516,11 +519,19 @@ function ClassSetupPage() {
       nextStatus,
       judges
     );
-    const savedPublication = await savePublicationStateRepository(classId, {
-      status: normalizedNextStatus,
-      publishedAt: null,
-      publishedBy: null,
-    });
+    const savedPublication =
+      isLivePublicationStatus(normalizedNextStatus) && classItem?.showId
+        ? await saveArenaCurrentLiveClassRepository({
+            showId: classItem.showId,
+            arena,
+            classId,
+            status: normalizedNextStatus,
+          })
+        : await savePublicationStateRepository(classId, {
+            status: normalizedNextStatus,
+            publishedAt: null,
+            publishedBy: null,
+          });
 
     setPublicationStatus(savedPublication.status);
     setClassData((currentData) =>
@@ -537,6 +548,8 @@ function ClassSetupPage() {
     hasLoadedSetup,
     isPublicationLocked,
     judges,
+    classItem?.showId,
+    arena,
   ]);
 
   useEffect(() => {
@@ -1092,8 +1105,6 @@ function ClassSetupPage() {
 
                 const nextPattern = e.target.value;
                 const nextConfig = getCustomPatternConfigForPattern(nextPattern);
-                const nextIsScheduleOnly = isNoPatternValue(nextPattern);
-
                 setPattern(nextPattern);
                 setCustomPattern((currentCustomPattern) =>
                   nextConfig
@@ -1106,9 +1117,6 @@ function ClassSetupPage() {
                       )
                     : null
                 );
-                if (nextIsScheduleOnly) {
-                  updatePublicationStatus(PUBLICATION_STATUSES.LIVE_NO_SCORE);
-                }
               }}
               style={inputStyle}
               disabled={!canManageSetup || isFullyLocked}

@@ -292,14 +292,13 @@ export function getPublicShowView(showId) {
     (total, section) => total + section.classes.length,
     0
   );
-  const primaryLiveClass = findPrimaryLiveClass(liveClasses);
-  const publicPaidWarmupCount = countPublicLivePaidWarmups(livePaidWarmups);
+  const primaryLiveClasses = findPrimaryLiveClassesByArena(liveClasses);
   const primaryLivePaidWarmup = findPrimaryLivePaidWarmup(livePaidWarmups);
   const timingByClassId = buildLocalPublicTimingByClassId(
     timingSections,
-    liveClasses
+    primaryLiveClasses
   );
-  const timedLiveClasses = liveClasses.map((classView) =>
+  const timedLiveClasses = primaryLiveClasses.map((classView) =>
     attachPublicTiming(classView, timingByClassId)
   );
   const scheduleSections = show?.isSchedulePublic
@@ -311,10 +310,10 @@ export function getPublicShowView(showId) {
     resultSections,
     publishedClassCount,
     publishedResultClassCount,
-    liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
+    liveClass: timedLiveClasses[0] || null,
     liveClasses: timedLiveClasses,
     livePaidWarmup: primaryLivePaidWarmup,
-    liveClassCount: liveClasses.length + publicPaidWarmupCount,
+    liveClassCount: timedLiveClasses.length + (primaryLivePaidWarmup ? 1 : 0),
     scheduleSections,
     scheduleItemCount: countScheduleItems(scheduleSections),
     classIds,
@@ -401,14 +400,13 @@ export async function getPublicShowViewRepository(showId) {
     (total, section) => total + section.classes.length,
     0
   );
-  const primaryLiveClass = findPrimaryLiveClass(liveClasses);
-  const publicPaidWarmupCount = countPublicLivePaidWarmups(livePaidWarmups);
+  const primaryLiveClasses = findPrimaryLiveClassesByArena(liveClasses);
   const primaryLivePaidWarmup = findPrimaryLivePaidWarmup(livePaidWarmups);
   const timingByClassId = buildLocalPublicTimingByClassId(
     timingSections,
-    liveClasses
+    primaryLiveClasses
   );
-  const timedLiveClasses = liveClasses.map((classView) =>
+  const timedLiveClasses = primaryLiveClasses.map((classView) =>
     attachPublicTiming(classView, timingByClassId)
   );
   const scheduleSections = show?.isSchedulePublic
@@ -420,10 +418,10 @@ export async function getPublicShowViewRepository(showId) {
     resultSections,
     publishedClassCount,
     publishedResultClassCount,
-    liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
+    liveClass: timedLiveClasses[0] || null,
     liveClasses: timedLiveClasses,
     livePaidWarmup: primaryLivePaidWarmup,
-    liveClassCount: liveClasses.length + publicPaidWarmupCount,
+    liveClassCount: timedLiveClasses.length + (primaryLivePaidWarmup ? 1 : 0),
     scheduleSections,
     scheduleItemCount: countScheduleItems(scheduleSections),
     classIds,
@@ -734,10 +732,9 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
       (total, section) => total + section.classes.length,
       0
     );
-    const primaryLiveClass = findPrimaryLiveClass(liveClasses);
-    const publicPaidWarmupCount = countPublicLivePaidWarmups(livePaidWarmups);
+    const primaryLiveClasses = findPrimaryLiveClassesByArena(liveClasses);
     const primaryLivePaidWarmup = findPrimaryLivePaidWarmup(livePaidWarmups);
-    const timedLiveClasses = liveClasses.map((classView) =>
+    const timedLiveClasses = primaryLiveClasses.map((classView) =>
       attachPublicTiming(classView, timingByClassId)
     );
     const scheduleSections = show?.isSchedulePublic
@@ -749,10 +746,10 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
       resultSections,
       publishedClassCount,
       publishedResultClassCount,
-      liveClass: attachPublicTiming(primaryLiveClass, timingByClassId),
+      liveClass: timedLiveClasses[0] || null,
       liveClasses: timedLiveClasses,
       livePaidWarmup: primaryLivePaidWarmup,
-      liveClassCount: liveClasses.length + publicPaidWarmupCount,
+      liveClassCount: timedLiveClasses.length + (primaryLivePaidWarmup ? 1 : 0),
       scheduleSections,
       scheduleItemCount: countScheduleItems(scheduleSections),
       classIds: allClassIds,
@@ -1387,6 +1384,23 @@ function findPrimaryLiveClass(liveClasses) {
   );
 }
 
+function findPrimaryLiveClassesByArena(liveClasses) {
+  const groups = new Map();
+
+  (Array.isArray(liveClasses) ? liveClasses : []).forEach((classView) => {
+    const arenaKey =
+      String(classView?.arena || "").trim().toLocaleLowerCase() ||
+      "__no_arena__";
+    const currentGroup = groups.get(arenaKey) || [];
+
+    groups.set(arenaKey, [...currentGroup, classView]);
+  });
+
+  return Array.from(groups.values())
+    .map(findPrimaryLiveClass)
+    .filter(Boolean);
+}
+
 function findPrimaryLivePaidWarmup(livePaidWarmups) {
   return (
     livePaidWarmups.find((warmup) => warmup.activeEntry) ||
@@ -1394,10 +1408,6 @@ function findPrimaryLivePaidWarmup(livePaidWarmups) {
     livePaidWarmups[0] ||
     null
   );
-}
-
-function countPublicLivePaidWarmups(livePaidWarmups) {
-  return Array.isArray(livePaidWarmups) ? livePaidWarmups.length : 0;
 }
 
 function buildPublicClassDragBreak({

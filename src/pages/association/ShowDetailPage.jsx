@@ -36,8 +36,6 @@ import {
 } from "../../features/cloud/localFirstSyncMessages";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { getPaidWarmupsForDayRepository } from "../../features/paidWarmups/paidWarmupRepository";
-import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
-import { savePublicationStateRepository } from "../../features/publication/publicationCloudRepository";
 import {
   getShowRepository,
   saveShowRepository,
@@ -521,12 +519,7 @@ function ShowDetailPage() {
           sortOrder: targetSortOrder + index + 1,
         };
 
-        const savedClass = await saveClassItemRepository(copiedClass);
-        await savePublicationStateRepository(savedClass.id, {
-          status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
-          publishedAt: null,
-          publishedBy: null,
-        });
+        await saveClassItemRepository(copiedClass);
       }
 
       alert(

@@ -8,6 +8,7 @@ import {
 import { saveClassScheduleDetailsRepository } from "../../features/classes/classSetupRepository";
 import { normalizeClassScheduleDetails } from "../../features/classes/classSchedule";
 import { formatLiveDataFreshness } from "../../features/live/liveFreshness";
+import { advanceArenaLiveClassAfterCompletionRepository } from "../../features/publication/publicationCloudRepository";
 import { savePaidWarmupRepository } from "../../features/paidWarmups/paidWarmupRepository";
 import {
   PAID_WARMUP_TIMER_CUES,
@@ -144,10 +145,19 @@ function AnnouncerDashboardPage() {
     await refreshLiveViewNow();
   }, [refreshLiveViewNow]);
 
-  const saveScheduleDetailsUpdate = useCallback(async (classId, details) => {
-    await saveClassScheduleDetailsRepository(classId, details);
+  const saveScheduleDetailsUpdate = useCallback(async (classView, details) => {
+    await saveClassScheduleDetailsRepository(classView.classId, details);
+
+    if (details?.isCompleted) {
+      await advanceArenaLiveClassAfterCompletionRepository({
+        showId,
+        arena: classView.arena,
+        classId: classView.classId,
+      });
+    }
+
     await refreshLiveViewNow();
-  }, [refreshLiveViewNow]);
+  }, [refreshLiveViewNow, showId]);
 
   const handleStartPaidWarmupEntry = (warmup, entryId) => {
     setIsPaidWarmupAudioReady(primePaidWarmupCueAudio());
@@ -953,9 +963,7 @@ function ClassLiveCard({
               classView={classView}
               draft={scheduleDraft}
               onChange={setScheduleDraft}
-              onSave={(details) =>
-                onSaveScheduleDetails(classView.classId, details)
-              }
+              onSave={(details) => onSaveScheduleDetails(classView, details)}
             />
           ) : (
             <>
