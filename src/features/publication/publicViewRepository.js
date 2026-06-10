@@ -95,6 +95,27 @@ function toShow(row) {
   };
 }
 
+function isShowPubliclyActive(show) {
+  return String(show?.status || "").trim() === "active";
+}
+
+function buildEmptyPublicShowView() {
+  return {
+    sections: [],
+    resultSections: [],
+    publishedClassCount: 0,
+    publishedResultClassCount: 0,
+    liveClass: null,
+    liveClasses: [],
+    livePaidWarmup: null,
+    livePaidWarmups: [],
+    liveClassCount: 0,
+    scheduleSections: [],
+    scheduleItemCount: 0,
+    classIds: [],
+  };
+}
+
 function toDay(row) {
   return {
     id: row.id,
@@ -240,6 +261,10 @@ function toPaidWarmup(row) {
 
 export function getPublicShowView(showId) {
   const show = getShowById(showId);
+  if (!isShowPubliclyActive(show)) {
+    return buildEmptyPublicShowView();
+  }
+
   const liveClasses = [];
   const livePaidWarmups = [];
   const classIds = [];
@@ -342,6 +367,10 @@ export async function getPublicShowViewRepository(showId) {
   }
 
   const show = getShowById(showId);
+  if (!isShowPubliclyActive(show)) {
+    return buildEmptyPublicShowView();
+  }
+
   const liveClasses = [];
   const livePaidWarmups = [];
   const classIds = [];
@@ -552,6 +581,10 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
       .maybeSingle();
     if (showError) throw showError;
     const show = showRow ? toShow(showRow) : null;
+    if (!isShowPubliclyActive(show)) {
+      return buildEmptyPublicShowView();
+    }
+
     const { data: dayRows, error: daysError } = await supabase
       .from("days")
       .select("*")
@@ -901,7 +934,8 @@ export async function getPublicShowRepository(showId) {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
-    return getShowById(showId) || null;
+    const show = getShowById(showId) || null;
+    return isShowPubliclyActive(show) ? show : null;
   }
 
   try {
@@ -912,7 +946,8 @@ export async function getPublicShowRepository(showId) {
       .maybeSingle();
 
     if (error) throw error;
-    return data ? toShow(data) : null;
+    const show = data ? toShow(data) : null;
+    return isShowPubliclyActive(show) ? show : null;
   } catch (error) {
     console.error("Erreur chargement show public Supabase:", error);
     return null;
@@ -941,11 +976,12 @@ export async function getPublicShowsByAssociationRepository(associationId) {
 
     return showsWithCounts.filter(
       (show) =>
-        show.publishedClassCount > 0 ||
-        show.publishedResultClassCount > 0 ||
-        show.liveClassCount > 0 ||
-        show.scheduleItemCount > 0 ||
-        hasPublicLivestream(show)
+        isShowPubliclyActive(show) &&
+        (show.publishedClassCount > 0 ||
+          show.publishedResultClassCount > 0 ||
+          show.liveClassCount > 0 ||
+          show.scheduleItemCount > 0 ||
+          hasPublicLivestream(show))
     );
   } catch (error) {
     console.error("Erreur chargement shows publics:", error);

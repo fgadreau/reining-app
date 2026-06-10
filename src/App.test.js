@@ -80,6 +80,7 @@ import {
 import { buildLiveScheduleItems } from "./features/schedule/liveSchedule";
 import { saveDays } from "./features/days/dayStorage";
 import { saveClasses } from "./features/classes/classStorage";
+import { saveShows } from "./features/shows/showStorage";
 import {
   ASSOCIATION_ROLES,
   canAdminAssociation,
@@ -145,6 +146,19 @@ import {
 beforeEach(() => {
   localStorage.clear();
 });
+
+function saveActiveTestShow(showId, associationId = "association-test") {
+  saveShows([
+    {
+      id: showId,
+      associationId,
+      name: showId,
+      status: "active",
+      isSchedulePublic: true,
+      isLivestreamPublic: false,
+    },
+  ]);
+}
 
 test("calculates a scored run total", () => {
   const run = recalculateRun({
@@ -2076,6 +2090,7 @@ test("public live class remains visible without scoring session runs", () => {
 });
 
 test("public show view keeps one live class per arena", () => {
+  saveActiveTestShow("show-live-arenas");
   saveDays([
     {
       id: "day-live-arenas",
@@ -2359,6 +2374,7 @@ test("completed paid warmup advances to the next class in the same arena", async
 });
 
 test("public live shows a pending paid warmup scheduled before a live class", () => {
+  saveActiveTestShow("show-public-warmup-before-class");
   saveDays([
     {
       id: "day-public-warmup-before-class",
@@ -2410,6 +2426,7 @@ test("public live shows a pending paid warmup scheduled before a live class", ()
 });
 
 test("public live estimates the next block from a fixed paid warmup start", () => {
+  saveActiveTestShow("show-public-warmup-fixed-start");
   saveDays([
     {
       id: "day-public-warmup-fixed-start",
@@ -2467,6 +2484,7 @@ test("public live estimates the next block from a fixed paid warmup start", () =
 });
 
 test("public live hides now-based next block estimates when schedule has no anchor", () => {
+  saveActiveTestShow("show-public-warmup-unanchored");
   saveDays([
     {
       id: "day-public-warmup-unanchored",
@@ -2758,6 +2776,7 @@ test("paid warmup live follows edited rider order while running", () => {
 });
 
 test("public show view exposes a public paid warmup before the timer starts", () => {
+  saveActiveTestShow("show-public-warmup", "association-public-warmup");
   saveDays([
     {
       id: "day-public-warmup",
@@ -2796,6 +2815,66 @@ test("public show view exposes a public paid warmup before the timer starts", ()
   expect(publicView.livePaidWarmup.secondNextEntry).toMatchObject({
     rider: "Alex",
   });
+});
+
+test("public show view hides draft shows even when public toggles are enabled", () => {
+  const show = {
+    id: "show-public-draft",
+    associationId: "association-public-draft",
+    name: "Draft public show",
+    status: "draft",
+    isSchedulePublic: true,
+    isLivestreamPublic: true,
+    livestreamUrl: "https://youtu.be/draftshow",
+  };
+
+  saveShows([show]);
+  saveDays([
+    {
+      id: "day-public-draft",
+      associationId: show.associationId,
+      showId: show.id,
+      label: "Friday",
+      date: "2026-06-01",
+      sortOrder: 1,
+    },
+  ]);
+  saveClasses([
+    {
+      id: "class-public-draft",
+      associationId: show.associationId,
+      showId: show.id,
+      dayId: "day-public-draft",
+      name: "Draft class",
+      pattern: "1",
+      scheduleStartMode: CLASS_START_MODE_FIXED,
+      scheduleStartTime: "08:00",
+      sortOrder: 1,
+    },
+  ]);
+  savePaidWarmup({
+    id: "warmup-public-draft",
+    associationId: show.associationId,
+    showId: show.id,
+    dayId: "day-public-draft",
+    name: "Draft warm up",
+    isPublicLive: true,
+    entries: [{ id: "entry-1", rider: "Marie", status: "pending" }],
+  });
+
+  const draftView = getPublicShowView(show.id);
+  expect(draftView).toMatchObject({
+    publishedClassCount: 0,
+    publishedResultClassCount: 0,
+    liveClassCount: 0,
+    scheduleItemCount: 0,
+  });
+
+  saveShows([{ ...show, status: "active" }]);
+
+  const activeView = getPublicShowView(show.id);
+  expect(activeView.scheduleItemCount).toBe(2);
+  expect(activeView.liveClassCount).toBe(1);
 });
 
 test("paid warmup day sync keeps local warmups missing from remote rows", () => {

@@ -24,6 +24,7 @@ import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import { useAuthUser } from "../../features/auth/useAuthUser";
 import { getDayById } from "../../features/days/daySelectors";
 import { getShowById } from "../../features/shows/showSelectors";
+import { activateShowForScoringRepository } from "../../features/shows/showRepository";
 import {
   getPatternHeaders,
   isNoPatternValue,
@@ -847,6 +848,14 @@ function ClassScoringPage() {
     saveScoringStartedAtRepository(classId, timestamp).catch((error) => {
       console.error("Erreur démarrage scoring:", error);
     });
+    if (classItem?.showId && show?.status !== "active") {
+      activateShowForScoringRepository({
+        classId,
+        showId: classItem.showId,
+      }).catch((error) => {
+        console.error("Erreur activation show:", error);
+      });
+    }
 
     return timestamp;
   };

@@ -1,6 +1,7 @@
 -- Reining App V2 public schedule migration
 -- Run this once in Supabase SQL editor for existing projects.
 -- Adds planned start times on classes/paid warmups and an optional public show schedule.
+-- Public schedule visibility also requires the parent show to be active.
 
 alter table public.shows
 add column if not exists is_schedule_public boolean not null default false;
@@ -20,6 +21,18 @@ add column if not exists schedule_start_mode text not null default 'after_previo
 alter table public.paid_warmups
 add column if not exists schedule_start_time text;
 
+create or replace function public.show_is_publicly_active(
+  target_show_id text
+)
+returns boolean as $$
+  select exists (
+    select 1
+    from public.shows s
+    where s.id = target_show_id
+      and s.status = 'active'
+  );
+$$ language sql stable security definer set search_path = public;
+
 create or replace function public.class_is_public_schedule_item(
   target_class_id text
 )
@@ -29,6 +42,7 @@ returns boolean as $$
     from public.classes c
     join public.shows s on s.id = c.show_id
     where c.id = target_class_id
+      and s.status = 'active'
       and s.is_schedule_public is true
   );
 $$ language sql stable security definer set search_path = public;
@@ -42,6 +56,7 @@ returns boolean as $$
     from public.paid_warmups p
     join public.shows s on s.id = p.show_id
     where p.id = target_paid_warmup_id
+      and s.status = 'active'
       and s.is_schedule_public is true
   );
 $$ language sql stable security definer set search_path = public;
@@ -54,6 +69,7 @@ returns boolean as $$
     select 1
     from public.shows s
     where s.id = target_show_id
+      and s.status = 'active'
       and s.is_schedule_public is true
   );
 $$ language sql stable security definer set search_path = public;
@@ -67,6 +83,7 @@ returns boolean as $$
     from public.days d
     join public.shows s on s.id = d.show_id
     where d.id = target_day_id
+      and s.status = 'active'
       and s.is_schedule_public is true
   );
 $$ language sql stable security definer set search_path = public;
@@ -79,6 +96,7 @@ returns boolean as $$
     select 1
     from public.shows s
     where s.association_id = target_association_id
+      and s.status = 'active'
       and s.is_schedule_public is true
   );
 $$ language sql stable security definer set search_path = public;

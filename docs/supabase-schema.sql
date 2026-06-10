@@ -534,6 +534,39 @@ returns boolean as $$
   );
 $$ language sql stable security definer set search_path = public;
 
+create or replace function public.activate_show_for_scoring(
+  target_class_id text
+)
+returns void as $$
+declare
+  target_show_id text;
+  target_association_id text;
+begin
+  select c.show_id, c.association_id
+    into target_show_id, target_association_id
+  from public.classes c
+  where c.id = target_class_id;
+
+  if target_show_id is null then
+    raise exception 'Class not found'
+      using errcode = '22023';
+  end if;
+
+  if not public.current_user_can_score_association(target_association_id) then
+    raise exception 'Not authorized to activate this show'
+      using errcode = '42501';
+  end if;
+
+  update public.shows
+  set status = 'active'
+  where id = target_show_id
+    and status <> 'active';
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function public.activate_show_for_scoring(text)
+to authenticated;
+
 create or replace function public.current_user_can_manage_class(
   target_class_id text
 )
@@ -1601,22 +1634,50 @@ begin
 end $$;
 
 -- Public directory support.
+create or replace function public.show_is_publicly_active(
+  target_show_id text
+)
+returns boolean as $$
+  select exists (
+    select 1
+    from public.shows s
+    where s.id = target_show_id
+      and s.status = 'active'
+  );
+$$ language sql stable security definer set search_path = public;
+
+create or replace function public.class_is_on_publicly_active_show(
+  target_class_id text
+)
+returns boolean as $$
+  select exists (
+    select 1
+    from public.classes c
+    join public.shows s on s.id = c.show_id
+    where c.id = target_class_id
+      and s.status = 'active'
+  );
+$$ language sql stable security definer set search_path = public;
+
 create or replace function public.class_is_publicly_visible(
   target_class_id text
 )
 returns boolean as $$
-  select public.class_has_published_official_result(target_class_id)
-    or public.class_has_published_result(target_class_id)
-    or exists (
-      select 1
-      from public.publication_states ps
-      where ps.class_id = target_class_id
-        and ps.status in (
-          'live',
-          'live_no_score',
-          'live_scoring',
-          'live_finished'
-        )
+  select public.class_is_on_publicly_active_show(target_class_id)
+    and (
+      public.class_has_published_official_result(target_class_id)
+      or public.class_has_published_result(target_class_id)
+      or exists (
+        select 1
+        from public.publication_states ps
+        where ps.class_id = target_class_id
+          and ps.status in (
+            'live',
+            'live_no_score',
+            'live_scoring',
+            'live_finished'
+          )
+      )
     );
 $$ language sql stable security definer set search_path = public;
 
@@ -1629,6 +1690,7 @@ returns boolean as $$
     from public.classes c
     join public.shows s on s.id = c.show_id
     where c.id = target_class_id
+      and s.status = 'active'
       and s.is_schedule_public is true
   );
 $$ language sql stable security definer set search_path = public;
@@ -1649,12 +1711,13 @@ create or replace function public.show_has_public_paid_warmup(
   target_show_id text
 )
 returns boolean as $$
-  select exists (
-    select 1
-    from public.paid_warmups p
-    where p.show_id = target_show_id
-      and p.is_public_live is true
-  );
+  select public.show_is_publicly_active(target_show_id)
+    and exists (
+      select 1
+      from public.paid_warmups p
+      where p.show_id = target_show_id
+        and p.is_public_live is true
+    );
 $$ language sql stable security definer set search_path = public;
 
 create or replace function public.paid_warmup_is_public_schedule_item(
@@ -1666,6 +1729,7 @@ returns boolean as $$
     from public.paid_warmups p
     join public.shows s on s.id = p.show_id
     where p.id = target_paid_warmup_id
+      and s.status = 'active'
       and s.is_schedule_public is true
   );
 $$ language sql stable security definer set search_path = public;
@@ -1678,6 +1742,7 @@ returns boolean as $$
     select 1
     from public.shows s
     where s.id = target_show_id
+      and s.status = 'active'
       and s.is_livestream_public is true
       and nullif(btrim(coalesce(s.livestream_url, '')), '') is not null
   );
@@ -1691,6 +1756,7 @@ returns boolean as $$
     select 1
     from public.shows s
     where s.id = target_show_id
+      and s.status = 'active'
       and s.is_schedule_public is true
   );
 $$ language sql stable security definer set search_path = public;
@@ -1716,6 +1782,7 @@ returns boolean as $$
     from public.paid_warmups p
     where p.day_id = target_day_id
       and p.is_public_live is true
+      and public.show_is_publicly_active(p.show_id)
   );
 $$ language sql stable security definer set search_path = public;
 
@@ -1728,6 +1795,7 @@ returns boolean as $$
     from public.days d
     join public.shows s on s.id = d.show_id
     where d.id = target_day_id
+      and s.status = 'active'
       and s.is_schedule_public is true
   );
 $$ language sql stable security definer set search_path = public;
@@ -1753,6 +1821,7 @@ returns boolean as $$
     from public.paid_warmups p
     where p.association_id = target_association_id
       and p.is_public_live is true
+      and public.show_is_publicly_active(p.show_id)
   );
 $$ language sql stable security definer set search_path = public;
 
@@ -1776,6 +1845,7 @@ returns boolean as $$
     select 1
     from public.shows s
     where s.association_id = target_association_id
+      and s.status = 'active'
       and s.is_schedule_public is true
   );
 $$ language sql stable security definer set search_path = public;
@@ -1820,6 +1890,14 @@ using (
   or public.class_is_public_schedule_item(id)
 );
 
+drop policy if exists "Anyone can read live paid warmups" on public.paid_warmups;
+create policy "Anyone can read live paid warmups"
+on public.paid_warmups for select to anon, authenticated
+using (
+  is_public_live is true
+  and public.show_is_publicly_active(show_id)
+);
+
 drop policy if exists "Anyone can read public schedule paid warmups" on public.paid_warmups;
 create policy "Anyone can read public schedule paid warmups"
 on public.paid_warmups for select to anon, authenticated
@@ -1830,15 +1908,18 @@ drop policy if exists "Anyone can read public publication states" on public.publ
 create policy "Anyone can read public publication states"
 on public.publication_states for select to anon, authenticated
 using (
-  status in (
-    'live',
-    'live_no_score',
-    'live_scoring',
-    'live_finished'
-  )
-  or (
-    status = 'published'
-    and public.class_has_published_official_result(class_id)
+  public.class_is_on_publicly_active_show(class_id)
+  and (
+    status in (
+      'live',
+      'live_no_score',
+      'live_scoring',
+      'live_finished'
+    )
+    or (
+      status = 'published'
+      and public.class_has_published_official_result(class_id)
+    )
   )
 );
 
@@ -1846,7 +1927,8 @@ drop policy if exists "Anyone can read published official results" on public.off
 create policy "Anyone can read published official results"
 on public.official_results for select to anon, authenticated
 using (
-  finalized is true
+  public.class_is_on_publicly_active_show(class_id)
+  and finalized is true
   and secretariat_validated_at is not null
   and exists (
     select 1
@@ -1856,11 +1938,21 @@ using (
   )
 );
 
+drop policy if exists "Anyone can read published class result publications"
+on public.class_result_publications;
+create policy "Anyone can read published class result publications"
+on public.class_result_publications for select to anon, authenticated
+using (
+  public.class_is_on_publicly_active_show(class_id)
+  and public.class_has_published_result(class_id)
+);
+
 drop policy if exists "Anyone can read live scoring sessions" on public.scoring_sessions;
 create policy "Anyone can read live scoring sessions"
 on public.scoring_sessions for select to anon, authenticated
 using (
-  exists (
+  public.class_is_on_publicly_active_show(class_id)
+  and exists (
     select 1
     from public.publication_states ps
     where ps.class_id = scoring_sessions.class_id
@@ -1877,7 +1969,8 @@ drop policy if exists "Anyone can read live judge scoring sessions" on public.ju
 create policy "Anyone can read live judge scoring sessions"
 on public.judge_scoring_sessions for select to anon, authenticated
 using (
-  exists (
+  public.class_is_on_publicly_active_show(class_id)
+  and exists (
     select 1
     from public.publication_states ps
     where ps.class_id = judge_scoring_sessions.class_id
@@ -1931,6 +2024,9 @@ returns table (
     from public.classes
     left join public.class_setups setup on setup.class_id = classes.id
     join public.scoring_sessions scoring on scoring.class_id = classes.id
+    join public.shows duration_shows
+      on duration_shows.id = classes.show_id
+     and duration_shows.status = 'active'
     cross join lateral jsonb_array_elements(
       coalesce(scoring.runs, '[]'::jsonb)
     ) as run(value)
@@ -1970,6 +2066,9 @@ returns table (
       pattern_averages.average_run_seconds as pattern_average_run_seconds,
       scoring.active_manoeuvre is not null as has_active_manoeuvre
     from public.classes
+    join public.shows target_show
+      on target_show.id = classes.show_id
+     and target_show.status = 'active'
     left join public.class_setups setup on setup.class_id = classes.id
     left join public.scoring_sessions scoring on scoring.class_id = classes.id
     left join pattern_averages on pattern_averages.pattern = coalesce(

@@ -199,6 +199,46 @@ export async function saveShowRepository(show) {
   });
 }
 
+export async function activateShowForScoringRepository({ classId, showId } = {}) {
+  const supabase = getSupabaseClient();
+  const existingShow = showId ? getShowById(showId) : null;
+
+  if (existingShow?.status === "active") {
+    return existingShow;
+  }
+
+  if (supabase && classId) {
+    try {
+      const { error } = await supabase.rpc("activate_show_for_scoring", {
+        target_class_id: classId,
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Erreur activation show Supabase:", error);
+
+      if (showId) {
+        try {
+          const { error: updateError } = await supabase
+            .from("shows")
+            .update({ status: "active" })
+            .eq("id", showId);
+
+          if (updateError) throw updateError;
+        } catch (updateError) {
+          console.error("Erreur activation directe show Supabase:", updateError);
+        }
+      }
+    }
+  }
+
+  if (existingShow) {
+    return saveShowLocally({ ...existingShow, status: "active" });
+  }
+
+  return null;
+}
+
 export async function deleteShowRepository(showId) {
   const supabase = getSupabaseClient();
   const existingShow = getShowById(showId);
