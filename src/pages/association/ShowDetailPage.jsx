@@ -581,7 +581,7 @@ function ShowDetailPage() {
             {t("management.shows.livestreamSettings")}
           </button>
           <Link
-            to={`/associations/${associationId}/shows/${showId}/time`}
+            to={`/associations/${associationId}/shows/${showId}/schedule`}
             style={linkButtonStyle}
           >
             {t("management.shows.showSchedule")}
@@ -707,7 +707,7 @@ function ShowDetailPage() {
                 </label>
 
                 <Link
-                  to={`/associations/${associationId}/shows/${showId}/time`}
+                  to={`/associations/${associationId}/shows/${showId}/schedule`}
                   style={linkButtonStyle}
                   onClick={closeLivestreamSettings}
                 >

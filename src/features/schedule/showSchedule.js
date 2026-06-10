@@ -5,6 +5,10 @@ import {
   buildPatternTimingStats,
   getClassPatternValue,
 } from "../classes/classTimeAnalytics";
+import {
+  CLASS_START_MODE_AFTER_PREVIOUS,
+  CLASS_START_MODE_FIXED,
+} from "../classes/classSchedule";
 import { calculatePaidWarmupScheduleSummary } from "../paidWarmups/paidWarmupStorage";
 
 export const SHOW_SCHEDULE_ITEM_TYPES = {
@@ -93,6 +97,61 @@ export function buildShowScheduleSections({
   });
 }
 
+export function buildShowSchedulePreviewSections({
+  daySections,
+  now = new Date(),
+  patternAverageByValue = null,
+}) {
+  const sourceSections = Array.isArray(daySections) ? daySections : [];
+  const resolvedPatternAverageByValue =
+    patternAverageByValue ||
+    new Map(
+      buildPatternTimingStats(
+        sourceSections.flatMap((section) => section.classRows || [])
+      ).map((stat) => [stat.pattern, stat.averageRunSeconds])
+    );
+
+  return sourceSections.map((section) => {
+    const day = section.day;
+    const classRows = (section.classRows || []).map((classData) => {
+      const timingRow = buildClassTimingRow({
+        classData,
+        day,
+        now,
+        patternAverageRunSeconds:
+          resolvedPatternAverageByValue.get(getClassPatternValue(classData)) ||
+          null,
+      });
+
+      return {
+        ...timingRow,
+        itemId: classData?.classItem?.id,
+        itemType: SHOW_SCHEDULE_ITEM_TYPES.CLASS,
+        sortOrder: classData?.classItem?.sortOrder || 1,
+        estimatedDurationSeconds: timingRow.remainingSeconds,
+      };
+    });
+    const paidWarmupRows = (section.paidWarmups || []).map((warmup) => {
+      const row = buildPaidWarmupScheduleRow({ warmup, day, now });
+
+      return {
+        ...row,
+        estimatedDurationSeconds: row.remainingSeconds,
+      };
+    });
+    const rows = buildDaySchedulePreviewRows(
+      [...classRows, ...paidWarmupRows].sort(compareScheduleRows),
+      { day }
+    );
+
+    return {
+      day,
+      rows,
+      summary: buildDaySchedulePreviewSummary(rows),
+    };
+  });
+}
+
 export function countScheduleItems(scheduleSections) {
   return (Array.isArray(scheduleSections) ? scheduleSections : []).reduce(
     (total, section) => total + (section.rows?.length || 0),
@@ -104,4 +163,97 @@ function compareScheduleRows(a, b) {
   const sortOrder = (a.sortOrder || 0) - (b.sortOrder || 0);
   if (sortOrder !== 0) return sortOrder;
   return String(a.className || "").localeCompare(String(b.className || ""));
+}
+
+function buildDaySchedulePreviewRows(rows, { day } = {}) {
+  let cursor = null;
+
+  return (Array.isArray(rows) ? rows : []).map((row) => {
+    const mode =
+      row.scheduleStartMode === CLASS_START_MODE_FIXED
+        ? CLASS_START_MODE_FIXED
+        : CLASS_START_MODE_AFTER_PREVIOUS;
+    const fixedStartDate =
+      mode === CLASS_START_MODE_FIXED
+        ? parseDateAndClockTime(row.dayDate || day?.date, row.scheduleStartTime)
+        : null;
+    const estimatedStartDate =
+      mode === CLASS_START_MODE_FIXED ? fixedStartDate : cursor;
+    const durationSeconds = Number.isFinite(row.estimatedDurationSeconds)
+      ? Math.max(row.estimatedDurationSeconds, 0)
+      : null;
+    const estimatedEndDate =
+      estimatedStartDate && durationSeconds != null
+        ? addSeconds(estimatedStartDate, durationSeconds)
+        : null;
+
+    cursor = estimatedEndDate || null;
+
+    return {
+      ...row,
+      scheduleStartMode: mode,
+      scheduleStartTime: mode === CLASS_START_MODE_FIXED ? row.scheduleStartTime : "",
+      plannedStartAt: toIsoString(fixedStartDate),
+      estimatedStartAt: toIsoString(estimatedStartDate),
+      estimatedEndAt: toIsoString(estimatedEndDate),
+      estimatedDurationSeconds: durationSeconds,
+      scheduleStartUsesFallback: false,
+      isDelayedFromFixedStart: false,
+      isEstimateBlockedByMissingAnchor: Boolean(
+        mode === CLASS_START_MODE_AFTER_PREVIOUS && !estimatedStartDate
+      ),
+      isEstimateBlockedByMissingDuration: Boolean(
+        estimatedStartDate && durationSeconds == null
+      ),
+    };
+  });
+}
+
+function buildDaySchedulePreviewSummary(rows) {
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  const estimatedEndAt = [...sourceRows]
+    .reverse()
+    .map((row) => row.estimatedEndAt)
+    .find(Boolean);
+
+  return {
+    estimatedEndAt: estimatedEndAt || null,
+    itemCount: sourceRows.length,
+  };
+}
+
+function parseDateAndClockTime(dayDate, timeValue) {
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(String(dayDate || "")) ||
+    !/^\d{2}:\d{2}$/.test(String(timeValue || ""))
+  ) {
+    return null;
+  }
+
+  const [year, month, day] = String(dayDate).split("-").map(Number);
+  const [hours, minutes] = String(timeValue).split(":").map(Number);
+  const date = new Date(year, month - 1, day, hours, minutes, 0, 0);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day ||
+    date.getHours() !== hours ||
+    date.getMinutes() !== minutes
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
+function addSeconds(date, seconds) {
+  if (!(date instanceof Date) || !Number.isFinite(seconds)) return null;
+  return new Date(date.getTime() + Math.max(seconds, 0) * 1000);
+}
+
+function toIsoString(date) {
+  return date instanceof Date && !Number.isNaN(date.getTime())
+    ? date.toISOString()
+    : null;
 }

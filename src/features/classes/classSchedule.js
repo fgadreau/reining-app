@@ -18,16 +18,19 @@ export function normalizeClassStartTime(value) {
 }
 
 export function normalizeClassScheduleStart(input = {}) {
+  const source = input || {};
   const setupStartMode = normalizeClassStartMode(
-    input.startMode || input.start_mode
+    source.startMode || source.start_mode
   );
-  const classStartMode = normalizeClassStartMode(input.scheduleStartMode);
+  const classStartMode = normalizeClassStartMode(
+    source.scheduleStartMode || source.schedule_start_mode
+  );
   const startMode =
     setupStartMode === CLASS_START_MODE_FIXED
       ? setupStartMode
       : classStartMode;
-  const setupStartTime = input.startTime || input.start_time;
-  const classStartTime = input.scheduleStartTime;
+  const setupStartTime = source.startTime || source.start_time;
+  const classStartTime = source.scheduleStartTime || source.schedule_start_time;
 
   return {
     startMode,

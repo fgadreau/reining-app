@@ -10,7 +10,10 @@ import {
   getPublicShowViewRepository,
   subscribePublicShowViewRepository,
 } from "../../features/publication/publicViewRepository";
-import { formatClockTime } from "../../features/classes/classTiming";
+import {
+  formatClockTime,
+  formatDuration,
+} from "../../features/classes/classTiming";
 import {
   formatPaidWarmupTimer,
   getPaidWarmupDragRemainingSeconds,
@@ -428,19 +431,28 @@ function PublicScheduleSections({ sections }) {
                   {section.day.date || t("public.results.dateTbd")}
                 </div>
               </div>
-              <div style={scheduleDayEndStyle}>
-                {t("public.results.dayEnd")}{" "}
-                <strong>{formatClockTime(section.summary?.estimatedEndAt)}</strong>
-              </div>
+              {section.summary?.estimatedEndAt && (
+                <div style={scheduleDayEndStyle}>
+                  {t("public.results.dayEnd")}{" "}
+                  <strong>{formatClockTime(section.summary.estimatedEndAt)}</strong>
+                </div>
+              )}
             </div>
 
             <div style={resultTableWrapStyle}>
               <table style={scheduleTableStyle}>
                 <thead>
                   <tr>
-                    <th style={scheduleThStyle}>{t("public.results.scheduleStart")}</th>
+                    <th style={scheduleThStyle}>
+                      {t("public.results.scheduleStart")}
+                    </th>
                     <th style={scheduleThStyle}>{t("public.results.sourceBlock")}</th>
+                    <th style={scheduleThStyle}>{t("management.schedulePreview.type")}</th>
                     <th style={scheduleThStyle}>{t("public.results.pattern")}</th>
+                    <th style={scheduleThStyle}>{t("management.schedulePreview.draw")}</th>
+                    <th style={scheduleThStyle}>
+                      {t("management.schedulePreview.estimatedDuration")}
+                    </th>
                     <th style={scheduleThStyle}>{t("management.time.estimatedEndHeader")}</th>
                   </tr>
                 </thead>
@@ -448,15 +460,20 @@ function PublicScheduleSections({ sections }) {
                   {section.rows.map((row) => (
                     <tr key={`${row.itemType || "class"}-${row.classId}`}>
                       <td style={scheduleTdStyle}>
-                        <strong>{formatClockTime(row.estimatedStartAt)}</strong>
+                        <strong>{formatPublicScheduleClock(row.estimatedStartAt, t)}</strong>
                         <div style={mutedTextStyle}>
                           {getPublicScheduleStartLabel(row, t)}
                         </div>
                       </td>
                       <td style={scheduleTdStyle}>{row.className}</td>
+                      <td style={scheduleTdStyle}>{getPublicScheduleTypeLabel(row, t)}</td>
                       <td style={scheduleTdStyle}>{row.pattern || "—"}</td>
+                      <td style={scheduleTdStyle}>{getPublicScheduleDrawLabel(row, t)}</td>
                       <td style={scheduleTdStyle}>
-                        {formatClockTime(row.estimatedEndAt)}
+                        {formatDuration(row.estimatedDurationSeconds)}
+                      </td>
+                      <td style={scheduleTdStyle}>
+                        {formatPublicScheduleClock(row.estimatedEndAt, t)}
                       </td>
                     </tr>
                   ))}
@@ -472,14 +489,35 @@ function PublicScheduleSections({ sections }) {
 
 function getPublicScheduleStartLabel(row, t) {
   if (row.scheduleStartMode === "fixed") {
-    return t("management.time.fixedStart");
-  }
-
-  if (row.scheduleStartUsesFallback) {
-    return t("management.time.afterPreviousFallback");
+    return row.plannedStartAt
+      ? t("management.time.fixedStart")
+      : t("management.classes.startFixedMissing");
   }
 
   return t("management.time.afterPrevious");
+}
+
+function formatPublicScheduleClock(value, t) {
+  const formatted = formatClockTime(value);
+  return formatted === "—" ? t("management.schedulePreview.toConfirm") : formatted;
+}
+
+function getPublicScheduleTypeLabel(row, t) {
+  return row.itemType === "paid_warmup"
+    ? t("public.results.paidWarmup")
+    : t("common.class");
+}
+
+function getPublicScheduleDrawLabel(row, t) {
+  if (row.itemType === "paid_warmup") {
+    return t("management.schedulePreview.riderCount", {
+      count: row.runCount || 0,
+    });
+  }
+
+  return row.runCount > 0
+    ? t("management.schedulePreview.drawCount", { count: row.runCount })
+    : t("management.schedulePreview.drawPending");
 }
 
 function PublicLivestreamPanel({ show, isOpen, onToggle }) {
@@ -2318,7 +2356,7 @@ const scheduleDayEndStyle = {
 
 const scheduleTableStyle = {
   width: "100%",
-  minWidth: 560,
+  minWidth: 820,
   borderCollapse: "collapse",
 };
 

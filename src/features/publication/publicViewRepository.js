@@ -24,7 +24,7 @@ import {
   getClassPatternValue,
 } from "../classes/classTimeAnalytics";
 import {
-  buildShowScheduleSections,
+  buildShowSchedulePreviewSections,
   countScheduleItems,
 } from "../schedule/showSchedule";
 import {
@@ -303,7 +303,7 @@ export function getPublicShowView(showId) {
     attachPublicTiming(classView, timingByClassId)
   );
   const scheduleSections = show?.isSchedulePublic
-    ? buildShowScheduleSections({ daySections: timingSections })
+    ? buildShowSchedulePreviewSections({ daySections: timingSections })
     : [];
 
   return {
@@ -412,7 +412,7 @@ export async function getPublicShowViewRepository(showId) {
     attachPublicTiming(classView, timingByClassId)
   );
   const scheduleSections = show?.isSchedulePublic
-    ? buildShowScheduleSections({ daySections: timingSections })
+    ? buildShowSchedulePreviewSections({ daySections: timingSections })
     : [];
 
   return {
@@ -741,7 +741,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
       attachPublicTiming(classView, timingByClassId)
     );
     const scheduleSections = show?.isSchedulePublic
-      ? buildShowScheduleSections({ daySections: timingSections })
+      ? buildShowSchedulePreviewSections({ daySections: timingSections })
       : [];
 
     return {

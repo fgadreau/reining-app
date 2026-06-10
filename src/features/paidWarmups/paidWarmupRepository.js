@@ -12,8 +12,39 @@ import {
   savePaidWarmup,
   savePaidWarmups,
 } from "./paidWarmupStorage";
+import {
+  CLASS_START_MODE_FIXED,
+  normalizeClassScheduleStart,
+} from "../classes/classSchedule";
 
-function toPaidWarmup(row) {
+function mergeScheduleStart(row, localWarmup) {
+  const remoteScheduleStart = normalizeClassScheduleStart({
+    scheduleStartMode: row.schedule_start_mode,
+    scheduleStartTime: row.schedule_start_time,
+  });
+  const localScheduleStart = normalizeClassScheduleStart(localWarmup);
+
+  if (
+    localScheduleStart.startMode === CLASS_START_MODE_FIXED &&
+    remoteScheduleStart.startMode !== CLASS_START_MODE_FIXED
+  ) {
+    return localScheduleStart;
+  }
+
+  if (
+    localScheduleStart.startMode === CLASS_START_MODE_FIXED &&
+    remoteScheduleStart.startMode === CLASS_START_MODE_FIXED &&
+    !remoteScheduleStart.startTime
+  ) {
+    return localScheduleStart;
+  }
+
+  return remoteScheduleStart;
+}
+
+function toPaidWarmup(row, localWarmup = null) {
+  const scheduleStart = mergeScheduleStart(row, localWarmup);
+
   return normalizePaidWarmup({
     id: row.id,
     associationId: row.association_id,
@@ -23,8 +54,8 @@ function toPaidWarmup(row) {
     durationMinutesPerRider: row.duration_minutes_per_rider,
     dragInterval: row.drag_interval,
     dragDurationMinutes: row.drag_duration_minutes,
-    scheduleStartMode: row.schedule_start_mode,
-    scheduleStartTime: row.schedule_start_time,
+    scheduleStartMode: scheduleStart.startMode,
+    scheduleStartTime: scheduleStart.startTime,
     isPublicLive: Boolean(row.is_public_live),
     activeEntryId: row.active_entry_id || null,
     activeStartedAt: row.active_started_at || null,
@@ -87,7 +118,12 @@ export async function getPaidWarmupsForDayRepository(dayId) {
 
     if (error) throw error;
 
-    const warmups = Array.isArray(data) ? data.map(toPaidWarmup) : [];
+    const localWarmupsById = new Map(
+      getPaidWarmupsByDayId(dayId).map((item) => [item.id, item])
+    );
+    const warmups = Array.isArray(data)
+      ? data.map((row) => toPaidWarmup(row, localWarmupsById.get(row.id)))
+      : [];
     const otherLocalWarmups = loadPaidWarmups().filter(
       (item) => item.dayId !== dayId
     );
@@ -117,7 +153,7 @@ export async function getPaidWarmupRepository(id) {
     if (error) throw error;
     if (!data) return getPaidWarmupById(id);
 
-    const warmup = toPaidWarmup(data);
+    const warmup = toPaidWarmup(data, getPaidWarmupById(id));
     savePaidWarmup(warmup);
     return warmup;
   } catch (error) {
