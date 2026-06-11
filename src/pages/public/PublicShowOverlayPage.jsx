@@ -52,6 +52,8 @@ function PublicShowOverlayPage() {
   const sponsorSlides = buildSponsorSlides(sponsorLogos);
   const visibleSponsorLogos =
     sponsorSlides[sponsorSlideIndex % sponsorSlides.length] || [];
+  const overlayViewport = useOverlayViewport();
+  const isCompactOverlay = isCompactOverlayViewport(overlayViewport);
 
   useEffect(() => {
     if (isDemoMode) return undefined;
@@ -128,23 +130,25 @@ function PublicShowOverlayPage() {
   }, [sponsorSlides.length]);
 
   return (
-    <main style={overlayPageStyle}>
+    <main style={overlayPageStyle(isCompactOverlay)}>
       {isDemoMode && (
-        <div style={demoBadgeStyle}>{t("public.overlay.demoBadge")}</div>
+        <div style={demoBadgeStyle(isCompactOverlay)}>
+          {t("public.overlay.demoBadge")}
+        </div>
       )}
 
       {hasSponsorRail && (
-        <aside style={sponsorRailStyle}>
-          <div style={sponsorRailTitleStyle}>
+        <aside style={sponsorRailStyle(isCompactOverlay)}>
+          <div style={sponsorRailTitleStyle(isCompactOverlay)}>
             {t("public.overlay.sponsorRailTitle")}
           </div>
-          <div key={sponsorSlideIndex} style={sponsorListStyle}>
+          <div key={sponsorSlideIndex} style={sponsorListStyle(isCompactOverlay)}>
             {visibleSponsorLogos.map((sponsor) => (
-              <div key={sponsor.id} style={sponsorTileStyle}>
+              <div key={sponsor.id} style={sponsorTileStyle(isCompactOverlay)}>
                 <img
                   src={sponsor.logoDataUrl}
                   alt={sponsor.name || t("public.overlay.sponsorLogo")}
-                  style={sponsorImageStyle}
+                  style={sponsorImageStyle(isCompactOverlay)}
                 />
               </div>
             ))}
@@ -152,15 +156,18 @@ function PublicShowOverlayPage() {
         </aside>
       )}
 
-      <section style={bottomBarStyle(hasSponsorRail)}>
+      <section style={bottomBarStyle(hasSponsorRail, isCompactOverlay)}>
         <div style={bottomBarAccentStyle} />
-        <div style={brandBlockStyle}>
-          <AssociationLogo association={overlayAssociation} size={58} />
+        <div style={brandBlockStyle(isCompactOverlay)}>
+          <AssociationLogo
+            association={overlayAssociation}
+            size={isCompactOverlay ? 44 : 58}
+          />
           <div style={brandTextStyle}>
-            <div style={eyebrowStyle}>
+            <div style={eyebrowStyle(isCompactOverlay)}>
               {overlayShow?.name || t("common.show")}
             </div>
-            <OverlayScrollingText style={classTitleStyle}>
+            <OverlayScrollingText style={classTitleStyle(isCompactOverlay)}>
               {liveClass
                 ? `${liveClass.className}${
                     liveClass.classCode ? ` (${liveClass.classCode})` : ""
@@ -170,31 +177,70 @@ function PublicShowOverlayPage() {
           </div>
         </div>
 
-        <div style={liveCellsStyle}>
+        <div style={liveCellsStyle(isCompactOverlay)}>
           <OverlayMetric
             label={t("public.results.onCourse")}
             value={liveSummary.active}
             accent="green"
+            isCompact={isCompactOverlay}
           />
           <OverlayMetric
             label={t("public.results.statusWaiting")}
             value={liveSummary.waiting}
             accent="amber"
+            isCompact={isCompactOverlay}
           />
           <OverlayMetric
             label={t("public.overlay.lastScore")}
             value={liveSummary.lastScore}
             accent="blue"
+            isCompact={isCompactOverlay}
           />
         </div>
 
-        <div style={poweredBlockStyle}>
+        <div style={poweredBlockStyle(isCompactOverlay)}>
           <span>{t("public.overlay.poweredBy")}</span>
           <strong>ShowScore.app</strong>
         </div>
       </section>
     </main>
   );
+}
+
+function getOverlayViewportSize() {
+  if (typeof window === "undefined") {
+    return { width: 1920, height: 1080 };
+  }
+
+  return {
+    width: window.innerWidth || 1920,
+    height: window.innerHeight || 1080,
+  };
+}
+
+function useOverlayViewport() {
+  const [viewport, setViewport] = useState(() => getOverlayViewportSize());
+
+  useEffect(() => {
+    const handleResize = () => {
+      setViewport(getOverlayViewportSize());
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
+    };
+  }, []);
+
+  return viewport;
+}
+
+function isCompactOverlayViewport(viewport) {
+  return viewport.width < 760;
 }
 
 function buildSponsorSlides(sponsorLogos) {
@@ -213,31 +259,33 @@ function buildSponsorSlides(sponsorLogos) {
   return slides;
 }
 
-function OverlayMetric({ label, value, accent }) {
+function OverlayMetric({ label, value, accent, isCompact = false }) {
   const hasStructuredValue = value && typeof value === "object";
 
   return (
-    <div style={metricStyle}>
-      <div style={metricLabelStyle(accent)}>{label}</div>
+    <div style={metricStyle(isCompact)}>
+      <div style={metricLabelStyle(accent, isCompact)}>{label}</div>
       {hasStructuredValue ? (
         <div style={metricValueStyle}>
           {value.meta && <div style={metricMetaStyle}>{value.meta}</div>}
-          <OverlayScrollingText style={metricPrimaryStyle}>
+          <OverlayScrollingText style={metricPrimaryStyle(isCompact)}>
             {value.primary}
           </OverlayScrollingText>
           {(value.secondary || value.score) && (
             <div style={metricSecondaryRowStyle}>
               {value.secondary && (
-                <OverlayScrollingText style={metricSecondaryStyle}>
+                <OverlayScrollingText style={metricSecondaryStyle(isCompact)}>
                   {value.secondary}
                 </OverlayScrollingText>
               )}
-              {value.score && <span style={metricScoreStyle}>{value.score}</span>}
+              {value.score && (
+                <span style={metricScoreStyle(isCompact)}>{value.score}</span>
+              )}
             </div>
           )}
         </div>
       ) : (
-        <OverlayScrollingText style={metricFallbackValueStyle}>
+        <OverlayScrollingText style={metricFallbackValueStyle(isCompact)}>
           {value}
         </OverlayScrollingText>
       )}
@@ -532,72 +580,82 @@ function buildOverlayDemoLogoDataUrl(label, background, foreground) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-const overlayPageStyle = {
+const overlayPageStyle = (isCompact) => ({
   position: "fixed",
   inset: 0,
   width: "100vw",
-  height: "100vh",
-  overflow: "hidden",
+  minHeight: "100vh",
+  height: isCompact ? "auto" : "100vh",
+  overflow: isCompact ? "auto" : "hidden",
   background: "transparent",
   color: "#fff",
   fontFamily:
     '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
-  pointerEvents: "none",
-};
+  pointerEvents: isCompact ? "auto" : "none",
+  display: isCompact ? "grid" : "block",
+  alignContent: "start",
+  gap: isCompact ? 12 : undefined,
+  padding: isCompact ? 14 : 0,
+  boxSizing: "border-box",
+});
 
-const demoBadgeStyle = {
-  position: "absolute",
-  top: 28,
-  left: 32,
-  padding: "7px 12px",
+const demoBadgeStyle = (isCompact) => ({
+  position: isCompact ? "relative" : "absolute",
+  top: isCompact ? "auto" : 28,
+  left: isCompact ? "auto" : 32,
+  justifySelf: isCompact ? "start" : undefined,
+  padding: isCompact ? "8px 12px" : "7px 12px",
   borderRadius: 8,
   background: "rgba(22, 18, 12, 0.84)",
   border: "1px solid rgba(230, 196, 122, 0.62)",
   color: "#f6e7bf",
   boxShadow: "0 14px 34px rgba(0, 0, 0, 0.34)",
-  fontSize: 13,
+  fontSize: isCompact ? 12 : 13,
   fontWeight: 900,
   textTransform: "uppercase",
-};
+});
 
-const sponsorRailStyle = {
-  position: "absolute",
-  top: 28,
-  right: 32,
-  bottom: 158,
-  width: "clamp(150px, 11vw, 228px)",
+const sponsorRailStyle = (isCompact) => ({
+  position: isCompact ? "relative" : "absolute",
+  top: isCompact ? "auto" : 28,
+  right: isCompact ? "auto" : 32,
+  bottom: isCompact ? "auto" : 158,
+  width: isCompact ? "100%" : "clamp(150px, 11vw, 228px)",
   borderRadius: 8,
   background:
     "linear-gradient(180deg, rgba(25, 20, 13, 0.94), rgba(10, 12, 16, 0.88))",
   border: "1px solid rgba(230, 196, 122, 0.44)",
   boxShadow: "0 24px 54px rgba(0, 0, 0, 0.38)",
-  padding: 14,
+  padding: isCompact ? 10 : 14,
   boxSizing: "border-box",
   display: "grid",
-  gridTemplateRows: "auto 1fr",
-  gap: 12,
+  gridTemplateRows: isCompact ? "auto" : "auto 1fr",
+  gap: isCompact ? 10 : 12,
   backdropFilter: "blur(10px)",
-};
+});
 
-const sponsorRailTitleStyle = {
+const sponsorRailTitleStyle = (isCompact) => ({
   color: "#f6e7bf",
-  fontSize: 14,
+  fontSize: isCompact ? 13 : 14,
   fontWeight: 900,
-  textAlign: "center",
+  textAlign: isCompact ? "left" : "center",
   textTransform: "uppercase",
   borderBottom: "1px solid rgba(230, 196, 122, 0.32)",
-  paddingBottom: 10,
-};
+  paddingBottom: isCompact ? 8 : 10,
+});
 
-const sponsorListStyle = {
+const sponsorListStyle = (isCompact) => ({
   minHeight: 0,
   display: "grid",
-  gap: 10,
+  gridTemplateColumns: isCompact
+    ? "repeat(auto-fit, minmax(94px, 1fr))"
+    : undefined,
+  gap: isCompact ? 8 : 10,
   alignContent: "start",
-};
+});
 
-const sponsorTileStyle = {
-  minHeight: "clamp(58px, 6vh, 104px)",
+const sponsorTileStyle = (isCompact) => ({
+  minHeight: isCompact ? 72 : "clamp(58px, 6vh, 104px)",
   borderRadius: 8,
   background:
     "linear-gradient(145deg, rgba(255,255,255,0.98), rgba(242,238,229,0.94))",
@@ -606,32 +664,38 @@ const sponsorTileStyle = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: 10,
-};
+  padding: isCompact ? 8 : 10,
+});
 
-const sponsorImageStyle = {
+const sponsorImageStyle = (isCompact) => ({
   maxWidth: "100%",
-  maxHeight: "clamp(44px, 5vh, 84px)",
+  maxHeight: isCompact ? 54 : "clamp(44px, 5vh, 84px)",
   objectFit: "contain",
-};
+});
 
-const bottomBarStyle = (hasSponsorRail) => ({
-  position: "absolute",
-  left: 32,
-  right: hasSponsorRail ? "calc(clamp(150px, 11vw, 228px) + 72px)" : 32,
-  bottom: 28,
-  minHeight: 126,
+const bottomBarStyle = (hasSponsorRail, isCompact) => ({
+  position: isCompact ? "relative" : "absolute",
+  left: isCompact ? "auto" : 32,
+  right: isCompact
+    ? "auto"
+    : hasSponsorRail
+      ? "calc(clamp(150px, 11vw, 228px) + 72px)"
+      : 32,
+  bottom: isCompact ? "auto" : 28,
+  width: isCompact ? "100%" : "auto",
+  minHeight: isCompact ? "auto" : 126,
   borderRadius: 8,
   background:
     "linear-gradient(135deg, rgba(22, 18, 12, 0.95), rgba(42, 34, 23, 0.92) 48%, rgba(9, 13, 18, 0.92))",
   border: "1px solid rgba(230, 196, 122, 0.48)",
   boxShadow: "0 26px 64px rgba(0, 0, 0, 0.42)",
   display: "grid",
-  gridTemplateColumns:
-    "minmax(360px, 0.95fr) minmax(620px, 2.15fr) minmax(112px, 0.2fr)",
+  gridTemplateColumns: isCompact
+    ? "minmax(0, 1fr)"
+    : "minmax(360px, 0.95fr) minmax(620px, 2.15fr) minmax(112px, 0.2fr)",
   alignItems: "stretch",
-  gap: 14,
-  padding: 14,
+  gap: isCompact ? 12 : 14,
+  padding: isCompact ? 12 : 14,
   boxSizing: "border-box",
   overflow: "hidden",
   backdropFilter: "blur(10px)",
@@ -647,64 +711,64 @@ const bottomBarAccentStyle = {
     "linear-gradient(90deg, rgba(230,196,122,0), rgba(230,196,122,0.92), rgba(132,217,162,0.68), rgba(230,196,122,0))",
 };
 
-const brandBlockStyle = {
+const brandBlockStyle = (isCompact) => ({
   minWidth: 0,
   display: "flex",
   alignItems: "center",
-  gap: 14,
-  paddingLeft: 4,
+  gap: isCompact ? 10 : 14,
+  paddingLeft: isCompact ? 0 : 4,
   position: "relative",
-};
+});
 
 const brandTextStyle = {
   minWidth: 0,
 };
 
-const eyebrowStyle = {
+const eyebrowStyle = (isCompact) => ({
   color: "#f6e7bf",
   fontWeight: 850,
-  fontSize: 14,
+  fontSize: isCompact ? 12 : 14,
   textTransform: "uppercase",
   whiteSpace: "nowrap",
   overflow: "hidden",
   textOverflow: "ellipsis",
-};
+});
 
-const classTitleStyle = {
+const classTitleStyle = (isCompact) => ({
   marginTop: 5,
-  fontSize: 28,
+  fontSize: isCompact ? 22 : 28,
   fontWeight: 950,
   lineHeight: 1.05,
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
-};
+});
 
-const liveCellsStyle = {
+const liveCellsStyle = (isCompact) => ({
   minWidth: 0,
   display: "grid",
-  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-  gap: 12,
-};
+  gridTemplateColumns: isCompact ? "minmax(0, 1fr)" : "repeat(3, minmax(0, 1fr))",
+  gap: isCompact ? 8 : 12,
+});
 
-const metricStyle = {
+const metricStyle = (isCompact) => ({
   minWidth: 0,
   borderRadius: 8,
   background: "rgba(255, 255, 255, 0.1)",
   border: "1px solid rgba(255, 255, 255, 0.16)",
   boxShadow: "inset 0 1px 0 rgba(255,255,255,0.16)",
-  padding: "10px 12px 11px",
+  padding: isCompact ? "9px 10px" : "10px 12px 11px",
   boxSizing: "border-box",
   display: "grid",
   alignContent: "center",
-  gap: 7,
-};
+  gap: isCompact ? 5 : 7,
+});
 
-const metricLabelStyle = (accent) => ({
+const metricLabelStyle = (accent, isCompact) => ({
   color:
     accent === "green" ? "#84d9a2" : accent === "amber" ? "#f4c76c" : "#9cc8ff",
   fontWeight: 900,
-  fontSize: 13,
+  fontSize: isCompact ? 12 : 13,
   textTransform: "uppercase",
   whiteSpace: "nowrap",
 });
@@ -715,15 +779,15 @@ const metricValueStyle = {
   gap: 2,
 };
 
-const metricFallbackValueStyle = {
+const metricFallbackValueStyle = (isCompact) => ({
   minWidth: 0,
-  fontSize: 22,
+  fontSize: isCompact ? 19 : 22,
   fontWeight: 950,
   lineHeight: 1.1,
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
-};
+});
 
 const metricMetaStyle = {
   color: "#d7d0c2",
@@ -735,15 +799,15 @@ const metricMetaStyle = {
   whiteSpace: "nowrap",
 };
 
-const metricPrimaryStyle = {
+const metricPrimaryStyle = (isCompact) => ({
   color: "#fff",
-  fontSize: 26,
+  fontSize: isCompact ? 22 : 26,
   fontWeight: 950,
   lineHeight: 1.02,
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
-};
+});
 
 const metricSecondaryRowStyle = {
   minWidth: 0,
@@ -752,38 +816,39 @@ const metricSecondaryRowStyle = {
   gap: 8,
 };
 
-const metricSecondaryStyle = {
+const metricSecondaryStyle = (isCompact) => ({
   flex: "1 1 auto",
   minWidth: 0,
   color: "#e7e0d2",
-  fontSize: 14,
+  fontSize: isCompact ? 13 : 14,
   fontWeight: 800,
   lineHeight: 1.05,
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
-};
+});
 
-const metricScoreStyle = {
+const metricScoreStyle = (isCompact) => ({
   flex: "0 0 auto",
   color: "#1f1609",
   background: "linear-gradient(135deg, #f6e7bf, #d6a84f)",
   borderRadius: 6,
-  padding: "2px 8px",
-  fontSize: 14,
+  padding: isCompact ? "2px 7px" : "2px 8px",
+  fontSize: isCompact ? 13 : 14,
   fontWeight: 950,
   lineHeight: 1.2,
-};
+});
 
-const poweredBlockStyle = {
-  justifySelf: "end",
+const poweredBlockStyle = (isCompact) => ({
+  justifySelf: isCompact ? "start" : "end",
   alignSelf: "center",
-  textAlign: "right",
+  textAlign: isCompact ? "left" : "right",
   color: "#d7d0c2",
-  fontSize: 13,
+  fontSize: isCompact ? 12 : 13,
   fontWeight: 800,
   lineHeight: 1.15,
-  display: "grid",
-};
+  display: isCompact ? "flex" : "grid",
+  gap: isCompact ? 6 : 0,
+});
 
 export default PublicShowOverlayPage;

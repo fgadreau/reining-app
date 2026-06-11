@@ -372,6 +372,7 @@ function AssociationsPage() {
                   setEditingId(null);
                   setIsAssociationFormOpen(true);
                 }}
+                style={primaryButtonStyle}
                 disabled={isSaving}
               >
                 {t("management.associations.addAssociation")}
@@ -470,6 +471,7 @@ function AssociationsPage() {
                   <button
                     type="button"
                     onClick={() => handleChange("logoDataUrl", "")}
+                    style={secondaryButtonStyle}
                     disabled={isSaving}
                   >
                     {t("management.associations.removeLogo")}
@@ -478,13 +480,22 @@ function AssociationsPage() {
               ) : null}
 
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button type="submit" disabled={isSaving}>
+                <button
+                  type="submit"
+                  style={primaryButtonStyle}
+                  disabled={isSaving}
+                >
                   {editingId
                     ? t("management.associations.save")
                     : t("management.associations.add")}
                 </button>
 
-                <button type="button" onClick={resetForm} disabled={isSaving}>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  style={secondaryButtonStyle}
+                  disabled={isSaving}
+                >
                   {t("management.associations.cancel")}
                 </button>
               </div>
@@ -531,32 +542,45 @@ function AssociationsPage() {
                 canManageAssociation(memberships, association.id);
 
             return (
-              <div key={association.id} style={cardStyle}>
-                <div style={associationHeaderStyle}>
-                  <AssociationLogo association={association} size={52} />
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 18 }}>
-                      {association.name}
-                    </div>
+              <div key={association.id} style={associationCardStyle}>
+                <div style={associationCardTopStyle}>
+                  <div style={associationHeaderStyle}>
+                    <AssociationLogo association={association} size={56} />
+                    <div style={associationCopyStyle}>
+                      <div style={associationTitleStyle}>
+                        {association.name}
+                      </div>
 
-                    <div style={{ color: "#64748b", marginTop: 4 }}>
-                      {association.shortName} • {association.timezone}
+                      <div style={associationMetaRowStyle}>
+                        <span style={metaPillStyle}>
+                          {association.shortName}
+                        </span>
+                        <span style={metaPillStyle}>
+                          {association.timezone}
+                        </span>
+                      </div>
                     </div>
-                    {association.websiteUrl && (
-                      <a
-                        href={normalizeAssociationWebsiteUrl(association.websiteUrl)}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={websiteLinkStyle}
-                      >
-                        {t("common.website")}
-                      </a>
-                    )}
                   </div>
+
+                  {association.websiteUrl && (
+                    <a
+                      href={normalizeAssociationWebsiteUrl(association.websiteUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={websitePillStyle}
+                    >
+                      {t("common.website")}
+                    </a>
+                  )}
                 </div>
 
+                <div style={cardDividerStyle} />
+
                 <div style={actionRowStyle}>
-                  <Link to={`/associations/${association.id}/shows`}>
+                  <Link
+                    to={`/associations/${association.id}/shows`}
+                    style={primaryLinkButtonStyle}
+                  >
                     {t("management.associations.openShows")}
                   </Link>
 
@@ -565,6 +589,7 @@ function AssociationsPage() {
                       <button
                         type="button"
                         onClick={() => handleEdit(association)}
+                        style={secondaryButtonStyle}
                         disabled={isSaving}
                       >
                         {t("management.associations.edit")}
@@ -573,6 +598,7 @@ function AssociationsPage() {
                       <button
                         type="button"
                         onClick={() => handleDelete(association.id)}
+                        style={dangerButtonStyle}
                         disabled={isSaving}
                       >
                         {t("management.associations.delete")}
@@ -601,8 +627,22 @@ const cardStyle = {
   background: "#fff",
   borderRadius: 12,
   padding: 16,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+  border: "1px solid #e2e8f0",
+  boxShadow: "0 10px 24px rgba(15,23,42,0.07)",
   marginBottom: 16,
+};
+
+const associationCardStyle = {
+  ...cardStyle,
+  padding: 18,
+};
+
+const associationCardTopStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 14,
+  flexWrap: "wrap",
 };
 
 const formHeaderStyle = {
@@ -625,7 +665,8 @@ const searchWrapStyle = {
   background: "#fff",
   borderRadius: 12,
   padding: 16,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+  border: "1px solid #e2e8f0",
+  boxShadow: "0 10px 24px rgba(15,23,42,0.06)",
 };
 
 const searchLabelStyle = {
@@ -639,6 +680,7 @@ const inputStyle = {
   borderRadius: 10,
   border: "1px solid #cbd5e1",
   boxSizing: "border-box",
+  fontSize: 14,
 };
 
 const timezoneRowStyle = {
@@ -679,13 +721,57 @@ const associationHeaderStyle = {
   gap: 12,
   alignItems: "flex-start",
   minWidth: 0,
+  flex: "1 1 320px",
 };
 
-const websiteLinkStyle = {
+const associationCopyStyle = {
+  minWidth: 0,
+};
+
+const associationTitleStyle = {
+  color: "#0f172a",
+  fontWeight: 800,
+  fontSize: 18,
+  lineHeight: 1.2,
+};
+
+const associationMetaRowStyle = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+  marginTop: 8,
+};
+
+const metaPillStyle = {
   display: "inline-flex",
-  marginTop: 6,
-  color: "#1d4ed8",
+  alignItems: "center",
+  padding: "5px 9px",
+  borderRadius: 999,
+  border: "1px solid #dbe4f0",
+  background: "#f8fafc",
+  color: "#475569",
   fontWeight: 700,
+  fontSize: 13,
+};
+
+const websitePillStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "8px 11px",
+  borderRadius: 999,
+  border: "1px solid #bfdbfe",
+  background: "#eff6ff",
+  color: "#1d4ed8",
+  textDecoration: "none",
+  fontWeight: 700,
+  fontSize: 13,
+};
+
+const cardDividerStyle = {
+  height: 1,
+  background: "#e2e8f0",
+  marginTop: 16,
 };
 
 const actionRowStyle = {
@@ -716,11 +802,50 @@ const linkButtonStyle = {
   textDecoration: "none",
 };
 
+const primaryButtonStyle = {
+  padding: "10px 14px",
+  borderRadius: 8,
+  border: "1px solid #0f172a",
+  background: "#0f172a",
+  color: "#fff",
+  cursor: "pointer",
+  fontWeight: 800,
+};
+
+const primaryLinkButtonStyle = {
+  ...primaryButtonStyle,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  textDecoration: "none",
+};
+
+const secondaryButtonStyle = {
+  padding: "10px 14px",
+  borderRadius: 8,
+  border: "1px solid #cbd5e1",
+  background: "#fff",
+  color: "#0f172a",
+  cursor: "pointer",
+  fontWeight: 700,
+};
+
+const dangerButtonStyle = {
+  padding: "10px 14px",
+  borderRadius: 8,
+  border: "1px solid #fecaca",
+  background: "#fff5f5",
+  color: "#991b1b",
+  cursor: "pointer",
+  fontWeight: 700,
+};
+
 const emptyStateStyle = {
   background: "#fff",
   borderRadius: 12,
   padding: 16,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+  border: "1px solid #e2e8f0",
+  boxShadow: "0 10px 24px rgba(15,23,42,0.06)",
   color: "#64748b",
 };
 

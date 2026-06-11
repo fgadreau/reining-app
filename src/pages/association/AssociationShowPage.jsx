@@ -156,6 +156,7 @@ function AssociationShowPage() {
       status: draft.status,
       isLivestreamPublic: Boolean(draft.isLivestreamPublic),
       livestreamUrl: draft.livestreamUrl,
+      isSchedulePublic: Boolean(draft.isSchedulePublic),
     };
 
     setIsSaving(true);
@@ -168,6 +169,39 @@ function AssociationShowPage() {
       setEditingId(null);
     } catch (error) {
       console.error("Erreur sauvegarde show:", error);
+      alert(t("common.saveFailed", { message: error?.message || "" }));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const activateShow = async (show) => {
+    if (!show || show.status === "active") return;
+
+    const confirmed = window.confirm(t("management.shows.activateShowConfirm"));
+    if (!confirmed) return;
+
+    const nextShow = {
+      ...show,
+      status: "active",
+    };
+
+    setIsSaving(true);
+    try {
+      const savedShow = await saveShowRepository(nextShow);
+      await syncDaysForShowDateRangeRepository(nextShow, { language });
+      setShows((current) =>
+        current.map((item) => (item.id === show.id ? savedShow : item))
+      );
+
+      if (editingId === show.id) {
+        setDraft((current) => ({
+          ...current,
+          status: "active",
+        }));
+      }
+    } catch (error) {
+      console.error("Erreur activation show:", error);
       alert(t("common.saveFailed", { message: error?.message || "" }));
     } finally {
       setIsSaving(false);
@@ -287,38 +321,50 @@ function AssociationShowPage() {
               <div key={show.id} style={cardStyle}>
                 {!isEditing ? (
                   <>
-                    <div style={cardTitleStyle}>
-                      {show.name || t("management.shows.unnamedShow")}
+                    <div style={showCardHeaderStyle}>
+                      <div style={cardTitleStyle}>
+                        {show.name || t("management.shows.unnamedShow")}
+                      </div>
+                      <span style={statusBadgeStyle(show.status)}>
+                        {formatStatus(show.status, t)}
+                      </span>
                     </div>
 
-                    <div style={cardMetaStyle}>
-                      {(show.location || t("management.shows.locationTbd")) +
-                        (show.startDate
-                          ? ` • ${show.startDate}${
+                    <div style={showMetaGridStyle}>
+                      <span>
+                        {show.location || t("management.shows.locationTbd")}
+                      </span>
+                      <span>
+                        {show.startDate
+                          ? `${show.startDate}${
                               show.endDate
                                 ? ` ${t("management.shows.dateRangeJoin")} ${show.endDate}`
                                 : ""
                             }`
-                          : "")}
+                          : t("management.shows.dateTbd")}
+                      </span>
+                      <span>
+                        {show.venue || t("management.shows.venueFallback")}
+                      </span>
                     </div>
 
-                    <div style={cardMetaStyle}>
-                      {show.venue || t("management.shows.venueFallback")} •{" "}
-                      {t("management.shows.statusPrefix")}{" "}
-                      {formatStatus(show.status, t)}
-                    </div>
+                    {(hasPublicLivestream(show) || show.isSchedulePublic) && (
+                      <div style={publicFlagRowStyle}>
+                        {hasPublicLivestream(show) && (
+                          <span style={liveMetaStyle}>
+                            {t("management.shows.livestreamPublicEnabled")}
+                          </span>
+                        )}
 
-                    {hasPublicLivestream(show) && (
-                      <div style={liveMetaStyle}>
-                        {t("management.shows.livestreamPublicEnabled")}
+                        {show.isSchedulePublic && (
+                          <span style={liveMetaStyle}>
+                            {t("management.shows.schedulePublicEnabled")}
+                          </span>
+                        )}
                       </div>
                     )}
 
-                    {show.isSchedulePublic && (
-                      <div style={liveMetaStyle}>
-                        {t("management.shows.schedulePublicEnabled")}
-                      </div>
-                    )}
+                    <div style={cardDividerStyle} />
 
                     <div style={actionRowStyle}>
                       <Link
@@ -330,6 +376,17 @@ function AssociationShowPage() {
 
                       {access.canManageAssociation && (
                         <>
+                          {show.status === "draft" && (
+                            <button
+                              type="button"
+                              onClick={() => activateShow(show)}
+                              style={activateButtonStyle}
+                              disabled={isSaving}
+                            >
+                              {t("management.shows.activateShow")}
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={() => startEditShow(show)}
@@ -528,22 +585,38 @@ const cardStyle = {
   background: "#fff",
   borderRadius: 12,
   padding: 16,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+  border: "1px solid #e2e8f0",
+  boxShadow: "0 10px 24px rgba(15,23,42,0.07)",
+};
+
+const showCardHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 12,
+  flexWrap: "wrap",
 };
 
 const cardTitleStyle = {
   fontWeight: 700,
   fontSize: 18,
+  color: "#0f172a",
+  lineHeight: 1.25,
 };
 
-const cardMetaStyle = {
-  color: "#64748b",
-  marginTop: 6,
+const showMetaGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gap: 8,
+  marginTop: 12,
+  color: "#475569",
+  fontWeight: 650,
+  fontSize: 14,
 };
 
 const liveMetaStyle = {
   display: "inline-flex",
-  marginTop: 8,
+  alignItems: "center",
   padding: "5px 9px",
   borderRadius: 999,
   border: "1px solid #99e4b8",
@@ -551,6 +624,19 @@ const liveMetaStyle = {
   color: "#167a4b",
   fontWeight: 800,
   fontSize: 13,
+};
+
+const publicFlagRowStyle = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+  marginTop: 12,
+};
+
+const cardDividerStyle = {
+  height: 1,
+  background: "#e2e8f0",
+  marginTop: 16,
 };
 
 const actionRowStyle = {
@@ -587,6 +673,7 @@ const primaryButtonStyle = {
   background: "#111827",
   color: "#fff",
   cursor: "pointer",
+  fontWeight: 800,
 };
 
 const secondaryButtonStyle = {
@@ -596,6 +683,17 @@ const secondaryButtonStyle = {
   background: "#fff",
   color: "#111827",
   cursor: "pointer",
+  fontWeight: 700,
+};
+
+const activateButtonStyle = {
+  padding: "10px 14px",
+  borderRadius: 8,
+  border: "1px solid #16a34a",
+  background: "#ecfdf5",
+  color: "#166534",
+  cursor: "pointer",
+  fontWeight: 800,
 };
 
 const dangerButtonStyle = {
@@ -605,6 +703,7 @@ const dangerButtonStyle = {
   background: "#fff5f5",
   color: "#991b1b",
   cursor: "pointer",
+  fontWeight: 700,
 };
 
 const linkButtonStyle = {
@@ -623,8 +722,47 @@ const emptyStateStyle = {
   background: "#fff",
   borderRadius: 12,
   padding: 20,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+  border: "1px solid #e2e8f0",
+  boxShadow: "0 10px 24px rgba(15,23,42,0.06)",
   color: "#64748b",
+};
+
+const statusBadgeStyle = (status) => {
+  if (status === "active") {
+    return {
+      ...baseStatusBadgeStyle,
+      borderColor: "#86efac",
+      background: "#ecfdf5",
+      color: "#166534",
+    };
+  }
+
+  if (status === "completed") {
+    return {
+      ...baseStatusBadgeStyle,
+      borderColor: "#cbd5e1",
+      background: "#f8fafc",
+      color: "#334155",
+    };
+  }
+
+  return {
+    ...baseStatusBadgeStyle,
+    borderColor: "#fed7aa",
+    background: "#fff7ed",
+    color: "#9a3412",
+  };
+};
+
+const baseStatusBadgeStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "6px 10px",
+  borderRadius: 999,
+  border: "1px solid #cbd5e1",
+  fontSize: 13,
+  fontWeight: 800,
 };
 
 const syncBadgeStyle = (isCloudReady) => ({
