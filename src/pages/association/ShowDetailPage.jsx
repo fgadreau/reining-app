@@ -445,6 +445,23 @@ function ShowDetailPage() {
     }
   };
 
+  const copyOverlayDemoLink = async () => {
+    const overlayUrl = getAbsoluteOverlayDemoUrl(associationId, showId);
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(overlayUrl);
+        setCopiedOverlayKey("demo");
+        window.setTimeout(() => setCopiedOverlayKey(""), 1800);
+      } else {
+        window.prompt(t("management.shows.obsOverlayPrompt"), overlayUrl);
+      }
+    } catch (error) {
+      console.error("Erreur copie lien OBS demo:", error);
+      window.prompt(t("management.shows.obsOverlayPrompt"), overlayUrl);
+    }
+  };
+
   const startCopyClasses = (day) => {
     if (showDateRange.length === 0) {
       alert(t("management.days.noDateRange"));
@@ -757,6 +774,29 @@ function ShowDetailPage() {
                     {copiedOverlayKey === getOverlayCopyKey()
                       ? t("common.linkCopied")
                       : t("management.shows.copyObsOverlayLink")}
+                  </button>
+                </div>
+
+                <div style={arenaOverlayRowStyle}>
+                  <span style={arenaOverlayNameStyle}>
+                    {t("management.shows.obsOverlayDemoTitle")}
+                  </span>
+                  <Link
+                    to={getOverlayDemoPath(associationId, showId)}
+                    style={linkButtonStyle}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {t("management.shows.openObsOverlayDemo")}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={copyOverlayDemoLink}
+                    style={secondaryButtonStyle}
+                  >
+                    {copiedOverlayKey === "demo"
+                      ? t("common.linkCopied")
+                      : t("management.shows.copyObsOverlayDemoLink")}
                   </button>
                 </div>
 
@@ -1823,8 +1863,25 @@ function getOverlayPath(associationId, showId, arena = "") {
   return `${path}?${params.toString()}`;
 }
 
+function getOverlayDemoPath(associationId, showId) {
+  const path = `/public/associations/${associationId}/shows/${showId}/overlay`;
+  const params = new URLSearchParams({ demo: "1" });
+
+  return `${path}?${params.toString()}`;
+}
+
 function getAbsoluteOverlayUrl(associationId, showId, arena = "") {
   const path = getOverlayPath(associationId, showId, arena);
+  const origin =
+    typeof window === "undefined" || !window.location?.origin
+      ? ""
+      : window.location.origin;
+
+  return `${origin}${path}`;
+}
+
+function getAbsoluteOverlayDemoUrl(associationId, showId) {
+  const path = getOverlayDemoPath(associationId, showId);
   const origin =
     typeof window === "undefined" || !window.location?.origin
       ? ""

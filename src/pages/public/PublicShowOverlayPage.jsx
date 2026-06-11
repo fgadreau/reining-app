@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import AssociationLogo from "../../components/AssociationLogo";
 import {
@@ -13,6 +13,8 @@ import { useTranslation } from "../../features/i18n/I18nProvider";
 
 const SPONSOR_LOGOS_PER_SLIDE = 4;
 const SPONSOR_SLIDE_INTERVAL_MS = 8000;
+const OVERLAY_DEMO_QUERY_PARAM = "demo";
+const DEMO_OVERLAY_CLASS_ID = "overlay-demo-open-derby";
 
 function PublicShowOverlayPage() {
   const { associationId, showId } = useParams();
@@ -22,18 +24,29 @@ function PublicShowOverlayPage() {
   const [show, setShow] = useState(null);
   const [publicView, setPublicView] = useState(() => getPublicShowView(showId));
   const [sponsorSlideIndex, setSponsorSlideIndex] = useState(0);
-  const publicClassIdsKey = (publicView.classIds || []).join("|");
   const selectedArena = useMemo(
     () => getOverlayArenaFromSearch(location.search),
     [location.search]
   );
+  const isDemoMode = useMemo(
+    () => isOverlayDemoMode(location.search),
+    [location.search]
+  );
+  const demoOverlay = useMemo(
+    () => (isDemoMode ? buildOverlayDemoData() : null),
+    [isDemoMode]
+  );
+  const overlayAssociation = demoOverlay?.association || association;
+  const overlayShow = demoOverlay?.show || show;
+  const overlayPublicView = demoOverlay?.publicView || publicView;
+  const publicClassIdsKey = (overlayPublicView.classIds || []).join("|");
   const liveClass = useMemo(
-    () => pickOverlayLiveClass(publicView.liveClasses || [], selectedArena),
-    [publicView.liveClasses, selectedArena]
+    () => pickOverlayLiveClass(overlayPublicView.liveClasses || [], selectedArena),
+    [overlayPublicView.liveClasses, selectedArena]
   );
   const liveSummary = buildOverlayLiveSummary(liveClass, t);
-  const sponsorLogos = Array.isArray(association?.sponsorLogos)
-    ? association.sponsorLogos
+  const sponsorLogos = Array.isArray(overlayAssociation?.sponsorLogos)
+    ? overlayAssociation.sponsorLogos
     : [];
   const hasSponsorRail = sponsorLogos.length > 0;
   const sponsorSlides = buildSponsorSlides(sponsorLogos);
@@ -41,6 +54,8 @@ function PublicShowOverlayPage() {
     sponsorSlides[sponsorSlideIndex % sponsorSlides.length] || [];
 
   useEffect(() => {
+    if (isDemoMode) return undefined;
+
     let isMounted = true;
 
     async function loadOverlay() {
@@ -61,9 +76,11 @@ function PublicShowOverlayPage() {
     return () => {
       isMounted = false;
     };
-  }, [associationId, showId]);
+  }, [associationId, showId, isDemoMode]);
 
   useEffect(() => {
+    if (isDemoMode) return undefined;
+
     let isMounted = true;
     let refreshTimeout = null;
 
@@ -88,7 +105,7 @@ function PublicShowOverlayPage() {
       window.clearTimeout(refreshTimeout);
       unsubscribe();
     };
-  }, [showId, publicClassIdsKey]);
+  }, [showId, publicClassIdsKey, isDemoMode]);
 
   useEffect(() => {
     setSponsorSlideIndex(0);
@@ -112,18 +129,16 @@ function PublicShowOverlayPage() {
 
   return (
     <main style={overlayPageStyle}>
+      {isDemoMode && (
+        <div style={demoBadgeStyle}>{t("public.overlay.demoBadge")}</div>
+      )}
+
       {hasSponsorRail && (
         <aside style={sponsorRailStyle}>
           <div style={sponsorRailTitleStyle}>
             {t("public.overlay.sponsorRailTitle")}
           </div>
-          <div
-            key={sponsorSlideIndex}
-            style={{
-              ...sponsorListStyle,
-              animation: "showscore-sponsor-fade 700ms ease both",
-            }}
-          >
+          <div key={sponsorSlideIndex} style={sponsorListStyle}>
             {visibleSponsorLogos.map((sponsor) => (
               <div key={sponsor.id} style={sponsorTileStyle}>
                 <img
@@ -138,17 +153,20 @@ function PublicShowOverlayPage() {
       )}
 
       <section style={bottomBarStyle(hasSponsorRail)}>
+        <div style={bottomBarAccentStyle} />
         <div style={brandBlockStyle}>
-          <AssociationLogo association={association} size={54} />
+          <AssociationLogo association={overlayAssociation} size={58} />
           <div style={brandTextStyle}>
-            <div style={eyebrowStyle}>{show?.name || t("common.show")}</div>
-            <div style={classTitleStyle}>
+            <div style={eyebrowStyle}>
+              {overlayShow?.name || t("common.show")}
+            </div>
+            <OverlayScrollingText style={classTitleStyle}>
               {liveClass
                 ? `${liveClass.className}${
                     liveClass.classCode ? ` (${liveClass.classCode})` : ""
                   }`
                 : t("public.overlay.waitingForLive")}
-            </div>
+            </OverlayScrollingText>
           </div>
         </div>
 
@@ -204,19 +222,99 @@ function OverlayMetric({ label, value, accent }) {
       {hasStructuredValue ? (
         <div style={metricValueStyle}>
           {value.meta && <div style={metricMetaStyle}>{value.meta}</div>}
-          <div style={metricPrimaryStyle}>{value.primary}</div>
+          <OverlayScrollingText style={metricPrimaryStyle}>
+            {value.primary}
+          </OverlayScrollingText>
           {(value.secondary || value.score) && (
             <div style={metricSecondaryRowStyle}>
               {value.secondary && (
-                <span style={metricSecondaryStyle}>{value.secondary}</span>
+                <OverlayScrollingText style={metricSecondaryStyle}>
+                  {value.secondary}
+                </OverlayScrollingText>
               )}
               {value.score && <span style={metricScoreStyle}>{value.score}</span>}
             </div>
           )}
         </div>
       ) : (
-        <div style={metricFallbackValueStyle}>{value}</div>
+        <OverlayScrollingText style={metricFallbackValueStyle}>
+          {value}
+        </OverlayScrollingText>
       )}
+    </div>
+  );
+}
+
+function OverlayScrollingText({ children, style, scrollPadding = 34 }) {
+  const text = children == null ? "" : String(children);
+  const outerRef = useRef(null);
+  const innerRef = useRef(null);
+  const [scrollDistance, setScrollDistance] = useState(0);
+
+  useEffect(() => {
+    const measure = () => {
+      const outer = outerRef.current;
+      const inner = innerRef.current;
+
+      if (!outer || !inner) {
+        setScrollDistance(0);
+        return;
+      }
+
+      const overflow = inner.scrollWidth - outer.clientWidth;
+      setScrollDistance(overflow > 2 ? Math.ceil(overflow + scrollPadding) : 0);
+    };
+
+    measure();
+
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(measure);
+
+    if (resizeObserver && outerRef.current) {
+      resizeObserver.observe(outerRef.current);
+    }
+
+    const animationFrame = window.requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener("resize", measure);
+    };
+  }, [text, scrollPadding]);
+
+  const durationSeconds = Math.min(Math.max(scrollDistance / 18, 9), 22);
+  const innerStyle =
+    scrollDistance > 0
+      ? {
+          display: "inline-block",
+          minWidth: "max-content",
+          paddingRight: scrollPadding,
+          "--showscore-marquee-distance": `${scrollDistance}px`,
+          animation: `showscore-overlay-marquee ${durationSeconds}s ease-in-out infinite alternate`,
+        }
+      : {
+          display: "block",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        };
+
+  return (
+    <div
+      ref={outerRef}
+      style={{
+        ...style,
+        overflow: "hidden",
+        textOverflow: "clip",
+      }}
+    >
+      <span ref={innerRef} style={innerStyle}>
+        {text}
+      </span>
     </div>
   );
 }
@@ -230,6 +328,16 @@ function getOverlayArenaFromSearch(search) {
     return normalizeArenaName(new URLSearchParams(search || "").get("arena"));
   } catch (error) {
     return "";
+  }
+}
+
+function isOverlayDemoMode(search) {
+  try {
+    const value = new URLSearchParams(search || "").get(OVERLAY_DEMO_QUERY_PARAM);
+
+    return value === "1" || value === "true";
+  } catch (error) {
+    return false;
   }
 }
 
@@ -300,6 +408,7 @@ function formatOverlayRun(run, t, options = {}) {
   const draw = run?.draw ? `#${run.draw}` : "";
   const rider = run?.rider || t("public.results.riderFallback");
   const horse = run?.horse || "";
+  const owner = run?.owner || "";
   const backNumber = run?.backNumber
     ? `${t("public.results.backNumber")} ${run.backNumber}`
     : "";
@@ -307,9 +416,120 @@ function formatOverlayRun(run, t, options = {}) {
   return {
     meta: [draw, backNumber].filter(Boolean).join(" · "),
     primary: rider,
-    secondary: horse,
+    secondary: [horse, owner].filter(Boolean).join(" · "),
     score: options.score == null ? "" : String(options.score).trim(),
   };
+}
+
+function buildOverlayDemoData() {
+  const logoDataUrl = buildOverlayDemoLogoDataUrl("SRC", "#1a1712", "#e6c47a");
+  const sponsorLogos = [
+    {
+      id: "demo-overlay-sponsor-saddlery",
+      name: "Sterling Ranch Saddlery",
+      logoDataUrl: buildOverlayDemoLogoDataUrl("SRS", "#2b2117", "#f2d18d"),
+    },
+    {
+      id: "demo-overlay-sponsor-nutrition",
+      name: "Crown Feed Co.",
+      logoDataUrl: buildOverlayDemoLogoDataUrl("CFC", "#11352d", "#d8f3dc"),
+    },
+    {
+      id: "demo-overlay-sponsor-trailers",
+      name: "Northline Trailers",
+      logoDataUrl: buildOverlayDemoLogoDataUrl("NT", "#14213d", "#f7d794"),
+    },
+    {
+      id: "demo-overlay-sponsor-vet",
+      name: "Elite Equine Vet",
+      logoDataUrl: buildOverlayDemoLogoDataUrl("EEV", "#3a1d2b", "#ffe3ec"),
+    },
+  ];
+
+  return {
+    association: {
+      id: "demo-overlay-association",
+      name: "ShowScore Reining Club",
+      shortName: "SRC",
+      logoDataUrl,
+      sponsorLogos,
+    },
+    show: {
+      id: "demo-overlay-show",
+      name: "Royal Reining Classic 2026",
+      status: "active",
+    },
+    publicView: {
+      classIds: [DEMO_OVERLAY_CLASS_ID],
+      liveClasses: [
+        {
+          id: DEMO_OVERLAY_CLASS_ID,
+          classId: DEMO_OVERLAY_CLASS_ID,
+          className: "Open Derby Level 4",
+          classCode: "OD-L4",
+          arena: "Main Coliseum",
+          publicationStatus: PUBLICATION_STATUSES.LIVE_SCORING,
+          activeRun: {
+            id: "demo-overlay-run-12",
+            draw: 12,
+            backNumber: "214",
+            rider: "Camille Gauthier",
+            horse: "Gunna Shine Tonight",
+            owner: "Ecurie Beaulieu",
+          },
+          nextRun: {
+            id: "demo-overlay-run-13",
+            draw: 13,
+            backNumber: "305",
+            rider: "Nicolas Tremblay",
+            horse: "Custom Platinum Star",
+            owner: "Ferme Tremblay Performance",
+          },
+          secondNextRun: {
+            id: "demo-overlay-run-14",
+            draw: 14,
+            backNumber: "117",
+            rider: "Amelie Fortin",
+            horse: "Whizkey In The Dark",
+            owner: "Ranch des Erables",
+          },
+          latestScore: {
+            id: "demo-overlay-run-11",
+            draw: 11,
+            backNumber: "188",
+            rider: "Marc-Antoine Roy",
+            horse: "Platinum Whiz",
+            owner: "Les Ecuries Roy",
+            scoreTotal: "72.5",
+          },
+          lastPassedRuns: [
+            {
+              id: "demo-overlay-run-11",
+              draw: 11,
+              backNumber: "188",
+              rider: "Marc-Antoine Roy",
+              horse: "Platinum Whiz",
+              owner: "Les Ecuries Roy",
+              scoreTotal: "72.5",
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+function buildOverlayDemoLogoDataUrl(label, background, foreground) {
+  const svg = [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="360" height="220" viewBox="0 0 360 220">',
+    `<rect width="360" height="220" rx="28" fill="${background}"/>`,
+    '<rect x="22" y="22" width="316" height="176" rx="22" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="4"/>',
+    `<text x="180" y="124" text-anchor="middle" font-family="Georgia, serif" font-size="64" font-weight="700" fill="${foreground}">${label}</text>`,
+    '<path d="M92 153c52 30 124 30 176 0" fill="none" stroke="rgba(255,255,255,0.34)" stroke-width="8" stroke-linecap="round"/>',
+    '</svg>',
+  ].join("");
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 const overlayPageStyle = {
@@ -325,30 +545,48 @@ const overlayPageStyle = {
   pointerEvents: "none",
 };
 
+const demoBadgeStyle = {
+  position: "absolute",
+  top: 28,
+  left: 32,
+  padding: "7px 12px",
+  borderRadius: 8,
+  background: "rgba(22, 18, 12, 0.84)",
+  border: "1px solid rgba(230, 196, 122, 0.62)",
+  color: "#f6e7bf",
+  boxShadow: "0 14px 34px rgba(0, 0, 0, 0.34)",
+  fontSize: 13,
+  fontWeight: 900,
+  textTransform: "uppercase",
+};
+
 const sponsorRailStyle = {
   position: "absolute",
-  top: 24,
-  right: 24,
-  bottom: 134,
-  width: "clamp(132px, 11vw, 220px)",
+  top: 28,
+  right: 32,
+  bottom: 158,
+  width: "clamp(150px, 11vw, 228px)",
   borderRadius: 8,
-  background: "rgba(255, 255, 255, 0.9)",
-  border: "1px solid rgba(255, 255, 255, 0.72)",
-  boxShadow: "0 18px 40px rgba(0, 0, 0, 0.28)",
-  padding: 12,
+  background:
+    "linear-gradient(180deg, rgba(25, 20, 13, 0.94), rgba(10, 12, 16, 0.88))",
+  border: "1px solid rgba(230, 196, 122, 0.44)",
+  boxShadow: "0 24px 54px rgba(0, 0, 0, 0.38)",
+  padding: 14,
   boxSizing: "border-box",
   display: "grid",
   gridTemplateRows: "auto 1fr",
-  gap: 10,
+  gap: 12,
+  backdropFilter: "blur(10px)",
 };
 
 const sponsorRailTitleStyle = {
-  color: "#101827",
-  fontSize: "clamp(13px, 1vw, 18px)",
+  color: "#f6e7bf",
+  fontSize: 14,
   fontWeight: 900,
   textAlign: "center",
   textTransform: "uppercase",
-  letterSpacing: 0,
+  borderBottom: "1px solid rgba(230, 196, 122, 0.32)",
+  paddingBottom: 10,
 };
 
 const sponsorListStyle = {
@@ -361,12 +599,14 @@ const sponsorListStyle = {
 const sponsorTileStyle = {
   minHeight: "clamp(58px, 6vh, 104px)",
   borderRadius: 8,
-  background: "#fff",
-  border: "1px solid rgba(15, 23, 42, 0.12)",
+  background:
+    "linear-gradient(145deg, rgba(255,255,255,0.98), rgba(242,238,229,0.94))",
+  border: "1px solid rgba(230, 196, 122, 0.28)",
+  boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.55)",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: 8,
+  padding: 10,
 };
 
 const sponsorImageStyle = {
@@ -377,28 +617,43 @@ const sponsorImageStyle = {
 
 const bottomBarStyle = (hasSponsorRail) => ({
   position: "absolute",
-  left: 24,
-  right: hasSponsorRail ? "calc(clamp(132px, 11vw, 220px) + 48px)" : 24,
-  bottom: 24,
-  minHeight: 108,
+  left: 32,
+  right: hasSponsorRail ? "calc(clamp(150px, 11vw, 228px) + 72px)" : 32,
+  bottom: 28,
+  minHeight: 126,
   borderRadius: 8,
-  background: "rgba(8, 13, 24, 0.88)",
-  border: "1px solid rgba(255, 255, 255, 0.18)",
-  boxShadow: "0 18px 40px rgba(0, 0, 0, 0.32)",
+  background:
+    "linear-gradient(135deg, rgba(22, 18, 12, 0.95), rgba(42, 34, 23, 0.92) 48%, rgba(9, 13, 18, 0.92))",
+  border: "1px solid rgba(230, 196, 122, 0.48)",
+  boxShadow: "0 26px 64px rgba(0, 0, 0, 0.42)",
   display: "grid",
   gridTemplateColumns:
-    "minmax(230px, 0.65fr) minmax(540px, 2.35fr) minmax(118px, 0.25fr)",
+    "minmax(360px, 0.95fr) minmax(620px, 2.15fr) minmax(112px, 0.2fr)",
   alignItems: "stretch",
-  gap: 12,
-  padding: 12,
+  gap: 14,
+  padding: 14,
   boxSizing: "border-box",
+  overflow: "hidden",
+  backdropFilter: "blur(10px)",
 });
+
+const bottomBarAccentStyle = {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  height: 3,
+  background:
+    "linear-gradient(90deg, rgba(230,196,122,0), rgba(230,196,122,0.92), rgba(132,217,162,0.68), rgba(230,196,122,0))",
+};
 
 const brandBlockStyle = {
   minWidth: 0,
   display: "flex",
   alignItems: "center",
-  gap: 12,
+  gap: 14,
+  paddingLeft: 4,
+  position: "relative",
 };
 
 const brandTextStyle = {
@@ -406,19 +661,18 @@ const brandTextStyle = {
 };
 
 const eyebrowStyle = {
-  color: "#cbd5e1",
+  color: "#f6e7bf",
   fontWeight: 850,
-  fontSize: "clamp(12px, 0.95vw, 18px)",
+  fontSize: 14,
   textTransform: "uppercase",
-  letterSpacing: 0,
   whiteSpace: "nowrap",
   overflow: "hidden",
   textOverflow: "ellipsis",
 };
 
 const classTitleStyle = {
-  marginTop: 3,
-  fontSize: "clamp(18px, 1.7vw, 32px)",
+  marginTop: 5,
+  fontSize: 28,
   fontWeight: 950,
   lineHeight: 1.05,
   overflow: "hidden",
@@ -430,28 +684,28 @@ const liveCellsStyle = {
   minWidth: 0,
   display: "grid",
   gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-  gap: 10,
+  gap: 12,
 };
 
 const metricStyle = {
   minWidth: 0,
   borderRadius: 8,
-  background: "rgba(255, 255, 255, 0.08)",
-  border: "1px solid rgba(255, 255, 255, 0.1)",
-  padding: "8px 10px 9px",
+  background: "rgba(255, 255, 255, 0.1)",
+  border: "1px solid rgba(255, 255, 255, 0.16)",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.16)",
+  padding: "10px 12px 11px",
   boxSizing: "border-box",
   display: "grid",
   alignContent: "center",
-  gap: 5,
+  gap: 7,
 };
 
 const metricLabelStyle = (accent) => ({
   color:
-    accent === "green" ? "#86efac" : accent === "amber" ? "#fcd34d" : "#93c5fd",
+    accent === "green" ? "#84d9a2" : accent === "amber" ? "#f4c76c" : "#9cc8ff",
   fontWeight: 900,
-  fontSize: "clamp(12px, 0.95vw, 18px)",
+  fontSize: 13,
   textTransform: "uppercase",
-  letterSpacing: 0,
   whiteSpace: "nowrap",
 });
 
@@ -463,7 +717,7 @@ const metricValueStyle = {
 
 const metricFallbackValueStyle = {
   minWidth: 0,
-  fontSize: "clamp(16px, 1.25vw, 24px)",
+  fontSize: 22,
   fontWeight: 950,
   lineHeight: 1.1,
   overflow: "hidden",
@@ -472,8 +726,8 @@ const metricFallbackValueStyle = {
 };
 
 const metricMetaStyle = {
-  color: "#cbd5e1",
-  fontSize: "clamp(11px, 0.82vw, 15px)",
+  color: "#d7d0c2",
+  fontSize: 13,
   fontWeight: 850,
   lineHeight: 1,
   overflow: "hidden",
@@ -483,7 +737,7 @@ const metricMetaStyle = {
 
 const metricPrimaryStyle = {
   color: "#fff",
-  fontSize: "clamp(18px, 1.45vw, 27px)",
+  fontSize: 26,
   fontWeight: 950,
   lineHeight: 1.02,
   overflow: "hidden",
@@ -501,8 +755,8 @@ const metricSecondaryRowStyle = {
 const metricSecondaryStyle = {
   flex: "1 1 auto",
   minWidth: 0,
-  color: "#d1d5db",
-  fontSize: "clamp(11px, 0.82vw, 15px)",
+  color: "#e7e0d2",
+  fontSize: 14,
   fontWeight: 800,
   lineHeight: 1.05,
   overflow: "hidden",
@@ -512,11 +766,11 @@ const metricSecondaryStyle = {
 
 const metricScoreStyle = {
   flex: "0 0 auto",
-  color: "#101827",
-  background: "#93c5fd",
+  color: "#1f1609",
+  background: "linear-gradient(135deg, #f6e7bf, #d6a84f)",
   borderRadius: 6,
-  padding: "1px 6px",
-  fontSize: "clamp(11px, 0.82vw, 15px)",
+  padding: "2px 8px",
+  fontSize: 14,
   fontWeight: 950,
   lineHeight: 1.2,
 };
@@ -525,8 +779,8 @@ const poweredBlockStyle = {
   justifySelf: "end",
   alignSelf: "center",
   textAlign: "right",
-  color: "#cbd5e1",
-  fontSize: "clamp(12px, 0.9vw, 18px)",
+  color: "#d7d0c2",
+  fontSize: 13,
   fontWeight: 800,
   lineHeight: 1.15,
   display: "grid",

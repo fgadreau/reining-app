@@ -972,6 +972,7 @@ export const translations = {
         invalidDateRange:
           "La date de fin doit être la même journée ou après la date de début.",
         copyObsOverlayLink: "Copier le lien OBS",
+        copyObsOverlayDemoLink: "Copier lien demo",
         loading: "Chargement des shows...",
         livestreamHelp:
           "Colle un lien YouTube, Vimeo ou un code iframe. La vidéo peut être masquée par le public; le live scoring reste disponible.",
@@ -988,6 +989,7 @@ export const translations = {
         newShowName: "Nouveau show",
         copyObsOverlayArenaLink: "Copier lien",
         obsOverlayGeneralTitle: "Overlay général",
+        obsOverlayDemoTitle: "Overlay demo vidéographe",
         obsOverlayHelp:
           "Liens à utiliser comme source navigateur dans OBS. Le lien général choisit le live actif; les liens par manège forcent une piste précise.",
         obsOverlayNoArena:
@@ -1006,6 +1008,7 @@ export const translations = {
         obsOverlayTitle: "Overlays OBS",
         openObsOverlay: "Ouvrir overlay OBS",
         openObsOverlayArena: "Ouvrir overlay",
+        openObsOverlayDemo: "Ouvrir demo",
         openObsOverlayGeneral: "Ouvrir overlay OBS général",
         publicScheduleHelp:
           "Affiche l’aperçu horaire validé sur la page publique du show. Vérifie le tableau d’horaire avant de l’activer.",
@@ -1142,6 +1145,7 @@ export const translations = {
       },
       label: "Vitrine publique",
       overlay: {
+        demoBadge: "Demo overlay",
         lastScore: "Dernier score",
         noActiveRun: "En attente du prochain départ",
         noScoreYet: "Aucun score",
@@ -2248,6 +2252,7 @@ export const translations = {
         invalidDateRange:
           "The end date must be the same day as the start date or later.",
         copyObsOverlayLink: "Copy OBS link",
+        copyObsOverlayDemoLink: "Copy demo link",
         loading: "Loading shows...",
         livestreamHelp:
           "Paste a YouTube, Vimeo, or iframe link. Visitors can hide the video; live scoring stays available.",
@@ -2264,6 +2269,7 @@ export const translations = {
         newShowName: "New show",
         copyObsOverlayArenaLink: "Copy link",
         obsOverlayGeneralTitle: "General overlay",
+        obsOverlayDemoTitle: "Videographer demo overlay",
         obsOverlayHelp:
           "Use these links as browser sources in OBS. The general link follows the active live feed; arena links force a specific arena.",
         obsOverlayNoArena:
@@ -2282,6 +2288,7 @@ export const translations = {
         obsOverlayTitle: "OBS overlays",
         openObsOverlay: "Open OBS overlay",
         openObsOverlayArena: "Open overlay",
+        openObsOverlayDemo: "Open demo",
         openObsOverlayGeneral: "Open general OBS overlay",
         publicScheduleHelp:
           "Shows the approved schedule preview on the public show page. Review the schedule table before enabling it.",
@@ -2418,6 +2425,7 @@ export const translations = {
       },
       label: "Public showcase",
       overlay: {
+        demoBadge: "Demo overlay",
         lastScore: "Last score",
         noActiveRun: "Waiting for the next run",
         noScoreYet: "No score yet",

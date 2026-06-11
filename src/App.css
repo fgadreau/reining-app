@@ -14,3 +14,15 @@ body {
     transform: translateY(0);
   }
 }
+
+@keyframes showscore-overlay-marquee {
+  0%,
+  16% {
+    transform: translateX(0);
+  }
+
+  84%,
+  100% {
+    transform: translateX(calc(-1 * var(--showscore-marquee-distance, 0px)));
+  }
+}
