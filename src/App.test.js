@@ -97,6 +97,10 @@ import { getDefaultShowRouteForRoles } from "./features/auth/showRoleRouting";
 import { buildAnalyticsSummary } from "./features/analytics/analyticsRepository";
 import { getPageEventContext } from "./features/analytics/analyticsRouteContext";
 import {
+  enrichAnalyticsEventLabels,
+  resolveAnalyticsLabel,
+} from "./features/analytics/analyticsEventLabels";
+import {
   calculateClassTimingSummary,
   stampRunTiming,
 } from "./features/classes/classTiming";
@@ -3120,6 +3124,52 @@ test("builds analytics route context and summary", () => {
   expect(summary.topShows[0]).toEqual({ label: "show-1", count: 1 });
   expect(summary.topClasses[0]).toEqual({ label: "class-1", count: 1 });
   expect(summary.latestEventAt).toBe("2026-06-06T12:15:00.000Z");
+});
+
+test("resolves analytics event ids to readable labels", () => {
+  const resolver = {
+    associationsById: new Map([
+      ["association-1", { id: "association-1", name: "AQR" }],
+    ]),
+    showsById: new Map([
+      ["show-1", { id: "show-1", name: "Show de juin" }],
+    ]),
+    daysById: new Map([
+      ["day-1", { id: "day-1", label: "Jour 1", date: "2026-06-25" }],
+    ]),
+    classesById: new Map([
+      [
+        "class-1",
+        {
+          id: "class-1",
+          name: "Open Derby Level 4",
+          classCode: "OD-L4",
+        },
+      ],
+    ]),
+    paidWarmupsById: new Map(),
+  };
+
+  const event = enrichAnalyticsEventLabels(
+    {
+      associationId: "association-1",
+      showId: "show-1",
+      dayId: "day-1",
+      classId: "class-1",
+      metadata: {},
+    },
+    resolver
+  );
+
+  expect(event.resolvedLabels).toMatchObject({
+    association: "AQR",
+    show: "Show de juin",
+    day: "Jour 1 · 2026-06-25",
+    class: "Open Derby Level 4 (OD-L4)",
+  });
+  expect(resolveAnalyticsLabel("class", "class-1", resolver)).toBe(
+    "Open Derby Level 4 (OD-L4)"
+  );
 });
 
 test("announcer latest score ignores public publication restrictions", () => {

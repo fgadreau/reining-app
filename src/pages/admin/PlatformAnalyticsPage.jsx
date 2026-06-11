@@ -4,6 +4,11 @@ import {
   buildAnalyticsSummary,
   loadAppEventsRepository,
 } from "../../features/analytics/analyticsRepository";
+import {
+  buildAnalyticsEventLabelResolver,
+  enrichAnalyticsEventLabels,
+  resolveAnalyticsLabel,
+} from "../../features/analytics/analyticsEventLabels";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
@@ -22,6 +27,7 @@ function PlatformAnalyticsPage() {
   const [audienceFilter, setAudienceFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshTick, setRefreshTick] = useState(0);
+  const [labelResolver, setLabelResolver] = useState(null);
   const canViewAnalytics =
     !access.isConfigured || access.isLocalTestUser || access.isPlatformAdmin;
 
@@ -35,9 +41,16 @@ function PlatformAnalyticsPage() {
 
       setIsLoading(true);
       const nextEvents = await loadAppEventsRepository({ limit: 1000 });
+      const nextLabelResolver =
+        await buildAnalyticsEventLabelResolver(nextEvents);
 
       if (!isMounted) return;
-      setEvents(nextEvents);
+      setLabelResolver(nextLabelResolver);
+      setEvents(
+        nextEvents.map((event) =>
+          enrichAnalyticsEventLabels(event, nextLabelResolver)
+        )
+      );
       setIsLoading(false);
     }
 
@@ -224,16 +237,25 @@ function PlatformAnalyticsPage() {
         <TopList
           title={t("analytics.topAssociations")}
           items={summary.topAssociations}
+          getLabel={(label) =>
+            resolveAnalyticsLabel("association", label, labelResolver)
+          }
           total={summary.totalEvents}
         />
         <TopList
           title={t("analytics.topShows")}
           items={summary.topShows}
+          getLabel={(label) =>
+            resolveAnalyticsLabel("show", label, labelResolver)
+          }
           total={summary.totalEvents}
         />
         <TopList
           title={t("analytics.topClasses")}
           items={summary.topClasses}
+          getLabel={(label) =>
+            resolveAnalyticsLabel("class", label, labelResolver)
+          }
           total={summary.totalEvents}
         />
       </div>
@@ -393,7 +415,7 @@ function EventTable({ events }) {
               </td>
               <td style={tdStyle}>{humanizeEventName(event.eventName)}</td>
               <td style={tdStyle}>{event.actorEmail || "-"}</td>
-              <td style={tdStyle}>{formatEventContext(event)}</td>
+              <td style={tdStyle}>{formatEventContext(event, t)}</td>
               <td style={tdStyle}>{event.path || "-"}</td>
             </tr>
           ))}
@@ -449,6 +471,10 @@ function eventMatchesSearch(event, query) {
     event.showId,
     event.dayId,
     event.classId,
+    event.resolvedLabels?.association,
+    event.resolvedLabels?.show,
+    event.resolvedLabels?.day,
+    event.resolvedLabels?.class,
     event.locale,
     event.timezone,
   ]
@@ -471,12 +497,19 @@ function getEventAudience(event) {
   return "management";
 }
 
-function formatEventContext(event) {
+function formatEventContext(event, t) {
+  const labels = event.resolvedLabels || {};
   const parts = [
-    event.associationId && `A: ${event.associationId}`,
-    event.showId && `S: ${event.showId}`,
-    event.dayId && `D: ${event.dayId}`,
-    event.classId && `B: ${event.classId}`,
+    (event.associationId || labels.association) &&
+      `${t("analytics.association")}: ${
+        labels.association || event.associationId
+      }`,
+    (event.showId || labels.show) &&
+      `${t("analytics.show")}: ${labels.show || event.showId}`,
+    (event.dayId || labels.day) &&
+      `${t("analytics.day")}: ${labels.day || event.dayId}`,
+    (event.classId || labels.class) &&
+      `${t("analytics.class")}: ${labels.class || event.classId}`,
   ].filter(Boolean);
 
   return parts.length > 0 ? parts.join(" · ") : "-";

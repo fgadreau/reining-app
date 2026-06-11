@@ -4,6 +4,10 @@ import {
   APP_EVENT_TYPES,
   loadAppEventsRepository,
 } from "../../features/analytics/analyticsRepository";
+import {
+  buildAnalyticsEventLabelResolver,
+  enrichAnalyticsEventLabels,
+} from "../../features/analytics/analyticsEventLabels";
 import { getAssociationRepository } from "../../features/associations/associationRepository";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import { useTranslation } from "../../features/i18n/I18nProvider";
@@ -34,10 +38,15 @@ function AssociationActivityPage() {
           limit: 300,
         }),
       ]);
+      const labelResolver = await buildAnalyticsEventLabelResolver(nextEvents);
 
       if (!isMounted) return;
       setAssociation(nextAssociation);
-      setEvents(nextEvents);
+      setEvents(
+        nextEvents.map((event) =>
+          enrichAnalyticsEventLabels(event, labelResolver)
+        )
+      );
       setIsLoading(false);
     }
 
@@ -100,8 +109,18 @@ function AssociationActivityPage() {
                 </div>
                 <div style={detailGridStyle}>
                   <Detail label={t("activity.actor")} value={event.actorEmail} />
-                  <Detail label={t("activity.show")} value={event.showId} />
-                  <Detail label={t("activity.class")} value={event.classId} />
+                  <Detail
+                    label={t("activity.show")}
+                    value={event.resolvedLabels?.show}
+                  />
+                  <Detail
+                    label={t("activity.day")}
+                    value={event.resolvedLabels?.day}
+                  />
+                  <Detail
+                    label={t("activity.class")}
+                    value={event.resolvedLabels?.class}
+                  />
                   <Detail
                     label={t("activity.details")}
                     value={formatMetadata(event.metadata)}
