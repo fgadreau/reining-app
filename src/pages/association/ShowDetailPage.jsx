@@ -35,7 +35,9 @@ import {
   getLocalFirstSyncNoticeTone,
 } from "../../features/cloud/localFirstSyncMessages";
 import { useTranslation } from "../../features/i18n/I18nProvider";
+import { hasPublicLivestream } from "../../features/livestream/livestreamEmbed";
 import { getPaidWarmupsForDayRepository } from "../../features/paidWarmups/paidWarmupRepository";
+import { getPublicShowViewRepository } from "../../features/publication/publicViewRepository";
 import {
   getShowRepository,
   saveShowRepository,
@@ -50,6 +52,7 @@ function ShowDetailPage() {
 
   const [association, setAssociation] = useState(null);
   const [show, setShow] = useState(null);
+  const [publicView, setPublicView] = useState(null);
   const [days, setDays] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -81,15 +84,20 @@ function ShowDetailPage() {
   const sortedDays = useMemo(() => sortDaysByDate(days), [days]);
   const rangeStartDate = showDateRange[0] || "";
   const rangeEndDate = showDateRange[showDateRange.length - 1] || "";
+  const publicShowcaseStatus = useMemo(
+    () => buildPublicShowcaseStatus({ show, publicView, t }),
+    [publicView, show, t]
+  );
 
   useEffect(() => {
     let isMounted = true;
 
     async function load() {
       setIsLoading(true);
-      const [nextShow, nextAssociation] = await Promise.all([
+      const [nextShow, nextAssociation, nextPublicView] = await Promise.all([
         getShowRepository(showId),
         getAssociationRepository(associationId),
+        getPublicShowViewRepository(showId),
       ]);
       const nextDays = nextShow
         ? await syncDaysForShowDateRangeRepository(nextShow, { language })
@@ -98,6 +106,7 @@ function ShowDetailPage() {
       if (!isMounted) return;
       setAssociation(nextAssociation);
       setShow(nextShow);
+      setPublicView(nextPublicView);
       setDays(nextDays);
       setIsLoading(false);
     }
@@ -393,6 +402,7 @@ function ShowDetailPage() {
           : Promise.resolve(null),
       ]);
       setShow(savedShow);
+      setPublicView(await getPublicShowViewRepository(showId));
       if (savedAssociation) {
         setAssociation(savedAssociation);
         setSponsorLogosDraft(normalizeSponsorLogos(savedAssociation.sponsorLogos));
@@ -579,7 +589,16 @@ function ShowDetailPage() {
           >
             {t("management.shows.showSchedule")}
           </Link>
+          <Link
+            to={`/public/associations/${associationId}/shows/${showId}`}
+            style={linkButtonStyle}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {t("management.shows.publicShowcaseOpen")}
+          </Link>
         </div>
+        <PublicShowcaseStatusPanel status={publicShowcaseStatus} />
         {show?.isSchedulePublic && (
           <div style={schedulePublicBadgeStyle}>
             {t("management.shows.schedulePublicEnabled")}
@@ -1134,6 +1153,100 @@ function ShowDetailPage() {
   );
 }
 
+function PublicShowcaseStatusPanel({ status }) {
+  if (!status) return null;
+
+  return (
+    <section style={publicStatusPanelStyle(status.tone)}>
+      <div style={publicStatusHeaderStyle}>
+        <div>
+          <div style={publicStatusEyebrowStyle}>{status.eyebrow}</div>
+          <div style={publicStatusTitleStyle}>{status.title}</div>
+          <div style={publicStatusHelpStyle}>{status.help}</div>
+        </div>
+        <span style={publicStatusBadgeStyle(status.tone)}>{status.badge}</span>
+      </div>
+      <div style={publicStatusGridStyle}>
+        {status.items.map((item) => (
+          <div key={item.label} style={publicStatusItemStyle(item.tone)}>
+            <span style={publicStatusItemLabelStyle}>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function buildPublicShowcaseStatus({ show, publicView, t }) {
+  const isActive = show?.status === "active";
+  const scheduleCount = publicView?.scheduleItemCount || 0;
+  const liveCount = publicView?.liveClassCount || 0;
+  const scoresheetCount = publicView?.publishedClassCount || 0;
+  const resultCount = publicView?.publishedResultClassCount || 0;
+  const livestreamReady = isActive && hasPublicLivestream(show);
+  const hasPublicContent =
+    scheduleCount > 0 ||
+    liveCount > 0 ||
+    scoresheetCount > 0 ||
+    resultCount > 0 ||
+    livestreamReady;
+  const tone = !isActive ? "blocked" : hasPublicContent ? "ready" : "partial";
+  const toneKey = getPublicShowcaseToneKey(tone);
+  const yes = t("management.shows.publicShowcaseYes");
+  const no = t("management.shows.publicShowcaseNo");
+  const countValue = (count) =>
+    count > 0 ? t("management.shows.publicShowcaseCount", { count }) : no;
+
+  return {
+    tone,
+    eyebrow: t("management.shows.publicShowcaseStatus"),
+    title: t(`management.shows.publicShowcase${toneKey}`),
+    badge: t(`management.shows.publicShowcase${toneKey}Badge`),
+    help: t(`management.shows.publicShowcase${toneKey}Help`),
+    items: [
+      {
+        label: t("management.shows.publicShowcaseShowActive"),
+        value: isActive ? yes : no,
+        tone: isActive ? "ready" : "blocked",
+      },
+      {
+        label: t("management.shows.publicShowcaseSchedule"),
+        value: countValue(scheduleCount),
+        tone:
+          scheduleCount > 0 ? "ready" : show?.isSchedulePublic ? "partial" : "muted",
+      },
+      {
+        label: t("management.shows.publicShowcaseLive"),
+        value: countValue(liveCount),
+        tone: liveCount > 0 ? "ready" : "muted",
+      },
+      {
+        label: t("management.shows.publicShowcaseLivestream"),
+        value: livestreamReady ? yes : no,
+        tone:
+          livestreamReady ? "ready" : show?.isLivestreamPublic ? "partial" : "muted",
+      },
+      {
+        label: t("management.shows.publicShowcaseScoresheets"),
+        value: countValue(scoresheetCount),
+        tone: scoresheetCount > 0 ? "ready" : "muted",
+      },
+      {
+        label: t("management.shows.publicShowcaseResults"),
+        value: countValue(resultCount),
+        tone: resultCount > 0 ? "ready" : "muted",
+      },
+    ],
+  };
+}
+
+function getPublicShowcaseToneKey(tone) {
+  if (tone === "ready") return "Ready";
+  if (tone === "blocked") return "Blocked";
+  return "Partial";
+}
+
 const headerWrapStyle = {
   display: "flex",
   justifyContent: "space-between",
@@ -1173,6 +1286,94 @@ const actionRowStyle = {
   display: "flex",
   gap: 10,
   flexWrap: "wrap",
+};
+
+const publicStatusPanelStyle = (tone) => {
+  const colors = getPublicStatusColors(tone);
+
+  return {
+    marginTop: 14,
+    border: `1px solid ${colors.border}`,
+    borderRadius: 8,
+    background: colors.background,
+    padding: 12,
+    display: "grid",
+    gap: 10,
+  };
+};
+
+const publicStatusHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 12,
+  flexWrap: "wrap",
+};
+
+const publicStatusEyebrowStyle = {
+  color: "#64748b",
+  fontSize: 12,
+  fontWeight: 900,
+  textTransform: "uppercase",
+  letterSpacing: 0,
+};
+
+const publicStatusTitleStyle = {
+  color: "#0f172a",
+  fontWeight: 900,
+  fontSize: 17,
+  marginTop: 2,
+};
+
+const publicStatusHelpStyle = {
+  color: "#475569",
+  fontSize: 13,
+  lineHeight: 1.35,
+  marginTop: 3,
+};
+
+const publicStatusBadgeStyle = (tone) => {
+  const colors = getPublicStatusColors(tone);
+
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    minHeight: 28,
+    padding: "4px 10px",
+    borderRadius: 999,
+    border: `1px solid ${colors.strongBorder}`,
+    background: colors.badgeBackground,
+    color: colors.color,
+    fontWeight: 850,
+    fontSize: 13,
+  };
+};
+
+const publicStatusGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+  gap: 8,
+};
+
+const publicStatusItemStyle = (tone) => {
+  const colors = getPublicStatusColors(tone);
+
+  return {
+    display: "grid",
+    gap: 2,
+    border: `1px solid ${colors.border}`,
+    borderRadius: 8,
+    background: "#fff",
+    padding: 9,
+    color: colors.color,
+    minWidth: 0,
+  };
+};
+
+const publicStatusItemLabelStyle = {
+  color: "#64748b",
+  fontSize: 12,
+  fontWeight: 800,
 };
 
 const actionRowStyleNoMargin = {
@@ -1531,6 +1732,46 @@ function getSyncLabel(cloudStatus, t) {
   if (!cloudStatus.configured) return t("management.sync.local");
   if (cloudStatus.authenticated) return t("management.sync.connected");
   return t("management.sync.disconnected");
+}
+
+function getPublicStatusColors(tone) {
+  if (tone === "ready") {
+    return {
+      border: "#bbf7d0",
+      strongBorder: "#86efac",
+      background: "#f0fdf4",
+      badgeBackground: "#dcfce7",
+      color: "#166534",
+    };
+  }
+
+  if (tone === "blocked") {
+    return {
+      border: "#fed7aa",
+      strongBorder: "#fdba74",
+      background: "#fff7ed",
+      badgeBackground: "#ffedd5",
+      color: "#9a3412",
+    };
+  }
+
+  if (tone === "partial") {
+    return {
+      border: "#fde68a",
+      strongBorder: "#facc15",
+      background: "#fefce8",
+      badgeBackground: "#fef9c3",
+      color: "#854d0e",
+    };
+  }
+
+  return {
+    border: "#e2e8f0",
+    strongBorder: "#cbd5e1",
+    background: "#f8fafc",
+    badgeBackground: "#f8fafc",
+    color: "#475569",
+  };
 }
 
 function normalizeArenaName(value) {

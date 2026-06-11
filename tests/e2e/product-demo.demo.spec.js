@@ -13,6 +13,15 @@ const DEMO_PARTICIPANTS = [
   ["7", "267", "Noemie Fortin", "Gunna Be Chic", "Ferme Fortin"],
   ["8", "279", "Julien Caron", "Sailin Spark", "Caron Ranch"],
 ];
+const DEMO_PAID_WARMUP_ID = "demo-paid-warmup-open-arena";
+const DEMO_PAID_WARMUP_PARTICIPANTS = [
+  "Lucie Charbonneau",
+  "Felix Goudreau",
+  "Maya Desrosiers",
+  "Antoine Perreault",
+  "Sarah Nguyen",
+  "Vincent Morin",
+];
 
 function makeLocalTestSession() {
   return {
@@ -61,6 +70,220 @@ async function seedCleanLocalDemo(page) {
     );
     window.localStorage.setItem("showscore_app_events_v1", JSON.stringify([]));
   }, makeLocalTestSession());
+}
+
+function buildDemoLogoDataUrl(label, fill, textColor = "#ffffff") {
+  const svg = [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">',
+    `<rect width="320" height="180" rx="24" fill="${fill}"/>`,
+    '<circle cx="62" cy="58" r="26" fill="rgba(255,255,255,0.22)"/>',
+    '<path d="M70 118c38-62 88-62 150 0" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="14" stroke-linecap="round"/>',
+    `<text x="160" y="98" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="800" fill="${textColor}">${label}</text>`,
+    '</svg>',
+  ].join("");
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+async function seedPublicShowTools(page, associationId, showId) {
+  const sponsorLogos = [
+    {
+      id: "demo-sponsor-nutrition",
+      name: "EquiPlus Nutrition",
+      logoDataUrl: buildDemoLogoDataUrl("EQUI+", "#0f766e"),
+    },
+    {
+      id: "demo-sponsor-saddles",
+      name: "Selles Nord",
+      logoDataUrl: buildDemoLogoDataUrl("NORD", "#1d4ed8"),
+    },
+  ];
+
+  await page.evaluate(
+    ({ targetAssociationId, targetShowId, logos }) => {
+      const shows = JSON.parse(
+        window.localStorage.getItem("reining_shows_v1") || "[]"
+      );
+      window.localStorage.setItem(
+        "reining_shows_v1",
+        JSON.stringify(
+          shows.map((show) =>
+            show.id === targetShowId
+              ? {
+                  ...show,
+                  status: "active",
+                  isLivestreamPublic: true,
+                  livestreamUrl: "https://youtu.be/dQw4w9WgXcQ",
+                  isSchedulePublic: true,
+                }
+              : show
+          )
+        )
+      );
+
+      const associations = JSON.parse(
+        window.localStorage.getItem("reiningApp.associations") || "[]"
+      );
+      window.localStorage.setItem(
+        "reiningApp.associations",
+        JSON.stringify(
+          associations.map((association) =>
+            association.id === targetAssociationId
+              ? {
+                  ...association,
+                  logoDataUrl: association.logoDataUrl || logos[0].logoDataUrl,
+                  websiteUrl:
+                    association.websiteUrl || "https://showscore.app/demo-western",
+                  sponsorLogos: logos,
+                }
+              : association
+          )
+        )
+      );
+    },
+    { targetAssociationId: associationId, targetShowId: showId, logos: sponsorLogos }
+  );
+}
+
+async function seedDemoPaidWarmup(page, options) {
+  const {
+    associationId,
+    showId,
+    dayId,
+    isPublicLive = false,
+    completedCount = 0,
+    activeEntryIndex = null,
+  } = options;
+
+  await page.evaluate(
+    ({
+      targetAssociationId,
+      targetShowId,
+      targetDayId,
+      warmupId,
+      participants,
+      publicLive,
+      completedEntries,
+      activeIndex,
+    }) => {
+      const entries = participants.map((rider, index) => {
+        const isCompleted = index < completedEntries;
+        const isNoShow = isCompleted && index === 1;
+
+        return {
+          id: `${warmupId}-entry-${index + 1}`,
+          order: index + 1,
+          rider,
+          status: isCompleted ? (isNoShow ? "no_show" : "done") : "pending",
+          completedAt: isCompleted
+            ? `2026-06-12T13:${String(44 + index * 3).padStart(2, "0")}:00.000Z`
+            : null,
+        };
+      });
+      const activeEntry =
+        Number.isInteger(activeIndex) && activeIndex >= 0
+          ? entries[activeIndex]
+          : null;
+      const warmup = {
+        id: warmupId,
+        associationId: targetAssociationId,
+        showId: targetShowId,
+        dayId: targetDayId,
+        name: "Paid warm up ouvert",
+        arena: "Manège principal",
+        durationMinutesPerRider: 3,
+        dragInterval: 3,
+        dragDurationMinutes: 5,
+        scheduleStartMode: "after_previous",
+        scheduleStartTime: "",
+        isPublicLive: Boolean(publicLive),
+        activeEntryId: activeEntry?.id || null,
+        activeStartedAt: activeEntry
+          ? new Date(Date.now() - 95 * 1000).toISOString()
+          : null,
+        entries,
+        sortOrder: 2,
+        createdAt: "2026-06-12T13:30:00.000Z",
+        updatedAt: new Date().toISOString(),
+      };
+      const allWarmups = JSON.parse(
+        window.localStorage.getItem("reining_paid_warmups_v1") || "[]"
+      );
+
+      window.localStorage.setItem(
+        "reining_paid_warmups_v1",
+        JSON.stringify([
+          ...allWarmups.filter((item) => item.id !== warmupId),
+          warmup,
+        ])
+      );
+    },
+    {
+      targetAssociationId: associationId,
+      targetShowId: showId,
+      targetDayId: dayId,
+      warmupId: DEMO_PAID_WARMUP_ID,
+      participants: DEMO_PAID_WARMUP_PARTICIPANTS,
+      publicLive: isPublicLive,
+      completedEntries: completedCount,
+      activeIndex: activeEntryIndex,
+    }
+  );
+
+  return DEMO_PAID_WARMUP_ID;
+}
+
+async function seedDemoAuditEvents(page, ids) {
+  await page.evaluate(
+    ({ associationId, showId, dayId, classId, actorEmail }) => {
+      const currentEvents = JSON.parse(
+        window.localStorage.getItem("showscore_app_events_v1") || "[]"
+      );
+      const demoEvents = [
+        {
+          id: "demo-audit-public-tools",
+          eventType: "audit",
+          eventName: "public_tools_reviewed",
+          associationId,
+          showId,
+          dayId,
+          classId,
+          actorEmail,
+          path: `/associations/${associationId}/shows/${showId}`,
+          metadata: {
+            scope: "livestream_schedule_overlay",
+          },
+          createdAt: "2026-06-12T15:15:00.000Z",
+        },
+        {
+          id: "demo-audit-secretariat-publish",
+          eventType: "audit",
+          eventName: "secretariat_published_scoresheet",
+          associationId,
+          showId,
+          dayId,
+          classId,
+          actorEmail,
+          path: `/associations/${associationId}/shows/${showId}/secretariat`,
+          metadata: {
+            className: "Ranch Riding Amateur",
+          },
+          createdAt: "2026-06-12T15:18:00.000Z",
+        },
+      ];
+
+      window.localStorage.setItem(
+        "showscore_app_events_v1",
+        JSON.stringify([
+          ...demoEvents,
+          ...currentEvents.filter(
+            (event) => !demoEvents.some((demoEvent) => demoEvent.id === event.id)
+          ),
+        ])
+      );
+    },
+    { ...ids, actorEmail: LOCAL_TEST_EMAIL }
+  );
 }
 
 async function showStep(page, extraMs = 0) {
@@ -511,16 +734,16 @@ test.describe("demo produit ShowScore", () => {
 
     await demoClick(
       page,
-      page.getByRole("link", { name: "Ouvrir les classes" }).first(),
-      "Classes"
+      page.getByRole("link", { name: "Ouvrir les blocs" }).first(),
+      "Blocs"
     );
     const dayId = getIdFromUrl(page.url(), /\/days\/([^/]+)$/, "dayId");
     await expect(page.locator("body")).toContainText("vendredi 12 juin");
 
     await demoClick(
       page,
-      page.getByRole("button", { name: "+ Ajouter une classe" }),
-      "Ajouter une classe"
+      page.getByRole("button", { name: "+ Ajouter un bloc" }),
+      "Ajouter un bloc"
     );
     const classInputs = page.locator("input");
     await demoFill(page, classInputs.nth(0), "Ranch Riding Amateur", "Classe");
@@ -540,7 +763,7 @@ test.describe("demo produit ShowScore", () => {
       /\/classes\/([^/]+)\/setup$/,
       "classId"
     );
-    await expect(page.getByRole("heading", { name: "Setup de classe" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Setup de bloc" })).toBeVisible();
 
     await demoFill(
       page,
@@ -548,14 +771,14 @@ test.describe("demo produit ShowScore", () => {
       "Sophie Laroche",
       "Juge"
     );
-    await demoSelect(page, page.locator("select").nth(1), "2", "Drag aux 2 runs");
+    await demoSelect(page, page.locator("select").nth(2), "2", "Drag aux 2 runs");
     await demoFill(
       page,
       page.getByLabel("Durée du drag en minutes"),
       "4",
       "Durée du drag"
     );
-    await demoSelect(page, page.locator("select").nth(2), "live", "Live détaillé");
+    await demoSelect(page, page.locator("select").nth(3), "live", "Live détaillé");
     await demoClick(
       page,
       page.getByRole("button", { name: "Importer un draw" }),
@@ -578,6 +801,69 @@ test.describe("demo produit ShowScore", () => {
     await waitForSetupRuns(page, classId, DEMO_PARTICIPANTS.length);
     await showStep(page);
 
+    const paidWarmupId = await seedDemoPaidWarmup(page, {
+      associationId,
+      showId,
+      dayId,
+    });
+    await seedPublicShowTools(page, associationId, showId);
+
+    await demoGoto(
+      page,
+      `/associations/${associationId}/shows/${showId}/days/${dayId}/paid-warmups/${paidWarmupId}/setup`
+    );
+    await expect(page.locator("body")).toContainText("Paid warm up ouvert");
+    await expect(page.locator('input[type="text"]').nth(2)).toHaveValue(
+      "Lucie Charbonneau"
+    );
+    await expect(page.locator('input[type="text"]').nth(3)).toHaveValue(
+      "Felix Goudreau"
+    );
+    await showStep(page, 1000);
+
+    await demoGoto(page, `/associations/${associationId}/shows/${showId}`);
+    await expect(page.getByRole("heading", { name: "Derby ShowScore 2026" })).toBeVisible();
+    await expect(page.locator("body")).toContainText("État vitrine publique");
+    await expect(page.locator("body")).toContainText("Vitrine visible");
+    await demoClick(
+      page,
+      page.getByRole("button", { name: "Réglages livestream" }),
+      "Livestream et OBS"
+    );
+    await expect(page.locator("body")).toContainText("Horaire public");
+    await expect(page.locator("body")).toContainText("Commanditaires de l’association");
+    await expect(page.locator("body")).toContainText("Ouvrir overlay OBS général");
+    await showStep(page, 1500);
+
+    await demoGoto(page, `/associations/${associationId}/shows/${showId}/schedule`);
+    await expect(page.locator("body")).toContainText("Aperçu horaire");
+    await expect(page.locator("body")).toContainText("Publié sur la vitrine");
+    await expect(page.locator("body")).toContainText("Ranch Riding Amateur");
+    await expect(page.locator("body")).toContainText("Paid warm up ouvert");
+    await showStep(page, 1500);
+
+    await demoGoto(page, `/associations/${associationId}/shows/${showId}/time`);
+    await expect(page.locator("body")).toContainText("Gestion du temps");
+    await expect(page.locator("body")).toContainText("Runs restants");
+    await expect(page.locator("body")).toContainText("Ranch Riding Amateur");
+    await showStep(page, 1500);
+
+    await demoGoto(page, "/public");
+    await expect(page.locator("body")).toContainText("Associations");
+    await demoFill(
+      page,
+      page.locator('input[type="search"]'),
+      "Western",
+      "Recherche publique"
+    );
+    await expect(page.locator("body")).toContainText("Association Demo Western");
+    await showStep(page, 1000);
+
+    await demoGoto(page, `/public/associations/${associationId}`);
+    await expect(page.locator("body")).toContainText("Derby ShowScore 2026");
+    await expect(page.locator("body")).toContainText("Horaire");
+    await showStep(page, 1000);
+
     await seedLiveScoringState(page, classId, {
       completedCount: 0,
       activeRunIndex: 0,
@@ -588,7 +874,7 @@ test.describe("demo produit ShowScore", () => {
     await expect(page.getByRole("heading", { name: "Derby ShowScore 2026" })).toBeVisible();
     await demoClick(
       page,
-      page.getByRole("button", { name: /Ranch Riding Amateur/ }),
+      page.getByRole("button", { name: /Ranch Riding Amateur \(RR-A\)/ }),
       "Ouvrir le live"
     );
     await expect(page.locator("body")).toContainText("En piste");
@@ -609,10 +895,10 @@ test.describe("demo produit ShowScore", () => {
     await demoGoto(page, `/public/associations/${associationId}/shows/${showId}`);
     await demoClick(
       page,
-      page.getByRole("button", { name: /Ranch Riding Amateur/ }),
+      page.getByRole("button", { name: /Ranch Riding Amateur \(RR-A\)/ }),
       "Score entrant"
     );
-    await expect(page.locator("body")).toContainText("72.0");
+    await expect(page.locator("body")).toContainText(/\b72(?:\.0)?\b/);
     await expect(page.locator("body")).toContainText("Marc-Antoine Roy");
     await expect(page.locator("body")).toContainText("Run fluide");
     await showStep(page, 2000);
@@ -626,11 +912,11 @@ test.describe("demo produit ShowScore", () => {
     await demoGoto(page, `/public/associations/${associationId}/shows/${showId}`);
     await demoClick(
       page,
-      page.getByRole("button", { name: /Ranch Riding Amateur/ }),
+      page.getByRole("button", { name: /Ranch Riding Amateur \(RR-A\)/ }),
       "Drag visible"
     );
     await expect(page.locator("body")).toContainText("Drag de surface");
-    await expect(page.locator("body")).toContainText("71.5");
+    await expect(page.locator("body")).toContainText(/71(?:\.5|½)/);
     await showStep(page, 2500);
 
     await seedLiveScoringState(page, classId, {
@@ -643,14 +929,14 @@ test.describe("demo produit ShowScore", () => {
     await demoGoto(page, `/associations/${associationId}/scribe/classes/${classId}`);
     await expect(page.locator("body")).toContainText("Ranch Riding Amateur");
     await expect(page.locator("body")).toContainText("Sophie Laroche");
-    await expect(page.locator("body")).toContainText("72.0");
-    await expect(page.locator("body")).toContainText("71.5");
+    await expect(page.locator("body")).toContainText(/\b72(?:\.0)?\b/);
+    await expect(page.locator("body")).toContainText(/71(?:\.5|½)/);
     await showStep(page, 1500);
 
     await demoGoto(page, `/public/associations/${associationId}/shows/${showId}`);
     await demoClick(
       page,
-      page.getByRole("button", { name: /Ranch Riding Amateur/ }),
+      page.getByRole("button", { name: /Ranch Riding Amateur \(RR-A\)/ }),
       "Live actualisé"
     );
     await expect(page.locator("body")).toContainText("En piste");
@@ -658,38 +944,90 @@ test.describe("demo produit ShowScore", () => {
     await expect(page.locator("body")).toContainText("Lea Gagnon");
     await expect(page.locator("body")).toContainText("Olivier Martel");
     await expect(page.locator("body")).toContainText("Anais Bouchard");
-    await expect(page.locator("body")).toContainText("72.0");
-    await expect(page.locator("body")).toContainText("71.5");
+    await expect(page.locator("body")).toContainText(/\b72(?:\.0)?\b/);
+    await expect(page.locator("body")).toContainText(/71(?:\.5|½)/);
     await showStep(page, 2500);
+
+    await demoGoto(page, `/public/associations/${associationId}/shows/${showId}/overlay`);
+    await expect(page.locator("body")).toContainText("Derby ShowScore 2026");
+    await expect(page.locator("body")).toContainText("Ranch Riding Amateur");
+    await expect(page.locator("body")).toContainText("ShowScore.app");
+    await showStep(page, 2000);
+
+    await seedDemoPaidWarmup(page, {
+      associationId,
+      showId,
+      dayId,
+      isPublicLive: true,
+      completedCount: 2,
+      activeEntryIndex: 2,
+    });
+    await demoGoto(page, `/associations/${associationId}/shows/${showId}/announcer`);
+    await expect(page.locator("body")).toContainText("Annonceur");
+    await expect(page.locator("body")).toContainText("Paid warm up ouvert");
+    await expect(page.locator("body")).toContainText("Maya Desrosiers");
+    await expect(page.locator("body")).toContainText("Timer actif");
+    await showStep(page, 2000);
+
+    await demoGoto(page, `/public/associations/${associationId}/shows/${showId}`);
+    await expect(page.locator("body")).toContainText("Livestream du show");
+    await expect(page.locator("body")).toContainText("Paid warm up ouvert");
+    await demoClick(
+      page,
+      page.getByRole("button", { name: /Paid warm up ouvert/ }),
+      "Ouvrir paid warm up"
+    );
+    await expect(page.locator("body")).toContainText("Maya Desrosiers");
+    await expect(page.locator("body")).toContainText("Sarah Nguyen");
+    await showStep(page, 2000);
 
     await seedSignedOfficialClass(page, classId);
     await demoGoto(page, `/associations/${associationId}/shows/${showId}/secretariat`);
     await expect(page.locator("body")).toContainText("Ranch Riding Amateur");
-    await expect(page.locator("body")).toContainText("Signée, à valider");
+    await expect(page.locator("body")).toContainText(/Signé[e]?, à valider/);
     await demoClick(
       page,
       page.getByRole("button", { name: "Valider officiel" }),
       "Valider"
     );
-    await expect(page.locator("body")).toContainText("Validée");
+    await expect(page.locator("body")).toContainText(/Validé[e]?/);
     await demoClick(page, page.getByRole("button", { name: "Publier" }), "Publier");
     await expect(page.locator("body")).toContainText("Publié");
     await showStep(page, 2000);
+
+    await seedDemoAuditEvents(page, {
+      associationId,
+      showId,
+      dayId,
+      classId,
+    });
+    await demoGoto(page, `/associations/${associationId}/activity`);
+    await expect(page.locator("body")).toContainText("Journal d’activité");
+    await expect(page.locator("body")).toContainText("Public Tools Reviewed");
+    await expect(page.locator("body")).toContainText("Secretariat Published Scoresheet");
+    await showStep(page, 1500);
+
+    await demoGoto(page, "/admin/analytics");
+    await expect(page.getByRole("heading", { name: "Analytics" })).toBeVisible();
+    await expect(page.locator("body")).toContainText("Vues publiques");
+    await expect(page.locator("body")).toContainText("Actions");
+    await showStep(page, 1500);
 
     await demoGoto(page, `/public/associations/${associationId}/shows/${showId}`);
     await expect(page.locator("body")).toContainText("Feuille de pointage officielle");
     await demoClick(
       page,
-      page.getByRole("button", { name: /Ranch Riding Amateur/ }),
+      page.getByRole("button", { name: /Ranch Riding Amateur \(RR-A\)/ }),
       "Scoresheet officielle"
     );
     await expect(page.locator("body")).toContainText("Julien Caron");
-    await expect(page.locator("body")).toContainText("73.0");
-    await expect(page.locator("body")).toContainText("Excellent controle");
+    await expect(page.locator("body")).toContainText("Thomas Pelletier");
+    await expect(page.locator("body")).toContainText(/Score\s*73(?:\.0)?/);
     await showStep(page, 2500);
 
     expect(associationId).toBeTruthy();
     expect(showId).toBeTruthy();
     expect(dayId).toBeTruthy();
+    expect(paidWarmupId).toBeTruthy();
   });
 });

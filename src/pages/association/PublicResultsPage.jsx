@@ -350,19 +350,20 @@ function PublicResultsPage() {
             const resultBlocks = groupResultClassesByBlock(section.classes);
 
             return (
-              <section key={`results-${section.day.id}`} style={cardStyle}>
-                <div style={sectionHeaderStyle}>
-                  <div>
-                    <h2 style={sectionTitleStyle}>
-                      {t("public.results.resultsTitle")} ·{" "}
-                      {section.day.label || t("public.results.day")}
-                    </h2>
-                    <div style={mutedTextStyle}>
-                      {section.day.date || t("public.results.dateTbd")}
-                    </div>
-                  </div>
-                </div>
-
+              <CollapsiblePublicSection
+                key={`results-${section.day.id}`}
+                title={`${t("public.results.resultsTitle")} · ${
+                  section.day.label || t("public.results.day")
+                }`}
+                subtitle={section.day.date || t("public.results.dateTbd")}
+                headerMeta={
+                  <Badge>
+                    {t("public.results.publishedResultClasses", {
+                      count: section.classes.length,
+                    })}
+                  </Badge>
+                }
+              >
                 <div style={{ display: "grid", gap: 14 }}>
                   {resultBlocks.map((resultBlock) => (
                     <PublicResultBlock
@@ -374,23 +375,23 @@ function PublicResultsPage() {
                     />
                   ))}
                 </div>
-              </section>
+              </CollapsiblePublicSection>
             );
           })}
 
           {publicView.sections.map((section) => (
-            <section key={section.day.id} style={cardStyle}>
-              <div style={sectionHeaderStyle}>
-                <div>
-                  <h2 style={sectionTitleStyle}>
-                    {section.day.label || t("public.results.day")}
-                  </h2>
-                  <div style={mutedTextStyle}>
-                    {section.day.date || t("public.results.dateTbd")}
-                  </div>
-                </div>
-              </div>
-
+            <CollapsiblePublicSection
+              key={section.day.id}
+              title={section.day.label || t("public.results.day")}
+              subtitle={section.day.date || t("public.results.dateTbd")}
+              headerMeta={
+                <Badge>
+                  {t("public.results.publishedSheetsCount", {
+                    count: section.classes.length,
+                  })}
+                </Badge>
+              }
+            >
               <div style={{ display: "grid", gap: 14 }}>
                 {section.classes.map((classView) => (
                   <PublicClassResults
@@ -409,7 +410,7 @@ function PublicResultsPage() {
                   />
                 ))}
               </div>
-            </section>
+            </CollapsiblePublicSection>
           ))}
         </div>
       ) : null}
@@ -417,86 +418,151 @@ function PublicResultsPage() {
   );
 }
 
+function CollapsiblePublicSection({
+  title,
+  eyebrow,
+  subtitle,
+  headerMeta = null,
+  children,
+  defaultOpen = true,
+  style = cardStyle,
+  bodyStyle,
+}) {
+  const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  function toggleSection() {
+    setIsOpen((current) => !current);
+  }
+
+  function handleKeyDown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    toggleSection();
+  }
+
+  return (
+    <section style={style}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        onClick={toggleSection}
+        onKeyDown={handleKeyDown}
+        style={collapsibleSectionHeaderStyle(isOpen)}
+      >
+        <div>
+          {eyebrow && <div style={eyebrowStyle}>{eyebrow}</div>}
+          <h2 style={sectionTitleStyle}>{title}</h2>
+          {subtitle && <div style={mutedTextStyle}>{subtitle}</div>}
+        </div>
+        <div style={badgeStackStyle}>
+          {headerMeta}
+          <span style={toggleIconStyle}>
+            {isOpen ? t("public.results.hide") : t("public.results.view")}
+          </span>
+        </div>
+      </div>
+      {isOpen && <div style={bodyStyle}>{children}</div>}
+    </section>
+  );
+}
+
 function PublicScheduleSections({ sections }) {
   const { t } = useTranslation();
 
   return (
-    <section style={cardStyle}>
-      <div style={sectionHeaderStyle}>
-        <div>
-          <div style={eyebrowStyle}>{t("public.results.scheduleEyebrow")}</div>
-          <h2 style={sectionTitleStyle}>{t("public.results.scheduleTitle")}</h2>
-          <div style={mutedTextStyle}>
-            {t("public.results.scheduleHelp")}
-          </div>
-        </div>
-      </div>
-
+    <CollapsiblePublicSection
+      eyebrow={t("public.results.scheduleEyebrow")}
+      title={t("public.results.scheduleTitle")}
+      subtitle={t("public.results.scheduleHelp")}
+      headerMeta={
+        <Badge>
+          {t("public.results.scheduleItems", {
+            count: sections.reduce(
+              (total, section) => total + (section.rows?.length || 0),
+              0
+            ),
+          })}
+        </Badge>
+      }
+    >
       <div style={{ display: "grid", gap: 16 }}>
         {sections.map((section) => (
-          <div key={section.day.id || section.day.date} style={scheduleDayStyle}>
-            <div style={scheduleDayHeaderStyle}>
-              <div>
-                <h3 style={scheduleDayTitleStyle}>
-                  {section.day.label || t("public.results.day")}
-                </h3>
-                <div style={mutedTextStyle}>
-                  {section.day.date || t("public.results.dateTbd")}
-                </div>
-              </div>
-              {section.summary?.estimatedEndAt && (
-                <div style={scheduleDayEndStyle}>
-                  {t("public.results.dayEnd")}{" "}
-                  <strong>{formatClockTime(section.summary.estimatedEndAt)}</strong>
-                </div>
-              )}
-            </div>
-
-            <div style={resultTableWrapStyle}>
-              <table style={scheduleTableStyle}>
-                <thead>
-                  <tr>
-                    <th style={scheduleThStyle}>
-                      {t("public.results.scheduleStart")}
-                    </th>
-                    <th style={scheduleThStyle}>{t("public.results.sourceBlock")}</th>
-                    <th style={scheduleThStyle}>{t("management.schedulePreview.type")}</th>
-                    <th style={scheduleThStyle}>{t("public.results.pattern")}</th>
-                    <th style={scheduleThStyle}>{t("management.schedulePreview.draw")}</th>
-                    <th style={scheduleThStyle}>
-                      {t("management.schedulePreview.estimatedDuration")}
-                    </th>
-                    <th style={scheduleThStyle}>{t("management.time.estimatedEndHeader")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {section.rows.map((row) => (
-                    <tr key={`${row.itemType || "class"}-${row.classId}`}>
-                      <td style={scheduleTdStyle}>
-                        <strong>{formatPublicScheduleClock(row.estimatedStartAt, t)}</strong>
-                        <div style={mutedTextStyle}>
-                          {getPublicScheduleStartLabel(row, t)}
-                        </div>
-                      </td>
-                      <td style={scheduleTdStyle}>{row.className}</td>
-                      <td style={scheduleTdStyle}>{getPublicScheduleTypeLabel(row, t)}</td>
-                      <td style={scheduleTdStyle}>{row.pattern || "—"}</td>
-                      <td style={scheduleTdStyle}>{getPublicScheduleDrawLabel(row, t)}</td>
-                      <td style={scheduleTdStyle}>
-                        {formatDuration(row.estimatedDurationSeconds)}
-                      </td>
-                      <td style={scheduleTdStyle}>
-                        {formatPublicScheduleClock(row.estimatedEndAt, t)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <PublicScheduleDaySection
+            key={section.day.id || section.day.date}
+            section={section}
+          />
         ))}
       </div>
-    </section>
+    </CollapsiblePublicSection>
+  );
+}
+
+function PublicScheduleDaySection({ section }) {
+  const { t } = useTranslation();
+  const title = section.day.label || t("public.results.day");
+  const subtitle = section.summary?.estimatedEndAt
+    ? `${section.day.date || t("public.results.dateTbd")} · ${t(
+        "public.results.dayEnd"
+      )} ${formatClockTime(section.summary.estimatedEndAt)}`
+    : section.day.date || t("public.results.dateTbd");
+
+  return (
+    <CollapsiblePublicSection
+      title={title}
+      subtitle={subtitle}
+      headerMeta={
+        <Badge>
+          {t("public.results.scheduleItems", {
+            count: section.rows.length,
+          })}
+        </Badge>
+      }
+      style={scheduleDayStyle}
+    >
+      <div style={resultTableWrapStyle}>
+        <table style={scheduleTableStyle}>
+          <thead>
+            <tr>
+              <th style={scheduleThStyle}>
+                {t("public.results.scheduleStart")}
+              </th>
+              <th style={scheduleThStyle}>{t("public.results.sourceBlock")}</th>
+              <th style={scheduleThStyle}>{t("management.schedulePreview.type")}</th>
+              <th style={scheduleThStyle}>{t("public.results.pattern")}</th>
+              <th style={scheduleThStyle}>{t("management.schedulePreview.draw")}</th>
+              <th style={scheduleThStyle}>
+                {t("management.schedulePreview.estimatedDuration")}
+              </th>
+              <th style={scheduleThStyle}>{t("management.time.estimatedEndHeader")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {section.rows.map((row) => (
+              <tr key={`${row.itemType || "class"}-${row.classId}`}>
+                <td style={scheduleTdStyle}>
+                  <strong>{formatPublicScheduleClock(row.estimatedStartAt, t)}</strong>
+                  <div style={mutedTextStyle}>
+                    {getPublicScheduleStartLabel(row, t)}
+                  </div>
+                </td>
+                <td style={scheduleTdStyle}>{row.className}</td>
+                <td style={scheduleTdStyle}>{getPublicScheduleTypeLabel(row, t)}</td>
+                <td style={scheduleTdStyle}>{row.pattern || "—"}</td>
+                <td style={scheduleTdStyle}>{getPublicScheduleDrawLabel(row, t)}</td>
+                <td style={scheduleTdStyle}>
+                  {formatDuration(row.estimatedDurationSeconds)}
+                </td>
+                <td style={scheduleTdStyle}>
+                  {formatPublicScheduleClock(row.estimatedEndAt, t)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </CollapsiblePublicSection>
   );
 }
 
@@ -537,9 +603,22 @@ function PublicLivestreamPanel({ show, isOpen, onToggle }) {
   const { t } = useTranslation();
   const embed = buildLivestreamEmbed(show?.livestreamUrl);
 
+  function handleKeyDown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    onToggle();
+  }
+
   return (
     <section style={livestreamPanelStyle}>
-      <div style={livestreamHeaderStyle}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        onClick={onToggle}
+        onKeyDown={handleKeyDown}
+        style={livestreamHeaderStyle(isOpen)}
+      >
         <div>
           <div style={eyebrowStyle}>{t("public.results.videoLiveLabel")}</div>
           <h2 style={sectionTitleStyle}>
@@ -551,7 +630,14 @@ function PublicLivestreamPanel({ show, isOpen, onToggle }) {
         </div>
         <div style={badgeStackStyle}>
           {embed.providerLabel && <Badge>{embed.providerLabel}</Badge>}
-          <button type="button" onClick={onToggle} style={smallButtonStyle}>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggle();
+            }}
+            style={smallButtonStyle}
+          >
             {isOpen
               ? t("public.results.hideVideo")
               : t("public.results.showVideo")}
@@ -745,6 +831,7 @@ function PublicClassResults({ association, show, classView, isOpen, onToggle }) 
 
 function PublicResultBlock({ association, show, day, resultBlock }) {
   const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(true);
 
   const downloadBlockPdf = () => {
     const publishedAt =
@@ -770,10 +857,27 @@ function PublicResultBlock({ association, show, day, resultBlock }) {
     pdf.save(fileName);
   };
 
+  function toggleBlock() {
+    setIsOpen((current) => !current);
+  }
+
+  function handleBlockKeyDown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    toggleBlock();
+  }
+
   return (
     <section style={resultBlockStyle}>
       <div style={resultBlockHeaderStyle}>
-        <div>
+        <div
+          role="button"
+          tabIndex={0}
+          aria-expanded={isOpen}
+          onClick={toggleBlock}
+          onKeyDown={handleBlockKeyDown}
+          style={resultBlockTitleToggleStyle}
+        >
           <h3 style={classTitleStyle}>
             {resultBlock.blockName || t("public.results.resultsTitle")}
           </h3>
@@ -786,16 +890,23 @@ function PublicResultBlock({ association, show, day, resultBlock }) {
               : ""}
           </div>
         </div>
-        <button type="button" onClick={downloadBlockPdf} style={smallButtonStyle}>
-          {t("public.results.downloadBlockResultsPdf")}
-        </button>
+        <div style={classActionsStyle}>
+          <button type="button" onClick={downloadBlockPdf} style={smallButtonStyle}>
+            {t("public.results.downloadBlockResultsPdf")}
+          </button>
+          <button type="button" onClick={toggleBlock} style={smallButtonStyle}>
+            {isOpen ? t("public.results.hide") : t("public.results.view")}
+          </button>
+        </div>
       </div>
 
-      <div style={{ display: "grid", gap: 14 }}>
-        {resultBlock.classes.map((classView) => (
-          <PublicClassResultStandings key={classView.id} classView={classView} />
-        ))}
-      </div>
+      {isOpen && (
+        <div style={{ display: "grid", gap: 14 }}>
+          {resultBlock.classes.map((classView) => (
+            <PublicClassResultStandings key={classView.id} classView={classView} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -1193,6 +1304,7 @@ function ScheduleOnlyLiveDetails({ classView }) {
 
 function PublicPaidWarmupLivePanel({ warmup, now }) {
   const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
   const remainingSeconds = getPaidWarmupRemainingSeconds(warmup, now);
   const isDragDue = warmup.isDragDue && !warmup.activeEntry;
   const dragRemainingSeconds = isDragDue
@@ -1204,10 +1316,29 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
     : warmup.activeEntry
       ? t("public.results.inProgress")
       : t("public.results.paidWarmupStatusPending");
+  const panelDetailsId = `public-paid-warmup-details-${warmup.id || "warmup"}`;
+
+  function togglePanel() {
+    setIsOpen((current) => !current);
+  }
+
+  function handlePanelKeyDown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    togglePanel();
+  }
 
   return (
     <section style={livePanelStyle}>
-      <div style={classHeaderStyle}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        aria-controls={panelDetailsId}
+        onClick={togglePanel}
+        onKeyDown={handlePanelKeyDown}
+        style={livePanelToggleStyle(isOpen)}
+      >
         <div>
           <div style={eyebrowStyle}>{t("public.results.liveLabel")}</div>
           <h2 style={sectionTitleStyle}>
@@ -1225,62 +1356,69 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
         <div style={badgeStackStyle}>
           <LiveFreshnessBadge updatedAt={warmup.updatedAt} now={now} />
           <Badge>{statusLabel}</Badge>
+          <span style={toggleIconStyle}>
+            {isOpen ? t("public.results.hide") : t("public.results.view")}
+          </span>
         </div>
       </div>
 
-      {isDragDue && (
-        <div style={paidWarmupNoticeStyle}>
-          {t("public.results.dragInProgress", {
-            minutes: warmup.dragDurationMinutes,
-          })}
+      {isOpen && (
+        <div id={panelDetailsId}>
+          {isDragDue && (
+            <div style={paidWarmupNoticeStyle}>
+              {t("public.results.dragInProgress", {
+                minutes: warmup.dragDurationMinutes,
+              })}
+            </div>
+          )}
+
+          <div style={liveGridStyle}>
+            <div style={liveBlockStyle}>
+              <div style={runLabelStyle}>{t("public.results.onCourse")}</div>
+              {isDragDue ? (
+                <PublicDragCard remainingSeconds={dragRemainingSeconds} />
+              ) : warmup.activeEntry ? (
+                <PublicPaidWarmupEntry
+                  entry={warmup.activeEntry}
+                  remainingSeconds={remainingSeconds}
+                  warmup={warmup}
+                />
+              ) : (
+                <div style={mutedTextStyle}>—</div>
+              )}
+            </div>
+
+            <PublicPaidWarmupEntryBlock
+              label={t("public.results.nextParticipant")}
+              entry={warmup.nextEntry}
+              statusLabel={t("public.results.statusPreparation")}
+              status="preparation"
+            />
+
+            <PublicPaidWarmupEntryBlock
+              label={t("public.results.secondNextParticipant")}
+              entry={secondNextEntry}
+              statusLabel={t("public.results.statusWaiting")}
+              status="waiting"
+            />
+
+            <div style={liveBlockStyle}>
+              <div style={runLabelStyle}>{t("public.results.lastTwoPassed")}</div>
+              {warmup.lastPassedEntries?.length ? (
+                <div style={{ display: "grid", gap: 8 }}>
+                  {warmup.lastPassedEntries.map((entry) => (
+                    <PublicPaidWarmupEntry key={entry.id} entry={entry} />
+                  ))}
+                </div>
+              ) : (
+                <div style={mutedTextStyle}>—</div>
+              )}
+            </div>
+          </div>
+
+          <PublicNextScheduleItem item={warmup.nextScheduleItem} />
         </div>
       )}
-
-      <div style={liveGridStyle}>
-        <div style={liveBlockStyle}>
-          <div style={runLabelStyle}>{t("public.results.onCourse")}</div>
-          {isDragDue ? (
-            <PublicDragCard remainingSeconds={dragRemainingSeconds} />
-          ) : warmup.activeEntry ? (
-            <PublicPaidWarmupEntry
-              entry={warmup.activeEntry}
-              remainingSeconds={remainingSeconds}
-              warmup={warmup}
-            />
-          ) : (
-            <div style={mutedTextStyle}>—</div>
-          )}
-        </div>
-
-        <PublicPaidWarmupEntryBlock
-          label={t("public.results.nextParticipant")}
-          entry={warmup.nextEntry}
-          statusLabel={t("public.results.statusPreparation")}
-          status="preparation"
-        />
-
-        <PublicPaidWarmupEntryBlock
-          label={t("public.results.secondNextParticipant")}
-          entry={secondNextEntry}
-          statusLabel={t("public.results.statusWaiting")}
-          status="waiting"
-        />
-
-        <div style={liveBlockStyle}>
-          <div style={runLabelStyle}>{t("public.results.lastTwoPassed")}</div>
-          {warmup.lastPassedEntries?.length ? (
-            <div style={{ display: "grid", gap: 8 }}>
-              {warmup.lastPassedEntries.map((entry) => (
-                <PublicPaidWarmupEntry key={entry.id} entry={entry} />
-              ))}
-            </div>
-          ) : (
-            <div style={mutedTextStyle}>—</div>
-          )}
-        </div>
-      </div>
-
-      <PublicNextScheduleItem item={warmup.nextScheduleItem} />
     </section>
   );
 }
@@ -1912,14 +2050,16 @@ const livestreamPanelStyle = {
   border: "1px solid #bfdbfe",
 };
 
-const livestreamHeaderStyle = {
+const livestreamHeaderStyle = (isOpen) => ({
   display: "flex",
   justifyContent: "space-between",
   alignItems: "flex-start",
   gap: 12,
   flexWrap: "wrap",
-  marginBottom: 12,
-};
+  marginBottom: isOpen ? 12 : 0,
+  cursor: "pointer",
+  outlineOffset: 4,
+});
 
 const livestreamFrameWrapStyle = {
   position: "relative",
@@ -2312,6 +2452,17 @@ const sectionHeaderStyle = {
   marginBottom: 12,
 };
 
+const collapsibleSectionHeaderStyle = (isOpen) => ({
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 12,
+  flexWrap: "wrap",
+  marginBottom: isOpen ? 12 : 0,
+  cursor: "pointer",
+  outlineOffset: 4,
+});
+
 const sectionTitleStyle = {
   margin: 0,
   fontSize: 20,
@@ -2371,6 +2522,12 @@ const resultBlockHeaderStyle = {
   alignItems: "flex-start",
   flexWrap: "wrap",
   marginBottom: 12,
+};
+
+const resultBlockTitleToggleStyle = {
+  minWidth: 0,
+  cursor: "pointer",
+  outlineOffset: 4,
 };
 
 const classTitleStyle = {

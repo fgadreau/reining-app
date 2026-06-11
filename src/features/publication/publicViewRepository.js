@@ -371,39 +371,24 @@ export async function getPublicShowViewRepository(showId) {
     return buildEmptyPublicShowView();
   }
 
-  const liveClasses = [];
-  const livePaidWarmups = [];
-  const classIds = [];
-  const timingSections = [];
   const sections = await Promise.all(
     (await getDaysByShowRepository(showId)).map(async (day) => {
       const paidWarmups = getPaidWarmupsByDayId(day.id);
-      paidWarmups
+      const livePaidWarmups = paidWarmups
         .filter((warmup) => warmup.isPublicLive)
-        .forEach((warmup) => {
-          livePaidWarmups.push(buildPaidWarmupLiveView(warmup));
-        });
+        .map((warmup) => buildPaidWarmupLiveView(warmup));
       const classes = getClassesForDay(day.id);
-      const classRows = [];
       const resultPublicationsByClassId =
         await getResultPublicationsForClassesRepository(
           classes.map((classItem) => classItem.id)
         );
-      const resultClasses = [];
-      const classViews = await Promise.all(
+      const classEntries = await Promise.all(
         classes.map(async (classItem) => {
-          if (classItem.id) {
-            classIds.push(classItem.id);
-          }
-          resultClasses.push(
-            ...buildPublicResultClassViews({
-              classItem,
-              resultPublication: resultPublicationsByClassId[classItem.id],
-            })
-          );
-
+          const resultClasses = buildPublicResultClassViews({
+            classItem,
+            resultPublication: resultPublicationsByClassId[classItem.id],
+          });
           const classData = await getClassFullDataRepository(classItem.id);
-          classRows.push(classData);
           const liveClass = buildPublicLiveClassView({
             classItem: classData.classItem,
             setup: classData.setup,
@@ -412,22 +397,39 @@ export async function getPublicShowViewRepository(showId) {
             judgeSessions: classData.judgeSessions,
           });
 
-          if (liveClass) {
-            liveClasses.push(liveClass);
-          }
-
-          return buildPublicClassView(classData);
+          return {
+            classId: classItem.id || null,
+            classRow: classData,
+            classView: buildPublicClassView(classData),
+            resultClasses,
+            liveClass,
+          };
         })
       );
-      timingSections.push({ day, classRows, paidWarmups });
 
       return {
         day,
-        classes: classViews.filter(Boolean),
-        resultClasses,
+        classes: classEntries.map((entry) => entry.classView).filter(Boolean),
+        resultClasses: classEntries.flatMap((entry) => entry.resultClasses),
+        timingSection: {
+          day,
+          classRows: classEntries.map((entry) => entry.classRow),
+          paidWarmups,
+        },
+        liveClasses: classEntries
+          .map((entry) => entry.liveClass)
+          .filter(Boolean),
+        livePaidWarmups,
+        classIds: classEntries.map((entry) => entry.classId).filter(Boolean),
       };
     })
   );
+  const timingSections = sections.map((section) => section.timingSection);
+  const liveClasses = sections.flatMap((section) => section.liveClasses || []);
+  const livePaidWarmups = sections.flatMap(
+    (section) => section.livePaidWarmups || []
+  );
+  const classIds = sections.flatMap((section) => section.classIds || []);
 
   const resultSections = sections
     .map((section) => ({
@@ -596,10 +598,6 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
 
     const days = Array.isArray(dayRows) ? dayRows.map(toDay) : [];
     const timingByClassId = await getPublicShowTimingByClassId(showId, supabase);
-    const liveClasses = [];
-    const livePaidWarmups = [];
-    const allClassIds = [];
-    const timingSections = [];
     const sections = await Promise.all(
       days.map(async (day) => {
         const [classResult, paidWarmupResult] = await Promise.all([
@@ -626,21 +624,25 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
         }
 
         const paidWarmups = (paidWarmupResult.data || []).map(toPaidWarmup);
-        paidWarmups.forEach((warmup) => {
-          if (warmup.isPublicLive) {
-            livePaidWarmups.push(buildPaidWarmupLiveView(warmup));
-          }
-        });
+        const livePaidWarmups = paidWarmups
+          .filter((warmup) => warmup.isPublicLive)
+          .map((warmup) => buildPaidWarmupLiveView(warmup));
 
         const classes = Array.isArray(classResult.data)
           ? classResult.data.map(toClass)
           : [];
         const classIds = classes.map((classItem) => classItem.id).filter(Boolean);
-        allClassIds.push(...classIds);
 
         if (!classIds.length) {
-          timingSections.push({ day, classRows: [], paidWarmups });
-          return { day, classes: [], resultClasses: [] };
+          return {
+            day,
+            classes: [],
+            resultClasses: [],
+            timingSection: { day, classRows: [], paidWarmups },
+            liveClasses: [],
+            livePaidWarmups,
+            classIds,
+          };
         }
 
         const [
@@ -716,17 +718,14 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
         const setupByClassId = new Map(
           (setupResult.data || []).map((row) => [row.class_id, toClassSetup(row)])
         );
-        const resultClasses = [];
 
-        const classViews = classes.map((classItem) => {
+        const classEntries = classes.map((classItem) => {
           const publication = publicationsByClassId.get(classItem.id);
           const setup = setupByClassId.get(classItem.id) || null;
-          resultClasses.push(
-            ...buildPublicResultClassViews({
-              classItem,
-              resultPublication: resultPublicationsByClassId.get(classItem.id),
-            })
-          );
+          const resultClasses = buildPublicResultClassViews({
+            classItem,
+            resultPublication: resultPublicationsByClassId.get(classItem.id),
+          });
           const liveClass = buildPublicLiveClassView({
             classItem,
             setup,
@@ -734,39 +733,53 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
             scoringSession: scoringByClassId.get(classItem.id),
             judgeSessions: judgeScoringByClassId.get(classItem.id) || [],
           });
+          const scoringSession = scoringByClassId.get(classItem.id);
 
-          if (liveClass) {
-            liveClasses.push(liveClass);
-          }
-
-          return buildPublicClassView({
-            classItem,
-            setup,
-            publication,
-            official: officialByClassId.get(classItem.id),
-            scoringRuns: [],
-          });
+          return {
+            classView: buildPublicClassView({
+              classItem,
+              setup,
+              publication,
+              official: officialByClassId.get(classItem.id),
+              scoringRuns: [],
+            }),
+            resultClasses,
+            liveClass,
+            timingClassRow: {
+              classItem,
+              setup,
+              publication,
+              official: officialByClassId.get(classItem.id),
+              scoringRuns: scoringSession?.runs || [],
+              status: "public",
+            },
+          };
         });
-        timingSections.push({
+        const timingSection = {
           day,
-          classRows: classes.map((classItem) => ({
-            classItem,
-            setup: setupByClassId.get(classItem.id) || null,
-            publication: publicationsByClassId.get(classItem.id),
-            official: officialByClassId.get(classItem.id),
-            scoringRuns: scoringByClassId.get(classItem.id)?.runs || [],
-            status: "public",
-          })),
+          classRows: classEntries.map((entry) => entry.timingClassRow),
           paidWarmups,
-        });
+        };
 
         return {
           day,
-          classes: classViews.filter(Boolean),
-          resultClasses,
+          classes: classEntries.map((entry) => entry.classView).filter(Boolean),
+          resultClasses: classEntries.flatMap((entry) => entry.resultClasses),
+          timingSection,
+          liveClasses: classEntries
+            .map((entry) => entry.liveClass)
+            .filter(Boolean),
+          livePaidWarmups,
+          classIds,
         };
       })
     );
+    const timingSections = sections.map((section) => section.timingSection);
+    const liveClasses = sections.flatMap((section) => section.liveClasses || []);
+    const livePaidWarmups = sections.flatMap(
+      (section) => section.livePaidWarmups || []
+    );
+    const allClassIds = sections.flatMap((section) => section.classIds || []);
 
     const resultSections = sections
       .map((section) => ({
