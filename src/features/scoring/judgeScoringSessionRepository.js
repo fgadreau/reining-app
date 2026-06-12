@@ -5,6 +5,18 @@ import {
   normalizeJudgeScoringSession,
   saveJudgeScoringSessionLocal,
 } from "./judgeScoringSessionStorage";
+import {
+  getLocalJudgeScoringSessionSyncStatus,
+  getQueuedJudgeScoringSessionMutations,
+  hasPendingJudgeScoringSessionMutation,
+  markJudgeScoringSessionMutationAttempt,
+  queueJudgeScoringSessionMutation,
+  removeJudgeScoringSessionMutation,
+} from "./judgeScoringSessionSyncQueue";
+import { SCORING_SYNC_STATUS } from "./scoringSyncQueue";
+
+let activeJudgeSessionQueueFlush = null;
+const scheduledJudgeSessionQueueFlushes = new Map();
 
 function toJudgeScoringSession(row, options = {}) {
   return normalizeJudgeScoringSession(
@@ -73,6 +85,38 @@ function sessionClaimedByUser(session, user) {
   );
 }
 
+function notifyJudgeSessionSyncStatus(options, classId, status) {
+  if (options?.classId && options.classId !== classId) return;
+  if (typeof options?.onStatusChange === "function") {
+    options.onStatusChange(status);
+  }
+}
+
+function getScheduledFlushKey(classId = null, judgeId = null) {
+  return `${classId || "__all__"}:${judgeId || "__all__"}`;
+}
+
+function cancelScheduledJudgeSessionSyncQueue(classId = null, judgeId = null) {
+  const key = getScheduledFlushKey(classId, judgeId);
+  const scheduled = scheduledJudgeSessionQueueFlushes.get(key);
+
+  if (!scheduled) return;
+
+  clearTimeout(scheduled.timer);
+  scheduledJudgeSessionQueueFlushes.delete(key);
+
+  if (typeof scheduled.resolve === "function") {
+    scheduled.resolve({
+      syncedCount: 0,
+      failedCount: 0,
+      status: classId
+        ? getJudgeScoringSessionSyncStatus(classId, judgeId)
+        : SCORING_SYNC_STATUS.PENDING,
+      cancelled: true,
+    });
+  }
+}
+
 async function fetchRemoteJudgeScoringSession(classId, judge) {
   const supabase = getSupabaseClient();
 
@@ -91,8 +135,234 @@ async function fetchRemoteJudgeScoringSession(classId, judge) {
   return data ? toJudgeScoringSession(data, { classId, judge }) : null;
 }
 
+async function saveRemoteJudgeScoringSession(session) {
+  const supabase = getSupabaseClient();
+  const normalized = normalizeJudgeScoringSession(session);
+  const judge = {
+    id: normalized.judgeId,
+    name: normalized.judgeName,
+  };
+
+  if (!supabase) {
+    return { ok: false, error: "Supabase is not configured" };
+  }
+
+  try {
+    const saveQuery = normalized.claimedBy
+      ? supabase
+          .from("show_score_judge_sessions")
+          .update(toJudgeScoringSessionRow(normalized))
+          .eq("class_id", normalized.classId)
+          .eq("judge_id", normalized.judgeId)
+          .or(`claimed_by.is.null,claimed_by.eq.${normalized.claimedBy}`)
+      : supabase
+          .from("show_score_judge_sessions")
+          .upsert(toJudgeScoringSessionRow(normalized));
+
+    const { data, error } = await saveQuery.select("*").maybeSingle();
+
+    if (error) throw error;
+
+    if (!data) {
+      const remoteSession = await fetchRemoteJudgeScoringSession(
+        normalized.classId,
+        judge
+      );
+
+      if (remoteSession) {
+        saveJudgeScoringSessionLocal(
+          normalized.classId,
+          normalized.judgeId,
+          remoteSession
+        );
+        return {
+          ok: false,
+          conflict: true,
+          session: remoteSession,
+          error: "Judge session is claimed by another user",
+        };
+      }
+
+      return {
+        ok: false,
+        error: "Judge session was not saved",
+      };
+    }
+
+    const saved = toJudgeScoringSession(data, {
+      classId: normalized.classId,
+      judge,
+    });
+    saveJudgeScoringSessionLocal(normalized.classId, normalized.judgeId, saved);
+
+    return {
+      ok: true,
+      session: saved,
+    };
+  } catch (error) {
+    console.error("Erreur sauvegarde session juge Supabase:", error);
+    return {
+      ok: false,
+      error: error?.message || "Erreur sauvegarde session juge Supabase",
+    };
+  }
+}
+
+async function flushJudgeScoringSessionSyncQueueNow(options = {}) {
+  const targetClassId = options.classId || null;
+  const targetJudgeId = options.judgeId || null;
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    if (targetClassId) {
+      notifyJudgeSessionSyncStatus(
+        options,
+        targetClassId,
+        SCORING_SYNC_STATUS.LOCAL
+      );
+    }
+
+    return {
+      syncedCount: 0,
+      failedCount: 0,
+      status: SCORING_SYNC_STATUS.LOCAL,
+    };
+  }
+
+  let syncedCount = 0;
+  let failedCount = 0;
+
+  while (true) {
+    const [mutation] = getQueuedJudgeScoringSessionMutations({
+      classId: targetClassId,
+      judgeId: targetJudgeId,
+    });
+
+    if (!mutation) break;
+
+    notifyJudgeSessionSyncStatus(
+      options,
+      mutation.classId,
+      SCORING_SYNC_STATUS.SYNCING
+    );
+
+    const result = await saveRemoteJudgeScoringSession(mutation.session);
+
+    if (!result.ok) {
+      if (result.conflict) {
+        removeJudgeScoringSessionMutation(
+          mutation.classId,
+          mutation.judgeId,
+          mutation.revision
+        );
+        failedCount += 1;
+        notifyJudgeSessionSyncStatus(
+          options,
+          mutation.classId,
+          SCORING_SYNC_STATUS.SYNCED
+        );
+        continue;
+      }
+
+      failedCount += 1;
+      markJudgeScoringSessionMutationAttempt(
+        mutation.classId,
+        mutation.judgeId,
+        mutation.revision,
+        result.error
+      );
+      notifyJudgeSessionSyncStatus(
+        options,
+        mutation.classId,
+        SCORING_SYNC_STATUS.PENDING
+      );
+      break;
+    }
+
+    removeJudgeScoringSessionMutation(
+      mutation.classId,
+      mutation.judgeId,
+      mutation.revision
+    );
+    syncedCount += 1;
+  }
+
+  const status = targetClassId
+    ? getJudgeScoringSessionSyncStatus(targetClassId, targetJudgeId)
+    : failedCount > 0
+      ? SCORING_SYNC_STATUS.PENDING
+      : SCORING_SYNC_STATUS.SYNCED;
+
+  if (targetClassId) {
+    notifyJudgeSessionSyncStatus(options, targetClassId, status);
+  }
+
+  return {
+    syncedCount,
+    failedCount,
+    status,
+  };
+}
+
 export function isJudgeSessionClaimedByOther(session, user) {
   return sessionClaimedByOther(session, user);
+}
+
+export function getJudgeScoringSessionSyncStatus(classId, judgeId = null) {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return SCORING_SYNC_STATUS.LOCAL;
+  }
+
+  return getLocalJudgeScoringSessionSyncStatus(classId, judgeId);
+}
+
+export function flushJudgeScoringSessionSyncQueue(options = {}) {
+  const classId = options.classId || null;
+  const judgeId = options.judgeId || null;
+
+  cancelScheduledJudgeSessionSyncQueue(classId, judgeId);
+
+  if (activeJudgeSessionQueueFlush) {
+    return activeJudgeSessionQueueFlush.then(() =>
+      flushJudgeScoringSessionSyncQueue(options)
+    );
+  }
+
+  activeJudgeSessionQueueFlush = flushJudgeScoringSessionSyncQueueNow(
+    options
+  ).finally(() => {
+    activeJudgeSessionQueueFlush = null;
+  });
+
+  return activeJudgeSessionQueueFlush;
+}
+
+export function scheduleJudgeScoringSessionSyncQueue(options = {}) {
+  const classId = options.classId || null;
+  const judgeId = options.judgeId || null;
+  const delayMs = Math.max(Number(options.delayMs) || 0, 0);
+
+  if (delayMs <= 0) {
+    return flushJudgeScoringSessionSyncQueue(options);
+  }
+
+  cancelScheduledJudgeSessionSyncQueue(classId, judgeId);
+
+  return new Promise((resolve, reject) => {
+    const key = getScheduledFlushKey(classId, judgeId);
+    const timer = setTimeout(() => {
+      scheduledJudgeSessionQueueFlushes.delete(key);
+      flushJudgeScoringSessionSyncQueue(options).then(resolve).catch(reject);
+    }, delayMs);
+
+    scheduledJudgeSessionQueueFlushes.set(key, {
+      timer,
+      resolve,
+      reject,
+    });
+  });
 }
 
 export async function loadJudgeScoringSessionRepository(classId, judge) {
@@ -101,6 +371,14 @@ export async function loadJudgeScoringSessionRepository(classId, judge) {
 
   if (!supabase || !classId || !judge?.id) {
     return localSession;
+  }
+
+  if (hasPendingJudgeScoringSessionMutation(classId, judge.id)) {
+    await flushJudgeScoringSessionSyncQueue({ classId, judgeId: judge.id });
+
+    if (hasPendingJudgeScoringSessionMutation(classId, judge.id)) {
+      return localSession;
+    }
   }
 
   try {
@@ -124,6 +402,14 @@ export async function loadJudgeScoringSessionsForClassRepository(
 
   if (!supabase || !classId) {
     return localSessions;
+  }
+
+  if (hasPendingJudgeScoringSessionMutation(classId)) {
+    await flushJudgeScoringSessionSyncQueue({ classId });
+
+    if (hasPendingJudgeScoringSessionMutation(classId)) {
+      return localSessions;
+    }
   }
 
   try {
@@ -312,6 +598,8 @@ export async function saveJudgeScoringSessionRepository({
   classId,
   judge,
   updates,
+  debounceMs = 0,
+  onStatusChange = null,
 }) {
   const current = loadJudgeScoringSessionLocal(classId, judge);
   const next = saveJudgeScoringSessionLocal(classId, judge.id, {
@@ -319,38 +607,30 @@ export async function saveJudgeScoringSessionRepository({
     ...updates,
     judgeName: updates?.judgeName || current.judgeName || judge.name || "",
   });
-  const supabase = getSupabaseClient();
+  const normalized = normalizeJudgeScoringSession(next);
+  const syncOptions = {
+    classId,
+    judgeId: judge.id,
+    onStatusChange,
+  };
 
-  if (!supabase) {
-    return next;
-  }
+  queueJudgeScoringSessionMutation(normalized);
+  notifyJudgeSessionSyncStatus(syncOptions, classId, SCORING_SYNC_STATUS.LOCAL);
 
   try {
-    const saveQuery = next.claimedBy
-      ? supabase
-          .from("show_score_judge_sessions")
-          .update(toJudgeScoringSessionRow(next))
-          .eq("class_id", next.classId)
-          .eq("judge_id", next.judgeId)
-          .or(`claimed_by.is.null,claimed_by.eq.${next.claimedBy}`)
-      : supabase
-          .from("show_score_judge_sessions")
-          .upsert(toJudgeScoringSessionRow(next));
-
-    const { data, error } = await saveQuery.select("*").maybeSingle();
-
-    if (error) throw error;
-    if (!data) {
-      const remoteSession = await fetchRemoteJudgeScoringSession(classId, judge);
-      return remoteSession || next;
+    if (debounceMs > 0) {
+      await scheduleJudgeScoringSessionSyncQueue({
+        ...syncOptions,
+        delayMs: debounceMs,
+      });
+    } else {
+      await flushJudgeScoringSessionSyncQueue(syncOptions);
     }
 
-    const saved = toJudgeScoringSession(data, { classId, judge });
-    saveJudgeScoringSessionLocal(classId, judge.id, saved);
-    return saved;
+    return loadJudgeScoringSessionLocal(classId, judge);
   } catch (error) {
-    console.error("Erreur sauvegarde session juge Supabase:", error);
-    return next;
+    notifyJudgeSessionSyncStatus(syncOptions, classId, SCORING_SYNC_STATUS.PENDING);
+    return normalized;
   }
 }
 

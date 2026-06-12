@@ -49,6 +49,8 @@ import {
 } from "../../features/scoring/scoringRepository";
 import {
   claimJudgeScoringSessionRepository,
+  flushJudgeScoringSessionSyncQueue,
+  getJudgeScoringSessionSyncStatus,
   saveJudgeScoringSessionRepository,
 } from "../../features/scoring/judgeScoringSessionRepository";
 import { advanceArenaLiveClassAfterCompletionRepository } from "../../features/publication/publicationCloudRepository";
@@ -441,7 +443,11 @@ function ClassScoringPage() {
       setActiveManoeuvre(
         nextIsCompleted || nextIsMultiJudgeMode ? null : nextActiveManoeuvre
       );
-      setScoringSyncStatus(getScoringRunsSyncStatus(classId));
+      setScoringSyncStatus(
+        nextIsMultiJudgeMode
+          ? getJudgeScoringSessionSyncStatus(classId)
+          : getScoringRunsSyncStatus(classId)
+      );
       setHasLoadedSession(!nextIsMultiJudgeMode);
     }
 
@@ -641,7 +647,11 @@ function ClassScoringPage() {
     const serializedRuns = JSON.stringify(runs);
 
     if (lastPersistedRunsRef.current === serializedRuns) {
-      setScoringSyncStatus(getScoringRunsSyncStatus(classId));
+      setScoringSyncStatus(
+        isMultiJudgeMode
+          ? getJudgeScoringSessionSyncStatus(classId)
+          : getScoringRunsSyncStatus(classId)
+      );
       return;
     }
 
@@ -652,17 +662,23 @@ function ClassScoringPage() {
         return;
       }
 
-      const timer = window.setTimeout(() => {
-        saveJudgeScoringSessionRepository({
-          classId,
-          judge: activeJudge,
-          updates: {
-            ...activeJudgeSession,
-            runs,
-            activeManoeuvre,
-            judgeName: activeJudgeName,
-          },
-        }).then((session) => {
+      let isCancelled = false;
+
+      saveJudgeScoringSessionRepository({
+        classId,
+        judge: activeJudge,
+        updates: {
+          ...activeJudgeSession,
+          runs,
+          activeManoeuvre,
+          judgeName: activeJudgeName,
+        },
+        debounceMs: SCORING_SYNC_DEBOUNCE_MS,
+        onStatusChange: setScoringSyncStatus,
+      })
+        .then((session) => {
+          if (isCancelled) return;
+
           const isClaimedByOther = Boolean(
             session?.claimedBy &&
               auth.user?.id &&
@@ -675,11 +691,15 @@ function ClassScoringPage() {
             status: isClaimedByOther ? "claimed-by-other" : current.status,
             session,
           }));
+        })
+        .catch(() => {
+          if (!isCancelled) {
+            setScoringSyncStatus(SCORING_SYNC_STATUS.PENDING);
+          }
         });
-      }, SCORING_SYNC_DEBOUNCE_MS);
 
       return () => {
-        window.clearTimeout(timer);
+        isCancelled = true;
       };
     }
 
@@ -711,13 +731,20 @@ function ClassScoringPage() {
     };
 
     const retryPendingSync = () => {
-      updateSyncStatus(getScoringRunsSyncStatus(classId));
-      flushScoringSyncQueue({
+      const getStatus = isMultiJudgeMode
+        ? getJudgeScoringSessionSyncStatus
+        : getScoringRunsSyncStatus;
+      const flushQueue = isMultiJudgeMode
+        ? flushJudgeScoringSessionSyncQueue
+        : flushScoringSyncQueue;
+
+      updateSyncStatus(getStatus(classId));
+      flushQueue({
         classId,
         onStatusChange: updateSyncStatus,
       })
         .then(() => {
-          updateSyncStatus(getScoringRunsSyncStatus(classId));
+          updateSyncStatus(getStatus(classId));
         })
         .catch(() => {
           updateSyncStatus(SCORING_SYNC_STATUS.PENDING);
@@ -731,7 +758,7 @@ function ClassScoringPage() {
       isMounted = false;
       window.removeEventListener("online", retryPendingSync);
     };
-  }, [classId]);
+  }, [classId, isMultiJudgeMode]);
 
   useEffect(() => {
     if (!hasLoadedSession) return;
@@ -1192,12 +1219,19 @@ function ClassScoringPage() {
   const handleRetryScoringSync = () => {
     setScoringSyncStatus(SCORING_SYNC_STATUS.SYNCING);
 
-    flushScoringSyncQueue({
+    const getStatus = isMultiJudgeMode
+      ? getJudgeScoringSessionSyncStatus
+      : getScoringRunsSyncStatus;
+    const flushQueue = isMultiJudgeMode
+      ? flushJudgeScoringSessionSyncQueue
+      : flushScoringSyncQueue;
+
+    flushQueue({
       classId,
       onStatusChange: setScoringSyncStatus,
     })
       .then(() => {
-        setScoringSyncStatus(getScoringRunsSyncStatus(classId));
+        setScoringSyncStatus(getStatus(classId));
       })
       .catch(() => {
         setScoringSyncStatus(SCORING_SYNC_STATUS.PENDING);
@@ -1211,7 +1245,9 @@ function ClassScoringPage() {
       version: 1,
       exportedAt,
       classId,
-      scoringSyncStatus: getScoringRunsSyncStatus(classId),
+      scoringSyncStatus: isMultiJudgeMode
+        ? getJudgeScoringSessionSyncStatus(classId)
+        : getScoringRunsSyncStatus(classId),
       association,
       show,
       day,
@@ -1240,7 +1276,13 @@ function ClassScoringPage() {
   };
 
   const ensureScoringSyncedBeforeFinalize = async () => {
-    const currentStatus = getScoringRunsSyncStatus(classId);
+    const getStatus = isMultiJudgeMode
+      ? getJudgeScoringSessionSyncStatus
+      : getScoringRunsSyncStatus;
+    const flushQueue = isMultiJudgeMode
+      ? flushJudgeScoringSessionSyncQueue
+      : flushScoringSyncQueue;
+    const currentStatus = getStatus(classId);
 
     if (!isScoringSyncBlockingStatus(currentStatus)) {
       return true;
@@ -1249,7 +1291,7 @@ function ClassScoringPage() {
     setScoringSyncStatus(SCORING_SYNC_STATUS.SYNCING);
 
     try {
-      await flushScoringSyncQueue({
+      await flushQueue({
         classId,
         onStatusChange: setScoringSyncStatus,
       });
@@ -1257,7 +1299,7 @@ function ClassScoringPage() {
       setScoringSyncStatus(SCORING_SYNC_STATUS.PENDING);
     }
 
-    const nextStatus = getScoringRunsSyncStatus(classId);
+    const nextStatus = getStatus(classId);
     setScoringSyncStatus(nextStatus);
 
     if (isScoringSyncBlockingStatus(nextStatus)) {
