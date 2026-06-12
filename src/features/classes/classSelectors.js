@@ -1,4 +1,5 @@
 import { classes as mockClasses } from "../../data/mock/classes";
+import { compareScheduleItemsByStart } from "./classSchedule";
 
 const STORAGE_KEY = "reining_classes_v1";
 
@@ -30,5 +31,7 @@ export function getClassById(classId) {
 }
 
 export function getClassesByDayId(dayId) {
-  return getAllClasses().filter((item) => item.dayId === dayId);
+  return getAllClasses()
+    .filter((item) => item.dayId === dayId)
+    .sort(compareScheduleItemsByStart);
 }

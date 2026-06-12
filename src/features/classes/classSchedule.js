@@ -17,6 +17,100 @@ export function normalizeClassStartTime(value) {
   return CLOCK_TIME_PATTERN.test(text) ? text.slice(0, 5) : "";
 }
 
+function getScheduleComparableSource(item = {}) {
+  return item?.classItem || item?.classRecord || item?.warmup || item?.item || item;
+}
+
+export function getScheduleSortStartTime(item = {}) {
+  const source = getScheduleComparableSource(item);
+  const rawStartMode =
+    source?.scheduleStartMode ||
+    source?.schedule_start_mode ||
+    source?.startMode ||
+    source?.start_mode ||
+    "";
+  const rawStartTime =
+    source?.scheduleStartTime ||
+    source?.schedule_start_time ||
+    source?.scheduled_time ||
+    source?.startTime ||
+    source?.start_time ||
+    "";
+  const startTime = normalizeClassStartTime(rawStartTime);
+  const startMode = rawStartMode
+    ? normalizeClassStartMode(rawStartMode)
+    : startTime
+      ? CLASS_START_MODE_FIXED
+      : CLASS_START_MODE_AFTER_PREVIOUS;
+
+  return startMode === CLASS_START_MODE_FIXED ? startTime : "";
+}
+
+function getScheduleSortOrder(item = {}) {
+  const source = getScheduleComparableSource(item);
+  const value = source?.sortOrder ?? source?.sort_order ?? item?.sortOrder ?? item?.sort_order;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getScheduleSortName(item = {}) {
+  const source = getScheduleComparableSource(item);
+  return String(source?.className || source?.name || item?.className || item?.name || "");
+}
+
+function compareScheduleItemsByOrder(first, second) {
+  return (
+    getScheduleSortOrder(first) - getScheduleSortOrder(second) ||
+    getScheduleSortName(first).localeCompare(getScheduleSortName(second))
+  );
+}
+
+export function compareScheduleItemsByStart(first, second) {
+  const firstStartTime = getScheduleSortStartTime(first);
+  const secondStartTime = getScheduleSortStartTime(second);
+
+  if (firstStartTime && secondStartTime && firstStartTime !== secondStartTime) {
+    return firstStartTime.localeCompare(secondStartTime);
+  }
+
+  if (firstStartTime && !secondStartTime) {
+    return -1;
+  }
+
+  if (!firstStartTime && secondStartTime) {
+    return 1;
+  }
+
+  return compareScheduleItemsByOrder(first, second);
+}
+
+function getScheduleItemType(item = {}) {
+  const source = getScheduleComparableSource(item);
+  return String(item?.itemType || item?.type || source?.itemType || source?.type || "");
+}
+
+function isPaidWarmupScheduleItem(item = {}) {
+  return ["paid_warmup", "paidWarmup"].includes(getScheduleItemType(item));
+}
+
+export function compareMixedScheduleItemsByStart(first, second) {
+  const includesPaidWarmup =
+    isPaidWarmupScheduleItem(first) || isPaidWarmupScheduleItem(second);
+
+  if (!includesPaidWarmup) {
+    return compareScheduleItemsByStart(first, second);
+  }
+
+  const firstStartTime = getScheduleSortStartTime(first);
+  const secondStartTime = getScheduleSortStartTime(second);
+
+  if (firstStartTime && secondStartTime && firstStartTime !== secondStartTime) {
+    return firstStartTime.localeCompare(secondStartTime);
+  }
+
+  return compareScheduleItemsByOrder(first, second);
+}
+
 export function normalizeClassScheduleStart(input = {}) {
   const source = input || {};
   const setupStartMode = normalizeClassStartMode(

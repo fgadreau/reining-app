@@ -6,6 +6,7 @@ import {
   getClassFullDataRepository,
   getClassesForDayRepository,
 } from "../../features/classes/classRepository";
+import { compareScheduleItemsByStart } from "../../features/classes/classSchedule";
 import {
   getJudgeDisplayName,
   normalizeClassJudges,
@@ -104,7 +105,7 @@ function SecretariatDashboardPage() {
 
           return {
             day,
-            classRows,
+            classRows: classRows.sort(compareScheduleItemsByStart),
           };
         })
       );

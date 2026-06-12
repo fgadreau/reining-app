@@ -38,6 +38,7 @@ import {
   toPublicScheduleItem,
 } from "../schedule/liveSchedule";
 import {
+  compareScheduleItemsByStart,
   hasClassScheduleDetails,
   normalizeClassScheduleDetails,
 } from "../classes/classSchedule";
@@ -665,7 +666,10 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
           .map((warmup) => buildPaidWarmupLiveView(warmup));
 
         const classes = Array.isArray(classResult.data)
-          ? classResult.data.map(toClass).filter((classItem) => !classItem.isEventBlock)
+          ? classResult.data
+              .map(toClass)
+              .filter((classItem) => !classItem.isEventBlock)
+              .sort(compareScheduleItemsByStart)
           : [];
         const classIds = classes.map((classItem) => classItem.id).filter(Boolean);
 

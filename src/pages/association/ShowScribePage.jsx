@@ -4,6 +4,7 @@ import {
   getClassFullDataRepository,
   getClassesForDayRepository,
 } from "../../features/classes/classRepository";
+import { compareScheduleItemsByStart } from "../../features/classes/classSchedule";
 import { normalizeClassJudges } from "../../features/classes/classJudges";
 import { getDaysByShowRepository } from "../../features/days/dayRepository";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
@@ -46,9 +47,9 @@ function ShowScribePage() {
 
           return {
             day,
-            classes: classRows.filter((classData) =>
-              canOpenClassForScribe(classData)
-            ),
+            classes: classRows
+              .filter((classData) => canOpenClassForScribe(classData))
+              .sort(compareScheduleItemsByStart),
           };
         })
       );

@@ -4,6 +4,7 @@ import {
   getClassesForDayRepository,
   saveClassItemRepository,
 } from "../../features/classes/classRepository";
+import { compareScheduleItemsByStart } from "../../features/classes/classSchedule";
 import {
   getAssociationRepository,
   saveAssociationRepository,
@@ -522,11 +523,7 @@ function ShowDetailPage() {
         ...targetClasses.map((item) => item.sortOrder || 0),
         ...targetWarmups.map((item) => item.sortOrder || 0)
       );
-      const orderedSourceClasses = [...sourceClasses].sort((a, b) => {
-        const sortOrder = (a.sortOrder || 0) - (b.sortOrder || 0);
-        if (sortOrder !== 0) return sortOrder;
-        return String(a.name || "").localeCompare(String(b.name || ""));
-      });
+      const orderedSourceClasses = [...sourceClasses].sort(compareScheduleItemsByStart);
 
       for (const [index, sourceClass] of orderedSourceClasses.entries()) {
         const copiedClass = {

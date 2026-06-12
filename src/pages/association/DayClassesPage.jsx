@@ -16,6 +16,7 @@ import { getClassSetupRepository } from "../../features/classes/classSetupReposi
 import {
   CLASS_START_MODE_AFTER_PREVIOUS,
   CLASS_START_MODE_FIXED,
+  compareMixedScheduleItemsByStart,
   normalizeClassScheduleDetails,
   normalizeClassScheduleStart,
 } from "../../features/classes/classSchedule";
@@ -438,11 +439,7 @@ function DayClassesPage() {
         sortOrder: item.sortOrder || 1,
         item,
       })),
-    ].sort((a, b) => {
-      const sortOrder = a.sortOrder - b.sortOrder;
-      if (sortOrder !== 0) return sortOrder;
-      return String(a.item.name || "").localeCompare(String(b.item.name || ""));
-    });
+    ].sort(compareMixedScheduleItemsByStart);
   }, [classes, paidWarmups]);
 
   const handleOpenScoring = (event, item) => {

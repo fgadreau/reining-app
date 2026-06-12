@@ -115,8 +115,10 @@ import {
 import {
   CLASS_START_MODE_AFTER_PREVIOUS,
   CLASS_START_MODE_FIXED,
+  compareScheduleItemsByStart,
   normalizeClassScheduleDetails,
 } from "./features/classes/classSchedule";
+import { getClassesByDayId } from "./features/classes/classSelectors";
 import {
   isCustomPatternReady,
   normalizeCustomPattern,
@@ -3644,6 +3646,88 @@ test("normalizes planned class start details", () => {
   });
 });
 
+test("sorts schedule items by fixed time before HSP order", () => {
+  const sortedIds = [
+    {
+      id: "after-first",
+      name: "After first",
+      schedule_start_mode: CLASS_START_MODE_AFTER_PREVIOUS,
+      sort_order: 10,
+    },
+    {
+      id: "fixed-later",
+      name: "Fixed later",
+      schedule_start_mode: CLASS_START_MODE_FIXED,
+      scheduled_time: "09:00:00",
+      sort_order: 1,
+    },
+    {
+      id: "fixed-earlier",
+      name: "Fixed earlier",
+      scheduleStartMode: CLASS_START_MODE_FIXED,
+      scheduleStartTime: "08:00",
+      sortOrder: 50,
+    },
+    {
+      id: "after-second",
+      name: "After second",
+      schedule_start_mode: CLASS_START_MODE_AFTER_PREVIOUS,
+      sort_order: 20,
+    },
+  ]
+    .sort(compareScheduleItemsByStart)
+    .map((item) => item.id);
+
+  expect(sortedIds).toEqual([
+    "fixed-earlier",
+    "fixed-later",
+    "after-first",
+    "after-second",
+  ]);
+});
+
+test("returns day classes in fixed-time schedule order", () => {
+  saveClasses([
+    {
+      id: "day-class-after-first",
+      dayId: "day-sort",
+      name: "After first",
+      scheduleStartMode: CLASS_START_MODE_AFTER_PREVIOUS,
+      sortOrder: 10,
+    },
+    {
+      id: "day-class-fixed-later",
+      dayId: "day-sort",
+      name: "Fixed later",
+      scheduleStartMode: CLASS_START_MODE_FIXED,
+      scheduleStartTime: "09:00",
+      sortOrder: 1,
+    },
+    {
+      id: "day-class-fixed-earlier",
+      dayId: "day-sort",
+      name: "Fixed earlier",
+      scheduleStartMode: CLASS_START_MODE_FIXED,
+      scheduleStartTime: "08:00",
+      sortOrder: 50,
+    },
+    {
+      id: "day-class-after-second",
+      dayId: "day-sort",
+      name: "After second",
+      scheduleStartMode: CLASS_START_MODE_AFTER_PREVIOUS,
+      sortOrder: 20,
+    },
+  ]);
+
+  expect(getClassesByDayId("day-sort").map((item) => item.id)).toEqual([
+    "day-class-fixed-earlier",
+    "day-class-fixed-later",
+    "day-class-after-first",
+    "day-class-after-second",
+  ]);
+});
+
 test("builds a day schedule from fixed and follow-up block starts", () => {
   const rows = buildDayScheduleRows(
     [
@@ -3769,6 +3853,33 @@ test("live schedule items keep class start fields from HSP rows", () => {
     scheduleStartMode: CLASS_START_MODE_FIXED,
     scheduleStartTime: "07:00",
   });
+});
+
+test("live schedule items follow fixed class times before HSP sort order", () => {
+  const items = buildLiveScheduleItems({
+    classes: [
+      {
+        id: "live-after",
+        show_id: "show-1",
+        day_id: "day-1",
+        name: "After",
+        schedule_start_mode: CLASS_START_MODE_AFTER_PREVIOUS,
+        sort_order: 1,
+      },
+      {
+        id: "live-fixed",
+        show_id: "show-1",
+        day_id: "day-1",
+        name: "Fixed",
+        schedule_start_mode: CLASS_START_MODE_FIXED,
+        scheduled_time: "08:30:00",
+        sort_order: 50,
+      },
+    ],
+    days: [{ id: "day-1", date: "2026-06-26", sort_order: 1 }],
+  });
+
+  expect(items.map((item) => item.itemId)).toEqual(["live-fixed", "live-after"]);
 });
 
 test("normalizes paid warmup starts from Supabase schedule fields", () => {

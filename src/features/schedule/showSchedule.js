@@ -8,6 +8,7 @@ import {
 import {
   CLASS_START_MODE_AFTER_PREVIOUS,
   CLASS_START_MODE_FIXED,
+  compareMixedScheduleItemsByStart,
   normalizeClassStartTime,
 } from "../classes/classSchedule";
 import { calculatePaidWarmupScheduleSummary } from "../paidWarmups/paidWarmupStorage";
@@ -164,9 +165,7 @@ export function countScheduleItems(scheduleSections) {
 }
 
 function compareScheduleRows(a, b) {
-  const sortOrder = (a.sortOrder || 0) - (b.sortOrder || 0);
-  if (sortOrder !== 0) return sortOrder;
-  return String(a.className || "").localeCompare(String(b.className || ""));
+  return compareMixedScheduleItemsByStart(a, b);
 }
 
 function buildDaySchedulePreviewRows(rows, { day } = {}) {

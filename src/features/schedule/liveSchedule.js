@@ -1,4 +1,7 @@
-import { normalizeClassStartTime } from "../classes/classSchedule";
+import {
+  compareMixedScheduleItemsByStart,
+  normalizeClassStartTime,
+} from "../classes/classSchedule";
 
 export const LIVE_SCHEDULE_ITEM_TYPES = {
   CLASS: "class",
@@ -159,10 +162,7 @@ function sortLiveScheduleItems(items, days) {
     );
     if (dateSort !== 0) return dateSort;
 
-    const itemSort = (a.sortOrder || 0) - (b.sortOrder || 0);
-    if (itemSort !== 0) return itemSort;
-
-    return String(a.name || "").localeCompare(String(b.name || ""));
+    return compareMixedScheduleItemsByStart(a, b);
   });
 }
 
