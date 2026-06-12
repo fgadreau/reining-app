@@ -81,7 +81,7 @@ async function fetchRemoteJudgeScoringSession(classId, judge) {
   }
 
   const { data, error } = await supabase
-    .from("judge_scoring_sessions")
+    .from("show_score_judge_sessions")
     .select("*")
     .eq("class_id", classId)
     .eq("judge_id", judge.id)
@@ -128,7 +128,7 @@ export async function loadJudgeScoringSessionsForClassRepository(
 
   try {
     const { data, error } = await supabase
-      .from("judge_scoring_sessions")
+      .from("show_score_judge_sessions")
       .select("*")
       .eq("class_id", classId);
 
@@ -210,7 +210,7 @@ export async function claimJudgeScoringSessionRepository({
 
     if (remoteSession) {
       const { data, error } = await supabase
-        .from("judge_scoring_sessions")
+        .from("show_score_judge_sessions")
         .update(toJudgeScoringSessionRow({
           ...localSession,
           ...remoteSession,
@@ -245,7 +245,7 @@ export async function claimJudgeScoringSessionRepository({
     }
 
     const { data, error } = await supabase
-      .from("judge_scoring_sessions")
+      .from("show_score_judge_sessions")
       .insert(
         toJudgeScoringSessionRow({
           ...localSession,
@@ -328,13 +328,13 @@ export async function saveJudgeScoringSessionRepository({
   try {
     const saveQuery = next.claimedBy
       ? supabase
-          .from("judge_scoring_sessions")
+          .from("show_score_judge_sessions")
           .update(toJudgeScoringSessionRow(next))
           .eq("class_id", next.classId)
           .eq("judge_id", next.judgeId)
           .or(`claimed_by.is.null,claimed_by.eq.${next.claimedBy}`)
       : supabase
-          .from("judge_scoring_sessions")
+          .from("show_score_judge_sessions")
           .upsert(toJudgeScoringSessionRow(next));
 
     const { data, error } = await saveQuery.select("*").maybeSingle();

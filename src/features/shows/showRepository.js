@@ -16,19 +16,31 @@ import {
   updateShow,
 } from "./showStorage";
 
+function toShowStatus(hspStatus) {
+  if (hspStatus === "open") return "active";
+  if (hspStatus === "closed") return "completed";
+  return hspStatus || "draft";
+}
+
+function toHspShowStatus(ssStatus) {
+  if (ssStatus === "active") return "open";
+  if (ssStatus === "completed") return "closed";
+  return ssStatus || "draft";
+}
+
 function toShow(row) {
   return {
     id: row.id,
-    associationId: row.association_id,
+    associationId: row.organization_id,
     name: row.name || "",
     venue: row.venue || "",
     location: row.location || "",
     startDate: row.start_date || "",
     endDate: row.end_date || "",
-    status: row.status || "draft",
+    status: toShowStatus(row.status),
     livestreamUrl: row.livestream_url || "",
     isLivestreamPublic: Boolean(row.is_livestream_public),
-    isSchedulePublic: Boolean(row.is_schedule_public),
+    isSchedulePublic: Boolean(row.is_public),
   };
 }
 
@@ -36,19 +48,19 @@ function toShowRow(show, options = {}) {
   const includePublicSchedule = options.includePublicSchedule !== false;
   const row = {
     id: show.id,
-    association_id: show.associationId,
+    organization_id: show.associationId,
     name: show.name || "",
     venue: show.venue || "",
     location: show.location || "",
     start_date: show.startDate || null,
     end_date: show.endDate || null,
-    status: show.status || "draft",
+    status: toHspShowStatus(show.status),
     livestream_url: show.livestreamUrl || "",
     is_livestream_public: Boolean(show.isLivestreamPublic),
   };
 
   if (includePublicSchedule) {
-    row.is_schedule_public = Boolean(show.isSchedulePublic);
+    row.is_public = Boolean(show.isSchedulePublic);
   }
 
   return row;
@@ -95,7 +107,7 @@ export async function getShowsByAssociationRepository(associationId) {
     const { data, error } = await supabase
       .from("shows")
       .select("*")
-      .eq("association_id", associationId)
+      .eq("organization_id", associationId)
       .order("start_date", { ascending: true, nullsFirst: false })
       .order("name", { ascending: true });
 

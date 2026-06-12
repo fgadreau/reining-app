@@ -65,7 +65,7 @@ async function upsertScoringSession(classId, updates = {}) {
       row.started_at = updates.startedAt;
     }
 
-    const { error } = await supabase.from("scoring_sessions").upsert(row);
+    const { error } = await supabase.from("show_score_scoring_sessions").upsert(row);
 
     if (error) throw error;
     return { ok: true, error: null };
@@ -275,7 +275,7 @@ export async function loadScoringSessionRepository(classId) {
 
   try {
     const { data, error } = await supabase
-      .from("scoring_sessions")
+      .from("show_score_scoring_sessions")
       .select("*")
       .eq("class_id", classId)
       .maybeSingle();
@@ -351,7 +351,7 @@ export async function clearScoringDataRepository(classId) {
   if (supabase) {
     try {
       const { error } = await supabase
-        .from("scoring_sessions")
+        .from("show_score_scoring_sessions")
         .delete()
         .eq("class_id", classId);
 

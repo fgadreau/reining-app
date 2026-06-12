@@ -47,9 +47,9 @@ function toPaidWarmup(row, localWarmup = null) {
 
   return normalizePaidWarmup({
     id: row.id,
-    associationId: row.association_id,
+    associationId: row.organization_id,
     showId: row.show_id,
-    dayId: row.day_id,
+    dayId: row.show_day_id,
     name: row.name || "",
     arena: row.arena || localWarmup?.arena || "",
     durationMinutesPerRider: row.duration_minutes_per_rider,
@@ -120,9 +120,9 @@ function toPaidWarmupRow(item, options = {}) {
   const includeArena = options.includeArena !== false;
   const row = {
     id: warmup.id,
-    association_id: warmup.associationId,
+    organization_id: warmup.associationId,
     show_id: warmup.showId,
-    day_id: warmup.dayId,
+    show_day_id: warmup.dayId,
     name: warmup.name || "Paid warm up",
     duration_minutes_per_rider: warmup.durationMinutesPerRider,
     drag_interval: warmup.dragInterval,
@@ -184,9 +184,9 @@ export async function getPaidWarmupsForDayRepository(dayId) {
 
   try {
     const { data, error } = await supabase
-      .from("paid_warmups")
+      .from("show_score_paid_warmups")
       .select("*")
-      .eq("day_id", dayId)
+      .eq("show_day_id", dayId)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
 
@@ -233,7 +233,7 @@ export async function getPaidWarmupRepository(id) {
 
   try {
     const { data, error } = await supabase
-      .from("paid_warmups")
+      .from("show_score_paid_warmups")
       .select("*")
       .eq("id", id)
       .maybeSingle();
@@ -345,7 +345,7 @@ async function upsertPaidWarmupWithColumnFallback(supabase, item) {
 
 async function upsertPaidWarmupRow(supabase, id, row) {
   const { data, error } = await supabase
-    .from("paid_warmups")
+    .from("show_score_paid_warmups")
     .update(row)
     .eq("id", id)
     .select("id");
@@ -353,7 +353,7 @@ async function upsertPaidWarmupRow(supabase, id, row) {
   if (error) throw error;
 
   if (!Array.isArray(data) || data.length === 0) {
-    const { error: insertError } = await supabase.from("paid_warmups").insert(row);
+    const { error: insertError } = await supabase.from("show_score_paid_warmups").insert(row);
     if (insertError) throw insertError;
   }
 }
@@ -363,7 +363,7 @@ export async function deletePaidWarmupRepository(id) {
 
   if (supabase) {
     try {
-      const { error } = await supabase.from("paid_warmups").delete().eq("id", id);
+      const { error } = await supabase.from("show_score_paid_warmups").delete().eq("id", id);
       if (error) throw error;
     } catch (error) {
       console.error("Erreur suppression paid warmup Supabase:", error);

@@ -60,9 +60,9 @@ function toClass(row) {
 
   return {
     id: row.id,
-    associationId: row.association_id,
+    associationId: row.organization_id,
     showId: row.show_id,
-    dayId: row.day_id,
+    dayId: row.show_day_id,
     name: row.name || "",
     classCode: row.class_code || "",
     arena: row.arena || "",
@@ -86,9 +86,9 @@ function toClassRow(classItem, options = {}) {
   const scheduleStart = normalizeClassScheduleStart(classItem);
   const row = {
     id: classItem.id,
-    association_id: classItem.associationId,
+    organization_id: classItem.associationId,
     show_id: classItem.showId,
-    day_id: classItem.dayId,
+    show_day_id: classItem.dayId,
     name: classItem.name || "",
     class_code: classItem.classCode || "",
     pattern: classItem.pattern || "",
@@ -457,7 +457,7 @@ export async function getClassesForDayRepository(dayId) {
     const { data, error } = await supabase
       .from("classes")
       .select("*")
-      .eq("day_id", dayId)
+      .eq("show_day_id", dayId)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
 

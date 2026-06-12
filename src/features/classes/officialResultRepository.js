@@ -79,7 +79,7 @@ export async function getOfficialResultRepository(classId) {
 
   try {
     const { data, error } = await supabase
-      .from("official_results")
+      .from("show_score_official_results")
       .select("*")
       .eq("class_id", classId)
       .maybeSingle();
@@ -139,7 +139,7 @@ export async function saveOfficialResultRepository(classId, updates) {
   if (supabase) {
     try {
       const { error } = await supabase
-        .from("official_results")
+        .from("show_score_official_results")
         .upsert(toOfficialResultRow(classId, next));
 
       if (error) throw error;
@@ -147,7 +147,7 @@ export async function saveOfficialResultRepository(classId, updates) {
       if (isCustomPatternColumnMissingError(error)) {
         try {
           const { error: legacyError } = await supabase
-            .from("official_results")
+            .from("show_score_official_results")
             .upsert(
               toOfficialResultRow(classId, next, { includeCustomPattern: false })
             );

@@ -53,7 +53,7 @@ function toSetup(row, localSetup = {}) {
     dragInterval: row.drag_interval || null,
     dragDurationMinutes: row.drag_duration_minutes,
     lockedAt: row.locked_at || null,
-    lockedBy: row.locked_by || null,
+    lockedBy: row.locked_by_label || null,
     finalized: Boolean(row.finalized),
     finalizedAt: row.finalized_at || null,
     judgeName: row.judge_name || localSetup?.judgeName || "",
@@ -77,7 +77,7 @@ function toSetupRow(classId, setup, options = {}) {
     runs: normalized.runs,
     is_draw_imported: Boolean(normalized.isDrawImported),
     locked_at: normalized.lockedAt || null,
-    locked_by: normalized.lockedBy || null,
+    locked_by_label: normalized.lockedBy || null,
     finalized: Boolean(normalized.finalized),
     finalized_at: normalized.finalizedAt || null,
     judge_name: normalized.judgeName || null,
@@ -148,7 +148,7 @@ export async function getClassSetupRepository(classId) {
 
   try {
     const { data, error } = await supabase
-      .from("class_setups")
+      .from("show_score_class_setups")
       .select("*")
       .eq("class_id", classId)
       .maybeSingle();
@@ -175,7 +175,7 @@ export async function saveClassSetupRepository(classId, setup) {
   if (supabase) {
     try {
       const { error } = await supabase
-        .from("class_setups")
+        .from("show_score_class_setups")
         .upsert(toSetupRow(classId, normalized));
 
       if (error) throw error;
@@ -183,7 +183,7 @@ export async function saveClassSetupRepository(classId, setup) {
       if (isCustomPatternColumnMissingError(error)) {
         try {
           const { error: legacyError } = await supabase
-            .from("class_setups")
+            .from("show_score_class_setups")
             .upsert(
               toSetupRow(classId, normalized, { includeCustomPattern: false })
             );
@@ -201,7 +201,7 @@ export async function saveClassSetupRepository(classId, setup) {
       if (isJudgesColumnMissingError(error)) {
         try {
           const { error: legacyError } = await supabase
-            .from("class_setups")
+            .from("show_score_class_setups")
             .upsert(toSetupRow(classId, normalized, { includeJudges: false }));
 
           if (legacyError) throw legacyError;
@@ -217,7 +217,7 @@ export async function saveClassSetupRepository(classId, setup) {
       if (isPlanningColumnMissingError(error)) {
         try {
           const { error: legacyError } = await supabase
-            .from("class_setups")
+            .from("show_score_class_setups")
             .upsert(toSetupRow(classId, normalized, { includePlanning: false }));
 
           if (legacyError) throw legacyError;
@@ -233,7 +233,7 @@ export async function saveClassSetupRepository(classId, setup) {
       if (isScheduleDetailsColumnMissingError(error)) {
         try {
           const { error: legacyError } = await supabase
-            .from("class_setups")
+            .from("show_score_class_setups")
             .upsert(
               toSetupRow(classId, normalized, { includeScheduleDetails: false })
             );
@@ -251,7 +251,7 @@ export async function saveClassSetupRepository(classId, setup) {
       if (isBlockClassesColumnMissingError(error)) {
         try {
           const { error: legacyError } = await supabase
-            .from("class_setups")
+            .from("show_score_class_setups")
             .upsert(
               toSetupRow(classId, normalized, { includeBlockClasses: false })
             );
@@ -359,7 +359,7 @@ export async function deleteClassSetupRepository(classId) {
   if (supabase) {
     try {
       const { error } = await supabase
-        .from("class_setups")
+        .from("show_score_class_setups")
         .delete()
         .eq("class_id", classId);
 
