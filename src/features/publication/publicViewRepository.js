@@ -131,8 +131,8 @@ function toDay(row) {
     id: row.id,
     associationId: row.association_id || row.organization_id,
     showId: row.show_id,
-    label: row.label || "",
-    date: row.date || "",
+    label: row.label || row.day_name || "",
+    date: row.date || row.day_date || "",
     sortOrder: row.sort_order || 1,
   };
 }
@@ -630,11 +630,11 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
     }
 
     const { data: dayRows, error: daysError } = await supabase
-      .from("days")
+      .from("show_days")
       .select("*")
       .eq("show_id", showId)
       .order("sort_order", { ascending: true })
-      .order("date", { ascending: true, nullsFirst: false });
+      .order("day_date", { ascending: true, nullsFirst: false });
 
     if (daysError) throw daysError;
 
@@ -919,7 +919,7 @@ export async function getPublicAssociationsRepository() {
 
   try {
     const { data, error } = await supabase
-      .from("associations")
+      .from("organizations")
       .select("*")
       .order("name", { ascending: true });
 
@@ -957,7 +957,7 @@ export async function getPublicAssociationRepository(associationId) {
 
   try {
     const { data, error } = await supabase
-      .from("associations")
+      .from("organizations")
       .select("*")
       .eq("id", associationId)
       .maybeSingle();

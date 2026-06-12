@@ -255,8 +255,8 @@ async function getRemoteShowLiveSchedule(supabase, showId) {
   const [classesResult, daysResult, paidWarmupsResult] = await Promise.all([
     classesQuery,
     supabase
-      .from("days")
-      .select("id, date, sort_order")
+      .from("show_days")
+      .select("id, day_date, sort_order")
       .eq("show_id", showId),
     supabase.from("show_score_paid_warmups").select("*").eq("show_id", showId),
   ]);
@@ -297,7 +297,12 @@ async function getRemoteShowLiveSchedule(supabase, showId) {
           sortOrder: row.sort_order || 1,
         }))
       : [],
-    days: Array.isArray(daysResult.data) ? daysResult.data : [],
+    days: Array.isArray(daysResult.data)
+      ? daysResult.data.map((row) => ({
+          ...row,
+          date: row.day_date || "",
+        }))
+      : [],
   });
 }
 
