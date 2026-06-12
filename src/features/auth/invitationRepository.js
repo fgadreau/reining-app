@@ -5,6 +5,28 @@ import {
   saveAssociationMembershipRepository,
 } from "./accessRepository";
 
+export async function sendInvitationEmailRepository({
+  email,
+  associationName,
+  invitationUrl,
+  role,
+  locale,
+}) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !email || !invitationUrl) return { ok: false };
+
+  try {
+    const res = await supabase.functions.invoke("send-invitation-email", {
+      body: { email, associationName, invitationUrl, role, locale },
+    });
+    if (res.error) throw res.error;
+    return { ok: true };
+  } catch (error) {
+    console.error("Erreur envoi email invitation:", error);
+    return { ok: false, error };
+  }
+}
+
 export const INVITATION_STATUSES = {
   PENDING: "pending",
   ACCEPTED: "accepted",

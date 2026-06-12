@@ -17,6 +17,7 @@ import {
 import {
   cancelAssociationInvitationRepository,
   createAssociationInvitationRepository,
+  sendInvitationEmailRepository,
   loadAssociationInvitationsRepository,
 } from "../../features/auth/invitationRepository";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
@@ -112,6 +113,15 @@ function AssociationAccessPage() {
       }
 
       setLastInvitation(invitation);
+      const origin = typeof window === "undefined" ? "" : window.location.origin;
+      const invitationUrl = buildAssociationInvitationUrl(origin, invitation);
+      await sendInvitationEmailRepository({
+        email: invitation.email,
+        associationName: association?.name,
+        invitationUrl,
+        role: invitation.role,
+        locale: typeof navigator !== "undefined" ? navigator.language : "fr",
+      });
       setNotice(t("management.access.invitationCreated"));
       setEmail("");
       setRole(ASSOCIATION_ROLES.SECRETARY);
