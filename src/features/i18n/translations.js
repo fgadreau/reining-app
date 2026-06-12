@@ -394,7 +394,7 @@ export const translations = {
         emailSubjectLabel: "Sujet",
         emailTo: "À",
         invitationCreated:
-          "Utilisateur introuvable pour l’instant. Une invitation a été créée.",
+          "Utilisateur introuvable pour l’instant. Une invitation a été créée et un courriel a été envoyé.",
         invitationCreateFailed:
           "Impossible de créer l’invitation pour ce courriel.",
         invitationEmailAction:
@@ -411,7 +411,7 @@ export const translations = {
         message: "Message",
         noActiveAccess: "Aucun accès pour cette association.",
         noPendingInvitations: "Aucune invitation en attente.",
-        openEmail: "Ouvrir le courriel",
+        openEmail: "Renvoyer manuellement",
         pendingInvitations: "Invitations en attente",
         remove: "Retirer",
         removeConfirm: "Retirer cet accès ?",
@@ -1683,7 +1683,7 @@ export const translations = {
         emailSubjectLabel: "Subject",
         emailTo: "To",
         invitationCreated:
-          "User not found yet. An invitation has been created.",
+          "User not found yet. An invitation has been created and an email was sent.",
         invitationCreateFailed:
           "Unable to create the invitation for this email.",
         invitationEmailAction:
@@ -1700,7 +1700,7 @@ export const translations = {
         message: "Message",
         noActiveAccess: "No access for this association.",
         noPendingInvitations: "No pending invitation.",
-        openEmail: "Open email",
+        openEmail: "Resend manually",
         pendingInvitations: "Pending invitations",
         remove: "Remove",
         removeConfirm: "Remove this access?",
