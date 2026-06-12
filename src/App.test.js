@@ -3609,6 +3609,16 @@ test("normalizes planned class start details", () => {
 
   expect(
     normalizeClassScheduleDetails({
+      startMode: CLASS_START_MODE_FIXED,
+      startTime: "08:30:00",
+    })
+  ).toMatchObject({
+    startMode: CLASS_START_MODE_FIXED,
+    startTime: "08:30",
+  });
+
+  expect(
+    normalizeClassScheduleDetails({
       start_mode: CLASS_START_MODE_FIXED,
       start_time: "25:99",
     })
@@ -3642,7 +3652,7 @@ test("builds a day schedule from fixed and follow-up block starts", () => {
         className: "Open",
         dayDate: "2026-06-15",
         scheduleStartMode: CLASS_START_MODE_FIXED,
-        scheduleStartTime: "08:00",
+        scheduleStartTime: "08:00:00",
         remainingRuns: 10,
         remainingSeconds: 30 * 60,
       },
@@ -3740,7 +3750,7 @@ test("syncs fixed class setup starts onto class schedule fields", () => {
   });
 });
 
-test("live schedule items keep class start fields from remote rows", () => {
+test("live schedule items keep class start fields from HSP rows", () => {
   const [item] = buildLiveScheduleItems({
     classes: [
       {
@@ -3749,7 +3759,7 @@ test("live schedule items keep class start fields from remote rows", () => {
         day_id: "day-1",
         name: "Novice Horse",
         schedule_start_mode: CLASS_START_MODE_FIXED,
-        schedule_start_time: "07:00",
+        scheduled_time: "07:00:00",
       },
     ],
     days: [{ id: "day-1", date: "2026-06-26", sort_order: 1 }],

@@ -1,3 +1,5 @@
+import { normalizeClassStartTime } from "../classes/classSchedule";
+
 export const LIVE_SCHEDULE_ITEM_TYPES = {
   CLASS: "class",
   PAID_WARMUP: "paid_warmup",
@@ -114,6 +116,10 @@ export function toPublicScheduleItem(scheduleItem) {
 }
 
 function buildLiveScheduleItem({ type, item }) {
+  const scheduleStartTime = normalizeClassStartTime(
+    item?.scheduleStartTime || item?.schedule_start_time || item?.scheduled_time
+  );
+
   return {
     type,
     itemId: item?.id || "",
@@ -126,7 +132,7 @@ function buildLiveScheduleItem({ type, item }) {
     effectiveArena: String(item?.arena || "").trim(),
     sortOrder: item?.sortOrder || item?.sort_order || 1,
     scheduleStartMode: item?.scheduleStartMode || item?.schedule_start_mode || "",
-    scheduleStartTime: item?.scheduleStartTime || item?.schedule_start_time || "",
+    scheduleStartTime,
     source: item,
   };
 }

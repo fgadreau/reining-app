@@ -6,7 +6,7 @@ const VALID_START_MODES = new Set([
   CLASS_START_MODE_AFTER_PREVIOUS,
   CLASS_START_MODE_FIXED,
 ]);
-const CLOCK_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+const CLOCK_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?$/;
 
 export function normalizeClassStartMode(value) {
   return VALID_START_MODES.has(value) ? value : CLASS_START_MODE_AFTER_PREVIOUS;
@@ -14,7 +14,7 @@ export function normalizeClassStartMode(value) {
 
 export function normalizeClassStartTime(value) {
   const text = String(value || "").trim();
-  return CLOCK_TIME_PATTERN.test(text) ? text : "";
+  return CLOCK_TIME_PATTERN.test(text) ? text.slice(0, 5) : "";
 }
 
 export function normalizeClassScheduleStart(input = {}) {

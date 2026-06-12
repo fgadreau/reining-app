@@ -12,6 +12,7 @@ import {
   CLASS_START_MODE_AFTER_PREVIOUS,
   CLASS_START_MODE_FIXED,
   normalizeClassScheduleDetails,
+  normalizeClassStartTime,
 } from "./classSchedule";
 
 export function getClassPatternValue(classData) {
@@ -204,15 +205,17 @@ export function buildClassTimingRow({
 }
 
 function parseDateAndClockTime(dayDate, timeValue) {
+  const clockTime = normalizeClassStartTime(timeValue);
+
   if (
     !/^\d{4}-\d{2}-\d{2}$/.test(String(dayDate || "")) ||
-    !/^\d{2}:\d{2}$/.test(String(timeValue || ""))
+    !clockTime
   ) {
     return null;
   }
 
   const [year, month, day] = String(dayDate).split("-").map(Number);
-  const [hours, minutes] = String(timeValue).split(":").map(Number);
+  const [hours, minutes] = clockTime.split(":").map(Number);
   const date = new Date(year, month - 1, day, hours, minutes, 0, 0);
 
   if (
