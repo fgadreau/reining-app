@@ -23,17 +23,6 @@ function toDay(row) {
   };
 }
 
-function toStandaloneDayRow(day) {
-  return {
-    id: day.id,
-    association_id: day.associationId,
-    show_id: day.showId,
-    label: day.label || "",
-    date: day.date || null,
-    sort_order: Number(day.sortOrder) || 1,
-  };
-}
-
 function toSharedShowDayRow(day) {
   return {
     id: day.id,
@@ -45,60 +34,18 @@ function toSharedShowDayRow(day) {
   };
 }
 
-function isMissingSharedShowDaysSchema(error) {
-  const message = String(error?.message || "").toLowerCase();
-  const details = String(error?.details || "").toLowerCase();
-  const hint = String(error?.hint || "").toLowerCase();
-  const text = `${message} ${details} ${hint}`;
-
-  return (
-    error?.code === "42P01" ||
-    error?.code === "PGRST205" ||
-    text.includes("show_days") ||
-    (text.includes("organization_id") && text.includes("column")) ||
-    (text.includes("day_name") && text.includes("column")) ||
-    (text.includes("day_date") && text.includes("column"))
-  );
-}
-
 async function upsertDayRow(supabase, day) {
-  const sharedResult = await supabase
+  const { error } = await supabase
     .from("show_days")
     .upsert(toSharedShowDayRow(day), { onConflict: "id" });
 
-  if (!sharedResult.error) {
-    return;
-  }
-
-  if (!isMissingSharedShowDaysSchema(sharedResult.error)) {
-    throw sharedResult.error;
-  }
-
-  const standaloneResult = await supabase
-    .from("days")
-    .upsert(toStandaloneDayRow(day), { onConflict: "id" });
-
-  if (standaloneResult.error) {
-    throw standaloneResult.error;
-  }
+  if (error) throw error;
 }
 
 async function deleteDayRow(supabase, dayId) {
-  const sharedResult = await supabase.from("show_days").delete().eq("id", dayId);
+  const { error } = await supabase.from("show_days").delete().eq("id", dayId);
 
-  if (!sharedResult.error) {
-    return;
-  }
-
-  if (!isMissingSharedShowDaysSchema(sharedResult.error)) {
-    throw sharedResult.error;
-  }
-
-  const standaloneResult = await supabase.from("days").delete().eq("id", dayId);
-
-  if (standaloneResult.error) {
-    throw standaloneResult.error;
-  }
+  if (error) throw error;
 }
 
 function saveDayLocally(day) {
@@ -122,11 +69,11 @@ export async function getDaysByShowRepository(showId) {
 
   try {
     const { data, error } = await supabase
-      .from("days")
+      .from("show_days")
       .select("*")
       .eq("show_id", showId)
       .order("sort_order", { ascending: true })
-      .order("date", { ascending: true, nullsFirst: false });
+      .order("day_date", { ascending: true, nullsFirst: false });
 
     if (error) throw error;
 
@@ -150,7 +97,7 @@ export async function getDayRepository(dayId) {
 
   try {
     const { data, error } = await supabase
-      .from("days")
+      .from("show_days")
       .select("*")
       .eq("id", dayId)
       .maybeSingle();

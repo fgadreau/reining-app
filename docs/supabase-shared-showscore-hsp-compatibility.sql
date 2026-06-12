@@ -1,4 +1,12 @@
--- Shared ShowScore + HorseShowPlatform Supabase compatibility layer.
+-- ARCHIVED: Shared ShowScore + HorseShowPlatform Supabase compatibility layer.
+--
+-- Do not run this file for new shared-HSP deployments. The authoritative
+-- schema history now lives in the HorseShowPlatform Supabase migrations:
+--
+--   /home/fgadreau/horseshowplatform/supabase/migrations
+--
+-- Keep this document only as historical reference while the remaining
+-- ShowScore standalone compatibility code is removed.
 --
 -- Use this only on the shared Supabase project that serves both
 -- showscore.app and horseshowplatform.app.

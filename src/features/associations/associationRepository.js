@@ -19,24 +19,6 @@ function toAssociation(row) {
   };
 }
 
-function toAssociationRow(association) {
-  return {
-    id: association.id,
-    name: association.name || "",
-    short_name: association.shortName || "",
-    timezone: association.timezone || "",
-    logo_data_url: association.logoDataUrl || null,
-    website_url: association.websiteUrl || null,
-    sponsor_logos: normalizeSponsorLogos(association.sponsorLogos),
-  };
-}
-
-function toLegacyAssociationRow(association) {
-  const row = toAssociationRow(association);
-  delete row.sponsor_logos;
-  return row;
-}
-
 function toSharedOrganizationRow(association) {
   return {
     id: association.id,
@@ -49,83 +31,21 @@ function toSharedOrganizationRow(association) {
   };
 }
 
-function isSponsorSchemaMissing(error) {
-  const message = String(error?.message || "");
-
-  return /sponsor_logos/i.test(message);
-}
-
-function isMissingSharedOrganizationsSchema(error) {
-  const message = String(error?.message || "").toLowerCase();
-  const details = String(error?.details || "").toLowerCase();
-  const hint = String(error?.hint || "").toLowerCase();
-  const text = `${message} ${details} ${hint}`;
-
-  return (
-    error?.code === "42P01" ||
-    error?.code === "PGRST205" ||
-    (text.includes("organizations") &&
-      (text.includes("schema cache") || text.includes("does not exist"))) ||
-    (text.includes("logo_url") && text.includes("column"))
-  );
-}
-
 async function upsertAssociationRow(supabase, association) {
-  const sharedResult = await supabase
+  const { error } = await supabase
     .from("organizations")
     .upsert(toSharedOrganizationRow(association), { onConflict: "id" });
 
-  if (!sharedResult.error) {
-    return;
-  }
-
-  if (!isMissingSharedOrganizationsSchema(sharedResult.error)) {
-    throw sharedResult.error;
-  }
-
-  const standaloneResult = await supabase
-    .from("associations")
-    .upsert(toAssociationRow(association), { onConflict: "id" });
-
-  if (!standaloneResult.error) {
-    return;
-  }
-
-  if (!isSponsorSchemaMissing(standaloneResult.error)) {
-    throw standaloneResult.error;
-  }
-
-  const legacyResult = await supabase
-    .from("associations")
-    .upsert(toLegacyAssociationRow(association), { onConflict: "id" });
-
-  if (legacyResult.error) {
-    throw legacyResult.error;
-  }
+  if (error) throw error;
 }
 
 async function deleteAssociationRow(supabase, associationId) {
-  const sharedResult = await supabase
+  const { error } = await supabase
     .from("organizations")
     .delete()
     .eq("id", associationId);
 
-  if (!sharedResult.error) {
-    return;
-  }
-
-  if (!isMissingSharedOrganizationsSchema(sharedResult.error)) {
-    throw sharedResult.error;
-  }
-
-  const standaloneResult = await supabase
-    .from("associations")
-    .delete()
-    .eq("id", associationId);
-
-  if (standaloneResult.error) {
-    throw standaloneResult.error;
-  }
+  if (error) throw error;
 }
 
 function saveAssociationLocally(association) {
@@ -148,7 +68,7 @@ export async function loadAssociationsRepository() {
 
   try {
     const { data, error } = await supabase
-      .from("associations")
+      .from("organizations")
       .select("*")
       .order("name", { ascending: true });
 

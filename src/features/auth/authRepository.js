@@ -34,28 +34,6 @@ function toSharedUserProfileRow(user) {
   };
 }
 
-function toStandaloneUserProfileRow(user) {
-  const { email, displayName } = getUserProfileIdentity(user);
-
-  return {
-    id: user.id,
-    email,
-    display_name: displayName,
-  };
-}
-
-function isSharedUserProfileSchemaMissing(error) {
-  const message = String(error?.message || "").toLowerCase();
-  const details = String(error?.details || "").toLowerCase();
-  const hint = String(error?.hint || "").toLowerCase();
-  const text = `${message} ${details} ${hint}`;
-
-  return (
-    error?.code === "PGRST204" ||
-    (text.includes("user_id") && text.includes("column"))
-  );
-}
-
 export async function saveUserProfile(user) {
   const supabase = getSupabaseClient();
 
@@ -64,29 +42,14 @@ export async function saveUserProfile(user) {
   }
 
   try {
-    const sharedResult = await supabase
+    const { data, error } = await supabase
       .from("user_profiles")
       .upsert(toSharedUserProfileRow(user), { onConflict: "user_id" })
       .select("*")
       .maybeSingle();
 
-    if (!sharedResult.error) {
-      return sharedResult.data || null;
-    }
-
-    if (!isSharedUserProfileSchemaMissing(sharedResult.error)) {
-      throw sharedResult.error;
-    }
-
-    const standaloneResult = await supabase
-      .from("user_profiles")
-      .upsert(toStandaloneUserProfileRow(user))
-      .select("*")
-      .maybeSingle();
-
-    if (standaloneResult.error) throw standaloneResult.error;
-
-    return standaloneResult.data || null;
+    if (error) throw error;
+    return data || null;
   } catch (error) {
     console.error("Erreur sauvegarde profil Supabase:", error);
     return null;

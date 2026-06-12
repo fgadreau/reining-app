@@ -71,7 +71,6 @@ function toSetupRow(classId, setup, options = {}) {
   const includeJudges = options.includeJudges !== false;
   const includeScheduleDetails = options.includeScheduleDetails !== false;
   const includeBlockClasses = options.includeBlockClasses !== false;
-  const includeFinalPdf = options.includeFinalPdf !== false;
   const row = {
     class_id: classId,
     pattern: normalized.pattern || null,
@@ -86,9 +85,7 @@ function toSetupRow(classId, setup, options = {}) {
     judge_signed_at: normalized.judgeSignedAt || null,
   };
 
-  if (includeFinalPdf) {
-    row.final_pdf_file_name = normalized.finalPdfFileName || null;
-  }
+  row.final_pdf_file_name = normalized.finalPdfFileName || null;
 
   if (includePlanning) {
     row.started_at = normalized.startedAt || null;
@@ -142,9 +139,6 @@ function isBlockClassesColumnMissingError(error) {
   return String(error?.message || "").includes("block_classes");
 }
 
-function isFinalPdfColumnMissingError(error) {
-  return String(error?.message || "").includes("final_pdf_file_name");
-}
 
 export async function getClassSetupRepository(classId) {
   const localSetup = getClassSetup(classId);
@@ -263,22 +257,6 @@ export async function saveClassSetupRepository(classId, setup) {
             .upsert(
               toSetupRow(classId, normalized, { includeBlockClasses: false })
             );
-
-          if (legacyError) throw legacyError;
-          trackClassSetupReadyEvent(classId, previousSetup, normalized);
-          return normalized;
-        } catch (legacyError) {
-          console.error("Erreur sauvegarde setup Supabase:", legacyError);
-          trackClassSetupReadyEvent(classId, previousSetup, normalized);
-          return normalized;
-        }
-      }
-
-      if (isFinalPdfColumnMissingError(error)) {
-        try {
-          const { error: legacyError } = await supabase
-            .from("show_score_class_setups")
-            .upsert(toSetupRow(classId, normalized, { includeFinalPdf: false }));
 
           if (legacyError) throw legacyError;
           trackClassSetupReadyEvent(classId, previousSetup, normalized);

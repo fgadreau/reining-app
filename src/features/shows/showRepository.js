@@ -31,7 +31,7 @@ function toHspShowStatus(ssStatus) {
 function toShow(row) {
   return {
     id: row.id,
-    associationId: row.organization_id,
+    associationId: row.organization_id || row.association_id,
     name: row.name || "",
     venue: row.venue || "",
     location: row.location || "",
@@ -40,7 +40,9 @@ function toShow(row) {
     status: toShowStatus(row.status),
     livestreamUrl: row.livestream_url || "",
     isLivestreamPublic: Boolean(row.is_livestream_public),
-    isSchedulePublic: Boolean(row.is_public || row.show_schedule_public),
+    isSchedulePublic: Boolean(
+      row.is_public || row.show_schedule_public || row.is_schedule_public
+    ),
   };
 }
 
@@ -74,15 +76,21 @@ function toLegacyShowRow(show) {
   return row;
 }
 
+function getSupabaseErrorText(error) {
+  return [error?.message, error?.details, error?.hint]
+    .map((value) => String(value || "").toLowerCase())
+    .join(" ");
+}
+
 function isLivestreamSchemaMissing(error) {
-  const message = String(error?.message || "");
+  const message = getSupabaseErrorText(error);
 
   return /livestream_url|is_livestream_public/i.test(message);
 }
 
 function isScheduleSchemaMissing(error) {
   return /is_schedule_public|show_schedule_public|is_public/i.test(
-    String(error?.message || "")
+    getSupabaseErrorText(error)
   );
 }
 
@@ -107,16 +115,16 @@ export async function getShowsByAssociationRepository(associationId) {
   }
 
   try {
-    const { data, error } = await supabase
+    const result = await supabase
       .from("shows")
       .select("*")
       .eq("organization_id", associationId)
       .order("start_date", { ascending: true, nullsFirst: false })
       .order("name", { ascending: true });
 
-    if (error) throw error;
+    if (result.error) throw result.error;
 
-    const shows = Array.isArray(data) ? data.map(toShow) : [];
+    const shows = Array.isArray(result.data) ? result.data.map(toShow) : [];
 
     const otherLocalShows = getAllShows().filter(
       (show) => show.associationId !== associationId
@@ -178,10 +186,14 @@ export async function saveShowRepository(show) {
                 ? toLegacyShowRow(show)
                 : toShowRow(show, { includePublicSchedule: false })
             );
-          if (legacyError) throw legacyError;
-          syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
-          syncError =
-            "Certaines colonnes publiques du show ne sont pas disponibles dans Supabase. Le show est sauvegardé localement, mais ces réglages publics ne seront visibles qu'après la migration.";
+
+          if (legacyError) {
+            throw legacyError;
+          } else {
+            syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
+            syncError =
+              "Certaines colonnes publiques du show ne sont pas disponibles dans Supabase. Le show est sauvegardé localement, mais ces réglages publics ne seront visibles qu'après la migration.";
+          }
         } catch (legacyError) {
           console.error("Erreur sauvegarde show Supabase:", legacyError);
           syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;

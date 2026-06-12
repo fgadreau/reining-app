@@ -31,11 +31,11 @@ import { loadActiveManoeuvre } from "../scoring/scoringRepository";
 import { formatScoreValue, formatTotalValue } from "../../utils/scoring";
 
 const ANNOUNCER_CLASS_REALTIME_TABLES = [
-  "scoring_sessions",
-  "judge_scoring_sessions",
-  "class_setups",
-  "publication_states",
-  "official_results",
+  "show_score_scoring_sessions",
+  "show_score_judge_sessions",
+  "show_score_class_setups",
+  "show_score_publication_states",
+  "show_score_official_results",
 ];
 
 export function getAnnouncerShowView(showId) {
@@ -150,7 +150,7 @@ export function subscribeAnnouncerShowViewRepository(
     {
       event: "*",
       schema: "public",
-      table: "days",
+      table: "show_days",
       filter: `show_id=eq.${showId}`,
     },
     onChange
@@ -172,7 +172,7 @@ export function subscribeAnnouncerShowViewRepository(
     {
       event: "*",
       schema: "public",
-      table: "paid_warmups",
+      table: "show_score_paid_warmups",
       filter: `show_id=eq.${showId}`,
     },
     onChange
