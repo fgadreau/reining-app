@@ -53,7 +53,15 @@ import {
   getJudgeScoringSessionSyncStatus,
   saveJudgeScoringSessionRepository,
 } from "../../features/scoring/judgeScoringSessionRepository";
-import { advanceArenaLiveClassAfterCompletionRepository } from "../../features/publication/publicationCloudRepository";
+import {
+  advanceArenaLiveClassAfterCompletionRepository,
+  saveArenaCurrentLiveClassRepository,
+} from "../../features/publication/publicationCloudRepository";
+import {
+  getPlannedLiveStatus,
+  isLivePublicationStatus,
+  PUBLICATION_STATUSES,
+} from "../../features/publication/publicationRepository";
 import {
   calculateClassTimingSummary,
   formatClockTime,
@@ -309,6 +317,7 @@ function ClassScoringPage() {
     status: "idle",
     session: null,
   });
+  const liveActivationSyncRef = useRef("");
   const [isJudgePickerOpen, setIsJudgePickerOpen] = useState(false);
   const isActiveJudgeCompleted = Boolean(activeJudgeSession?.finalized);
   const isCompleted = isMultiJudgeMode ? isActiveJudgeCompleted : isClassCompleted;
@@ -318,6 +327,8 @@ function ClassScoringPage() {
 
   const classStatus = isCompleted ? "completed" : getClassStatus(classItem);
   const classStatusLabel = getClassStatusLabel(classStatus, t);
+  const publicationStatus = classData?.publication?.status || "";
+  const plannedLiveStatus = getPlannedLiveStatus(classData?.publication);
 
   const patternValue = classSetup?.pattern || classItem?.pattern || "";
   const customPattern =
@@ -886,6 +897,65 @@ function ClassScoringPage() {
 
     return timestamp;
   };
+
+  useEffect(() => {
+    const startedAt = classSetup?.startedAt;
+    const showId = classItem?.showId;
+
+    if (!startedAt || !showId || isCompleted) {
+      return;
+    }
+
+    if (
+      isLivePublicationStatus(publicationStatus) ||
+      plannedLiveStatus === PUBLICATION_STATUSES.HIDDEN
+    ) {
+      return;
+    }
+
+    const syncKey = [
+      classId,
+      startedAt,
+      publicationStatus || PUBLICATION_STATUSES.HIDDEN,
+      plannedLiveStatus,
+    ].join(":");
+
+    if (liveActivationSyncRef.current === syncKey) {
+      return;
+    }
+
+    liveActivationSyncRef.current = syncKey;
+
+    saveArenaCurrentLiveClassRepository({
+      showId,
+      arena: classItem?.arena,
+      classId,
+      status: plannedLiveStatus,
+    })
+      .then((savedPublication) => {
+        if (!savedPublication) return;
+
+        setClassData((currentData) =>
+          currentData
+            ? {
+                ...currentData,
+                publication: savedPublication,
+              }
+            : currentData
+        );
+      })
+      .catch((error) => {
+        console.error("Erreur activation live du bloc:", error);
+      });
+  }, [
+    classId,
+    classItem?.arena,
+    classItem?.showId,
+    classSetup?.startedAt,
+    isCompleted,
+    plannedLiveStatus,
+    publicationStatus,
+  ]);
 
   const updateBackNumber = (draw, newValue) => {
     if (!canEditBackNumbers) return;
