@@ -15,21 +15,10 @@ import {
 import { updateClass } from "./classStorage";
 import { NO_PATTERN_ID, isNoPatternValue } from "../patterns/patternDefinitions";
 
-function hasOwn(value, key) {
-  return Object.prototype.hasOwnProperty.call(value || {}, key);
-}
-
-function toSetup(row, localSetup = {}) {
-  const remoteHasJudges = hasOwn(row, "judges");
+function toSetup(row) {
   const remoteScheduleDetails = normalizeClassScheduleDetails(
     row.schedule_details
   );
-  const localScheduleDetails = normalizeClassScheduleDetails(
-    localSetup?.scheduleDetails
-  );
-  const fallbackJudges = Array.isArray(localSetup?.judges)
-    ? localSetup.judges
-    : [];
 
   return normalizeClassSetup({
     pattern: row.pattern || "",
@@ -39,16 +28,11 @@ function toSetup(row, localSetup = {}) {
         : null,
     runs: Array.isArray(row.runs) ? row.runs : [],
     isDrawImported: Boolean(row.is_draw_imported),
-    judges:
-      remoteHasJudges && Array.isArray(row.judges)
-        ? row.judges
-        : fallbackJudges,
-    blockClasses: Array.isArray(row.block_classes)
-      ? row.block_classes
-      : localSetup?.blockClasses || [],
+    judges: Array.isArray(row.judges) ? row.judges : [],
+    blockClasses: Array.isArray(row.block_classes) ? row.block_classes : [],
     scheduleDetails: hasClassScheduleDetails(remoteScheduleDetails)
       ? remoteScheduleDetails
-      : localScheduleDetails,
+      : {},
     startedAt: row.started_at || null,
     dragInterval: row.drag_interval || null,
     dragDurationMinutes: row.drag_duration_minutes,
@@ -56,7 +40,7 @@ function toSetup(row, localSetup = {}) {
     lockedBy: row.locked_by_label || null,
     finalized: Boolean(row.finalized),
     finalizedAt: row.finalized_at || null,
-    judgeName: row.judge_name || localSetup?.judgeName || "",
+    judgeName: row.judge_name || "",
     judgeSignature: row.judge_signature || null,
     judgeSignedAt: row.judge_signed_at || null,
     finalPdfFileName: row.final_pdf_file_name || null,
@@ -64,18 +48,20 @@ function toSetup(row, localSetup = {}) {
   });
 }
 
-function toSetupRow(classId, setup, options = {}) {
+function toSetupRow(classId, setup) {
   const normalized = normalizeClassSetup(setup);
-  const includePlanning = options.includePlanning !== false;
-  const includeCustomPattern = options.includeCustomPattern !== false;
-  const includeJudges = options.includeJudges !== false;
-  const includeScheduleDetails = options.includeScheduleDetails !== false;
-  const includeBlockClasses = options.includeBlockClasses !== false;
   const row = {
     class_id: classId,
     pattern: normalized.pattern || null,
     runs: normalized.runs,
     is_draw_imported: Boolean(normalized.isDrawImported),
+    started_at: normalized.startedAt || null,
+    drag_interval: normalized.dragInterval || null,
+    drag_duration_minutes: normalized.dragDurationMinutes,
+    custom_pattern: normalized.customPattern || null,
+    judges: normalized.judges || [],
+    schedule_details: normalizeClassScheduleDetails(normalized.scheduleDetails),
+    block_classes: normalized.blockClasses || [],
     locked_at: normalized.lockedAt || null,
     locked_by_label: normalized.lockedBy || null,
     finalized: Boolean(normalized.finalized),
@@ -87,58 +73,8 @@ function toSetupRow(classId, setup, options = {}) {
 
   row.final_pdf_file_name = normalized.finalPdfFileName || null;
 
-  if (includePlanning) {
-    row.started_at = normalized.startedAt || null;
-    row.drag_interval = normalized.dragInterval || null;
-    row.drag_duration_minutes = normalized.dragDurationMinutes;
-  }
-
-  if (includeCustomPattern) {
-    row.custom_pattern = normalized.customPattern || null;
-  }
-
-  if (includeJudges) {
-    row.judges = normalized.judges || [];
-  }
-
-  if (includeScheduleDetails) {
-    row.schedule_details = normalizeClassScheduleDetails(
-      normalized.scheduleDetails
-    );
-  }
-
-  if (includeBlockClasses) {
-    row.block_classes = normalized.blockClasses || [];
-  }
-
   return row;
 }
-
-function isPlanningColumnMissingError(error) {
-  const message = String(error?.message || "");
-  return (
-    message.includes("started_at") ||
-    message.includes("drag_interval") ||
-    message.includes("drag_duration_minutes")
-  );
-}
-
-function isCustomPatternColumnMissingError(error) {
-  return String(error?.message || "").includes("custom_pattern");
-}
-
-function isJudgesColumnMissingError(error) {
-  return String(error?.message || "").includes("judges");
-}
-
-function isScheduleDetailsColumnMissingError(error) {
-  return String(error?.message || "").includes("schedule_details");
-}
-
-function isBlockClassesColumnMissingError(error) {
-  return String(error?.message || "").includes("block_classes");
-}
-
 
 export async function getClassSetupRepository(classId) {
   const localSetup = getClassSetup(classId);
@@ -158,7 +94,7 @@ export async function getClassSetupRepository(classId) {
     if (error) throw error;
     if (!data) return localSetup;
 
-    const setup = toSetup(data, localSetup);
+    const setup = toSetup(data);
     saveClassSetup(classId, setup);
     return setup;
   } catch (error) {
@@ -182,92 +118,6 @@ export async function saveClassSetupRepository(classId, setup) {
 
       if (error) throw error;
     } catch (error) {
-      if (isCustomPatternColumnMissingError(error)) {
-        try {
-          const { error: legacyError } = await supabase
-            .from("show_score_class_setups")
-            .upsert(
-              toSetupRow(classId, normalized, { includeCustomPattern: false })
-            );
-
-          if (legacyError) throw legacyError;
-          trackClassSetupReadyEvent(classId, previousSetup, normalized);
-          return normalized;
-        } catch (legacyError) {
-          console.error("Erreur sauvegarde setup Supabase:", legacyError);
-          trackClassSetupReadyEvent(classId, previousSetup, normalized);
-          return normalized;
-        }
-      }
-
-      if (isJudgesColumnMissingError(error)) {
-        try {
-          const { error: legacyError } = await supabase
-            .from("show_score_class_setups")
-            .upsert(toSetupRow(classId, normalized, { includeJudges: false }));
-
-          if (legacyError) throw legacyError;
-          trackClassSetupReadyEvent(classId, previousSetup, normalized);
-          return normalized;
-        } catch (legacyError) {
-          console.error("Erreur sauvegarde setup Supabase:", legacyError);
-          trackClassSetupReadyEvent(classId, previousSetup, normalized);
-          return normalized;
-        }
-      }
-
-      if (isPlanningColumnMissingError(error)) {
-        try {
-          const { error: legacyError } = await supabase
-            .from("show_score_class_setups")
-            .upsert(toSetupRow(classId, normalized, { includePlanning: false }));
-
-          if (legacyError) throw legacyError;
-          trackClassSetupReadyEvent(classId, previousSetup, normalized);
-          return normalized;
-        } catch (legacyError) {
-          console.error("Erreur sauvegarde setup Supabase:", legacyError);
-          trackClassSetupReadyEvent(classId, previousSetup, normalized);
-          return normalized;
-        }
-      }
-
-      if (isScheduleDetailsColumnMissingError(error)) {
-        try {
-          const { error: legacyError } = await supabase
-            .from("show_score_class_setups")
-            .upsert(
-              toSetupRow(classId, normalized, { includeScheduleDetails: false })
-            );
-
-          if (legacyError) throw legacyError;
-          trackClassSetupReadyEvent(classId, previousSetup, normalized);
-          return normalized;
-        } catch (legacyError) {
-          console.error("Erreur sauvegarde setup Supabase:", legacyError);
-          trackClassSetupReadyEvent(classId, previousSetup, normalized);
-          return normalized;
-        }
-      }
-
-      if (isBlockClassesColumnMissingError(error)) {
-        try {
-          const { error: legacyError } = await supabase
-            .from("show_score_class_setups")
-            .upsert(
-              toSetupRow(classId, normalized, { includeBlockClasses: false })
-            );
-
-          if (legacyError) throw legacyError;
-          trackClassSetupReadyEvent(classId, previousSetup, normalized);
-          return normalized;
-        } catch (legacyError) {
-          console.error("Erreur sauvegarde setup Supabase:", legacyError);
-          trackClassSetupReadyEvent(classId, previousSetup, normalized);
-          return normalized;
-        }
-      }
-
       console.error("Erreur sauvegarde setup Supabase:", error);
     }
   }
@@ -303,7 +153,7 @@ export async function saveClassScheduleDetailsRepository(classId, details) {
       if (error) throw error;
 
       if (data) {
-        const savedSetup = toSetup(data, nextLocalSetup);
+        const savedSetup = toSetup(data);
         saveClassSetup(classId, savedSetup);
         return savedSetup;
       }

@@ -13,7 +13,7 @@ function toAssociation(row) {
     name: row.name || "",
     shortName: row.short_name || "",
     timezone: row.timezone || "",
-    logoDataUrl: row.logo_data_url || row.logo_url || null,
+    logoDataUrl: row.logo_url || null,
     websiteUrl: row.website_url || "",
     sponsorLogos: normalizeSponsorLogos(row.sponsor_logos),
   };

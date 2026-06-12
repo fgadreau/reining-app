@@ -15,10 +15,10 @@ import {
 function toDay(row) {
   return {
     id: row.id,
-    associationId: row.association_id || row.organization_id,
+    associationId: row.organization_id,
     showId: row.show_id,
-    label: row.label || row.day_name || "",
-    date: row.date || row.day_date || "",
+    label: row.day_name || "",
+    date: row.day_date || "",
     sortOrder: row.sort_order || 1,
   };
 }
