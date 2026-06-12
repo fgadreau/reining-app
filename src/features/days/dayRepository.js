@@ -15,15 +15,15 @@ import {
 function toDay(row) {
   return {
     id: row.id,
-    associationId: row.association_id,
+    associationId: row.association_id || row.organization_id,
     showId: row.show_id,
-    label: row.label || "",
-    date: row.date || "",
+    label: row.label || row.day_name || "",
+    date: row.date || row.day_date || "",
     sortOrder: row.sort_order || 1,
   };
 }
 
-function toDayRow(day) {
+function toStandaloneDayRow(day) {
   return {
     id: day.id,
     association_id: day.associationId,
@@ -32,6 +32,73 @@ function toDayRow(day) {
     date: day.date || null,
     sort_order: Number(day.sortOrder) || 1,
   };
+}
+
+function toSharedShowDayRow(day) {
+  return {
+    id: day.id,
+    organization_id: day.associationId,
+    show_id: day.showId,
+    day_name: day.label || "",
+    day_date: day.date || null,
+    sort_order: Number(day.sortOrder) || 1,
+  };
+}
+
+function isMissingSharedShowDaysSchema(error) {
+  const message = String(error?.message || "").toLowerCase();
+  const details = String(error?.details || "").toLowerCase();
+  const hint = String(error?.hint || "").toLowerCase();
+  const text = `${message} ${details} ${hint}`;
+
+  return (
+    error?.code === "42P01" ||
+    error?.code === "PGRST205" ||
+    text.includes("show_days") ||
+    (text.includes("organization_id") && text.includes("column")) ||
+    (text.includes("day_name") && text.includes("column")) ||
+    (text.includes("day_date") && text.includes("column"))
+  );
+}
+
+async function upsertDayRow(supabase, day) {
+  const sharedResult = await supabase
+    .from("show_days")
+    .upsert(toSharedShowDayRow(day), { onConflict: "id" });
+
+  if (!sharedResult.error) {
+    return;
+  }
+
+  if (!isMissingSharedShowDaysSchema(sharedResult.error)) {
+    throw sharedResult.error;
+  }
+
+  const standaloneResult = await supabase
+    .from("days")
+    .upsert(toStandaloneDayRow(day), { onConflict: "id" });
+
+  if (standaloneResult.error) {
+    throw standaloneResult.error;
+  }
+}
+
+async function deleteDayRow(supabase, dayId) {
+  const sharedResult = await supabase.from("show_days").delete().eq("id", dayId);
+
+  if (!sharedResult.error) {
+    return;
+  }
+
+  if (!isMissingSharedShowDaysSchema(sharedResult.error)) {
+    throw sharedResult.error;
+  }
+
+  const standaloneResult = await supabase.from("days").delete().eq("id", dayId);
+
+  if (standaloneResult.error) {
+    throw standaloneResult.error;
+  }
 }
 
 function saveDayLocally(day) {
@@ -106,8 +173,7 @@ export async function saveDayRepository(day) {
 
   if (supabase) {
     try {
-      const { error } = await supabase.from("days").upsert(toDayRow(day));
-      if (error) throw error;
+      await upsertDayRow(supabase, day);
     } catch (error) {
       console.error("Erreur sauvegarde journée Supabase:", error);
     }
@@ -252,8 +318,7 @@ export async function deleteDayRepository(dayId) {
 
   if (supabase) {
     try {
-      const { error } = await supabase.from("days").delete().eq("id", dayId);
-      if (error) throw error;
+      await deleteDayRow(supabase, dayId);
     } catch (error) {
       console.error("Erreur suppression journée Supabase:", error);
     }
