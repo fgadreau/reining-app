@@ -381,6 +381,15 @@ function mergePatternTimingStats(stats) {
     .sort((a, b) => String(a.pattern).localeCompare(String(b.pattern)));
 }
 
+function isGlobalPatternTimingStatsMissing(error) {
+  const message = String(error?.message || "");
+  return (
+    error?.code === "PGRST202" ||
+    message.includes("global_pattern_timing_stats") ||
+    message.includes("schema cache")
+  );
+}
+
 export async function getGlobalPatternTimingStatsRepository() {
   const supabase = getSupabaseClient();
 
@@ -399,7 +408,10 @@ export async function getGlobalPatternTimingStatsRepository() {
       ? mergePatternTimingStats(data.map(toPatternTimingStat))
       : [];
   } catch (error) {
-    console.error("Erreur chargement stats globales par pattern:", error);
+    if (!isGlobalPatternTimingStatsMissing(error)) {
+      console.error("Erreur chargement stats globales par pattern:", error);
+    }
+
     const accessibleClassRows = await getAccessibleClassTimingDataRepository();
     return buildPatternTimingStats(accessibleClassRows);
   }

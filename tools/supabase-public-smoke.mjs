@@ -112,6 +112,12 @@ const SHARED_SCHEMA_PROBES = [
     label: "stall_options HSP",
     filters: { order: "created_at.desc" },
   },
+  {
+    table: "show_score_class_setups",
+    columns:
+      "class_id,block_classes,judge_name,judge_signature,judge_signed_at,final_pdf_file_name",
+    label: "show_score_class_setups compat",
+  },
 ];
 
 function getShowAssociationId(show) {
