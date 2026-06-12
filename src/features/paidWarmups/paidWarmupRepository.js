@@ -118,6 +118,7 @@ function toPaidWarmupRow(item, options = {}) {
   const warmup = normalizePaidWarmup(item);
   const includeScheduleStart = options.includeScheduleStart !== false;
   const includeArena = options.includeArena !== false;
+  const includeActiveEntry = options.includeActiveEntry !== false;
   const row = {
     id: warmup.id,
     organization_id: warmup.associationId,
@@ -128,11 +129,14 @@ function toPaidWarmupRow(item, options = {}) {
     drag_interval: warmup.dragInterval,
     drag_duration_minutes: warmup.dragDurationMinutes,
     is_public_live: Boolean(warmup.isPublicLive),
-    active_entry_id: warmup.activeEntryId || null,
     active_started_at: warmup.activeStartedAt || null,
     entries: warmup.entries,
     sort_order: warmup.sortOrder,
   };
+
+  if (includeActiveEntry) {
+    row.active_entry_id = warmup.activeEntryId || null;
+  }
 
   if (includeArena) {
     row.arena = warmup.arena || null;
@@ -156,6 +160,17 @@ function isScheduleStartColumnMissingError(error) {
 
 function isArenaColumnMissingError(error) {
   return String(error?.message || "").includes("arena");
+}
+
+function isActiveEntryForeignKeyError(error) {
+  const message = String(error?.message || "");
+  const details = String(error?.details || "");
+
+  return (
+    error?.code === "23503" &&
+    (message.includes("show_score_paid_warmups_active_entry_id_fkey") ||
+      details.includes("show_score_paid_warmups_active_entry_id_fkey"))
+  );
 }
 
 export function mergePaidWarmupsForDay(localWarmups, remoteWarmups) {
@@ -310,11 +325,12 @@ async function upsertPaidWarmupWithColumnFallback(supabase, item) {
   const options = {
     includeArena: true,
     includeScheduleStart: true,
+    includeActiveEntry: true,
   };
   let usedFallback = false;
   let lastError = null;
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
       await upsertPaidWarmupRow(supabase, item.id, toPaidWarmupRow(item, options));
       return { usedFallback };
@@ -332,6 +348,12 @@ async function upsertPaidWarmupWithColumnFallback(supabase, item) {
         options.includeScheduleStart
       ) {
         options.includeScheduleStart = false;
+        usedFallback = true;
+        continue;
+      }
+
+      if (isActiveEntryForeignKeyError(error) && options.includeActiveEntry) {
+        options.includeActiveEntry = false;
         usedFallback = true;
         continue;
       }

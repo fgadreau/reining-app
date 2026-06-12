@@ -598,7 +598,7 @@ const classes = await fetchRows(
 ) || [];
 const paidWarmups = await fetchRows(
   "show_score_paid_warmups",
-  "id,show_id,is_public_live",
+  "id,show_id,is_public_live,active_entry_id,active_started_at,entries",
   "show_score_paid_warmups"
 ) || [];
 const publicationStates = await fetchRows(

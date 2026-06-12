@@ -263,6 +263,14 @@ alter table public.show_score_paid_warmups
   add column if not exists schedule_start_mode text,
   add column if not exists schedule_start_time text;
 
+-- ShowScore paid warmup entries live in the entries jsonb payload. Their ids
+-- are not HSP class-entry ids, so active_entry_id must be compatibility text.
+alter table public.show_score_paid_warmups
+  drop constraint if exists show_score_paid_warmups_active_entry_id_fkey;
+
+alter table public.show_score_paid_warmups
+  alter column active_entry_id type text using active_entry_id::text;
+
 -- Keep HSP and ShowScore status values in the same table.
 do $$
 declare
