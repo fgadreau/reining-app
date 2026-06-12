@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": "20.x",
+    "node": ">=20.19 <21 || >=22.13",
     "npm": ">=10"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.0",
     "jspdf": "^4.2.1",
-    "pdfjs-dist": "^3.11.174",
+    "pdfjs-dist": "^5.6.205",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.1",
@@ -20,6 +20,7 @@
     "start": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "test": "VITE_SUPABASE_URL= VITE_SUPABASE_PUBLISHABLE_KEY= VITE_SUPABASE_ANON_KEY= vitest run src/App.test.js --environment jsdom --globals",
     "test:e2e": "playwright test",
     "test:e2e:visible": "E2E_SHOW_STEPS=1 E2E_SLOW_MO=1200 E2E_STEP_PAUSE=3500 playwright test --headed --project=chromium",
     "test:e2e:demo": "E2E_SHOW_STEPS=1 E2E_SLOW_MO=2200 E2E_STEP_PAUSE=8000 playwright test --headed --project=chromium",
@@ -37,6 +38,8 @@
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^13.5.0",
     "@vitejs/plugin-react": "^4.3.4",
-    "vite": "^6.3.5"
+    "jsdom": "^29.1.1",
+    "vite": "^6.3.5",
+    "vitest": "^4.1.8"
   }
 }

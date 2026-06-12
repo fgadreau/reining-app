@@ -900,10 +900,7 @@ function addPdfTextItemToRows(rows, item) {
 }
 
 async function parsePdfFile(file) {
-  const [pdfjsModule] = await Promise.all([
-    import("pdfjs-dist/legacy/build/pdf"),
-    import("pdfjs-dist/legacy/build/pdf.worker.entry"),
-  ]);
+  const pdfjsModule = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const pdfjs = pdfjsModule.getDocument ? pdfjsModule : pdfjsModule.default;
 
   if (!pdfjs?.getDocument) {

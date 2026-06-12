@@ -13,7 +13,7 @@ function toAssociation(row) {
     name: row.name || "",
     shortName: row.short_name || "",
     timezone: row.timezone || "",
-    logoDataUrl: row.logo_data_url || null,
+    logoDataUrl: row.logo_data_url || row.logo_url || null,
     websiteUrl: row.website_url || "",
     sponsorLogos: normalizeSponsorLogos(row.sponsor_logos),
   };
@@ -37,10 +37,95 @@ function toLegacyAssociationRow(association) {
   return row;
 }
 
+function toSharedOrganizationRow(association) {
+  return {
+    id: association.id,
+    name: association.name || "",
+    short_name: association.shortName || "",
+    timezone: association.timezone || "",
+    logo_url: association.logoDataUrl || null,
+    website_url: association.websiteUrl || null,
+    sponsor_logos: normalizeSponsorLogos(association.sponsorLogos),
+  };
+}
+
 function isSponsorSchemaMissing(error) {
   const message = String(error?.message || "");
 
   return /sponsor_logos/i.test(message);
+}
+
+function isMissingSharedOrganizationsSchema(error) {
+  const message = String(error?.message || "").toLowerCase();
+  const details = String(error?.details || "").toLowerCase();
+  const hint = String(error?.hint || "").toLowerCase();
+  const text = `${message} ${details} ${hint}`;
+
+  return (
+    error?.code === "42P01" ||
+    error?.code === "PGRST205" ||
+    (text.includes("organizations") &&
+      (text.includes("schema cache") || text.includes("does not exist"))) ||
+    (text.includes("logo_url") && text.includes("column"))
+  );
+}
+
+async function upsertAssociationRow(supabase, association) {
+  const sharedResult = await supabase
+    .from("organizations")
+    .upsert(toSharedOrganizationRow(association), { onConflict: "id" });
+
+  if (!sharedResult.error) {
+    return;
+  }
+
+  if (!isMissingSharedOrganizationsSchema(sharedResult.error)) {
+    throw sharedResult.error;
+  }
+
+  const standaloneResult = await supabase
+    .from("associations")
+    .upsert(toAssociationRow(association), { onConflict: "id" });
+
+  if (!standaloneResult.error) {
+    return;
+  }
+
+  if (!isSponsorSchemaMissing(standaloneResult.error)) {
+    throw standaloneResult.error;
+  }
+
+  const legacyResult = await supabase
+    .from("associations")
+    .upsert(toLegacyAssociationRow(association), { onConflict: "id" });
+
+  if (legacyResult.error) {
+    throw legacyResult.error;
+  }
+}
+
+async function deleteAssociationRow(supabase, associationId) {
+  const sharedResult = await supabase
+    .from("organizations")
+    .delete()
+    .eq("id", associationId);
+
+  if (!sharedResult.error) {
+    return;
+  }
+
+  if (!isMissingSharedOrganizationsSchema(sharedResult.error)) {
+    throw sharedResult.error;
+  }
+
+  const standaloneResult = await supabase
+    .from("associations")
+    .delete()
+    .eq("id", associationId);
+
+  if (standaloneResult.error) {
+    throw standaloneResult.error;
+  }
 }
 
 function saveAssociationLocally(association) {
@@ -96,25 +181,10 @@ export async function saveAssociationRepository(association) {
 
   if (supabase) {
     try {
-      const { error } = await supabase
-        .from("associations")
-        .upsert(toAssociationRow(normalized));
-
-      if (error) throw error;
+      await upsertAssociationRow(supabase, normalized);
     } catch (error) {
-      if (isSponsorSchemaMissing(error)) {
-        const { error: legacyError } = await supabase
-          .from("associations")
-          .upsert(toLegacyAssociationRow(normalized));
-
-        if (legacyError) {
-          console.error("Erreur sauvegarde association Supabase:", legacyError);
-          throw legacyError;
-        }
-      } else {
-        console.error("Erreur sauvegarde association Supabase:", error);
-        throw error;
-      }
+      console.error("Erreur sauvegarde association Supabase:", error);
+      throw error;
     }
   }
 
@@ -196,12 +266,7 @@ export async function deleteAssociationRepository(associationId) {
 
   if (supabase) {
     try {
-      const { error } = await supabase
-        .from("associations")
-        .delete()
-        .eq("id", associationId);
-
-      if (error) throw error;
+      await deleteAssociationRow(supabase, associationId);
     } catch (error) {
       console.error("Erreur suppression association Supabase:", error);
     }
