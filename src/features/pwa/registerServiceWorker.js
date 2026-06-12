@@ -4,7 +4,7 @@ import {
 } from "./appUpdateSafety";
 
 function getPublicAssetPath(path) {
-  const publicUrl = process.env.PUBLIC_URL || "";
+  const publicUrl = import.meta.env.BASE_URL || "";
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return `${publicUrl}${normalizedPath}`;
 }
@@ -17,7 +17,7 @@ function activateWaitingWorker(registration) {
 
 export function registerServiceWorker() {
   if (
-    process.env.NODE_ENV !== "production" ||
+    !import.meta.env.PROD ||
     typeof window === "undefined" ||
     !("serviceWorker" in navigator)
   ) {

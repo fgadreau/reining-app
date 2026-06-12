@@ -1,11 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { hasLocalTestSession } from "../auth/localTestAuth";
 
-const supabaseUrl = (process.env.REACT_APP_SUPABASE_URL || "").trim();
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || "").trim();
 const supabaseKey =
   (
-    process.env.REACT_APP_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.REACT_APP_SUPABASE_ANON_KEY ||
+    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    import.meta.env.VITE_SUPABASE_ANON_KEY ||
     ""
   ).trim();
 

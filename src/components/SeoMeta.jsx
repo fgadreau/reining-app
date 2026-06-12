@@ -19,7 +19,7 @@ function getAbsoluteUrl(value) {
 }
 
 function getDefaultImageUrl() {
-  const publicUrl = process.env.PUBLIC_URL || "";
+  const publicUrl = import.meta.env.BASE_URL || "";
   return getAbsoluteUrl(`${publicUrl}${DEFAULT_IMAGE_PATH}`);
 }
 

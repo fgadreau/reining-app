@@ -10,8 +10,8 @@ const ENVIRONMENT_LABELS = {
 
 export function getDeployEnvironment() {
   return String(
-    process.env.REACT_APP_DEPLOY_ENV ||
-      process.env.REACT_APP_APP_ENV ||
+    import.meta.env.VITE_DEPLOY_ENV ||
+      import.meta.env.VITE_APP_ENV ||
       ""
   )
     .trim()

@@ -9,7 +9,7 @@ const PUBLIC_OVERLAY_PATH_PATTERN =
   /^\/public\/associations\/[^/]+\/shows\/[^/]+\/overlay/;
 
 function getPublicAssetPath(path) {
-  const publicUrl = process.env.PUBLIC_URL || "";
+  const publicUrl = import.meta.env.BASE_URL || "";
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return `${publicUrl}${normalizedPath}`;
 }

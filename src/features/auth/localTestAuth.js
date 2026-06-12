@@ -4,17 +4,17 @@ export const LOCAL_TEST_EMAIL = "test@showscore.local";
 export const LOCAL_TEST_PASSWORD = "test1234";
 
 export function isLocalTestAuthAvailable() {
-  if (process.env.REACT_APP_ENABLE_LOCAL_TEST_LOGIN === "true") {
+  if (import.meta.env.VITE_ENABLE_LOCAL_TEST_LOGIN === "true") {
     return true;
   }
 
   if (typeof window === "undefined") {
-    return process.env.NODE_ENV === "development";
+    return import.meta.env.DEV;
   }
 
   const hostname = window.location.hostname;
   return (
-    process.env.NODE_ENV === "development" ||
+    import.meta.env.DEV ||
     hostname === "localhost" ||
     hostname === "127.0.0.1" ||
     hostname === "0.0.0.0" ||
