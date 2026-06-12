@@ -154,7 +154,39 @@ function toClass(row) {
     scheduleStartTime: row.schedule_start_time || row.scheduled_time || "",
     judgeName: row.judge_name || "",
     sortOrder: row.sort_order || 1,
+    isEventBlock: Boolean(row.is_event_block),
   };
+}
+
+function getSupabaseErrorText(error) {
+  return [error?.message, error?.details, error?.hint]
+    .map((value) => String(value || "").toLowerCase())
+    .join(" ");
+}
+
+function isEventBlockColumnMissingError(error) {
+  return getSupabaseErrorText(error).includes("is_event_block");
+}
+
+async function fetchPublicClassesForDay(supabase, dayId) {
+  let result = await supabase
+    .from("classes")
+    .select("*")
+    .eq("show_day_id", dayId)
+    .eq("is_event_block", false)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (result.error && isEventBlockColumnMissingError(result.error)) {
+    result = await supabase
+      .from("classes")
+      .select("*")
+      .eq("show_day_id", dayId)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true });
+  }
+
+  return result;
 }
 
 function toPublicationState(row) {
@@ -610,12 +642,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
     const sections = await Promise.all(
       days.map(async (day) => {
         const [classResult, paidWarmupResult] = await Promise.all([
-          supabase
-            .from("classes")
-            .select("*")
-            .eq("show_day_id", day.id)
-            .order("sort_order", { ascending: true })
-            .order("name", { ascending: true }),
+          fetchPublicClassesForDay(supabase, day.id),
           supabase
             .from("show_score_paid_warmups")
             .select("*")
@@ -638,7 +665,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
           .map((warmup) => buildPaidWarmupLiveView(warmup));
 
         const classes = Array.isArray(classResult.data)
-          ? classResult.data.map(toClass)
+          ? classResult.data.map(toClass).filter((classItem) => !classItem.isEventBlock)
           : [];
         const classIds = classes.map((classItem) => classItem.id).filter(Boolean);
 

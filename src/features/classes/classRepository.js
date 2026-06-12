@@ -60,9 +60,9 @@ function toClass(row) {
 
   return {
     id: row.id,
-    associationId: row.organization_id,
+    associationId: row.organization_id || row.association_id,
     showId: row.show_id,
-    dayId: row.show_day_id,
+    dayId: row.show_day_id || row.day_id,
     name: row.name || "",
     classCode: row.code || row.class_code || "",
     arena: row.arena || "",
@@ -73,6 +73,7 @@ function toClass(row) {
         : null,
     scheduleStartMode: scheduleStart.startMode,
     scheduleStartTime: scheduleStart.startTime,
+    isEventBlock: Boolean(row.is_event_block),
     judgeName: row.judge_name || "",
     sortOrder: row.sort_order || 1,
     updatedAt: row.updated_at || null,
@@ -113,16 +114,26 @@ function toClassRow(classItem, options = {}) {
   return row;
 }
 
+function getSupabaseErrorText(error) {
+  return [error?.message, error?.details, error?.hint]
+    .map((value) => String(value || "").toLowerCase())
+    .join(" ");
+}
+
+function isScoringClass(classItem) {
+  return !classItem?.isEventBlock;
+}
+
 function isCustomPatternColumnMissingError(error) {
-  return String(error?.message || "").includes("custom_pattern");
+  return getSupabaseErrorText(error).includes("custom_pattern");
 }
 
 function isArenaColumnMissingError(error) {
-  return String(error?.message || "").includes("arena");
+  return getSupabaseErrorText(error).includes("arena");
 }
 
 function isScheduleStartColumnMissingError(error) {
-  const message = String(error?.message || "");
+  const message = getSupabaseErrorText(error);
   return (
     message.includes("schedule_start_mode") ||
     message.includes("schedule_start_time") ||
@@ -130,7 +141,15 @@ function isScheduleStartColumnMissingError(error) {
   );
 }
 
+function isEventBlockColumnMissingError(error) {
+  return getSupabaseErrorText(error).includes("is_event_block");
+}
+
 function saveClassLocally(classItem) {
+  if (!isScoringClass(classItem)) {
+    return classItem;
+  }
+
   const exists = getAllClasses().some((item) => item.id === classItem.id);
 
   if (exists) {
@@ -183,9 +202,7 @@ async function upsertClassRowWithColumnFallback(supabase, classItem) {
 
   for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
-      const { error } = await supabase
-        .from("classes")
-        .upsert(toClassRow(classItem, options));
+      const { error } = await supabase.from("classes").upsert(toClassRow(classItem, options));
 
       if (error) throw error;
       return;
@@ -239,7 +256,7 @@ async function syncClassScheduleStartFromSetupRepository(classItem, setup) {
 
 async function buildTimingDataForClasses(classes) {
   return Promise.all(
-    classes.map(async (classItem) => {
+    classes.filter(isScoringClass).map(async (classItem) => {
       const [setup, scoringSession] = await Promise.all([
         getClassSetupRepository(classItem.id),
         loadScoringSessionRepository(classItem.id),
@@ -303,15 +320,26 @@ export async function getAccessibleClassTimingDataRepository() {
   }
 
   try {
-    const { data, error } = await supabase
+    let result = await supabase
       .from("classes")
       .select("*")
+      .eq("is_event_block", false)
       .order("pattern", { ascending: true, nullsFirst: false })
       .order("name", { ascending: true });
 
-    if (error) throw error;
+    if (result.error && isEventBlockColumnMissingError(result.error)) {
+      result = await supabase
+        .from("classes")
+        .select("*")
+        .order("pattern", { ascending: true, nullsFirst: false })
+        .order("name", { ascending: true });
+    }
 
-    const classes = Array.isArray(data) ? data.map(toClass) : [];
+    if (result.error) throw result.error;
+
+    const classes = Array.isArray(result.data)
+      ? result.data.map(toClass).filter(isScoringClass)
+      : [];
     saveClasses(mergeClassesById(getAllClasses(), classes));
 
     return buildTimingDataForClasses(classes);
@@ -381,14 +409,6 @@ function mergePatternTimingStats(stats) {
     .sort((a, b) => String(a.pattern).localeCompare(String(b.pattern)));
 }
 
-function isGlobalPatternTimingStatsMissing(error) {
-  const message = String(error?.message || "");
-  return (
-    error?.code === "PGRST202" ||
-    message.includes("global_pattern_timing_stats") ||
-    message.includes("schema cache")
-  );
-}
 
 export async function getGlobalPatternTimingStatsRepository() {
   const supabase = getSupabaseClient();
@@ -408,10 +428,7 @@ export async function getGlobalPatternTimingStatsRepository() {
       ? mergePatternTimingStats(data.map(toPatternTimingStat))
       : [];
   } catch (error) {
-    if (!isGlobalPatternTimingStatsMissing(error)) {
-      console.error("Erreur chargement stats globales par pattern:", error);
-    }
-
+    console.error("Erreur chargement stats globales par pattern:", error);
     const accessibleClassRows = await getAccessibleClassTimingDataRepository();
     return buildPatternTimingStats(accessibleClassRows);
   }
@@ -467,16 +484,28 @@ export async function getClassesForDayRepository(dayId) {
   }
 
   try {
-    const { data, error } = await supabase
+    let result = await supabase
       .from("classes")
       .select("*")
       .eq("show_day_id", dayId)
+      .eq("is_event_block", false)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
 
-    if (error) throw error;
+    if (result.error && isEventBlockColumnMissingError(result.error)) {
+      result = await supabase
+        .from("classes")
+        .select("*")
+        .eq("show_day_id", dayId)
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true });
+    }
 
-    const classes = Array.isArray(data) ? data.map(toClass) : [];
+    if (result.error) throw result.error;
+
+    const classes = Array.isArray(result.data)
+      ? result.data.map(toClass).filter(isScoringClass)
+      : [];
     const otherLocalClasses = getAllClasses().filter(
       (classItem) => classItem.dayId !== dayId
     );

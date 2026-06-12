@@ -71,6 +71,16 @@ function isPlannedLiveStatusColumnMissingError(error) {
   return String(error?.message || "").includes("planned_live_status");
 }
 
+function getSupabaseErrorText(error) {
+  return [error?.message, error?.details, error?.hint]
+    .map((value) => String(value || "").toLowerCase())
+    .join(" ");
+}
+
+function isEventBlockColumnMissingError(error) {
+  return getSupabaseErrorText(error).includes("is_event_block");
+}
+
 export async function getPublicationStateRepository(classId) {
   const localState = getPublicationState(classId);
   const supabase = getSupabaseClient();
@@ -225,7 +235,7 @@ function isSameArena(firstArena, secondArena) {
 function getLocalShowLiveSchedule(showId) {
   const days = getDaysByShowId(showId);
   const dayIds = new Set(days.map((day) => day.id));
-  const classes = getAllClasses().filter((classItem) => classItem.showId === showId);
+  const classes = getAllClasses().filter((classItem) => classItem.showId === showId && !classItem.isEventBlock);
   const paidWarmups = loadPaidWarmups().filter(
     (warmup) => warmup.showId === showId || dayIds.has(warmup.dayId)
   );
@@ -234,13 +244,16 @@ function getLocalShowLiveSchedule(showId) {
 }
 
 async function getRemoteShowLiveSchedule(supabase, showId) {
+  const classesQuery = supabase
+    .from("classes")
+    .select(
+      "id, show_id, show_day_id, name, arena, sort_order, schedule_start_mode, scheduled_time, is_event_block"
+    )
+    .eq("show_id", showId)
+    .eq("is_event_block", false);
+
   const [classesResult, daysResult, paidWarmupsResult] = await Promise.all([
-    supabase
-      .from("classes")
-      .select(
-        "id, show_id, show_day_id, name, arena, sort_order, schedule_start_mode, scheduled_time"
-      )
-      .eq("show_id", showId),
+    classesQuery,
     supabase
       .from("days")
       .select("id, date, sort_order")
@@ -248,13 +261,25 @@ async function getRemoteShowLiveSchedule(supabase, showId) {
     supabase.from("show_score_paid_warmups").select("*").eq("show_id", showId),
   ]);
 
-  if (classesResult.error) throw classesResult.error;
+  let resolvedClassesResult = classesResult;
+  if (classesResult.error && isEventBlockColumnMissingError(classesResult.error)) {
+    resolvedClassesResult = await supabase
+      .from("classes")
+      .select(
+        "id, show_id, show_day_id, name, arena, sort_order, schedule_start_mode, scheduled_time"
+      )
+      .eq("show_id", showId);
+  }
+
+  if (resolvedClassesResult.error) throw resolvedClassesResult.error;
   if (daysResult.error) throw daysResult.error;
   if (paidWarmupsResult.error) throw paidWarmupsResult.error;
 
   return buildLiveScheduleItems({
-    classes: Array.isArray(classesResult.data)
-      ? classesResult.data.map((row) => ({
+    classes: Array.isArray(resolvedClassesResult.data)
+      ? resolvedClassesResult.data
+          .filter((row) => row?.is_event_block !== true)
+          .map((row) => ({
           ...row,
           dayId: row.show_day_id,
           scheduleStartTime: row.scheduled_time || "",

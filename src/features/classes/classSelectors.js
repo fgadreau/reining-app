@@ -17,14 +17,18 @@ function loadClassesFromStorage() {
   }
 }
 
+function isScoringClassItem(item) {
+  return !item?.isEventBlock && item?.is_event_block !== true;
+}
+
 export function getAllClasses() {
-  return loadClassesFromStorage();
+  return loadClassesFromStorage().filter(isScoringClassItem);
 }
 
 export function getClassById(classId) {
-  return loadClassesFromStorage().find((item) => item.id === classId) || null;
+  return getAllClasses().find((item) => item.id === classId) || null;
 }
 
 export function getClassesByDayId(dayId) {
-  return loadClassesFromStorage().filter((item) => item.dayId === dayId);
+  return getAllClasses().filter((item) => item.dayId === dayId);
 }

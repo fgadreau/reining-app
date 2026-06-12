@@ -23,6 +23,28 @@ function mapById(items) {
   );
 }
 
+function isScoringClassRow(row) {
+  return row?.is_event_block !== true && row?.isEventBlock !== true;
+}
+
+function getSupabaseErrorText(error) {
+  return [error?.message, error?.details, error?.hint]
+    .map((value) => String(value || "").toLowerCase())
+    .join(" ");
+}
+
+function isEventBlockColumnMissingError(error) {
+  return getSupabaseErrorText(error).includes("is_event_block");
+}
+
+function removeColumn(columns, columnName) {
+  return String(columns || "*")
+    .split(",")
+    .map((column) => column.trim())
+    .filter((column) => column && column !== columnName)
+    .join(",");
+}
+
 function shortId(value) {
   const text = String(value || "").trim();
   if (!text) return "";
@@ -56,6 +78,13 @@ async function fetchRowsByIds(tableName, ids, columns = "*") {
     if (error) throw error;
     return Array.isArray(data) ? data : [];
   } catch (error) {
+    if (
+      String(columns).includes("is_event_block") &&
+      isEventBlockColumnMissingError(error)
+    ) {
+      return fetchRowsByIds(tableName, ids, removeColumn(columns, "is_event_block"));
+    }
+
     console.error(`Erreur chargement libelles ${tableName}:`, error);
     return [];
   }
@@ -94,6 +123,7 @@ function toClassFromRow(row) {
     dayId: row.show_day_id || row.day_id,
     name: row.name || "",
     classCode: row.code || row.class_code || "",
+    isEventBlock: Boolean(row.is_event_block),
   };
 }
 
@@ -182,7 +212,7 @@ export async function buildAnalyticsEventLabelResolver(events) {
   let associations = localAssociations;
   let shows = getAllShows();
   let days = getAllDays();
-  let classes = getAllClasses();
+  let classes = getAllClasses().filter(isScoringClassRow);
   let paidWarmups = loadPaidWarmups();
   let maps = buildNameMaps({ associations, shows, days, classes, paidWarmups });
 
@@ -208,7 +238,7 @@ export async function buildAnalyticsEventLabelResolver(events) {
     fetchRowsByIds(
       "classes",
       missingClassIds,
-      "id,organization_id,show_id,show_day_id,name,code"
+      "id,organization_id,show_id,show_day_id,name,code,is_event_block"
     ),
     fetchRowsByIds(
       "show_score_paid_warmups",
@@ -223,7 +253,10 @@ export async function buildAnalyticsEventLabelResolver(events) {
   ];
   shows = [...shows, ...remoteShows.map(toShowFromRow)];
   days = [...days, ...remoteDays.map(toDayFromRow)];
-  classes = [...classes, ...remoteClasses.map(toClassFromRow)];
+  classes = [
+    ...classes,
+    ...remoteClasses.filter(isScoringClassRow).map(toClassFromRow),
+  ];
   paidWarmups = [
     ...paidWarmups,
     ...remotePaidWarmups.map(toPaidWarmupFromRow),
