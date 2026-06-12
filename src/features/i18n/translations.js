@@ -987,9 +987,9 @@ export const translations = {
           "Colle un lien YouTube, Vimeo ou un code iframe. La vidéo peut être masquée par le public; le live scoring reste disponible.",
         livestreamPublicEnabled: "Livestream public activé",
         livestreamPublicLabel: "Afficher la vidéo sur la vitrine publique",
-        livestreamSettings: "Réglages livestream",
+        livestreamSettings: "Réglages Live / Vue en direct",
         livestreamSettingsHelp:
-          "Centralise ici la vidéo publique, les liens OBS et les overlays par manège pour ce show.",
+          "Centralise ici la vidéo publique, l’horaire public, les liens OBS et les overlays par manège pour ce show.",
         livestreamUrlLabel: "Lien du livestream",
         livestreamVideoTitle: "Vidéo publique",
         locationLabel: "Lieu",
@@ -2276,9 +2276,9 @@ export const translations = {
           "Paste a YouTube, Vimeo, or iframe link. Visitors can hide the video; live scoring stays available.",
         livestreamPublicEnabled: "Public livestream enabled",
         livestreamPublicLabel: "Show the video on the public showcase",
-        livestreamSettings: "Livestream settings",
+        livestreamSettings: "Live / Public View settings",
         livestreamSettingsHelp:
-          "Keep the public video, OBS links, and arena overlays for this show in one place.",
+          "Keep the public video, public schedule, OBS links, and arena overlays for this show in one place.",
         livestreamUrlLabel: "Livestream link",
         livestreamVideoTitle: "Public video",
         locationLabel: "Location",
