@@ -81,7 +81,7 @@ export async function getPublicationStateRepository(classId) {
 
   try {
     const { data, error } = await supabase
-      .from("publication_states")
+      .from("show_score_publication_states")
       .select("*")
       .eq("class_id", classId)
       .maybeSingle();
@@ -119,7 +119,7 @@ export async function getPublicationStatesForClassesRepository(classIds) {
 
   try {
     const { data, error } = await supabase
-      .from("publication_states")
+      .from("show_score_publication_states")
       .select("*")
       .in("class_id", uniqueIds);
 
@@ -167,7 +167,7 @@ export async function savePublicationStateRepository(classId, updates) {
   if (supabase) {
     try {
       const { error } = await supabase
-        .from("publication_states")
+        .from("show_score_publication_states")
         .upsert(toPublicationRow(classId, nextState));
 
       if (error) throw error;
@@ -178,7 +178,7 @@ export async function savePublicationStateRepository(classId, updates) {
           delete legacyRow.planned_live_status;
 
           const { error: legacyError } = await supabase
-            .from("publication_states")
+            .from("show_score_publication_states")
             .upsert(legacyRow);
 
           if (legacyError) throw legacyError;
@@ -238,14 +238,14 @@ async function getRemoteShowLiveSchedule(supabase, showId) {
     supabase
       .from("classes")
       .select(
-        "id, show_id, day_id, name, arena, sort_order, schedule_start_mode, schedule_start_time"
+        "id, show_id, show_day_id, name, arena, sort_order, schedule_start_mode, scheduled_time"
       )
       .eq("show_id", showId),
     supabase
       .from("days")
       .select("id, date, sort_order")
       .eq("show_id", showId),
-    supabase.from("paid_warmups").select("*").eq("show_id", showId),
+    supabase.from("show_score_paid_warmups").select("*").eq("show_id", showId),
   ]);
 
   if (classesResult.error) throw classesResult.error;
@@ -253,13 +253,19 @@ async function getRemoteShowLiveSchedule(supabase, showId) {
   if (paidWarmupsResult.error) throw paidWarmupsResult.error;
 
   return buildLiveScheduleItems({
-    classes: Array.isArray(classesResult.data) ? classesResult.data : [],
+    classes: Array.isArray(classesResult.data)
+      ? classesResult.data.map((row) => ({
+          ...row,
+          dayId: row.show_day_id,
+          scheduleStartTime: row.scheduled_time || "",
+        }))
+      : [],
     paidWarmups: Array.isArray(paidWarmupsResult.data)
       ? paidWarmupsResult.data.map((row) => ({
           id: row.id,
-          associationId: row.association_id,
+          associationId: row.organization_id,
           showId: row.show_id,
-          dayId: row.day_id,
+          dayId: row.show_day_id,
           name: row.name || "",
           arena: row.arena || "",
           entries: Array.isArray(row.entries) ? row.entries : [],
@@ -357,7 +363,7 @@ async function savePaidWarmupLiveStateRepository({
   if (supabase) {
     try {
       const { error } = await supabase
-        .from("paid_warmups")
+        .from("show_score_paid_warmups")
         .update({ is_public_live: Boolean(isPublicLive) })
         .eq("id", normalizedPaidWarmupId);
 
@@ -427,7 +433,7 @@ export async function hideOtherArenaLiveClassesRepository({
     if (remoteClassIds.length === 0) return;
 
     const { error: updateError } = await supabase
-      .from("publication_states")
+      .from("show_score_publication_states")
       .update({
         status: PUBLICATION_STATUSES.HIDDEN,
         published_at: null,
@@ -501,7 +507,7 @@ export async function hideOtherArenaLivePaidWarmupsRepository({
     if (remoteWarmupIds.length === 0) return;
 
     const { error } = await supabase
-      .from("paid_warmups")
+      .from("show_score_paid_warmups")
       .update({ is_public_live: false })
       .in("id", remoteWarmupIds);
 
@@ -879,7 +885,7 @@ export async function deletePublicationStateRepository(classId) {
   if (supabase) {
     try {
       const { error } = await supabase
-        .from("publication_states")
+        .from("show_score_publication_states")
         .delete()
         .eq("class_id", classId);
 

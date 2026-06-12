@@ -80,18 +80,27 @@ function toAssociation(row) {
 }
 
 function toShow(row) {
+  const status =
+    row.status === "open"
+      ? "active"
+      : row.status === "closed"
+        ? "completed"
+        : row.status || "draft";
+
   return {
     id: row.id,
-    associationId: row.association_id,
+    associationId: row.organization_id || row.association_id,
     name: row.name || "",
     venue: row.venue || "",
     location: row.location || "",
     startDate: row.start_date || "",
     endDate: row.end_date || "",
-    status: row.status || "draft",
+    status,
     livestreamUrl: row.livestream_url || "",
     isLivestreamPublic: Boolean(row.is_livestream_public),
-    isSchedulePublic: Boolean(row.is_schedule_public),
+    isSchedulePublic: Boolean(
+      row.is_public || row.is_schedule_public || row.show_schedule_public
+    ),
   };
 }
 
@@ -119,7 +128,7 @@ function buildEmptyPublicShowView() {
 function toDay(row) {
   return {
     id: row.id,
-    associationId: row.association_id,
+    associationId: row.association_id || row.organization_id,
     showId: row.show_id,
     label: row.label || "",
     date: row.date || "",
@@ -130,11 +139,11 @@ function toDay(row) {
 function toClass(row) {
   return {
     id: row.id,
-    associationId: row.association_id,
+    associationId: row.organization_id || row.association_id,
     showId: row.show_id,
-    dayId: row.day_id,
+    dayId: row.show_day_id || row.day_id,
     name: row.name || "",
-    classCode: row.class_code || "",
+    classCode: row.code || row.class_code || "",
     arena: row.arena || "",
     pattern: row.pattern || "",
     customPattern:
@@ -142,7 +151,7 @@ function toClass(row) {
         ? row.custom_pattern
         : null,
     scheduleStartMode: row.schedule_start_mode || "",
-    scheduleStartTime: row.schedule_start_time || "",
+    scheduleStartTime: row.schedule_start_time || row.scheduled_time || "",
     judgeName: row.judge_name || "",
     sortOrder: row.sort_order || 1,
   };
@@ -240,16 +249,16 @@ function toJudgeScoringSession(row) {
 function toPaidWarmup(row) {
   return {
     id: row.id,
-    associationId: row.association_id,
+    associationId: row.organization_id || row.association_id,
     showId: row.show_id,
-    dayId: row.day_id,
+    dayId: row.show_day_id || row.day_id,
     name: row.name || "",
     arena: row.arena || "",
     durationMinutesPerRider: row.duration_minutes_per_rider,
     dragInterval: row.drag_interval,
     dragDurationMinutes: row.drag_duration_minutes,
     scheduleStartMode: row.schedule_start_mode || "",
-    scheduleStartTime: row.schedule_start_time || "",
+    scheduleStartTime: row.schedule_start_time || row.scheduled_time || "",
     isPublicLive: Boolean(row.is_public_live),
     activeEntryId: row.active_entry_id || null,
     activeStartedAt: row.active_started_at || null,
@@ -504,7 +513,7 @@ export function subscribePublicShowViewRepository(showId, classIds, onChange) {
     {
       event: "*",
       schema: "public",
-      table: "days",
+      table: "show_days",
       filter: `show_id=eq.${showId}`,
     },
     onChange
@@ -526,7 +535,7 @@ export function subscribePublicShowViewRepository(showId, classIds, onChange) {
     {
       event: "*",
       schema: "public",
-      table: "paid_warmups",
+      table: "show_score_paid_warmups",
       filter: `show_id=eq.${showId}`,
     },
     onChange
@@ -537,18 +546,18 @@ export function subscribePublicShowViewRepository(showId, classIds, onChange) {
     {
       event: "*",
       schema: "public",
-      table: "publication_states",
+      table: "show_score_publication_states",
     },
     onChange
   );
 
   uniqueClassIds.forEach((classId) => {
     [
-      "official_results",
+      "show_score_official_results",
       "class_result_publications",
-      "scoring_sessions",
-      "judge_scoring_sessions",
-      "class_setups",
+      "show_score_scoring_sessions",
+      "show_score_judge_sessions",
+      "show_score_class_setups",
     ].forEach((table) => {
       channel.on(
         "postgres_changes",
@@ -604,13 +613,13 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
           supabase
             .from("classes")
             .select("*")
-            .eq("day_id", day.id)
+            .eq("show_day_id", day.id)
             .order("sort_order", { ascending: true })
             .order("name", { ascending: true }),
           supabase
-            .from("paid_warmups")
+            .from("show_score_paid_warmups")
             .select("*")
-            .eq("day_id", day.id)
+            .eq("show_day_id", day.id)
             .order("sort_order", { ascending: true })
             .order("name", { ascending: true }),
         ]);
@@ -654,23 +663,23 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
           resultPublicationsByClassId,
         ] = await Promise.all([
             supabase
-              .from("publication_states")
+              .from("show_score_publication_states")
               .select("*")
               .in("class_id", classIds),
             supabase
-              .from("official_results")
+              .from("show_score_official_results")
               .select("*")
               .in("class_id", classIds),
             supabase
-              .from("scoring_sessions")
+              .from("show_score_scoring_sessions")
               .select("*")
               .in("class_id", classIds),
             supabase
-              .from("judge_scoring_sessions")
+              .from("show_score_judge_sessions")
               .select("*")
               .in("class_id", classIds),
             supabase
-              .from("class_setups")
+              .from("show_score_class_setups")
               .select("*")
               .in("class_id", classIds),
             getPublicResultPublicationMap(supabase, classIds),
@@ -1006,7 +1015,7 @@ async function getPublicShowsByAssociationFromSupabase(associationId, supabase) 
   const { data, error } = await supabase
     .from("shows")
     .select("*")
-    .eq("association_id", associationId)
+    .eq("organization_id", associationId)
     .order("start_date", { ascending: false, nullsFirst: false })
     .order("name", { ascending: true });
 

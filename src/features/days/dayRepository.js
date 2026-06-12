@@ -130,11 +130,11 @@ export async function saveDayRepository(day) {
   return savedDay;
 }
 
-async function tableHasDayRows(supabase, tableName, dayId) {
+async function tableHasRowsForColumn(supabase, tableName, columnName, value) {
   const { data, error } = await supabase
     .from(tableName)
     .select("id")
-    .eq("day_id", dayId)
+    .eq(columnName, value)
     .limit(1);
 
   if (error) throw error;
@@ -153,8 +153,13 @@ export async function dayHasScheduleItemsRepository(dayId) {
 
   try {
     const [hasClasses, hasPaidWarmups] = await Promise.all([
-      tableHasDayRows(supabase, "classes", dayId),
-      tableHasDayRows(supabase, "paid_warmups", dayId),
+      tableHasRowsForColumn(supabase, "classes", "show_day_id", dayId),
+      tableHasRowsForColumn(
+        supabase,
+        "show_score_paid_warmups",
+        "show_day_id",
+        dayId
+      ),
     ]);
 
     return hasClasses || hasPaidWarmups;

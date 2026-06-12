@@ -55,7 +55,7 @@ import { getPatternDisplayName } from "../patterns/patternDefinitions";
 function toClass(row) {
   const scheduleStart = normalizeClassScheduleStart({
     startMode: row.schedule_start_mode,
-    startTime: row.schedule_start_time,
+    startTime: row.schedule_start_time || row.scheduled_time,
   });
 
   return {
@@ -64,7 +64,7 @@ function toClass(row) {
     showId: row.show_id,
     dayId: row.show_day_id,
     name: row.name || "",
-    classCode: row.class_code || "",
+    classCode: row.code || row.class_code || "",
     arena: row.arena || "",
     pattern: row.pattern || "",
     customPattern:
@@ -90,7 +90,7 @@ function toClassRow(classItem, options = {}) {
     show_id: classItem.showId,
     show_day_id: classItem.dayId,
     name: classItem.name || "",
-    class_code: classItem.classCode || "",
+    code: classItem.classCode || "",
     pattern: classItem.pattern || "",
     judge_name: classItem.judgeName || "",
     sort_order: Number(classItem.sortOrder) || 1,
@@ -107,7 +107,7 @@ function toClassRow(classItem, options = {}) {
   if (includeScheduleStart) {
     row.schedule_start_mode =
       scheduleStart.startMode || CLASS_START_MODE_AFTER_PREVIOUS;
-    row.schedule_start_time = scheduleStart.startTime || null;
+    row.scheduled_time = scheduleStart.startTime || null;
   }
 
   return row;
@@ -125,7 +125,8 @@ function isScheduleStartColumnMissingError(error) {
   const message = String(error?.message || "");
   return (
     message.includes("schedule_start_mode") ||
-    message.includes("schedule_start_time")
+    message.includes("schedule_start_time") ||
+    message.includes("scheduled_time")
   );
 }
 

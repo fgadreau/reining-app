@@ -13,7 +13,7 @@ export function isAuthAvailable() {
   return isSupabaseConfigured();
 }
 
-function toUserProfileRow(user) {
+function getUserProfileIdentity(user) {
   const email = String(user?.email || "").trim().toLowerCase();
   const displayName =
     user?.user_metadata?.display_name ||
@@ -21,11 +21,39 @@ function toUserProfileRow(user) {
     email.split("@")[0] ||
     "";
 
+  return { email, displayName };
+}
+
+function toSharedUserProfileRow(user) {
+  const { email, displayName } = getUserProfileIdentity(user);
+
+  return {
+    user_id: user.id,
+    email,
+    display_name: displayName,
+  };
+}
+
+function toStandaloneUserProfileRow(user) {
+  const { email, displayName } = getUserProfileIdentity(user);
+
   return {
     id: user.id,
     email,
     display_name: displayName,
   };
+}
+
+function isSharedUserProfileSchemaMissing(error) {
+  const message = String(error?.message || "").toLowerCase();
+  const details = String(error?.details || "").toLowerCase();
+  const hint = String(error?.hint || "").toLowerCase();
+  const text = `${message} ${details} ${hint}`;
+
+  return (
+    error?.code === "PGRST204" ||
+    (text.includes("user_id") && text.includes("column"))
+  );
 }
 
 export async function saveUserProfile(user) {
@@ -36,15 +64,29 @@ export async function saveUserProfile(user) {
   }
 
   try {
-    const { data, error } = await supabase
+    const sharedResult = await supabase
       .from("user_profiles")
-      .upsert(toUserProfileRow(user))
+      .upsert(toSharedUserProfileRow(user), { onConflict: "user_id" })
       .select("*")
       .maybeSingle();
 
-    if (error) throw error;
+    if (!sharedResult.error) {
+      return sharedResult.data || null;
+    }
 
-    return data || null;
+    if (!isSharedUserProfileSchemaMissing(sharedResult.error)) {
+      throw sharedResult.error;
+    }
+
+    const standaloneResult = await supabase
+      .from("user_profiles")
+      .upsert(toStandaloneUserProfileRow(user))
+      .select("*")
+      .maybeSingle();
+
+    if (standaloneResult.error) throw standaloneResult.error;
+
+    return standaloneResult.data || null;
   } catch (error) {
     console.error("Erreur sauvegarde profil Supabase:", error);
     return null;

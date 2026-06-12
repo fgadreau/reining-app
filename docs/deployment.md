@@ -16,7 +16,7 @@ Keep test shows and training data out of Supabase PROD.
 
 ## Supabase Projects
 
-Create two Supabase projects:
+For a standalone ShowScore deployment, create two Supabase projects:
 
 1. `reining-app-dev`
 2. `reining-app-prod`
@@ -31,6 +31,22 @@ For each project:
 The platform admin command must be run once per Supabase project, after the Auth
 user exists in that project.
 
+## Shared Supabase With HorseShowPlatform
+
+When the same Supabase project serves both `showscore.app` and
+`horseshowplatform.app`, HorseShowPlatform owns the canonical base tables:
+`organizations`, `shows`, `show_days`, and `classes`.
+
+For that shared project:
+
+1. Run the HorseShowPlatform migrations first.
+2. Run [supabase-shared-showscore-hsp-compatibility.sql](supabase-shared-showscore-hsp-compatibility.sql).
+3. Add your platform admin with [platform-admin-bootstrap.sql](platform-admin-bootstrap.sql).
+
+Do not run [supabase-schema.sql](supabase-schema.sql) on the shared
+HorseShowPlatform project. It is the standalone ShowScore schema and creates
+older base tables such as `associations`, `days`, and generic scoring tables.
+
 ## Environment Variables
 
 Local development:
@@ -44,9 +60,9 @@ Online staging:
 Set these variables in the hosting dashboard:
 
 ```text
-REACT_APP_DEPLOY_ENV=staging
-REACT_APP_SUPABASE_URL=<Supabase DEV URL>
-REACT_APP_SUPABASE_PUBLISHABLE_KEY=<Supabase DEV publishable key>
+VITE_DEPLOY_ENV=staging
+VITE_SUPABASE_URL=<Supabase DEV URL>
+VITE_SUPABASE_PUBLISHABLE_KEY=<Supabase DEV publishable key>
 ```
 
 Production:
@@ -54,9 +70,9 @@ Production:
 Set these variables in the hosting dashboard:
 
 ```text
-REACT_APP_DEPLOY_ENV=production
-REACT_APP_SUPABASE_URL=<Supabase PROD URL>
-REACT_APP_SUPABASE_PUBLISHABLE_KEY=<Supabase PROD publishable key>
+VITE_DEPLOY_ENV=production
+VITE_SUPABASE_URL=<Supabase PROD URL>
+VITE_SUPABASE_PUBLISHABLE_KEY=<Supabase PROD publishable key>
 ```
 
 Do not reuse the DEV Supabase URL in production.

@@ -9,12 +9,145 @@ const PUBLIC_LIVE_STATUSES = new Set([
   "live_finished",
 ]);
 
-loadEnvFile(".env");
-loadEnvFile(".env.local");
+const ACTIVE_SHOW_STATUSES = new Set(["active", "open"]);
 
-const supabaseUrl = (process.env.REACT_APP_SUPABASE_URL || "").trim();
+const SHARED_SCHEMA_PROBES = [
+  {
+    table: "user_profiles",
+    columns: "id,user_id,email,display_name,first_name,last_name,type_user",
+    label: "user_profiles compat",
+  },
+  {
+    table: "platform_admins",
+    columns: "id,user_id,email",
+    label: "platform_admins compat",
+  },
+  {
+    table: "organization_members",
+    columns: "id,organization_id,user_id,role,created_at",
+    label: "organization_members HSP",
+    filters: { order: "created_at.desc" },
+  },
+  {
+    table: "contact_roles",
+    columns: "id,created_at",
+    label: "contact_roles HSP",
+    filters: { order: "created_at.desc" },
+  },
+  {
+    table: "contact_organization_links",
+    columns: "id,created_at",
+    label: "contact_organization_links HSP",
+    filters: { order: "created_at.desc" },
+  },
+  {
+    table: "contacts",
+    columns: "id,created_at",
+    label: "contacts HSP",
+    filters: { order: "created_at.desc" },
+  },
+  {
+    table: "organization_external_membership_requirements",
+    columns: "id,created_at",
+    label: "organization_external_membership_requirements HSP",
+    filters: { order: "created_at.desc" },
+  },
+  {
+    table: "external_organizations",
+    columns: "id,name",
+    label: "external_organizations HSP",
+    filters: { order: "name.asc" },
+  },
+  {
+    table: "contact_external_memberships",
+    columns: "id,created_at",
+    label: "contact_external_memberships HSP",
+    filters: { order: "created_at.desc" },
+  },
+  {
+    table: "horse_health_documents",
+    columns: "id,created_at",
+    label: "horse_health_documents HSP",
+    filters: { order: "created_at.desc" },
+  },
+  {
+    table: "show_days",
+    columns: "id,show_id,day_date",
+    label: "show_days HSP",
+    filters: { order: "day_date.asc" },
+  },
+  {
+    table: "horses",
+    columns: "id,created_at",
+    label: "horses HSP",
+    filters: { order: "created_at.desc" },
+  },
+  {
+    table: "horse_organization_links",
+    columns: "id,created_at",
+    label: "horse_organization_links HSP",
+    filters: { order: "created_at.desc" },
+  },
+  {
+    table: "class_templates",
+    columns: "id,sort_order",
+    label: "class_templates HSP",
+    filters: { order: "sort_order.asc" },
+  },
+  {
+    table: "class_template_divisions",
+    columns: "id,sort_order",
+    label: "class_template_divisions HSP",
+    filters: { order: "sort_order.asc" },
+  },
+  {
+    table: "invoices",
+    columns: "id,created_at",
+    label: "invoices HSP",
+    filters: { order: "created_at.desc" },
+  },
+  {
+    table: "stall_options",
+    columns: "id,created_at",
+    label: "stall_options HSP",
+    filters: { order: "created_at.desc" },
+  },
+];
+
+function getShowAssociationId(show) {
+  return show?.organization_id || show?.association_id || "";
+}
+
+function getShowPublicScheduleFlag(show) {
+  return (
+    show?.is_public === true ||
+    show?.is_schedule_public === true ||
+    show?.show_schedule_public === true
+  );
+}
+
+function isShowPubliclyActive(show) {
+  return ACTIVE_SHOW_STATUSES.has(String(show?.status || "").trim());
+}
+
+const smokeEnvFile = process.env.SMOKE_ENV_FILE;
+
+if (smokeEnvFile) {
+  loadEnvFile(smokeEnvFile);
+} else {
+  loadEnvFile(".env");
+  loadEnvFile(".env.local");
+}
+
+const supabaseUrl = (
+  process.env.VITE_SUPABASE_URL ||
+  process.env.REACT_APP_SUPABASE_URL ||
+  ""
+).trim();
 const supabaseKey = (
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   process.env.REACT_APP_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.VITE_SUPABASE_ANON_KEY ||
   process.env.REACT_APP_SUPABASE_ANON_KEY ||
   ""
 ).trim();
@@ -215,7 +348,7 @@ async function probeDraftShows() {
 async function probeTimingFunction(shows) {
   const targetShowIds = shows.length
     ? shows.slice(0, 3).map((show) => show.id)
-    : ["smoke-non-existent-show"];
+    : ["00000000-0000-0000-0000-000000000000"];
 
   for (const showId of targetShowIds) {
     const { error } = await callRpc("public_show_timing_summary", {
@@ -233,6 +366,42 @@ async function probeTimingFunction(shows) {
   addPass("La RPC publique public_show_timing_summary repond en anon.");
 }
 
+async function probeAdminFunction() {
+  const { error } = await callRpc("current_user_is_platform_admin", {});
+
+  if (error) {
+    addIssue(
+      `current_user_is_platform_admin: RPC indisponible (${error.message})`
+    );
+    return;
+  }
+
+  addPass("La RPC current_user_is_platform_admin repond sans erreur de schema.");
+}
+
+async function probeSharedSchema() {
+  let successfulProbes = 0;
+
+  for (const probe of SHARED_SCHEMA_PROBES) {
+    const rows = await fetchRows(
+      probe.table,
+      probe.columns,
+      probe.label,
+      probe.filters || {}
+    );
+
+    if (rows !== null) {
+      successfulProbes += 1;
+    }
+  }
+
+  if (successfulProbes === SHARED_SCHEMA_PROBES.length) {
+    addPass(
+      `Schema REST shared: ${successfulProbes} endpoints HSP/ShowScore repondent sans 400.`
+    );
+  }
+}
+
 function checkReturnedShows(shows) {
   if (!shows.length) {
     addWarning(
@@ -242,12 +411,12 @@ function checkReturnedShows(shows) {
   }
 
   shows
-    .filter((show) => show.status !== "active")
+    .filter((show) => !isShowPubliclyActive(show))
     .forEach((show) => {
       addIssue(`Show non actif visible en anon: ${show.id} (${show.status || "sans statut"})`);
     });
 
-  if (shows.every((show) => show.status === "active")) {
+  if (shows.every(isShowPubliclyActive)) {
     addPass("Tous les shows lisibles en anon sont actifs.");
   }
 }
@@ -272,23 +441,23 @@ function checkPublicationStates({ publicationStates, officialByClassId }) {
   publicationStates.forEach((publication) => {
     if (PUBLIC_LIVE_STATUSES.has(publication.status)) return;
 
-    if (publication.status === "published") {
+    if (publication.status === "official" || publication.status === "published") {
       const official = officialByClassId.get(publication.class_id);
       if (!official) {
         addIssue(
-          `publication_states: statut published visible sans official_result public (${publication.class_id})`
+          `show_score_publication_states: statut ${publication.status} visible sans show_score_official_result public (${publication.class_id})`
         );
       }
       return;
     }
 
     addIssue(
-      `publication_states: statut non public visible en anon (${publication.class_id}: ${publication.status})`
+      `show_score_publication_states: statut non public visible en anon (${publication.class_id}: ${publication.status})`
     );
   });
 
   if (publicationStates.length) {
-    addPass("Les publication_states anon sont live ou published avec resultat officiel public.");
+    addPass("Les show_score_publication_states anon sont live, official ou published avec resultat officiel public.");
   }
 }
 
@@ -296,13 +465,13 @@ function checkOfficialResults(officialResults) {
   officialResults.forEach((official) => {
     if (official.finalized !== true || !official.secretariat_validated_at) {
       addIssue(
-        `official_results: resultat visible sans finalisation/validation secretariat (${official.class_id})`
+        `show_score_official_results: resultat visible sans finalisation/validation secretariat (${official.class_id})`
       );
     }
   });
 
   if (officialResults.length) {
-    addPass("Les official_results anon sont finalises et valides par le secretariat.");
+    addPass("Les show_score_official_results anon sont finalises et valides par le secretariat.");
   }
 }
 
@@ -346,19 +515,19 @@ function checkPaidWarmups({ paidWarmups, showMap }) {
     const show = showMap.get(warmup.show_id);
 
     if (!show) {
-      addIssue(`paid_warmups: warmup visible sans show public (${warmup.id})`);
+      addIssue(`show_score_paid_warmups: warmup visible sans show public (${warmup.id})`);
       return;
     }
 
-    if (!warmup.is_public_live && show.is_schedule_public !== true) {
+    if (!warmup.is_public_live && !getShowPublicScheduleFlag(show)) {
       addIssue(
-        `paid_warmups: warmup visible sans live public ni horaire public (${warmup.id})`
+        `show_score_paid_warmups: warmup visible sans live public ni horaire public (${warmup.id})`
       );
     }
   });
 
   if (paidWarmups.length) {
-    addPass("Les paid warmups anon sont live publics ou dans un horaire public.");
+    addPass("Les show_score_paid_warmups anon sont live publics ou dans un horaire public.");
   }
 }
 
@@ -396,12 +565,14 @@ function printReport({ counts, samplePath }) {
 
 if (!supabaseUrl || !supabaseKey) {
   console.error(
-    "Supabase n'est pas configure. Ajoute REACT_APP_SUPABASE_URL et REACT_APP_SUPABASE_PUBLISHABLE_KEY."
+    "Supabase n'est pas configure. Ajoute VITE_SUPABASE_URL et VITE_SUPABASE_PUBLISHABLE_KEY."
   );
   process.exit(1);
 }
 
 await probeDraftShows();
+await probeAdminFunction();
+await probeSharedSchema();
 
 const associations = await fetchRows(
   "associations",
@@ -410,25 +581,29 @@ const associations = await fetchRows(
 ) || [];
 const shows = await fetchRows(
   "shows",
-  "id,association_id,name,status,is_schedule_public,is_livestream_public,livestream_url",
+  "id,organization_id,name,status,is_public,show_schedule_public,show_draw_public,show_results_public,is_livestream_public,livestream_url",
   "shows"
 ) || [];
 const days = await fetchRows("days", "id,show_id", "days") || [];
-const classes = await fetchRows("classes", "id,show_id,day_id", "classes") || [];
+const classes = await fetchRows(
+  "classes",
+  "id,organization_id,show_id,show_day_id",
+  "classes"
+) || [];
 const paidWarmups = await fetchRows(
-  "paid_warmups",
+  "show_score_paid_warmups",
   "id,show_id,is_public_live",
-  "paid_warmups"
+  "show_score_paid_warmups"
 ) || [];
 const publicationStates = await fetchRows(
-  "publication_states",
+  "show_score_publication_states",
   "class_id,status",
-  "publication_states"
+  "show_score_publication_states"
 ) || [];
 const officialResults = await fetchRows(
-  "official_results",
+  "show_score_official_results",
   "class_id,finalized,secretariat_validated_at",
-  "official_results"
+  "show_score_official_results"
 ) || [];
 const resultPublications = await fetchRows(
   "class_result_publications",
@@ -436,14 +611,14 @@ const resultPublications = await fetchRows(
   "class_result_publications"
 ) || [];
 const scoringSessions = await fetchRows(
-  "scoring_sessions",
+  "show_score_scoring_sessions",
   "class_id",
-  "scoring_sessions"
+  "show_score_scoring_sessions"
 ) || [];
 const judgeScoringSessions = await fetchRows(
-  "judge_scoring_sessions",
+  "show_score_judge_sessions",
   "class_id",
-  "judge_scoring_sessions"
+  "show_score_judge_sessions"
 ) || [];
 
 const associationMap = byId(associations);
@@ -474,12 +649,12 @@ checkResultPublications(resultPublications);
 checkScoringSessions({
   sessions: scoringSessions,
   publicationByClassId,
-  label: "scoring_sessions",
+  label: "show_score_scoring_sessions",
 });
 checkScoringSessions({
   sessions: judgeScoringSessions,
   publicationByClassId,
-  label: "judge_scoring_sessions",
+  label: "show_score_judge_sessions",
 });
 await probeTimingFunction(shows);
 
@@ -493,9 +668,9 @@ classes.forEach((classRow) => {
   }
 });
 
-const sampleShow = shows.find((show) => associationMap.has(show.association_id));
+const sampleShow = shows.find((show) => associationMap.has(getShowAssociationId(show)));
 const samplePath = sampleShow
-  ? `/public/associations/${sampleShow.association_id}/shows/${sampleShow.id}`
+  ? `/public/associations/${getShowAssociationId(sampleShow)}/shows/${sampleShow.id}`
   : "";
 
 printReport({
@@ -504,12 +679,12 @@ printReport({
     shows: shows.length,
     days: days.length,
     classes: classes.length,
-    paid_warmups: paidWarmups.length,
-    publication_states: publicationStates.length,
-    official_results: officialResults.length,
+    show_score_paid_warmups: paidWarmups.length,
+    show_score_publication_states: publicationStates.length,
+    show_score_official_results: officialResults.length,
     class_result_publications: resultPublications.length,
-    scoring_sessions: scoringSessions.length,
-    judge_scoring_sessions: judgeScoringSessions.length,
+    show_score_scoring_sessions: scoringSessions.length,
+    show_score_judge_sessions: judgeScoringSessions.length,
   },
   samplePath,
 });

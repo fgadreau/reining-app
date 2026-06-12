@@ -72,7 +72,7 @@ function toAssociationFromRow(row) {
 function toShowFromRow(row) {
   return {
     id: row.id,
-    associationId: row.association_id,
+    associationId: row.organization_id || row.association_id,
     name: row.name || "",
   };
 }
@@ -89,20 +89,20 @@ function toDayFromRow(row) {
 function toClassFromRow(row) {
   return {
     id: row.id,
-    associationId: row.association_id,
+    associationId: row.organization_id || row.association_id,
     showId: row.show_id,
-    dayId: row.day_id,
+    dayId: row.show_day_id || row.day_id,
     name: row.name || "",
-    classCode: row.class_code || "",
+    classCode: row.code || row.class_code || "",
   };
 }
 
 function toPaidWarmupFromRow(row) {
   return {
     id: row.id,
-    associationId: row.association_id,
+    associationId: row.organization_id || row.association_id,
     showId: row.show_id,
-    dayId: row.day_id,
+    dayId: row.show_day_id || row.day_id,
     name: row.name || "Paid warm up",
     isPaidWarmup: true,
   };
@@ -203,17 +203,17 @@ export async function buildAnalyticsEventLabelResolver(events) {
     remotePaidWarmups,
   ] = await Promise.all([
     fetchRowsByIds("associations", missingAssociationIds, "id,name,short_name"),
-    fetchRowsByIds("shows", missingShowIds, "id,association_id,name"),
+    fetchRowsByIds("shows", missingShowIds, "id,organization_id,name"),
     fetchRowsByIds("days", missingDayIds, "id,show_id,label,date"),
     fetchRowsByIds(
       "classes",
       missingClassIds,
-      "id,association_id,show_id,day_id,name,class_code"
+      "id,organization_id,show_id,show_day_id,name,code"
     ),
     fetchRowsByIds(
-      "paid_warmups",
+      "show_score_paid_warmups",
       missingClassIds,
-      "id,association_id,show_id,day_id,name"
+      "id,organization_id,show_id,show_day_id,name"
     ),
   ]);
 
@@ -239,7 +239,7 @@ export async function buildAnalyticsEventLabelResolver(events) {
 
   if (inferredShowIds.length || inferredDayIds.length) {
     const [inferredShows, inferredDays] = await Promise.all([
-      fetchRowsByIds("shows", inferredShowIds, "id,association_id,name"),
+      fetchRowsByIds("shows", inferredShowIds, "id,organization_id,name"),
       fetchRowsByIds("days", inferredDayIds, "id,show_id,label,date"),
     ]);
 

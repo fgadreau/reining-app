@@ -40,7 +40,7 @@ function toShow(row) {
     status: toShowStatus(row.status),
     livestreamUrl: row.livestream_url || "",
     isLivestreamPublic: Boolean(row.is_livestream_public),
-    isSchedulePublic: Boolean(row.is_public),
+    isSchedulePublic: Boolean(row.is_public || row.show_schedule_public),
   };
 }
 
@@ -61,6 +61,7 @@ function toShowRow(show, options = {}) {
 
   if (includePublicSchedule) {
     row.is_public = Boolean(show.isSchedulePublic);
+    row.show_schedule_public = Boolean(show.isSchedulePublic);
   }
 
   return row;
@@ -80,7 +81,9 @@ function isLivestreamSchemaMissing(error) {
 }
 
 function isScheduleSchemaMissing(error) {
-  return /is_schedule_public/i.test(String(error?.message || ""));
+  return /is_schedule_public|show_schedule_public|is_public/i.test(
+    String(error?.message || "")
+  );
 }
 
 function saveShowLocally(show) {
@@ -233,7 +236,7 @@ export async function activateShowForScoringRepository({ classId, showId } = {})
         try {
           const { error: updateError } = await supabase
             .from("shows")
-            .update({ status: "active" })
+            .update({ status: "open" })
             .eq("id", showId);
 
           if (updateError) throw updateError;

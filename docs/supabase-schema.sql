@@ -1,5 +1,8 @@
 -- Reining App V2 Supabase starter schema
 -- Run this in the Supabase SQL editor for a new project.
+-- Standalone ShowScore only. For the shared Supabase that also serves
+-- HorseShowPlatform, run the HSP migrations and then
+-- docs/supabase-shared-showscore-hsp-compatibility.sql instead.
 -- This schema is intentionally JSONB-friendly so V2 can sync current local data
 -- before the domain model is fully normalized.
 
@@ -23,6 +26,9 @@ create table if not exists public.platform_admins (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.platform_admins
+add column if not exists email text;
 
 create unique index if not exists platform_admins_lower_email_idx
 on public.platform_admins ((lower(email)))

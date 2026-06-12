@@ -343,7 +343,7 @@ async function syncClassScheduleStartFields(classId, details) {
       .from("classes")
       .update({
         schedule_start_mode: scheduleStart.startMode,
-        schedule_start_time: scheduleStart.startTime || null,
+        scheduled_time: scheduleStart.startTime || null,
       })
       .eq("id", classId);
 

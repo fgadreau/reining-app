@@ -9,8 +9,13 @@ const PUBLIC_OVERLAY_PATH_PATTERN =
   /^\/public\/associations\/[^/]+\/shows\/[^/]+\/overlay/;
 
 function getPublicAssetPath(path) {
-  const publicUrl = import.meta.env.BASE_URL || "";
+  const publicUrl = (import.meta.env.BASE_URL || "").replace(/\/+$/, "");
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+
+  if (!publicUrl) {
+    return normalizedPath;
+  }
+
   return `${publicUrl}${normalizedPath}`;
 }
 
@@ -105,17 +110,19 @@ function PublicAppInstallPrompt() {
     async function checkForFreshBuild() {
       try {
         const response = await fetch(
-          `${getPublicAssetPath("/asset-manifest.json")}?v=${Date.now()}`,
+          `${getPublicAssetPath("/index.html")}?v=${Date.now()}`,
           { cache: "no-store" }
         );
 
         if (!response.ok) return;
 
-        const manifest = await response.json();
-        const signature =
-          manifest?.files?.["main.js"] ||
-          manifest?.entrypoints?.join("|") ||
-          "";
+        const html = await response.text();
+        const signature = Array.from(
+          html.matchAll(/(?:src|href)="([^"]*\/assets\/[^"]+)"/g),
+          (match) => match[1]
+        )
+          .sort()
+          .join("|");
 
         if (!signature) return;
 
@@ -128,7 +135,7 @@ function PublicAppInstallPrompt() {
           reloadForFreshBuild();
         }
       } catch (error) {
-        // The manifest is only available in production builds.
+        // Build freshness checks are best-effort.
       }
     }
 

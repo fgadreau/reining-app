@@ -46,7 +46,7 @@ module.exports = defineConfig({
     },
   ],
   webServer: {
-    command: `HOST=${HOST} PORT=${PORT} BROWSER=none npm start`,
+    command: `npm start -- --host ${HOST} --port ${PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
