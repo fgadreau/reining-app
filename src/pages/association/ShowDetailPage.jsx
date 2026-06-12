@@ -390,26 +390,47 @@ function ShowDetailPage() {
       isSchedulePublic: Boolean(livestreamDraft.isSchedulePublic),
     };
     const sponsorLogos = normalizeSponsorLogos(sponsorLogosDraft);
+    const currentSponsorLogos = normalizeSponsorLogos(association?.sponsorLogos);
+    const shouldSaveSponsorLogos =
+      association &&
+      JSON.stringify(sponsorLogos) !== JSON.stringify(currentSponsorLogos);
 
     setIsSaving(true);
     try {
-      const [savedShow, savedAssociation] = await Promise.all([
-        saveShowRepository(nextShow),
-        association
-          ? saveAssociationRepository({
-              ...association,
-              sponsorLogos,
-            })
-          : Promise.resolve(null),
-      ]);
+      const savedShow = await saveShowRepository(nextShow);
+      let savedAssociation = null;
+      let sponsorLogoError = null;
+
+      if (shouldSaveSponsorLogos) {
+        try {
+          savedAssociation = await saveAssociationRepository({
+            ...association,
+            sponsorLogos,
+          });
+        } catch (error) {
+          console.error("Erreur sauvegarde commanditaires association:", error);
+          sponsorLogoError = error;
+        }
+      }
+
       setShow(savedShow);
       setPublicView(await getPublicShowViewRepository(showId));
       if (savedAssociation) {
         setAssociation(savedAssociation);
         setSponsorLogosDraft(normalizeSponsorLogos(savedAssociation.sponsorLogos));
       }
-      setLivestreamMessage(formatLocalFirstSyncNotice(savedShow, t));
-      setLivestreamMessageTone(getLocalFirstSyncNoticeTone(savedShow));
+
+      if (sponsorLogoError) {
+        setLivestreamMessage(
+          t("common.localFirstSyncError", {
+            message: sponsorLogoError?.message || "",
+          })
+        );
+        setLivestreamMessageTone("warn");
+      } else {
+        setLivestreamMessage(formatLocalFirstSyncNotice(savedShow, t));
+        setLivestreamMessageTone(getLocalFirstSyncNoticeTone(savedShow));
+      }
     } catch (error) {
       console.error("Erreur sauvegarde réglages livestream:", error);
       setLivestreamMessage(

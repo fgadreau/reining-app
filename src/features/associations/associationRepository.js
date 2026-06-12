@@ -39,6 +39,15 @@ async function upsertAssociationRow(supabase, association) {
   if (error) throw error;
 }
 
+async function updateAssociationRow(supabase, association) {
+  const { error } = await supabase
+    .from("organizations")
+    .update(toSharedOrganizationRow(association))
+    .eq("id", association.id);
+
+  if (error) throw error;
+}
+
 async function deleteAssociationRow(supabase, associationId) {
   const { error } = await supabase
     .from("organizations")
@@ -101,7 +110,11 @@ export async function saveAssociationRepository(association) {
 
   if (supabase) {
     try {
-      await upsertAssociationRow(supabase, normalized);
+      if (isExistingAssociation) {
+        await updateAssociationRow(supabase, normalized);
+      } else {
+        await upsertAssociationRow(supabase, normalized);
+      }
     } catch (error) {
       console.error("Erreur sauvegarde association Supabase:", error);
       throw error;
