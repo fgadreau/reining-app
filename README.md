@@ -28,6 +28,12 @@ See [docs/v2-data-model.md](docs/v2-data-model.md).
 Supabase is optional for local-only testing, but it is required for multi-user
 cloud workflows.
 
+ShowScore now uses the shared HorseShowPlatform Supabase schema. The
+HorseShowPlatform migration history is the authoritative source for shared
+database changes. Historical standalone ShowScore SQL files live in
+[docs/archive/standalone-supabase](docs/archive/standalone-supabase) for
+reference only and must not be applied to the shared project.
+
 Cloud-ready repositories currently cover:
 - associations, shows, days, classes
 - class setup/draws
@@ -36,25 +42,17 @@ Cloud-ready repositories currently cover:
 
 If Supabase is not configured, or if permissions reject a request, the app falls back to local browser storage.
 
-1. Create a Supabase project.
-2. Run [docs/supabase-schema.sql](docs/supabase-schema.sql) in the SQL editor.
-3. Copy `.env.example` to `.env.local`.
-4. Set `REACT_APP_SUPABASE_URL` and `REACT_APP_SUPABASE_PUBLISHABLE_KEY`.
-5. Restart `npm start`.
-6. In Supabase Auth, enable email/password sign-ins.
-7. Open `/login` in the app and create or sign into a user before using secretary/scribe cloud writes.
-8. Add a platform admin when needed by running
+1. Copy `.env.example` to `.env.local`.
+2. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
+3. Restart `npm start`.
+4. In Supabase Auth, enable email/password sign-ins.
+5. Open `/login` in the app and create or sign into a user before using secretary/scribe cloud writes.
+6. Add a platform admin when needed by running
    [docs/platform-admin-bootstrap.sql](docs/platform-admin-bootstrap.sql) with
    your email.
-9. Attach users to an association from `/associations/:associationId/access`,
-   or bootstrap a first admin membership in the Supabase SQL editor:
-
-```sql
-insert into public.association_memberships (user_id, association_id, role)
-select id, 'association-id-here', 'secretary'
-from auth.users
-where email = 'secretariat@example.com';
-```
+7. Attach users to an association from `/associations/:associationId/access`,
+   or manage memberships through the shared HorseShowPlatform organization
+   membership tables.
 
 Once an admin membership exists, the app menu exposes `/associations/:associationId/access` for basic role assignment.
 Users can then be added to association roles by email from that page.

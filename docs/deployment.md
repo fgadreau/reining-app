@@ -16,14 +16,13 @@ Keep test shows and training data out of Supabase PROD.
 
 ## Supabase Projects
 
-For a standalone ShowScore deployment, create two Supabase projects:
+ShowScore currently targets the shared HorseShowPlatform Supabase schema. The
+HorseShowPlatform migration history is the authoritative source for shared
+database changes.
 
-1. `reining-app-dev`
-2. `reining-app-prod`
+For each shared project:
 
-For each project:
-
-1. Run [supabase-schema.sql](supabase-schema.sql) in the Supabase SQL editor.
+1. Run the HorseShowPlatform migrations.
 2. Enable email/password auth in Supabase Auth.
 3. Add your platform admin with [platform-admin-bootstrap.sql](platform-admin-bootstrap.sql).
 4. Add the app URLs to the Auth redirect/site URL settings when email links or confirmations are enabled.
@@ -40,12 +39,13 @@ When the same Supabase project serves both `showscore.app` and
 For that shared project:
 
 1. Run the HorseShowPlatform migrations first.
-2. Run [supabase-shared-showscore-hsp-compatibility.sql](supabase-shared-showscore-hsp-compatibility.sql).
-3. Add your platform admin with [platform-admin-bootstrap.sql](platform-admin-bootstrap.sql).
+2. Add your platform admin with [platform-admin-bootstrap.sql](platform-admin-bootstrap.sql).
 
-Do not run [supabase-schema.sql](supabase-schema.sql) on the shared
-HorseShowPlatform project. It is the standalone ShowScore schema and creates
-older base tables such as `associations`, `days`, and generic scoring tables.
+Do not run files from
+[archive/standalone-supabase](archive/standalone-supabase) on the shared
+HorseShowPlatform project. They are historical standalone ShowScore artifacts
+and may create older base tables such as `associations`, `days`, and generic
+scoring tables.
 
 ## Environment Variables
 
@@ -79,7 +79,7 @@ Do not reuse the DEV Supabase URL in production.
 
 ## Hosting Notes
 
-The app is a Create React App single-page app.
+The app is a Vite single-page app.
 
 Build command:
 

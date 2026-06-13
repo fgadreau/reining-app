@@ -116,8 +116,6 @@ function cachePaidWarmupSnapshot(warmup) {
 
 function toPaidWarmupRow(item, options = {}) {
   const warmup = normalizePaidWarmup(item);
-  const includeScheduleStart = options.includeScheduleStart !== false;
-  const includeArena = options.includeArena !== false;
   const includeActiveEntry = options.includeActiveEntry !== false;
   const row = {
     id: warmup.id,
@@ -132,34 +130,16 @@ function toPaidWarmupRow(item, options = {}) {
     active_started_at: warmup.activeStartedAt || null,
     entries: warmup.entries,
     sort_order: warmup.sortOrder,
+    arena: warmup.arena || null,
+    schedule_start_mode: warmup.scheduleStartMode,
+    schedule_start_time: warmup.scheduleStartTime || null,
   };
 
   if (includeActiveEntry) {
     row.active_entry_id = warmup.activeEntryId || null;
   }
 
-  if (includeArena) {
-    row.arena = warmup.arena || null;
-  }
-
-  if (includeScheduleStart) {
-    row.schedule_start_mode = warmup.scheduleStartMode;
-    row.schedule_start_time = warmup.scheduleStartTime || null;
-  }
-
   return row;
-}
-
-function isScheduleStartColumnMissingError(error) {
-  const message = String(error?.message || "");
-  return (
-    message.includes("schedule_start_mode") ||
-    message.includes("schedule_start_time")
-  );
-}
-
-function isArenaColumnMissingError(error) {
-  return String(error?.message || "").includes("arena");
 }
 
 function isActiveEntryForeignKeyError(error) {
@@ -298,7 +278,7 @@ export async function savePaidWarmupRepository(item) {
 
   if (supabase) {
     try {
-      const result = await upsertPaidWarmupWithColumnFallback(
+      const result = await upsertPaidWarmupWithActiveEntryFallback(
         supabase,
         savedLocal
       );
@@ -306,7 +286,7 @@ export async function savePaidWarmupRepository(item) {
       if (result.usedFallback) {
         syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
         syncError =
-          "Certaines colonnes des paid warm ups ne sont pas disponibles dans Supabase. Exécute les migrations public schedule et paid warmup arena pour les synchroniser.";
+          "Le paid warmup a été sauvegardé, mais l'entrée active n'existe pas dans les entrées HSP. Le live reste synchronisé sans active_entry_id.";
       }
     } catch (error) {
       console.error("Erreur sauvegarde paid warmup Supabase:", error);
@@ -321,36 +301,19 @@ export async function savePaidWarmupRepository(item) {
   });
 }
 
-async function upsertPaidWarmupWithColumnFallback(supabase, item) {
+async function upsertPaidWarmupWithActiveEntryFallback(supabase, item) {
   const options = {
-    includeArena: true,
-    includeScheduleStart: true,
     includeActiveEntry: true,
   };
   let usedFallback = false;
   let lastError = null;
 
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       await upsertPaidWarmupRow(supabase, item.id, toPaidWarmupRow(item, options));
       return { usedFallback };
     } catch (error) {
       lastError = error;
-
-      if (isArenaColumnMissingError(error) && options.includeArena) {
-        options.includeArena = false;
-        usedFallback = true;
-        continue;
-      }
-
-      if (
-        isScheduleStartColumnMissingError(error) &&
-        options.includeScheduleStart
-      ) {
-        options.includeScheduleStart = false;
-        usedFallback = true;
-        continue;
-      }
 
       if (isActiveEntryForeignKeyError(error) && options.includeActiveEntry) {
         options.includeActiveEntry = false;

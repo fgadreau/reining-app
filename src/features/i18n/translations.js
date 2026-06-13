@@ -456,7 +456,7 @@ export const translations = {
         removeLogo: "Retirer le logo",
         save: "Enregistrer",
         saveFailed:
-          "Impossible d'enregistrer l'association. {{message}} Si Supabase refuse l'accès, exécute docs/supabase-onboarding-access-migration.sql et docs/supabase-association-public-profile-migration.sql.",
+          "Impossible d'enregistrer l'association. {{message}} Si Supabase refuse l'accès, vérifie les politiques d'organisation dans les migrations HSP.",
         savedNotice: "Association enregistrée.",
         searchLabel: "Recherche d’association",
         searchPlaceholder: "Nom court ou nom complet",
@@ -1745,7 +1745,7 @@ export const translations = {
         removeLogo: "Remove logo",
         save: "Save",
         saveFailed:
-          "Unable to save the association. {{message}} If Supabase refuses access, run docs/supabase-onboarding-access-migration.sql and docs/supabase-association-public-profile-migration.sql.",
+          "Unable to save the association. {{message}} If Supabase refuses access, check the organization policies in the HSP migrations.",
         savedNotice: "Association saved.",
         searchLabel: "Association search",
         searchPlaceholder: "Short name or full name",
