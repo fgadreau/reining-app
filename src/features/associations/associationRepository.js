@@ -8,8 +8,14 @@ import { getSupabaseClient } from "../cloud/supabaseClient";
 import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 
 function toAssociation(row) {
-  const modulesEnabled = row.modules_enabled || {};
-  const plan = row.subscription_plan || "community";
+  const hasModulesEnabled =
+    row.modules_enabled && typeof row.modules_enabled === "object";
+  const modulesEnabled = hasModulesEnabled
+    ? row.modules_enabled
+    : { show_score: true };
+  const plan =
+    row.subscription_plan ||
+    (modulesEnabled.show_score === false ? "community" : "premium");
   return {
     id: row.id,
     name: row.name || "",
@@ -20,7 +26,7 @@ function toAssociation(row) {
     sponsorLogos: normalizeSponsorLogos(row.sponsor_logos),
     subscriptionPlan: plan,
     modulesEnabled,
-    isShowScoreEnabled: Boolean(modulesEnabled.show_score),
+    isShowScoreEnabled: plan !== "community" && modulesEnabled.show_score !== false,
   };
 }
 

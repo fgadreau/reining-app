@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { loadAssociations } from "../../features/associations/associationsData";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
-import ShowScoreNotEnabled from "../common/ShowScoreNotEnabled";
 import {
   getClassFullDataRepository,
   getClassesForDayRepository,
@@ -278,10 +277,6 @@ function SecretariatDashboardPage() {
         </div>
       </div>
     );
-  }
-
-  if (association && association.isShowScoreEnabled === false) {
-    return <ShowScoreNotEnabled associationName={association.name} />;
   }
 
   return (

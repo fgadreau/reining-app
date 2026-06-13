@@ -5,6 +5,7 @@ import AppMenu from "../../components/AppMenu";
 import PublicAppInstallPrompt from "../../components/PublicAppInstallPrompt";
 import AnalyticsRouteTracker from "../../features/analytics/AnalyticsRouteTracker";
 import { dispatchAppRouteChanged } from "../../features/pwa/appUpdateSafety";
+import ShowScoreAssociationGate from "./ShowScoreAssociationGate";
 import PlatformAnalyticsPage from "../../pages/admin/PlatformAnalyticsPage";
 import AssociationsPage from "../../pages/association/AssociationsPage";
 import AssociationShowPage from "../../pages/association/AssociationShowPage";
@@ -65,63 +66,123 @@ function AppRouter() {
         <Route path="/associations" element={<AssociationsPage />} />
         <Route
           path="/associations/:associationId/shows"
-          element={<AssociationShowPage />}
+          element={
+            <ShowScoreAssociationGate>
+              <AssociationShowPage />
+            </ShowScoreAssociationGate>
+          }
         />
         <Route
           path="/associations/:associationId/access"
-          element={<AssociationAccessPage />}
+          element={
+            <ShowScoreAssociationGate>
+              <AssociationAccessPage />
+            </ShowScoreAssociationGate>
+          }
         />
         <Route
           path="/associations/:associationId/activity"
-          element={<AssociationActivityPage />}
+          element={
+            <ShowScoreAssociationGate>
+              <AssociationActivityPage />
+            </ShowScoreAssociationGate>
+          }
         />
         <Route
           path="/associations/:associationId/settings"
-          element={<AssociationSettingsPage />}
+          element={
+            <ShowScoreAssociationGate>
+              <AssociationSettingsPage />
+            </ShowScoreAssociationGate>
+          }
         />
         <Route
           path="/associations/:associationId/shows/:showId"
-          element={<ShowDetailPage />}
+          element={
+            <ShowScoreAssociationGate>
+              <ShowDetailPage />
+            </ShowScoreAssociationGate>
+          }
         />
         <Route
           path="/associations/:associationId/shows/:showId/secretariat"
-          element={<SecretariatDashboardPage />}
+          element={
+            <ShowScoreAssociationGate>
+              <SecretariatDashboardPage />
+            </ShowScoreAssociationGate>
+          }
         />
         <Route
           path="/associations/:associationId/shows/:showId/time"
-          element={<ShowTimeManagementPage />}
+          element={
+            <ShowScoreAssociationGate>
+              <ShowTimeManagementPage />
+            </ShowScoreAssociationGate>
+          }
         />
         <Route
           path="/associations/:associationId/shows/:showId/schedule"
-          element={<ShowSchedulePreviewPage />}
+          element={
+            <ShowScoreAssociationGate>
+              <ShowSchedulePreviewPage />
+            </ShowScoreAssociationGate>
+          }
         />
         <Route
           path="/associations/:associationId/shows/:showId/announcer"
-          element={<AnnouncerDashboardPage />}
+          element={
+            <ShowScoreAssociationGate>
+              <AnnouncerDashboardPage />
+            </ShowScoreAssociationGate>
+          }
         />
         <Route
           path="/associations/:associationId/shows/:showId/scribe"
-          element={<ShowScribePage />}
+          element={
+            <ShowScoreAssociationGate>
+              <ShowScribePage />
+            </ShowScoreAssociationGate>
+          }
         />
         <Route
           path="/associations/:associationId/shows/:showId/public"
-          element={<PublicResultsPage />}
+          element={
+            <ShowScoreAssociationGate>
+              <PublicResultsPage />
+            </ShowScoreAssociationGate>
+          }
         />
         <Route
           path="/associations/:associationId/shows/:showId/days/:dayId"
-          element={<DayClassesPage />}
+          element={
+            <ShowScoreAssociationGate>
+              <DayClassesPage />
+            </ShowScoreAssociationGate>
+          }
         />
         <Route
           path="/associations/:associationId/classes/:classId/setup"
-          element={<ClassSetupPage />}
+          element={
+            <ShowScoreAssociationGate>
+              <ClassSetupPage />
+            </ShowScoreAssociationGate>
+          }
         />
         <Route
           path="/associations/:associationId/shows/:showId/days/:dayId/paid-warmups/:paidWarmupId/setup"
-          element={<PaidWarmupSetupPage />}
+          element={
+            <ShowScoreAssociationGate>
+              <PaidWarmupSetupPage />
+            </ShowScoreAssociationGate>
+          }
         />
         <Route
           path="/associations/:associationId/scribe/classes/:classId"
-          element={<ClassScoringPage />}
+          element={
+            <ShowScoreAssociationGate>
+              <ClassScoringPage />
+            </ShowScoreAssociationGate>
+          }
         />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
