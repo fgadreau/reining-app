@@ -8,6 +8,8 @@ import { getSupabaseClient } from "../cloud/supabaseClient";
 import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 
 function toAssociation(row) {
+  const modulesEnabled = row.modules_enabled || {};
+  const plan = row.subscription_plan || "community";
   return {
     id: row.id,
     name: row.name || "",
@@ -16,6 +18,9 @@ function toAssociation(row) {
     logoDataUrl: row.logo_url || null,
     websiteUrl: row.website_url || "",
     sponsorLogos: normalizeSponsorLogos(row.sponsor_logos),
+    subscriptionPlan: plan,
+    modulesEnabled,
+    isShowScoreEnabled: Boolean(modulesEnabled.show_score),
   };
 }
 
