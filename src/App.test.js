@@ -2957,6 +2957,95 @@ test("paid warmup merge flags newer local fixed starts for cloud resync", () => 
   });
 });
 
+test("paid warmup save retries without active_entry_id when HSP rejects the FK", async () => {
+  const updateRows = [];
+  const insertRows = [];
+  const activeEntryId = "00000000-0000-0000-0000-000000000001";
+  const foreignKeyError = {
+    code: "23503",
+    message:
+      'insert or update on table "show_score_paid_warmups" violates foreign key constraint "show_score_paid_warmups_active_entry_id_fkey"',
+    details: "show_score_paid_warmups_active_entry_id_fkey",
+  };
+  const supabase = {
+    from(tableName) {
+      expect(tableName).toBe("show_score_paid_warmups");
+
+      return {
+        update(row) {
+          updateRows.push(row);
+
+          return {
+            eq(columnName, value) {
+              expect(columnName).toBe("id");
+              expect(value).toBe("warmup-fk-fallback");
+
+              return {
+                async select(columnList) {
+                  expect(columnList).toBe("id");
+
+                  if (updateRows.length === 1) {
+                    return { data: null, error: foreignKeyError };
+                  }
+
+                  return { data: [], error: null };
+                },
+              };
+            },
+          };
+        },
+        async insert(row) {
+          insertRows.push(row);
+          return { error: null };
+        },
+      };
+    },
+  };
+
+  vi.resetModules();
+  vi.doMock("./features/cloud/supabaseClient", () => ({
+    getSupabaseClient: () => supabase,
+  }));
+
+  try {
+    const { savePaidWarmupRepository } = await import(
+      "./features/paidWarmups/paidWarmupRepository"
+    );
+    const { getLocalFirstSyncState } = await import(
+      "./features/cloud/localFirstSync"
+    );
+
+    const saved = await savePaidWarmupRepository({
+      id: "warmup-fk-fallback",
+      associationId: "association-1",
+      showId: "show-1",
+      dayId: "day-1",
+      name: "Paid warm up FK fallback",
+      arena: "101",
+      activeEntryId,
+      entries: [{ id: "entry-local", rider: "Marie", status: "pending" }],
+    });
+
+    expect(updateRows).toHaveLength(2);
+    expect(insertRows).toHaveLength(1);
+    expect(updateRows[0].active_entry_id).toBe(activeEntryId);
+    expect(updateRows[1]).not.toHaveProperty("active_entry_id");
+    expect(insertRows[0]).not.toHaveProperty("active_entry_id");
+    expect(insertRows[0]).toMatchObject({
+      arena: "101",
+      schedule_start_mode: CLASS_START_MODE_AFTER_PREVIOUS,
+    });
+    expect(saved.activeEntryId).toBe(activeEntryId);
+    expect(getLocalFirstSyncState(saved)).toMatchObject({
+      status: "error",
+      errorMessage: expect.stringContaining("active_entry_id"),
+    });
+  } finally {
+    vi.doUnmock("./features/cloud/supabaseClient");
+    vi.resetModules();
+  }
+});
+
 test("paid warmup timer cues trigger at half time, one minute, and finish", () => {
   const warmup = {
     durationSeconds: 300,
