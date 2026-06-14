@@ -14,6 +14,7 @@ import {
   getClassesForDayRepository,
   getGlobalPatternTimingStatsRepository,
 } from "../../features/classes/classRepository";
+import { getUniqueScoringClasses } from "../../features/classes/classScoringGroups";
 import { getPaidWarmupsForDayRepository } from "../../features/paidWarmups/paidWarmupRepository";
 import {
   DEFAULT_DRAG_DURATION_MINUTES,
@@ -64,8 +65,11 @@ function ShowTimeManagementPage() {
             getClassesForDayRepository(day.id),
             getPaidWarmupsForDayRepository(day.id),
           ]);
+          const scoringClasses = getUniqueScoringClasses(classes);
           const classRows = await Promise.all(
-            classes.map((classItem) => getClassFullDataRepository(classItem.id))
+            scoringClasses.map((classItem) =>
+              getClassFullDataRepository(classItem.id)
+            )
           );
 
           return {

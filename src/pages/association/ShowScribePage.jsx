@@ -13,6 +13,7 @@ import {
   getPatternDisplayName,
   isNoPatternValue,
 } from "../../features/patterns/patternDefinitions";
+import { getUniqueScoringClasses } from "../../features/classes/classScoringGroups";
 import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
 import { getShowRepository } from "../../features/shows/showRepository";
 import { appStyles as styles } from "../../styles/appStyles";
@@ -39,8 +40,9 @@ function ShowScribePage() {
       const nextSections = await Promise.all(
         days.map(async (day) => {
           const classItems = await getClassesForDayRepository(day.id);
+          const scoringClassItems = getUniqueScoringClasses(classItems);
           const classRows = await Promise.all(
-            classItems.map((classItem) =>
+            scoringClassItems.map((classItem) =>
               getClassFullDataRepository(classItem.id)
             )
           );

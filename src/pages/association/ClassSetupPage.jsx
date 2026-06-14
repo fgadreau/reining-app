@@ -33,6 +33,7 @@ import { buildArenaOptions } from "../../features/classes/arenaOptions";
 import {
   getClassStatus,
 } from "../../features/classes/classStatusSelectors";
+import { resolveClassScoringId } from "../../features/classes/classScoringGroups";
 import { hasScoringStarted } from "../../features/scoring/scoringSelectors";
 import { appStyles as styles } from "../../styles/appStyles";
 import {
@@ -183,7 +184,8 @@ function normalizeEditableJudges(input = {}) {
 }
 
 function ClassSetupPage() {
-  const { associationId, classId } = useParams();
+  const { associationId, classId: routeClassId } = useParams();
+  const classId = resolveClassScoringId(routeClassId);
   const navigate = useNavigate();
   const access = useAssociationAccess(associationId);
   const { t } = useTranslation();

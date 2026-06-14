@@ -39,6 +39,16 @@ import {
   saveArenaCurrentLiveClassRepository,
 } from "./features/publication/publicationCloudRepository";
 import { buildClassWithSetupScheduleStart } from "./features/classes/classRepository";
+import { normalizeClassSetup } from "./features/classes/classSetupStorage";
+import {
+  getUniqueScoringClasses,
+  resolveClassScoringId,
+} from "./features/classes/classScoringGroups";
+import {
+  buildClassSetupFromHspDraw,
+  normalizeHspDrawImport,
+} from "./features/classes/hspDrawImport";
+import { buildHspScoredRunRows } from "./features/integrations/hspScoredRunRepository";
 import {
   buildPublicClassView,
   buildPublicLiveClassView,
@@ -49,6 +59,7 @@ import {
   buildClassResultGroups,
   normalizeResultGroups,
 } from "./features/results/classResults";
+import { buildLiveClassStandings } from "./features/results/liveClassStandings";
 import {
   getClassResultPublication,
   RESULT_PUBLICATION_STATUSES,
@@ -1447,6 +1458,462 @@ test("builds independent result groups by imported class code", () => {
       },
     ])[0].entries
   ).toMatchObject([{ rank: 1 }, { rank: 2 }]);
+});
+
+test("builds provisional live standings by imported class code", () => {
+  const standings = buildLiveClassStandings({
+    classItem: {
+      id: "block-live",
+      name: "Novice Horse Block",
+      classCode: "BLOCK",
+    },
+    blockClasses: [
+      { code: "NHO", name: "Novice Horse Open" },
+      { code: "NH2", name: "Novice Horse Level 2" },
+    ],
+    setupRuns: [
+      {
+        id: "run-1",
+        draw: 1,
+        backNumber: "101",
+        rider: "Open Rider",
+        horse: "Horse One",
+        classCodes: ["NHO", "NH2"],
+      },
+      {
+        id: "run-2",
+        draw: 2,
+        backNumber: "202",
+        rider: "Level Two Rider",
+        horse: "Horse Two",
+        classCodes: ["NH2"],
+      },
+    ],
+    runs: [
+      { id: "run-1", draw: 1, scoreTotal: "72.0" },
+      { id: "run-2", draw: 2, scoreTotal: "70.5" },
+    ],
+  });
+
+  expect(standings.map((group) => group.code)).toEqual(["NHO", "NH2"]);
+  expect(standings.find((group) => group.code === "NHO").entries).toHaveLength(1);
+  expect(standings.find((group) => group.code === "NH2").entries).toMatchObject([
+    { rank: 1, backNumber: "101", scoreTotal: "72" },
+    { rank: 2, backNumber: "202", scoreTotal: "70½" },
+  ]);
+});
+
+test("class setup normalization preserves HSP run metadata", () => {
+  const setup = normalizeClassSetup({
+    runs: [
+      {
+        id: "local-run-1",
+        run_id: "hsp-run-1",
+        block_run_id: "hsp-block-run-1",
+        entry_id: "entry-1",
+        class_id: "hsp-block-1",
+        division_id: "division-1",
+        horse_id: "horse-1",
+        rider_contact_id: "rider-1",
+        owner_contact_id: "owner-1",
+        payer_contact_id: "payer-1",
+        entry_ids: ["entry-1", "entry-1", "entry-2"],
+        division_ids: ["division-1", "division-2"],
+        division_names: ["Open", "Non Pro"],
+        is_late: true,
+        draw_group: "drag-1",
+        draw: 4,
+        backNumber: "101",
+        rider: "Rider One",
+        horse: "Horse One",
+        owner: "Owner One",
+        classCodes: ["OPEN"],
+      },
+    ],
+  });
+
+  expect(setup.runs[0]).toMatchObject({
+    id: "local-run-1",
+    runId: "hsp-run-1",
+    blockRunId: "hsp-block-run-1",
+    entryId: "entry-1",
+    classId: "hsp-block-1",
+    divisionId: "division-1",
+    horseId: "horse-1",
+    riderContactId: "rider-1",
+    ownerContactId: "owner-1",
+    payerContactId: "payer-1",
+    entryIds: ["entry-1", "entry-2"],
+    divisionIds: ["division-1", "division-2"],
+    divisionNames: ["Open", "Non Pro"],
+    isLate: true,
+    drawGroup: "drag-1",
+    classCodes: ["OPEN"],
+  });
+});
+
+test("normalizes a self-contained HSP draw into ShowScore setup data", () => {
+  const importedDraw = normalizeHspDrawImport({
+    organizationId: "org-1",
+    showId: "show-1",
+    blockId: "block-1",
+    divisions: [
+      { id: "division-open", code: "OPEN", name: "Open" },
+      { id: "division-np", code: "NP", name: "Non Pro" },
+    ],
+    runs: [
+      {
+        runId: "run-101",
+        blockRunId: "block-run-101",
+        orderOfGo: 2,
+        backNumber: "101",
+        rider: "Rider One",
+        horse: "Horse One",
+        owner: "Owner One",
+        horseId: "horse-1",
+        riderContactId: "rider-1",
+        ownerContactId: "owner-1",
+        entries: [
+          { entryId: "entry-open", divisionId: "division-open" },
+          { entryId: "entry-np", divisionId: "division-np" },
+        ],
+      },
+      {
+        runId: "run-202",
+        blockRunId: "block-run-202",
+        orderOfGo: 1,
+        backNumber: "202",
+        rider: "Rider Two",
+        horse: "Horse Two",
+        owner: "Owner Two",
+        entries: [{ entryId: "entry-np-2", divisionId: "division-np" }],
+      },
+    ],
+  });
+
+  expect(importedDraw.blockClasses).toMatchObject([
+    { divisionId: "division-open", code: "OPEN", name: "Open" },
+    { divisionId: "division-np", code: "NP", name: "Non Pro" },
+  ]);
+  expect(importedDraw.runs).toMatchObject([
+    {
+      id: "run-202",
+      runId: "run-202",
+      blockRunId: "block-run-202",
+      draw: 1,
+      backNumber: "202",
+      classCodes: ["NP"],
+      entryIds: ["entry-np-2"],
+      divisionIds: ["division-np"],
+    },
+    {
+      id: "run-101",
+      runId: "run-101",
+      blockRunId: "block-run-101",
+      draw: 2,
+      backNumber: "101",
+      classCodes: ["OPEN", "NP"],
+      entryIds: ["entry-open", "entry-np"],
+      divisionIds: ["division-open", "division-np"],
+      horseId: "horse-1",
+      riderContactId: "rider-1",
+      ownerContactId: "owner-1",
+    },
+  ]);
+  expect(importedDraw.source).toMatchObject({
+    type: "hsp",
+    organizationId: "org-1",
+    showId: "show-1",
+    blockId: "block-1",
+  });
+});
+
+test("collapses concurrent HSP blocks into one ShowScore scoring run", () => {
+  const importedDraw = normalizeHspDrawImport({
+    showId: "show-1",
+    concurrentBlocks: [
+      {
+        id: "block-open",
+        divisions: [{ id: "division-open", code: "OPEN", name: "Open" }],
+        runs: [
+          {
+            runId: "physical-run-101",
+            blockRunId: "block-run-open-101",
+            orderOfGo: 1,
+            backNumber: "101",
+            rider: "Rider One",
+            horse: "Horse One",
+            owner: "Owner One",
+            entries: [{ entryId: "entry-open", divisionId: "division-open" }],
+          },
+        ],
+      },
+      {
+        id: "block-np",
+        divisions: [{ id: "division-np", code: "NP", name: "Non Pro" }],
+        runs: [
+          {
+            runId: "physical-run-101",
+            blockRunId: "block-run-np-101",
+            orderOfGo: 1,
+            backNumber: "101",
+            rider: "Rider One",
+            horse: "Horse One",
+            owner: "Owner One",
+            entries: [{ entryId: "entry-np", divisionId: "division-np" }],
+          },
+        ],
+      },
+    ],
+  });
+
+  expect(importedDraw.blockClasses).toMatchObject([
+    {
+      divisionId: "division-open",
+      classId: "block-open",
+      blockId: "block-open",
+      code: "OPEN",
+    },
+    {
+      divisionId: "division-np",
+      classId: "block-np",
+      blockId: "block-np",
+      code: "NP",
+    },
+  ]);
+  expect(importedDraw.runs).toHaveLength(1);
+  expect(importedDraw.runs[0]).toMatchObject({
+    id: "physical-run-101",
+    runId: "physical-run-101",
+    draw: 1,
+    backNumber: "101",
+    classCodes: ["OPEN", "NP"],
+    entryIds: ["entry-open", "entry-np"],
+    divisionIds: ["division-open", "division-np"],
+    blockRunIds: ["block-run-open-101", "block-run-np-101"],
+    classIds: ["block-open", "block-np"],
+    blockIds: ["block-open", "block-np"],
+  });
+});
+
+test("resolves concurrent HSP classes to one ShowScore scoring class", () => {
+  const classes = [
+    {
+      id: "block-main",
+      name: "Open block",
+      sortOrder: 1,
+      eligibilityRules: {},
+    },
+    {
+      id: "block-np",
+      name: "Non Pro block",
+      sortOrder: 2,
+      eligibilityRules: {
+        concurrent_class_id: "block-main",
+        concurrent_group_label: "Open + Non Pro",
+      },
+    },
+    {
+      id: "block-rookie",
+      name: "Rookie block",
+      sortOrder: 3,
+      eligibilityRules: {
+        concurrent_class_id: "block-np",
+      },
+    },
+  ];
+
+  expect(resolveClassScoringId("block-main", classes)).toBe("block-main");
+  expect(resolveClassScoringId("block-np", classes)).toBe("block-main");
+  expect(resolveClassScoringId("block-rookie", classes)).toBe("block-main");
+  expect(getUniqueScoringClasses(classes).map((classItem) => classItem.id)).toEqual([
+    "block-main",
+  ]);
+});
+
+test("builds HSP scored run rows as one validated batch", () => {
+  const rows = buildHspScoredRunRows({
+    classItem: { showId: "show-1" },
+    setup: {
+      hspSource: { showId: "show-from-draw" },
+    },
+    scoredAt: "2026-06-14T10:00:00.000Z",
+    runs: [
+      {
+        id: "local-1",
+        runId: "run-1",
+        backNumber: "101",
+        riderContactId: "rider-1",
+        horseId: "horse-1",
+        ownerContactId: "owner-1",
+        scoreTotal: "72.5",
+      },
+      {
+        id: "local-2",
+        runId: "run-2",
+        backNumber: "102",
+        scoreTotal: "SCR",
+      },
+      {
+        id: "local-3",
+        runId: "run-3",
+        backNumber: "103",
+        scoreTotal: "NS",
+      },
+      {
+        id: "local-4",
+        runId: "run-4",
+        backNumber: "104",
+        scoreTotal: "DQ",
+      },
+      {
+        id: "standalone-pdf-run",
+        backNumber: "105",
+        scoreTotal: "70",
+      },
+    ],
+  });
+
+  expect(rows).toEqual([
+    {
+      run_id: "run-1",
+      show_id: "show-from-draw",
+      back_number: "101",
+      rider_id: "rider-1",
+      horse_id: "horse-1",
+      owner_id: "owner-1",
+      scored_at: "2026-06-14T10:00:00.000Z",
+      status: "scored",
+      final_score: 72.5,
+    },
+    {
+      run_id: "run-2",
+      show_id: "show-from-draw",
+      back_number: "102",
+      rider_id: null,
+      horse_id: null,
+      owner_id: null,
+      scored_at: "2026-06-14T10:00:00.000Z",
+      status: "scratch",
+      final_score: null,
+    },
+    {
+      run_id: "run-3",
+      show_id: "show-from-draw",
+      back_number: "103",
+      rider_id: null,
+      horse_id: null,
+      owner_id: null,
+      scored_at: "2026-06-14T10:00:00.000Z",
+      status: "no_score",
+      final_score: null,
+    },
+    {
+      run_id: "run-4",
+      show_id: "show-from-draw",
+      back_number: "104",
+      rider_id: null,
+      horse_id: null,
+      owner_id: null,
+      scored_at: "2026-06-14T10:00:00.000Z",
+      status: "disqualified",
+      final_score: null,
+    },
+  ]);
+});
+
+test("builds ShowScore setup from the current HSP run adapter shape", () => {
+  const setup = buildClassSetupFromHspDraw({
+    showId: "show-1",
+    classId: "block-1",
+    runs: [
+      {
+        id: "entry-1",
+        entryId: "entry-1",
+        classId: "block-1",
+        divisionId: "division-open",
+        horseId: "horse-1",
+        riderContactId: "rider-1",
+        ownerContactId: "owner-1",
+        payerContactId: "payer-1",
+        order: 1,
+        draw: 1,
+        backNumber: "101",
+        rider: "Rider One",
+        horse: "Horse One",
+        owner: "Owner One",
+        divisionNames: ["OPEN - Open"],
+        isLate: false,
+        drawGroup: "regular",
+      },
+    ],
+  });
+
+  expect(setup.isDrawImported).toBe(true);
+  expect(setup.blockClasses).toMatchObject([
+    { divisionId: "division-open", code: "OPEN", name: "Open" },
+  ]);
+  expect(setup.runs[0]).toMatchObject({
+    id: "entry-1",
+    runId: "entry-1",
+    entryId: "entry-1",
+    classId: "block-1",
+    divisionId: "division-open",
+    horseId: "horse-1",
+    riderContactId: "rider-1",
+    ownerContactId: "owner-1",
+    payerContactId: "payer-1",
+    classCodes: ["OPEN"],
+    divisionNames: ["Open"],
+    drawGroup: "regular",
+  });
+});
+
+test("public live class view derives standings from setup class codes", () => {
+  const view = buildPublicLiveClassView({
+    classItem: {
+      id: "class-live-standings",
+      name: "Novice Horse Block",
+      pattern: "RR1",
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE_SCORING,
+    },
+    setup: {
+      pattern: "RR1",
+      blockClasses: [
+        { code: "NHO", name: "Novice Horse Open" },
+        { code: "NH2", name: "Novice Horse Level 2" },
+      ],
+      runs: [
+        {
+          id: "run-1",
+          draw: 1,
+          backNumber: "101",
+          rider: "Open Rider",
+          horse: "Horse One",
+          classCodes: ["NHO", "NH2"],
+        },
+      ],
+    },
+    scoringSession: {
+      runs: [
+        {
+          id: "run-1",
+          draw: 1,
+          scoreTotal: "72.0",
+          isComplete: true,
+        },
+      ],
+    },
+  });
+
+  expect(view.classStandings.map((group) => group.code)).toEqual(["NHO", "NH2"]);
+  expect(view.classStandings[0].entries[0]).toMatchObject({
+    backNumber: "101",
+    rider: "Open Rider",
+    scoreTotal: "72",
+  });
 });
 
 test("publishes and unpublishes a class publication state", () => {
@@ -3301,6 +3768,52 @@ test("announcer latest score ignores public publication restrictions", () => {
       },
     }).latestScore.scoreTotal
   ).toBe("72");
+});
+
+test("announcer live view exposes class standings from setup class codes", () => {
+  const classView = buildAnnouncerClassView({
+    classItem: {
+      id: "announcer-block",
+      name: "Novice Horse Block",
+      pattern: "2",
+    },
+    setup: {
+      blockClasses: [
+        { code: "NHO", name: "Novice Horse Open" },
+        { code: "NH2", name: "Novice Horse Level 2" },
+      ],
+      runs: [
+        {
+          id: "run-1",
+          draw: 1,
+          backNumber: "101",
+          rider: "Open Rider",
+          horse: "Horse One",
+          classCodes: ["NHO", "NH2"],
+        },
+      ],
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.HIDDEN,
+    },
+    scoringRuns: [
+      {
+        id: "run-1",
+        draw: 1,
+        scoreTotal: "72.0",
+      },
+    ],
+  });
+
+  expect(classView.classStandings.map((group) => group.code)).toEqual([
+    "NHO",
+    "NH2",
+  ]);
+  expect(classView.classStandings[0].entries[0]).toMatchObject({
+    backNumber: "101",
+    rider: "Open Rider",
+    scoreTotal: "72",
+  });
 });
 
 test("announcer live view exposes active, next, and recent completed runs", () => {

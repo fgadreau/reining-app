@@ -1,4 +1,5 @@
 import { createId } from "../../utils/createId";
+import pdfWorkerSrc from "pdfjs-dist/legacy/build/pdf.worker.mjs?url";
 
 const TRACTOR_LINE_PATTERN = /^\s*(tractor|drag)\s*$/i;
 const CLASS_CODE_TOKEN_SOURCE = "-?[A-Z0-9]+(?:[ -][A-Z0-9]+)*";
@@ -907,10 +908,13 @@ async function parsePdfFile(file) {
     throw new Error("Module PDF non disponible dans ce navigateur.");
   }
 
+  if (pdfjs.GlobalWorkerOptions) {
+    pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
+  }
+
   const data = await file.arrayBuffer();
   const pdf = await pdfjs.getDocument({
     data,
-    disableWorker: true,
   }).promise;
   const pages = [];
 

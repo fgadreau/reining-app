@@ -1256,6 +1256,16 @@ function PublicLivePanel({ classView, now }) {
             </div>
           )}
 
+          {!isScheduleOnly && showScores && (
+            <PublicLiveClassStandings
+              standings={classView.classStandings || []}
+              panelId={buildAccordionPanelId(
+                "public-live-standings",
+                classView.classId || classView.classCode || "class"
+              )}
+            />
+          )}
+
           {!isScheduleOnly && (
             <PublicNextScheduleItem item={classView.nextScheduleItem} />
           )}
@@ -1264,12 +1274,165 @@ function PublicLivePanel({ classView, now }) {
             <PublicLiveOrderTable
               runs={classView.orderRuns || []}
               showScores={showScores}
+              panelId={buildAccordionPanelId(
+                "public-live-order",
+                classView.classId || classView.classCode || "class"
+              )}
             />
           )}
         </div>
       )}
     </section>
   );
+}
+
+function PublicLiveClassStandings({ standings, panelId }) {
+  const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
+  const [openGroupIds, setOpenGroupIds] = useState(() => new Set());
+  const groups = (Array.isArray(standings) ? standings : []).filter(
+    (group) => Array.isArray(group.visibleEntries) && group.visibleEntries.length > 0
+  );
+
+  if (!groups.length) return null;
+
+  function togglePanel() {
+    setIsOpen((current) => !current);
+  }
+
+  function toggleGroup(groupId) {
+    setOpenGroupIds((current) => {
+      const next = new Set(current);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  }
+
+  function handlePanelKeyDown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    togglePanel();
+  }
+
+  return (
+    <div style={standingsPanelStyle}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        onClick={togglePanel}
+        onKeyDown={handlePanelKeyDown}
+        style={standingsHeaderStyle(isOpen)}
+      >
+        <div>
+          <div style={runLabelStyle}>{t("public.results.provisionalStandings")}</div>
+          <div style={mutedTextStyle}>
+            {t("public.results.provisionalStandingsNote")}
+          </div>
+        </div>
+        <div style={badgeStackStyle}>
+          <span style={standingCountStyle}>{groups.length}</span>
+          <span style={toggleIconStyle}>
+            {isOpen ? t("public.results.hide") : t("public.results.view")}
+          </span>
+        </div>
+      </div>
+      {isOpen && (
+        <div id={panelId} style={standingsGridStyle}>
+          {groups.map((group) => {
+            const groupId = getStandingGroupKey(group);
+
+            return (
+              <StandingGroupAccordion
+                key={groupId}
+                group={group}
+                isOpen={openGroupIds.has(groupId)}
+                panelId={buildAccordionPanelId(panelId, groupId)}
+                onToggle={() => toggleGroup(groupId)}
+              />
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StandingGroupAccordion({ group, isOpen, panelId, onToggle }) {
+  const { t } = useTranslation();
+
+  function handleKeyDown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    onToggle();
+  }
+
+  return (
+    <div style={standingGroupStyle}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        onClick={onToggle}
+        onKeyDown={handleKeyDown}
+        style={standingGroupHeaderStyle(isOpen)}
+      >
+        <div>
+          <div style={runTitleStyle}>
+            {group.className || group.classCode || "—"}
+          </div>
+          {group.classCode && (
+            <div style={mutedTextStyle}>{group.classCode}</div>
+          )}
+        </div>
+        <div style={badgeStackStyle}>
+          <span style={standingCountStyle}>{group.entryCount || 0}</span>
+          <span style={toggleIconStyle}>
+            {isOpen ? t("public.results.hide") : t("public.results.view")}
+          </span>
+        </div>
+      </div>
+      {isOpen && (
+        <div id={panelId} style={standingEntryListStyle}>
+          {group.visibleEntries.map((entry) => (
+            <div key={entry.id || `${group.code}-${entry.draw}`} style={standingEntryStyle}>
+              <div style={standingRankStyle}>#{entry.rank}</div>
+              <div style={standingIdentityStyle}>
+                <div style={runNameStyle}>
+                  {entry.rider || t("public.results.riderFallback")}
+                </div>
+                <div style={mutedTextStyle}>
+                  {t("public.results.backNumber")} {entry.backNumber || "—"} ·{" "}
+                  {entry.horse || t("public.results.horseFallback")}
+                </div>
+              </div>
+              <div style={standingScoreStyle}>{entry.scoreTotal || "—"}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function getStandingGroupKey(group) {
+  return String(
+    group?.id ||
+      group?.code ||
+      group?.classCode ||
+      group?.className ||
+      "standing"
+  );
+}
+
+function buildAccordionPanelId(prefix, key) {
+  return `${prefix}-${String(key).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
 }
 
 function ScheduleOnlyLiveDetails({ classView }) {
@@ -1622,47 +1785,76 @@ function LiveRunBlock({
   );
 }
 
-function PublicLiveOrderTable({ runs, showScores }) {
+function PublicLiveOrderTable({ runs, showScores, panelId }) {
   const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
 
   if (!runs.length) {
     return null;
   }
 
+  function togglePanel() {
+    setIsOpen((current) => !current);
+  }
+
+  function handlePanelKeyDown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    togglePanel();
+  }
+
   return (
     <div style={orderPanelStyle}>
-      <div style={orderHeaderStyle}>
-        <div style={runLabelStyle}>{t("public.results.orderOfGo")}</div>
-        <div style={mutedTextStyle}>
-          {t("public.results.passedWithScores")}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        onClick={togglePanel}
+        onKeyDown={handlePanelKeyDown}
+        style={orderHeaderStyle(isOpen)}
+      >
+        <div>
+          <div style={runLabelStyle}>{t("public.results.orderOfGo")}</div>
+          <div style={mutedTextStyle}>
+            {t("public.results.passedWithScores")}
+          </div>
+        </div>
+        <div style={badgeStackStyle}>
+          <span style={standingCountStyle}>{runs.length}</span>
+          <span style={toggleIconStyle}>
+            {isOpen ? t("public.results.hide") : t("public.results.view")}
+          </span>
         </div>
       </div>
-      <div style={orderListStyle}>
-        {runs.map((run) => (
-          <div key={run.id || run.draw} style={orderRowStyle}>
-            <div style={orderDrawStyle}>#{run.draw || "—"}</div>
-            <div style={orderIdentityStyle}>
-              <div style={runNameStyle}>
-                {run.rider || t("public.results.riderFallback")}
+      {isOpen && (
+        <div id={panelId} style={orderListStyle}>
+          {runs.map((run) => (
+            <div key={run.id || run.draw} style={orderRowStyle}>
+              <div style={orderDrawStyle}>#{run.draw || "—"}</div>
+              <div style={orderIdentityStyle}>
+                <div style={runNameStyle}>
+                  {run.rider || t("public.results.riderFallback")}
+                </div>
+                <div style={mutedTextStyle}>
+                  {t("public.results.backNumber")} {run.backNumber || "—"} ·{" "}
+                  {run.horse || t("public.results.horseFallback")}
+                </div>
               </div>
-              <div style={mutedTextStyle}>
-                {t("public.results.backNumber")} {run.backNumber || "—"} ·{" "}
-                {run.horse || t("public.results.horseFallback")}
+              <div style={orderRowMetaStyle}>
+                <span style={orderStatusBadgeStyle(run.liveOrderStatus)}>
+                  {getPublicRunOrderStatusLabel(run.liveOrderStatus, t)}
+                </span>
+                {showScores && run.scoreTotal ? (
+                  <LiveRunScore run={run} compact />
+                ) : (
+                  <div style={orderScoreStyle}>—</div>
+                )}
               </div>
             </div>
-            <div style={orderRowMetaStyle}>
-              <span style={orderStatusBadgeStyle(run.liveOrderStatus)}>
-                {getPublicRunOrderStatusLabel(run.liveOrderStatus, t)}
-              </span>
-              {showScores && run.scoreTotal ? (
-                <LiveRunScore run={run} compact />
-              ) : (
-                <div style={orderScoreStyle}>—</div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -2156,6 +2348,89 @@ const liveGridStyle = {
   gap: 12,
 };
 
+const standingsPanelStyle = {
+  borderTop: `1px solid ${publicColors.border}`,
+  marginTop: 14,
+  paddingTop: 14,
+};
+
+const standingsHeaderStyle = (isOpen) => ({
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 10,
+  alignItems: "flex-start",
+  flexWrap: "wrap",
+  marginBottom: isOpen ? 10 : 0,
+  cursor: "pointer",
+  outlineOffset: 4,
+});
+
+const standingsGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 230px), 1fr))",
+  gap: 10,
+};
+
+const standingGroupStyle = {
+  border: `1px solid ${publicColors.border}`,
+  borderRadius: 8,
+  padding: 10,
+  background: publicColors.surfaceSoft,
+};
+
+const standingGroupHeaderStyle = (isOpen) => ({
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 10,
+  alignItems: "flex-start",
+  marginBottom: isOpen ? 8 : 0,
+  cursor: "pointer",
+  outlineOffset: 4,
+});
+
+const standingCountStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minWidth: 28,
+  minHeight: 28,
+  borderRadius: 999,
+  border: `1px solid ${publicColors.border}`,
+  background: publicColors.surface,
+  color: publicColors.softText,
+  fontWeight: 900,
+  fontSize: 13,
+};
+
+const standingEntryListStyle = {
+  display: "grid",
+  gap: 7,
+};
+
+const standingEntryStyle = {
+  display: "grid",
+  gridTemplateColumns: "34px minmax(0, 1fr) auto",
+  gap: 8,
+  alignItems: "center",
+  borderTop: `1px solid ${publicColors.border}`,
+  paddingTop: 7,
+};
+
+const standingRankStyle = {
+  color: publicColors.green,
+  fontWeight: 900,
+};
+
+const standingIdentityStyle = {
+  minWidth: 0,
+};
+
+const standingScoreStyle = {
+  fontSize: 18,
+  fontWeight: 950,
+  color: publicColors.text,
+};
+
 const timingPanelStyle = {
   border: "1px solid #dbeafe",
   background: publicColors.blueSoft,
@@ -2211,14 +2486,16 @@ const orderPanelStyle = {
   paddingTop: 14,
 };
 
-const orderHeaderStyle = {
+const orderHeaderStyle = (isOpen) => ({
   display: "flex",
   justifyContent: "space-between",
   gap: 10,
   alignItems: "flex-start",
   flexWrap: "wrap",
-  marginBottom: 10,
-};
+  marginBottom: isOpen ? 10 : 0,
+  cursor: "pointer",
+  outlineOffset: 4,
+});
 
 const orderListStyle = {
   display: "grid",

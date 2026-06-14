@@ -11,6 +11,7 @@ import {
   getJudgeDisplayName,
   normalizeClassJudges,
 } from "../../features/classes/classJudges";
+import { getUniqueScoringClasses } from "../../features/classes/classScoringGroups";
 import {
   downloadJudgeScorePdf,
   downloadOfficialScorePdf,
@@ -77,8 +78,9 @@ function SecretariatDashboardPage() {
       const nextSections = await Promise.all(
         days.map(async (day) => {
           const classes = await getClassesForDayRepository(day.id);
+          const scoringClasses = getUniqueScoringClasses(classes);
           const classRows = await Promise.all(
-            classes.map(async (classItem) => {
+            scoringClasses.map(async (classItem) => {
               const classData = await getClassFullDataRepository(classItem.id);
               const judges = normalizeClassJudges({
                 judges: classData?.setup?.judges,

@@ -30,6 +30,10 @@ import {
   getPaidWarmupStats,
 } from "../../features/paidWarmups/paidWarmupStorage";
 import { getClassStatus } from "../../features/classes/classStatusSelectors";
+import {
+  getUniqueScoringClasses,
+  resolveClassScoringId,
+} from "../../features/classes/classScoringGroups";
 import { buildArenaOptions } from "../../features/classes/arenaOptions";
 import { getDayById } from "../../features/days/daySelectors";
 import { getShowById } from "../../features/shows/showSelectors";
@@ -426,8 +430,10 @@ function DayClassesPage() {
   };
 
   const scheduleItems = useMemo(() => {
+    const scoringClasses = getUniqueScoringClasses(classes);
+
     return [
-      ...classes.map((item) => ({
+      ...scoringClasses.map((item) => ({
         id: item.id,
         type: "class",
         sortOrder: item.sortOrder || 1,
@@ -443,16 +449,19 @@ function DayClassesPage() {
   }, [classes, paidWarmups]);
 
   const handleOpenScoring = (event, item) => {
-    if (isNoPatternValue(item?.pattern)) {
+    const scoringClassId = resolveClassScoringId(item?.id, classes);
+    const scoringClass = classes.find((candidate) => candidate.id === scoringClassId) || item;
+
+    if (isNoPatternValue(scoringClass?.pattern)) {
       event.preventDefault();
       alert(t("management.classes.noPatternNoScoring"));
       return;
     }
 
-    const officialData = getClassOfficialData(item.id, item);
+    const officialData = getClassOfficialData(scoringClassId, scoringClass);
     const status = officialData.isFinalized
       ? "completed"
-      : getClassStatus(item);
+      : getClassStatus(scoringClass);
 
     if (status === "draft") {
       event.preventDefault();
@@ -463,14 +472,16 @@ function DayClassesPage() {
   };
 
   const handleDownloadOfficialPdf = async (item) => {
-    const officialData = getClassOfficialData(item.id, item);
+    const scoringClassId = resolveClassScoringId(item?.id, classes);
+    const scoringClass = classes.find((candidate) => candidate.id === scoringClassId) || item;
+    const officialData = getClassOfficialData(scoringClassId, scoringClass);
 
     if (!officialData.isSecretariatValidated) {
       alert(t("management.classes.pdfAfterValidation"));
       return;
     }
 
-    const scoringRuns = await loadScoringRunsRepository(item.id);
+    const scoringRuns = await loadScoringRunsRepository(scoringClassId);
     const headers = getPatternHeaders(
       officialData.patternValue || officialData.pattern,
       officialData.customPattern
@@ -481,7 +492,7 @@ function DayClassesPage() {
       associationLogoDataUrl: association?.logoDataUrl || null,
       eventName: officialData.eventName || "",
       eventDate: officialData.eventDate || "",
-      classItem: item,
+      classItem: scoringClass,
       classSetup: {
         ...officialData.setup,
         judgeName: officialData.judgeName,
@@ -496,7 +507,7 @@ function DayClassesPage() {
     const fileName = buildScorePdfFileName({
       associationAbbreviation: association?.shortName || "ASSOC",
       showName: officialData.eventName || "show",
-      className: item?.name || "block",
+      className: scoringClass?.name || "block",
       finalizedAt: officialData.finalizedAt || new Date().toISOString(),
     });
 
@@ -637,12 +648,19 @@ function DayClassesPage() {
             }
 
             const item = scheduleItem.item;
+            const scoringClassId = resolveClassScoringId(item.id, classes);
+            const scoringClass =
+              classes.find((candidate) => candidate.id === scoringClassId) ||
+              item;
             const isEditing = editingId === item.id;
-            const officialData = getClassOfficialData(item.id, item);
+            const officialData = getClassOfficialData(
+              scoringClassId,
+              scoringClass
+            );
 
             const status = officialData.isFinalized
               ? "completed"
-              : getClassStatus(item);
+              : getClassStatus(scoringClass);
 
             const statusLabel = getClassStatusLabel(status, t);
             const isScheduleOnly = isNoPatternValue(item.pattern);
@@ -698,7 +716,7 @@ function DayClassesPage() {
                       {(access.canManageAssociation ||
                         access.canScoreAssociation) && (
                         <Link
-                          to={`/associations/${associationId}/classes/${item.id}/setup`}
+                          to={`/associations/${associationId}/classes/${scoringClassId}/setup`}
                           style={linkButtonStyle}
                         >
                           {t("management.classes.openSetup")}
@@ -707,7 +725,7 @@ function DayClassesPage() {
 
                       {access.canScoreAssociation && (
                         <Link
-                          to={`/associations/${associationId}/scribe/classes/${item.id}`}
+                          to={`/associations/${associationId}/scribe/classes/${scoringClassId}`}
                           style={
                             scoringDisabled
                               ? disabledLinkButtonStyle

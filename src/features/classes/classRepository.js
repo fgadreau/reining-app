@@ -57,6 +57,12 @@ function toClass(row) {
     startMode: row.schedule_start_mode,
     startTime: row.schedule_start_time || row.scheduled_time,
   });
+  const eligibilityRules =
+    row.eligibility_rules &&
+    typeof row.eligibility_rules === "object" &&
+    !Array.isArray(row.eligibility_rules)
+      ? row.eligibility_rules
+      : {};
 
   return {
     id: row.id,
@@ -74,6 +80,20 @@ function toClass(row) {
     scheduleStartMode: scheduleStart.startMode,
     scheduleStartTime: scheduleStart.startTime,
     isEventBlock: Boolean(row.is_event_block),
+    eligibilityRules,
+    concurrentClassId:
+      typeof eligibilityRules.concurrent_class_id === "string"
+        ? eligibilityRules.concurrent_class_id
+        : "",
+    concurrentGroupLabel:
+      typeof eligibilityRules.concurrent_group_label === "string"
+        ? eligibilityRules.concurrent_group_label
+        : "",
+    scoringGroupId:
+      row.scoring_group_id ||
+      (typeof eligibilityRules.scoring_group_id === "string"
+        ? eligibilityRules.scoring_group_id
+        : ""),
     judgeName: row.judge_name || "",
     sortOrder: row.sort_order || 1,
     updatedAt: row.updated_at || null,

@@ -920,6 +920,7 @@ function ClassLiveCard({
   );
   const liveState = getClassLiveState(classView, t);
   const hasProvisionalRanking = classView.provisionalRanking?.length > 0;
+  const hasClassStandings = classView.classStandings?.length > 0;
   const isScheduleOnly = Boolean(classView.isScheduleOnly);
   const cardDetailsId = `announcer-live-details-${classView.classId || "class"}`;
 
@@ -1013,23 +1014,38 @@ function ClassLiveCard({
                 />
               </div>
 
+              {hasClassStandings && (
+                <AnnouncerClassStandings
+                  standings={classView.classStandings || []}
+                  panelId={buildAccordionPanelId(
+                    "announcer-standings",
+                    classView.classId || classView.classCode || "class"
+                  )}
+                />
+              )}
+
               {classView.orderRuns?.length > 0 && (
-                <AnnouncerOrderList runs={classView.orderRuns} />
+                <AnnouncerOrderList
+                  runs={classView.orderRuns}
+                  panelId={buildAccordionPanelId(
+                    "announcer-order",
+                    classView.classId || classView.classCode || "class"
+                  )}
+                />
               )}
 
               {classView.passedRuns?.length > 0 && (
-                <div style={completedWrapStyle}>
-                  <div style={runLabelStyle}>
-                    {t("management.announcer.passedWithScores")}
-                  </div>
-                  <RecentResults
-                    results={classView.passedRuns.map((run) => ({
-                      classId: classView.classId,
-                      className: classView.className,
-                      run,
-                    }))}
-                  />
-                </div>
+                <AnnouncerPassedResults
+                  results={classView.passedRuns.map((run) => ({
+                    classId: classView.classId,
+                    className: classView.className,
+                    run,
+                  }))}
+                  panelId={buildAccordionPanelId(
+                    "announcer-passed",
+                    classView.classId || classView.classCode || "class"
+                  )}
+                />
               )}
             </>
           )}
@@ -1051,28 +1067,260 @@ function ClassLiveCard({
   );
 }
 
-function AnnouncerOrderList({ runs }) {
+function AnnouncerClassStandings({ standings, panelId }) {
   const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
+  const [openGroupIds, setOpenGroupIds] = useState(() => new Set());
+  const groups = (Array.isArray(standings) ? standings : []).filter(
+    (group) => Array.isArray(group.visibleEntries) && group.visibleEntries.length > 0
+  );
+
+  if (!groups.length) return null;
+
+  function togglePanel() {
+    setIsOpen((current) => !current);
+  }
+
+  function toggleGroup(groupId) {
+    setOpenGroupIds((current) => {
+      const next = new Set(current);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  }
+
+  function handlePanelKeyDown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    togglePanel();
+  }
+
+  return (
+    <div style={announcerStandingsWrapStyle}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        onClick={togglePanel}
+        onKeyDown={handlePanelKeyDown}
+        style={announcerAccordionHeaderStyle(isOpen)}
+      >
+        <div>
+          <div style={runLabelStyle}>{t("public.results.provisionalStandings")}</div>
+          <div style={mutedTextStyle}>
+            {t("public.results.provisionalStandingsNote")}
+          </div>
+        </div>
+        <div style={badgeStackStyle}>
+          <Badge tone="muted">{groups.length}</Badge>
+          <Badge tone="muted">
+            {isOpen ? t("public.results.hide") : t("public.results.view")}
+          </Badge>
+        </div>
+      </div>
+      {isOpen && (
+        <div id={panelId} style={announcerStandingsGridStyle}>
+          {groups.map((group) => {
+            const groupId = getStandingGroupKey(group);
+
+            return (
+              <AnnouncerStandingGroupAccordion
+                key={groupId}
+                group={group}
+                isOpen={openGroupIds.has(groupId)}
+                panelId={buildAccordionPanelId(panelId, groupId)}
+                onToggle={() => toggleGroup(groupId)}
+              />
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AnnouncerStandingGroupAccordion({ group, isOpen, panelId, onToggle }) {
+  const { t } = useTranslation();
+
+  function handleKeyDown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    onToggle();
+  }
+
+  return (
+    <div style={announcerStandingGroupStyle}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        onClick={onToggle}
+        onKeyDown={handleKeyDown}
+        style={announcerStandingHeaderStyle(isOpen)}
+      >
+        <div>
+          <div style={runTitleStyle}>
+            {group.className || group.classCode || "—"}
+          </div>
+          {group.classCode && (
+            <div style={mutedTextStyle}>{group.classCode}</div>
+          )}
+        </div>
+        <div style={badgeStackStyle}>
+          <Badge tone="muted">{group.entryCount || 0}</Badge>
+          <Badge tone="muted">
+            {isOpen ? t("public.results.hide") : t("public.results.view")}
+          </Badge>
+        </div>
+      </div>
+      {isOpen && (
+        <div id={panelId} style={announcerStandingListStyle}>
+          {group.visibleEntries.map((entry) => (
+            <div
+              key={entry.id || `${group.code}-${entry.draw}`}
+              style={announcerStandingEntryStyle}
+            >
+              <div style={announcerStandingRankStyle}>#{entry.rank}</div>
+              <div style={announcerStandingIdentityStyle}>
+                <div style={runNameStyle}>
+                  {entry.rider || t("public.results.riderFallback")}
+                </div>
+                <div style={mutedTextStyle}>
+                  {t("public.results.backNumber")} {entry.backNumber || "—"} ·{" "}
+                  {entry.horse || t("public.results.horseFallback")}
+                </div>
+              </div>
+              <div style={announcerStandingScoreStyle}>
+                {entry.scoreTotal || "—"}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AnnouncerOrderList({ runs, panelId }) {
+  const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
+
+  function togglePanel() {
+    setIsOpen((current) => !current);
+  }
+
+  function handlePanelKeyDown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    togglePanel();
+  }
 
   return (
     <div style={announcerOrderWrapStyle}>
-      <div style={runLabelStyle}>{t("public.results.orderOfGo")}</div>
-      <div style={announcerOrderListStyle}>
-        {runs.map((run) => (
-          <div key={run.id || run.draw} style={announcerOrderRowStyle}>
-            <div style={announcerOrderDrawStyle}>#{run.draw || "—"}</div>
-            <div style={announcerOrderIdentityStyle}>
-              <RunIdentity run={run} />
-            </div>
-            <Badge tone={getOrderStatusTone(run.liveOrderStatus)}>
-              {getAnnouncerRunOrderStatusLabel(run.liveOrderStatus, t)}
-            </Badge>
-            <RunScoreDisplay run={run} compact />
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        onClick={togglePanel}
+        onKeyDown={handlePanelKeyDown}
+        style={announcerAccordionHeaderStyle(isOpen)}
+      >
+        <div>
+          <div style={runLabelStyle}>{t("public.results.orderOfGo")}</div>
+          <div style={mutedTextStyle}>
+            {t("public.results.passedWithScores")}
           </div>
-        ))}
+        </div>
+        <div style={badgeStackStyle}>
+          <Badge tone="muted">{runs.length}</Badge>
+          <Badge tone="muted">
+            {isOpen ? t("public.results.hide") : t("public.results.view")}
+          </Badge>
+        </div>
       </div>
+      {isOpen && (
+        <div id={panelId} style={announcerOrderListStyle}>
+          {runs.map((run) => (
+            <div key={run.id || run.draw} style={announcerOrderRowStyle}>
+              <div style={announcerOrderDrawStyle}>#{run.draw || "—"}</div>
+              <div style={announcerOrderIdentityStyle}>
+                <RunIdentity run={run} />
+              </div>
+              <Badge tone={getOrderStatusTone(run.liveOrderStatus)}>
+                {getAnnouncerRunOrderStatusLabel(run.liveOrderStatus, t)}
+              </Badge>
+              <RunScoreDisplay run={run} compact />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
+}
+
+function AnnouncerPassedResults({ results, panelId }) {
+  const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
+
+  function togglePanel() {
+    setIsOpen((current) => !current);
+  }
+
+  function handlePanelKeyDown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    togglePanel();
+  }
+
+  return (
+    <div style={completedWrapStyle}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        onClick={togglePanel}
+        onKeyDown={handlePanelKeyDown}
+        style={announcerAccordionHeaderStyle(isOpen)}
+      >
+        <div style={runLabelStyle}>
+          {t("management.announcer.passedWithScores")}
+        </div>
+        <div style={badgeStackStyle}>
+          <Badge tone="muted">{results.length}</Badge>
+          <Badge tone="muted">
+            {isOpen ? t("public.results.hide") : t("public.results.view")}
+          </Badge>
+        </div>
+      </div>
+      {isOpen && (
+        <div id={panelId}>
+          <RecentResults results={results} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function getStandingGroupKey(group) {
+  return String(
+    group?.id ||
+      group?.code ||
+      group?.classCode ||
+      group?.className ||
+      "standing"
+  );
+}
+
+function buildAccordionPanelId(prefix, key) {
+  return `${prefix}-${String(key).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
 }
 
 function getClassLiveState(classView, t) {
@@ -1801,6 +2049,76 @@ const completedWrapStyle = {
   marginTop: 12,
   borderTop: "1px solid #e2e8f0",
   paddingTop: 12,
+};
+
+const announcerStandingsWrapStyle = {
+  marginTop: 12,
+  borderTop: "1px solid #e2e8f0",
+  paddingTop: 12,
+};
+
+const announcerAccordionHeaderStyle = (isOpen) => ({
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 10,
+  flexWrap: "wrap",
+  marginBottom: isOpen ? 10 : 0,
+  cursor: "pointer",
+  outlineOffset: 4,
+});
+
+const announcerStandingsGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 230px), 1fr))",
+  gap: 8,
+};
+
+const announcerStandingGroupStyle = {
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  padding: 10,
+  background: "#f8fafc",
+};
+
+const announcerStandingHeaderStyle = (isOpen) => ({
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 8,
+  flexWrap: "wrap",
+  marginBottom: isOpen ? 8 : 0,
+  cursor: "pointer",
+  outlineOffset: 4,
+});
+
+const announcerStandingListStyle = {
+  display: "grid",
+  gap: 7,
+};
+
+const announcerStandingEntryStyle = {
+  display: "grid",
+  gridTemplateColumns: "34px minmax(0, 1fr) auto",
+  gap: 8,
+  alignItems: "center",
+  borderTop: "1px solid #e2e8f0",
+  paddingTop: 7,
+};
+
+const announcerStandingRankStyle = {
+  color: "#047857",
+  fontWeight: 900,
+};
+
+const announcerStandingIdentityStyle = {
+  minWidth: 0,
+};
+
+const announcerStandingScoreStyle = {
+  fontSize: 18,
+  fontWeight: 900,
+  color: "#0f172a",
 };
 
 const announcerOrderWrapStyle = {

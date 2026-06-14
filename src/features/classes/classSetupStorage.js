@@ -72,6 +72,102 @@ export function createEmptyRun(nextOrder = 1) {
   };
 }
 
+function hasOwn(object, key) {
+  return Object.prototype.hasOwnProperty.call(object || {}, key);
+}
+
+function firstDefinedValue(source, keys) {
+  for (const key of keys) {
+    if (hasOwn(source, key) && source[key] !== undefined && source[key] !== null) {
+      return source[key];
+    }
+  }
+
+  return undefined;
+}
+
+function normalizeStringId(value) {
+  if (value === null || value === undefined || value === "") return "";
+  return String(value).trim();
+}
+
+function normalizeStringIdArray(value) {
+  return Array.from(
+    new Set(
+      (Array.isArray(value) ? value : [])
+        .map(normalizeStringId)
+        .filter(Boolean)
+    )
+  );
+}
+
+function normalizeStringArray(value) {
+  return Array.from(
+    new Set(
+      (Array.isArray(value) ? value : [])
+        .map((item) => String(item || "").trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+export function getRunIntegrationMetadata(run = {}) {
+  const metadata = {};
+  const idFields = [
+    ["runId", ["runId", "run_id"]],
+    ["blockRunId", ["blockRunId", "block_run_id"]],
+    ["entryId", ["entryId", "entry_id"]],
+    ["classId", ["classId", "class_id"]],
+    ["blockId", ["blockId", "block_id"]],
+    ["divisionId", ["divisionId", "division_id"]],
+    ["horseId", ["horseId", "horse_id"]],
+    ["riderContactId", ["riderContactId", "rider_contact_id"]],
+    ["ownerContactId", ["ownerContactId", "owner_contact_id"]],
+    ["payerContactId", ["payerContactId", "payer_contact_id"]],
+  ];
+  const idArrayFields = [
+    ["blockRunIds", ["blockRunIds", "block_run_ids"]],
+    ["blockIds", ["blockIds", "block_ids"]],
+    ["classIds", ["classIds", "class_ids"]],
+    ["entryIds", ["entryIds", "entry_ids"]],
+    ["divisionIds", ["divisionIds", "division_ids"]],
+  ];
+
+  idFields.forEach(([targetKey, sourceKeys]) => {
+    const value = normalizeStringId(firstDefinedValue(run, sourceKeys));
+    if (value) {
+      metadata[targetKey] = value;
+    }
+  });
+
+  idArrayFields.forEach(([targetKey, sourceKeys]) => {
+    const values = normalizeStringIdArray(firstDefinedValue(run, sourceKeys));
+    if (values.length) {
+      metadata[targetKey] = values;
+    }
+  });
+
+  const divisionNames = normalizeStringArray(
+    firstDefinedValue(run, ["divisionNames", "division_names"])
+  );
+  if (divisionNames.length) {
+    metadata.divisionNames = divisionNames;
+  }
+
+  if (hasOwn(run, "isLate") || hasOwn(run, "is_late")) {
+    metadata.isLate = Boolean(firstDefinedValue(run, ["isLate", "is_late"]));
+  }
+
+  const drawGroup = String(
+    firstDefinedValue(run, ["drawGroup", "draw_group"]) || ""
+  ).trim();
+  if (drawGroup) {
+    metadata.drawGroup = drawGroup;
+  }
+
+  return metadata;
+}
+
 function normalizeDraw(value) {
   if (value === null || value === undefined || value === "") return null;
 
@@ -91,6 +187,7 @@ export function normalizeRun(run, index = 0) {
     rider: run?.rider ?? "",
     horse: run?.horse ?? "",
     owner: run?.owner ?? "",
+    ...getRunIntegrationMetadata(run),
     classCodes,
   };
 }
@@ -165,6 +262,28 @@ function normalizeBlockClasses(value) {
           return [
             code,
             {
+              ...(classEntry?.id ? { id: String(classEntry.id).trim() } : {}),
+              ...(classEntry?.divisionId || classEntry?.division_id
+                ? {
+                    divisionId: String(
+                      classEntry.divisionId || classEntry.division_id
+                    ).trim(),
+                  }
+                : {}),
+              ...(classEntry?.classId || classEntry?.class_id
+                ? {
+                    classId: String(
+                      classEntry.classId || classEntry.class_id
+                    ).trim(),
+                  }
+                : {}),
+              ...(classEntry?.blockId || classEntry?.block_id
+                ? {
+                    blockId: String(
+                      classEntry.blockId || classEntry.block_id
+                    ).trim(),
+                  }
+                : {}),
               code,
               name: String(classEntry?.name || "").trim(),
               classNumber: String(classEntry?.classNumber || "").trim(),

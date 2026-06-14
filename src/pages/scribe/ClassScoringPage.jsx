@@ -11,7 +11,10 @@ import {
   getJudgeDisplayName,
   normalizeClassJudges,
 } from "../../features/classes/classJudges";
-import { getClassSetup } from "../../features/classes/classSetupStorage";
+import {
+  getClassSetup,
+  getRunIntegrationMetadata,
+} from "../../features/classes/classSetupStorage";
 import {
   finalizeClassWithJudge,
   saveFinalPdfFileName,
@@ -19,6 +22,7 @@ import {
 import {
   getClassStatus,
 } from "../../features/classes/classStatusSelectors";
+import { resolveClassScoringId } from "../../features/classes/classScoringGroups";
 import { loadAssociations } from "../../features/associations/associationsData";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import { useAuthUser } from "../../features/auth/useAuthUser";
@@ -140,6 +144,7 @@ function buildBaseRunsFromSetup(
           rider: run.rider || "",
           horse: run.horse || "",
           owner: run.owner || "",
+          ...getRunIntegrationMetadata(run),
           classCodes: Array.isArray(run.classCodes) ? run.classCodes : [],
           scores: [],
           penalties: [],
@@ -193,6 +198,8 @@ function mergeScoringRuns(
           classCodes: Array.isArray(saved.classCodes)
             ? saved.classCodes
             : baseRun.classCodes,
+          ...getRunIntegrationMetadata(baseRun),
+          ...getRunIntegrationMetadata(saved),
           penalties: Array.isArray(saved.penalties)
             ? saved.penalties
             : baseRun.penalties,
@@ -265,7 +272,8 @@ function sanitizeFilePart(value, fallback = "export") {
 }
 
 function ClassScoringPage() {
-  const { associationId, classId } = useParams();
+  const { associationId, classId: routeClassId } = useParams();
+  const classId = resolveClassScoringId(routeClassId);
   const navigate = useNavigate();
   const { t } = useTranslation();
   const access = useAssociationAccess(associationId);

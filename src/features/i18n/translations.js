@@ -1218,6 +1218,9 @@ export const translations = {
         owner: "Propriétaire",
         pattern: "Pattern",
         penaltyPrefix: "P",
+        provisionalStandings: "Classements provisoires",
+        provisionalStandingsNote:
+          "Selon les scores visibles du live. Les résultats officiels peuvent changer.",
         publishedContent: "publications",
         publishedResultClasses: "{{count}} classe(s)/division(s) de résultats publiés",
         publishedResults: "classes/divisions avec résultats publiés: {{count}}",
@@ -2514,6 +2517,9 @@ export const translations = {
         paidWarmupStatusScratch: "Scratch",
         pattern: "Pattern",
         penaltyPrefix: "P",
+        provisionalStandings: "Provisional standings",
+        provisionalStandingsNote:
+          "Based on visible live scores. Official results may change.",
         publishedContent: "publications",
         publishedResultClasses: "{{count}} published result class(es)/division(s)",
         publishedResults: "classes/divisions with published results: {{count}}",

@@ -20,6 +20,7 @@ import {
   patternHasRailAdjustment,
 } from "../patterns/patternDefinitions";
 import { buildProvisionalRanking } from "../scoring/provisionalRanking";
+import { buildLiveClassStandings } from "../results/liveClassStandings";
 import {
   buildMultiJudgeLiveRuns,
   getMultiJudgeLiveUpdatedAt,
@@ -283,6 +284,7 @@ export function buildAnnouncerClassView(classData) {
       hasScheduleDetails: hasClassScheduleDetails(scheduleDetails),
       hasRailAdjustment: false,
       provisionalRanking: [],
+      classStandings: [],
       activeRun: null,
       nextRun: null,
       secondNextRun: null,
@@ -313,6 +315,12 @@ export function buildAnnouncerClassView(classData) {
     (runs.length > 0 && scoringStarted && !activeRun && !nextRun);
   const provisionalRanking =
     hasRailAdjustment && isComplete ? buildProvisionalRanking(runs) : [];
+  const classStandings = buildLiveClassStandings({
+    runs,
+    setupRuns,
+    blockClasses: classData.setup?.blockClasses,
+    classItem,
+  });
 
   return {
     classId,
@@ -334,6 +342,7 @@ export function buildAnnouncerClassView(classData) {
     isComplete,
     hasRailAdjustment,
     provisionalRanking,
+    classStandings,
     activeRun,
     nextRun,
     secondNextRun,
@@ -377,6 +386,7 @@ function normalizeRunForAnnouncer(run, index, headers) {
     rider: run.rider || "",
     horse: run.horse || "",
     owner: run.owner || "",
+    classCodes: Array.isArray(run.classCodes) ? run.classCodes : [],
     scoreTotal: formatTotalValue(run.scoreTotal),
     judgeScores,
     penTotal: formatTotalValue(run.penTotal),

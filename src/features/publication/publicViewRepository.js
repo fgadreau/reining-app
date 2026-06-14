@@ -61,6 +61,7 @@ import {
   getResultPublicationsForClassesRepository,
 } from "../results/resultPublicationRepository";
 import { normalizeResultGroups } from "../results/classResults";
+import { buildLiveClassStandings } from "../results/liveClassStandings";
 import {
   LIVE_SCORE_DISPLAY_MODES,
   PUBLICATION_STATUSES,
@@ -1349,11 +1350,22 @@ export function buildPublicLiveClassView({
     : scoringRuns.length > 0
       ? scoringRuns
       : setupRuns;
-  const runs = sourceRuns.map((run, index) =>
+  const mergedRuns = sourceRuns.map((run, index) =>
+    mergeLiveRunWithSetupRun(run, setupRuns, index)
+  );
+  const runs = mergedRuns.map((run, index) =>
     normalizePublicLiveRun(run, index, patternValue, customPattern, {
       liveScoreDisplayMode,
     })
   );
+  const classStandings = showScores
+    ? buildLiveClassStandings({
+        runs,
+        setupRuns,
+        blockClasses: setup?.blockClasses,
+        classItem,
+      })
+    : [];
 
   const activeRun = isMultiJudgeLive
     ? runs.find((run) => run.isActive) || null
@@ -1407,8 +1419,39 @@ export function buildPublicLiveClassView({
     passedRuns,
     lastPassedRuns,
     latestScore: showScores ? passedRuns.find(runHasScore) || null : null,
+    classStandings,
     dragBreak,
   };
+}
+
+function mergeLiveRunWithSetupRun(run, setupRuns, index) {
+  const setupRun = findMatchingSetupRun(setupRuns, run, index);
+
+  if (!setupRun) {
+    return run;
+  }
+
+  const classCodes =
+    Array.isArray(run?.classCodes) && run.classCodes.length
+      ? run.classCodes
+      : setupRun.classCodes;
+
+  return {
+    ...setupRun,
+    ...run,
+    classCodes,
+  };
+}
+
+function findMatchingSetupRun(setupRuns, sourceRun, index) {
+  const sourceRuns = Array.isArray(setupRuns) ? setupRuns : [];
+  const draw = sourceRun?.draw ?? sourceRun?.order ?? index + 1;
+
+  return (
+    sourceRuns.find((run) => run?.id && run.id === sourceRun?.id) ||
+    sourceRuns.find((run) => String(run?.draw ?? run?.order ?? "") === String(draw)) ||
+    null
+  );
 }
 
 function normalizePublicLiveRun(
@@ -1459,6 +1502,7 @@ function normalizePublicLiveRun(
     rider: run.rider || "",
     horse: run.horse || "",
     owner: run.owner || "",
+    classCodes: Array.isArray(run.classCodes) ? run.classCodes : [],
     scoreTotal: showScores ? scoreTotal : "",
     judgeScores: showScores ? judgeScores : [],
     penTotal: showScoreDetails ? penTotal : "",

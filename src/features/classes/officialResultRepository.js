@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "../cloud/supabaseClient";
+import { syncHspScoredRunsBatchRepository } from "../integrations/hspScoredRunRepository";
 import { publishClassRepository } from "../publication/publicationCloudRepository";
 import { getClassRecord, saveClassRecord } from "./classRecordStorage";
 
@@ -175,6 +176,9 @@ export async function validateOfficialResultRepository({
 }) {
   const classId = classData?.classItem?.id;
   const official = classData?.official || {};
+  const officialRuns = Array.isArray(classData?.scoringRuns)
+    ? classData.scoringRuns
+    : [];
   const judgeSessions = Array.isArray(official.judgeSessions)
     ? official.judgeSessions
     : [];
@@ -204,9 +208,14 @@ export async function validateOfficialResultRepository({
       classData?.classItem?.customPattern ||
       official.customPattern ||
       null,
-    officialRuns: Array.isArray(classData?.scoringRuns)
-      ? classData.scoringRuns
-      : [],
+    officialRuns,
+  });
+
+  await syncHspScoredRunsBatchRepository({
+    classItem: classData.classItem,
+    setup: classData.setup,
+    runs: officialRuns,
+    scoredAt: officialResult.secretariatValidatedAt || validatedAt,
   });
 
   if (publishScoresheet) {
