@@ -316,9 +316,11 @@ function AppMenu() {
             onClick={() => setIsMenuOpen((value) => !value)}
             aria-controls="showscore-mobile-menu"
             aria-expanded={isMenuOpen}
-            aria-label={isMenuOpen ? "Fermer la navigation" : "Ouvrir la navigation"}
+            aria-hidden={isMenuOpen ? true : undefined}
+            aria-label={isMenuOpen ? undefined : "Ouvrir la navigation"}
+            tabIndex={isMenuOpen ? -1 : 0}
           >
-            {isMenuOpen ? "X" : "☰"}
+            {isMenuOpen ? "×" : "☰"}
           </button>
         </div>
 
@@ -338,7 +340,7 @@ function AppMenu() {
                 onClick={closeMobileMenu}
                 aria-label="Fermer la navigation"
               >
-                X
+                ×
               </button>
             </div>
 
