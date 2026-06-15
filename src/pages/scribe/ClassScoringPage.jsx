@@ -1634,8 +1634,25 @@ function ClassScoringPage() {
     );
   }
 
+  const scoringSyncNotice = !isCompleted
+    ? getScoringSyncNotice(scoringSyncStatus, t, scoringSyncError)
+    : "";
+
   return (
     <div style={styles.app}>
+      {scoringSyncNotice && (
+        <div
+          style={scoringSyncToastStyle(scoringSyncStatus)}
+          role="status"
+          aria-live="polite"
+        >
+          <div style={scoringSyncToastTitleStyle}>
+            {getScoringSyncLabel(scoringSyncStatus, t)}
+          </div>
+          <div>{scoringSyncNotice}</div>
+        </div>
+      )}
+
       <div style={{ marginBottom: 16 }}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
           {t("public.results.back")}
@@ -1734,13 +1751,6 @@ function ClassScoringPage() {
       {!isCompleted && hasPendingVideoReview && (
         <div style={warningBannerStyle}>
           {t("management.scoring.videoReviewBanner")}
-        </div>
-      )}
-
-      {!isCompleted &&
-        getScoringSyncNotice(scoringSyncStatus, t, scoringSyncError) && (
-        <div style={scoringSyncNoticeStyle(scoringSyncStatus)}>
-          {getScoringSyncNotice(scoringSyncStatus, t, scoringSyncError)}
         </div>
       )}
 
@@ -2169,10 +2179,24 @@ function scoringSyncBadgeStyle(status) {
   };
 }
 
-function scoringSyncNoticeStyle(status) {
+function scoringSyncToastStyle(status) {
+  const baseStyle = {
+    position: "fixed",
+    right: "16px",
+    bottom: "16px",
+    zIndex: 3000,
+    width: "min(560px, calc(100vw - 32px))",
+    padding: "12px 14px",
+    borderRadius: "8px",
+    boxShadow: "0 18px 40px rgba(15, 23, 42, 0.18)",
+    fontSize: "15px",
+    lineHeight: 1.35,
+    pointerEvents: "none",
+  };
+
   if (status === SCORING_SYNC_STATUS.PENDING) {
     return {
-      ...warningBannerStyle,
+      ...baseStyle,
       background: "#fff7ed",
       border: "1px solid #fdba74",
       color: "#9a3412",
@@ -2180,16 +2204,30 @@ function scoringSyncNoticeStyle(status) {
   }
 
   if (status === SCORING_SYNC_STATUS.SYNCING) {
-    return warningBannerStyle;
+    return {
+      ...baseStyle,
+      background: "#eff6ff",
+      border: "1px solid #93c5fd",
+      color: "#1d4ed8",
+    };
   }
 
   return {
-    ...warningBannerStyle,
+    ...baseStyle,
     background: "#f8fafc",
     border: "1px solid #cbd5e1",
     color: "#475569",
   };
 }
+
+const scoringSyncToastTitleStyle = {
+  marginBottom: "4px",
+  color: "inherit",
+  fontSize: "13px",
+  fontWeight: 900,
+  textTransform: "uppercase",
+  letterSpacing: 0,
+};
 
 const lockBannerStyle = {
   marginBottom: "16px",
