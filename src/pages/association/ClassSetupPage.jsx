@@ -249,13 +249,15 @@ function buildImportedBlockClassSummary(blockClasses, runs) {
 function isImportedRunScratched(run) {
   const status = String(run?.status || "").toLowerCase();
   const score = String(run?.scoreTotal ?? run?.score ?? "").toLowerCase();
+  const owner = String(run?.owner || "").toLowerCase();
 
   return (
     run?.scratched === true ||
     status === "scr" ||
     status.includes("scratch") ||
     score === "scr" ||
-    score.includes("scratch")
+    score.includes("scratch") ||
+    owner.includes("scratch")
   );
 }
 

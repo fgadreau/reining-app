@@ -532,6 +532,7 @@ function createImportedRun({
     rider: cleanText(rider),
     horse: cleanText(horse),
     owner: ownerWithStatus,
+    status: normalizedStatus,
     classCodes: normalizedClassCodes,
   };
 }

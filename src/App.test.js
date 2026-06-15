@@ -839,6 +839,7 @@ Tractor,,,,,,,,,,,,,
       order: 3,
       backNumber: "2648",
       owner: "Scratched",
+      status: "Scratched",
     }
   );
 });
@@ -1080,6 +1081,24 @@ test("parses Funware split leading-hyphen classes and scratched owners", () => {
       {
         cells: [{ x: 317, text: "JC1421" }],
       },
+      {
+        cells: [
+          { x: 48, text: "21" },
+          { x: 141, text: "GUNNAWINDYA" },
+          { x: 317, text: "MARTIN BRISEBOIS / ST-" },
+        ],
+      },
+      {
+        cells: [
+          { x: 46, text: "Scratched" },
+          { x: 108, text: "2588" },
+          { x: 141, text: "NAOMIE BRISEBOIS" },
+          { x: 317, text: "APOLLINAIRE, QC" },
+        ],
+      },
+      {
+        cells: [{ x: 317, text: "JC1421" }],
+      },
     ],
   ]);
 
@@ -1120,8 +1139,26 @@ test("parses Funware split leading-hyphen classes and scratched owners", () => {
     backNumber: "2563",
     rider: "NAOMIE BRISEBOIS",
     owner: "MARTIN BRISEBOIS / ST- APOLLINAIRE, QC - Scratched",
+    status: "Scratched",
     classCodes: ["JC1421"],
   });
+  expect(importedDraw.runs[2]).toMatchObject({
+    order: 3,
+    draw: 21,
+    backNumber: "2588",
+    rider: "NAOMIE BRISEBOIS",
+    owner: "MARTIN BRISEBOIS / ST- APOLLINAIRE, QC - Scratched",
+    status: "Scratched",
+    classCodes: ["JC1421"],
+  });
+  expect(
+    importedDraw.runs.filter((run) => run.status === "Scratched")
+  ).toHaveLength(2);
+  expect(
+    normalizeClassSetup({ runs: importedDraw.runs }).runs.filter(
+      (run) => run.status === "Scratched"
+    )
+  ).toHaveLength(2);
 });
 
 test("parses REO positioned PDF draws with owners and division codes", () => {

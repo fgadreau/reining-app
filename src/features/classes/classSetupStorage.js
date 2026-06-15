@@ -187,6 +187,7 @@ export function normalizeRun(run, index = 0) {
     rider: run?.rider ?? "",
     horse: run?.horse ?? "",
     owner: run?.owner ?? "",
+    status: run?.status ?? "",
     ...getRunIntegrationMetadata(run),
     classCodes,
   };
