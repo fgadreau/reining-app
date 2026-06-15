@@ -1375,7 +1375,9 @@ export function buildPublicLiveClassView({
   const upcomingRuns = findUpcomingRuns(runs, activeRun);
   const nextRun = upcomingRuns[0] || null;
   const secondNextRun = upcomingRuns[1] || null;
-  const passedRuns = findPassedRuns(runs);
+  const passedRuns = findPassedRuns(runs).filter(
+    (run) => !isSameRun(run, activeRun)
+  );
   const lastPassedRuns = findLastPassedRuns(runs, activeRun, 2);
   const orderRuns = buildLiveRunOrder({
     runs,
@@ -1418,7 +1420,7 @@ export function buildPublicLiveClassView({
     orderRuns,
     passedRuns,
     lastPassedRuns,
-    latestScore: showScores ? passedRuns.find(runHasScore) || null : null,
+    latestScore: showScores ? lastPassedRuns.find(runHasScore) || null : null,
     classStandings,
     dragBreak,
   };

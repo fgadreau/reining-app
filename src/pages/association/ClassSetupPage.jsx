@@ -179,6 +179,104 @@ function sortRunsByDraw(runs) {
   );
 }
 
+function normalizeImportedClassCode(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function getRunClassCodes(run) {
+  return Array.isArray(run?.classCodes)
+    ? run.classCodes.map(normalizeImportedClassCode).filter(Boolean)
+    : [];
+}
+
+function buildImportedBlockClassSummary(blockClasses, runs) {
+  const classesByCode = new Map();
+
+  (Array.isArray(blockClasses) ? blockClasses : []).forEach((classEntry) => {
+    const code = normalizeImportedClassCode(classEntry?.code);
+    if (!code) return;
+
+    classesByCode.set(code, {
+      code,
+      name: String(classEntry?.name || "").trim(),
+      classNumber: String(classEntry?.classNumber || "").trim(),
+      association: String(classEntry?.association || "").trim(),
+    });
+  });
+
+  (Array.isArray(runs) ? runs : []).forEach((run) => {
+    getRunClassCodes(run).forEach((code) => {
+      if (!classesByCode.has(code)) {
+        classesByCode.set(code, {
+          code,
+          name: "",
+          classNumber: "",
+          association: "",
+        });
+      }
+    });
+  });
+
+  return Array.from(classesByCode.values());
+}
+
+function isImportedRunScratched(run) {
+  const status = String(run?.status || "").toLowerCase();
+  const score = String(run?.scoreTotal ?? run?.score ?? "").toLowerCase();
+
+  return (
+    run?.scratched === true ||
+    status === "scr" ||
+    status.includes("scratch") ||
+    score === "scr" ||
+    score.includes("scratch")
+  );
+}
+
+function getImportSourceLabel(file) {
+  if (!file) return "manual";
+
+  const fileName = String(file.name || "");
+  const lowerName = fileName.toLowerCase();
+
+  if (lowerName.endsWith(".pdf") || file.type === "application/pdf") {
+    return "PDF";
+  }
+
+  if (lowerName.endsWith(".csv") || file.type === "text/csv") {
+    return "CSV";
+  }
+
+  return "TXT";
+}
+
+function buildImportSummary(importedDraw, runs, source = {}) {
+  const normalizedRuns = Array.isArray(runs) ? runs : [];
+  const blockClassSummary = buildImportedBlockClassSummary(
+    importedDraw?.blockClasses,
+    normalizedRuns
+  );
+
+  return {
+    sourceLabel: source.label || source.type || "",
+    participantCount: normalizedRuns.length,
+    classCount: blockClassSummary.length,
+    scratchedCount: normalizedRuns.filter(isImportedRunScratched).length,
+    blockClasses: blockClassSummary,
+  };
+}
+
+function formatImportedBlockClassDetails(classEntry) {
+  return [
+    classEntry?.classNumber,
+    classEntry?.association,
+    classEntry?.name,
+  ]
+    .map((part) => String(part || "").trim())
+    .filter(Boolean)
+    .join(" · ");
+}
+
 function normalizeEditableJudges(input = {}) {
   return normalizeClassJudges(input, { trimNames: false });
 }
@@ -252,6 +350,7 @@ function ClassSetupPage() {
   );
   const [importText, setImportText] = useState("");
   const [importMessage, setImportMessage] = useState("");
+  const [importSummary, setImportSummary] = useState(null);
   const [showImportBox, setShowImportBox] = useState(false);
   const arenaOptions = useMemo(
     () =>
@@ -364,6 +463,7 @@ function ClassSetupPage() {
       setShowImportBox(false);
       setImportText("");
       setImportMessage("");
+      setImportSummary(null);
       setHasLoadedSetup(true);
     }
 
@@ -885,13 +985,14 @@ function ClassSetupPage() {
     });
   };
 
-  const applyImportedDraw = (importedDraw) => {
+  const applyImportedDraw = (importedDraw, source = {}) => {
     const resequencedRuns = importedDraw?.runs || [];
     const importedBlockClasses = Array.isArray(importedDraw?.blockClasses)
       ? importedDraw.blockClasses
       : [];
 
     if (!resequencedRuns.length) {
+      setImportSummary(null);
       setImportMessage(t("management.classSetup.importNoParticipants"));
       return;
     }
@@ -900,6 +1001,7 @@ function ClassSetupPage() {
     setBlockClasses(importedBlockClasses);
     setRunCountInput(String(resequencedRuns.length));
     setIsDrawImported(true);
+    setImportSummary(buildImportSummary(importedDraw, resequencedRuns, source));
 
     if (importedDraw.dragInterval) {
       setDragInterval(String(importedDraw.dragInterval));
@@ -931,7 +1033,10 @@ function ClassSetupPage() {
       return;
     }
 
-    applyImportedDraw(parseImportedDraw(importText));
+    applyImportedDraw(parseImportedDraw(importText), {
+      type: t("management.classSetup.importSummaryManualSource"),
+      label: t("management.classSetup.importSummaryManualSource"),
+    });
   };
 
   const importRunsFromFile = async (file) => {
@@ -948,10 +1053,15 @@ function ClassSetupPage() {
     }
 
     setImportMessage(t("management.classSetup.fileReading"));
+    setImportSummary(null);
 
     try {
       const importedDraw = await parseImportedDrawFile(file);
-      applyImportedDraw(importedDraw);
+      const type = getImportSourceLabel(file);
+      applyImportedDraw(importedDraw, {
+        type,
+        label: `${type} · ${file.name || t("management.classSetup.importSummaryFile")}`,
+      });
     } catch (error) {
       console.error("Erreur import draw:", error);
       const details = error?.message ? ` (${error.message})` : "";
@@ -1707,7 +1817,12 @@ function ClassSetupPage() {
                 <div style={classCodePillListStyle}>
                   {blockClasses.map((classEntry) => (
                     <span key={classEntry.code} style={classCodePillStyle}>
-                      {classEntry.code}
+                      <strong>{classEntry.code}</strong>
+                      {formatImportedBlockClassDetails(classEntry) && (
+                        <span style={classCodeNameStyle}>
+                          {formatImportedBlockClassDetails(classEntry)}
+                        </span>
+                      )}
                     </span>
                   ))}
                 </div>
@@ -1880,6 +1995,88 @@ function ClassSetupPage() {
         )}
       </section>
       )}
+
+      {importSummary && (
+        <div
+          style={modalBackdropStyle}
+          role="presentation"
+          onClick={() => setImportSummary(null)}
+        >
+          <div
+            style={importSummaryModalStyle}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="import-summary-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={importSummaryHeaderStyle}>
+              <div>
+                <div style={importSummaryEyebrowStyle}>
+                  {importSummary.sourceLabel ||
+                    t("management.classSetup.importSummaryManualSource")}
+                </div>
+                <h2 id="import-summary-title" style={importSummaryTitleStyle}>
+                  {t("management.classSetup.importSummaryTitle")}
+                </h2>
+              </div>
+              <button
+                type="button"
+                style={smallButtonStyle}
+                onClick={() => setImportSummary(null)}
+              >
+                {t("management.classSetup.importSummaryClose")}
+              </button>
+            </div>
+
+            <div style={importSummaryStatsStyle}>
+              <ImportSummaryStat
+                label={t("management.classSetup.importSummaryParticipants")}
+                value={importSummary.participantCount}
+              />
+              <ImportSummaryStat
+                label={t("management.classSetup.importSummaryClasses")}
+                value={importSummary.classCount}
+              />
+              <ImportSummaryStat
+                label={t("management.classSetup.importSummaryScratched")}
+                value={importSummary.scratchedCount}
+              />
+            </div>
+
+            <div style={importSummaryClassListStyle}>
+              <div style={classCodeSummaryLabelStyle}>
+                {t("management.classSetup.importSummaryBlockClasses")}
+              </div>
+              {importSummary.blockClasses.length > 0 ? (
+                importSummary.blockClasses.map((classEntry) => (
+                  <div key={classEntry.code} style={importSummaryClassRowStyle}>
+                    <span style={importSummaryClassCodeStyle}>
+                      {classEntry.code}
+                    </span>
+                    <span style={importSummaryClassNameStyle}>
+                      {formatImportedBlockClassDetails(classEntry) ||
+                        t("management.classSetup.importSummaryUnnamedClass")}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div style={mutedTextStyle}>
+                  {t("management.classSetup.importSummaryNoClasses")}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ImportSummaryStat({ label, value }) {
+  return (
+    <div style={importSummaryStatStyle}>
+      <div style={importSummaryStatValueStyle}>{value}</div>
+      <div style={importSummaryStatLabelStyle}>{label}</div>
     </div>
   );
 }
@@ -2221,6 +2418,8 @@ const classCodePillListStyle = {
 const classCodePillStyle = {
   display: "inline-flex",
   alignItems: "center",
+  gap: "6px",
+  flexWrap: "wrap",
   minHeight: "22px",
   padding: "2px 7px",
   borderRadius: "6px",
@@ -2231,15 +2430,125 @@ const classCodePillStyle = {
   fontWeight: 700,
 };
 
+const classCodeNameStyle = {
+  color: "#64748b",
+  fontSize: "11px",
+  fontWeight: 600,
+};
+
 const mutedClassCodeStyle = {
   color: "#9ca3af",
   fontSize: "12px",
+};
+
+const mutedTextStyle = {
+  color: "#64748b",
+  fontSize: "14px",
 };
 
 const helperTextStyle = {
   marginTop: 0,
   color: "#555",
   fontSize: "14px",
+};
+
+const modalBackdropStyle = {
+  position: "fixed",
+  inset: 0,
+  zIndex: 50,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "20px",
+  background: "rgba(15, 23, 42, 0.48)",
+};
+
+const importSummaryModalStyle = {
+  width: "min(680px, 100%)",
+  maxHeight: "calc(100vh - 40px)",
+  overflow: "auto",
+  borderRadius: "10px",
+  border: "1px solid #cbd5e1",
+  background: "#fff",
+  boxShadow: "0 24px 60px rgba(15, 23, 42, 0.28)",
+  padding: "20px",
+};
+
+const importSummaryHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: "16px",
+  marginBottom: "18px",
+};
+
+const importSummaryEyebrowStyle = {
+  color: "#475569",
+  fontSize: "12px",
+  fontWeight: 800,
+  letterSpacing: 0,
+  textTransform: "uppercase",
+};
+
+const importSummaryTitleStyle = {
+  margin: "4px 0 0",
+  fontSize: "22px",
+  color: "#111827",
+};
+
+const importSummaryStatsStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+  gap: "10px",
+  marginBottom: "18px",
+};
+
+const importSummaryStatStyle = {
+  border: "1px solid #e2e8f0",
+  borderRadius: "8px",
+  padding: "12px",
+  background: "#f8fafc",
+};
+
+const importSummaryStatValueStyle = {
+  color: "#0f172a",
+  fontSize: "24px",
+  fontWeight: 800,
+  lineHeight: 1,
+};
+
+const importSummaryStatLabelStyle = {
+  marginTop: "6px",
+  color: "#475569",
+  fontSize: "13px",
+  fontWeight: 700,
+};
+
+const importSummaryClassListStyle = {
+  display: "grid",
+  gap: "8px",
+};
+
+const importSummaryClassRowStyle = {
+  display: "grid",
+  gridTemplateColumns: "90px 1fr",
+  gap: "10px",
+  alignItems: "center",
+  border: "1px solid #e2e8f0",
+  borderRadius: "8px",
+  padding: "10px 12px",
+};
+
+const importSummaryClassCodeStyle = {
+  color: "#0f172a",
+  fontSize: "13px",
+  fontWeight: 800,
+};
+
+const importSummaryClassNameStyle = {
+  color: "#334155",
+  fontSize: "14px",
+  fontWeight: 600,
 };
 
 function getClassStatusLabel(status, t) {

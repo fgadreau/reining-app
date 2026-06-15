@@ -297,12 +297,14 @@ export function buildAnnouncerClassView(classData) {
     };
   }
 
-  const latestScore = findLatestRunWithScore(runs);
   const upcomingRuns = isOfficiallyCompleted ? [] : findUpcomingRuns(runs, activeRun);
   const nextRun = upcomingRuns[0] || null;
   const secondNextRun = upcomingRuns[1] || null;
-  const passedRuns = findPassedRuns(runs);
+  const passedRuns = findPassedRuns(runs).filter(
+    (run) => !isSameRun(run, activeRun)
+  );
   const lastPassedRuns = findLastPassedRuns(runs, activeRun, 2);
+  const latestScore = lastPassedRuns.find(runHasScore) || null;
   const orderRuns = buildLiveRunOrder({
     runs,
     activeRun,
@@ -418,10 +420,6 @@ function findUpcomingRuns(runs, activeRun) {
   return sourceRuns.filter(
     (run) => !isSameRun(run, activeRun) && !runIsPassed(run) && !run.isReview
   );
-}
-
-function findLatestRunWithScore(runs) {
-  return [...runs].reverse().find(runHasScore) || null;
 }
 
 function findPassedRuns(runs) {

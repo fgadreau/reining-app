@@ -2193,7 +2193,9 @@ test("public live view exposes active, next, and last passed runs", () => {
           draw: 4,
           backNumber: "404",
           rider: "Rider 4",
-          scoreTotal: "",
+          scoreTotal: "69.5",
+          scores: ["+0.5", ""],
+          penalties: ["", ""],
         },
         {
           id: "run-5",
@@ -2225,6 +2227,7 @@ test("public live view exposes active, next, and last passed runs", () => {
     "waiting",
   ]);
   expect(classView.passedRuns.map((run) => run.draw)).toEqual([3, 2, 1]);
+  expect(classView.latestScore.draw).toBe(3);
   expect(classView.lastPassedRuns.map((run) => run.draw)).toEqual([3, 2]);
   expect(classView.lastPassedRuns[0].manoeuvres[1]).toMatchObject({
     score: "+½",
@@ -3843,7 +3846,7 @@ test("announcer live view exposes active, next, and recent completed runs", () =
         backNumber: "202",
         rider: "Rider 2",
         isActive: true,
-        scoreTotal: "Review",
+        scoreTotal: "70.0",
         scores: ["+1", ""],
         penalties: ["Révision vidéo", ""],
       },
