@@ -13,6 +13,7 @@ import { useTranslation } from "../../features/i18n/I18nProvider";
 
 const SPONSOR_LOGOS_PER_SLIDE = 4;
 const SPONSOR_SLIDE_INTERVAL_MS = 8000;
+const PUBLIC_OVERLAY_FALLBACK_REFRESH_MS = 5000;
 const OVERLAY_DEMO_QUERY_PARAM = "demo";
 const DEMO_OVERLAY_CLASS_ID = "overlay-demo-open-derby";
 
@@ -108,6 +109,23 @@ function PublicShowOverlayPage() {
       unsubscribe();
     };
   }, [showId, publicClassIdsKey, isDemoMode]);
+
+  useEffect(() => {
+    if (isDemoMode) return undefined;
+
+    let isMounted = true;
+    const refreshTimer = window.setInterval(async () => {
+      const nextPublicView = await getPublicShowViewRepository(showId);
+
+      if (!isMounted) return;
+      setPublicView(nextPublicView);
+    }, PUBLIC_OVERLAY_FALLBACK_REFRESH_MS);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(refreshTimer);
+    };
+  }, [showId, isDemoMode]);
 
   useEffect(() => {
     setSponsorSlideIndex(0);

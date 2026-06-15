@@ -31,6 +31,8 @@ import { appStyles as styles } from "../../styles/appStyles";
 
 let paidWarmupAudioContext = null;
 
+const ANNOUNCER_LIVE_FALLBACK_REFRESH_MS = 5000;
+
 const PAID_WARMUP_SOUND_SEQUENCES = {
   [PAID_WARMUP_TIMER_CUES.HALF_TIME]: [
     { at: 0, frequency: 740, duration: 0.16, gain: 0.14, type: "sine" },
@@ -305,6 +307,25 @@ function AnnouncerDashboardPage() {
       unsubscribe();
     };
   }, [showId, liveClassIdsKey]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const refreshTimer = window.setInterval(async () => {
+      if (document.visibilityState === "hidden") {
+        return;
+      }
+
+      const nextLiveView = await getAnnouncerShowViewRepository(showId);
+      if (!isMounted) return;
+      setLiveView(nextLiveView);
+      setIsLoading(false);
+    }, ANNOUNCER_LIVE_FALLBACK_REFRESH_MS);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(refreshTimer);
+    };
+  }, [showId]);
 
   if (!show) {
     return (

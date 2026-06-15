@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ScoreTable from "../../components/ScoreTable";
 import SignaturePad from "../../components/SignaturePad";
@@ -49,6 +49,7 @@ import {
   loadActiveManoeuvre,
   loadScoringRuns,
   flushScoringSyncQueue,
+  getScoringRunsSyncFailure,
   getScoringRunsSyncStatus,
   saveActiveManoeuvreRepository,
   saveScoringStartedAtRepository,
@@ -58,6 +59,7 @@ import {
 import {
   claimJudgeScoringSessionRepository,
   flushJudgeScoringSessionSyncQueue,
+  getJudgeScoringSessionSyncFailure,
   getJudgeScoringSessionSyncStatus,
   saveJudgeScoringSessionRepository,
 } from "../../features/scoring/judgeScoringSessionRepository";
@@ -258,6 +260,7 @@ function canFinalizeClass(runs, maneuverCount) {
 }
 
 const SCORING_SYNC_DEBOUNCE_MS = 800;
+const SCORING_SYNC_RETRY_MS = 5000;
 
 function isScoringSyncBlockingStatus(status) {
   return (
@@ -395,6 +398,13 @@ function ClassScoringPage() {
   const [scoringSyncStatus, setScoringSyncStatus] = useState(() =>
     getScoringRunsSyncStatus(classId)
   );
+  const [scoringSyncError, setScoringSyncError] = useState("");
+  const [scoringSyncErrorRefreshKey, setScoringSyncErrorRefreshKey] =
+    useState(0);
+  const updateScoringSyncStatus = useCallback((status) => {
+    setScoringSyncStatus(status);
+    setScoringSyncErrorRefreshKey((value) => value + 1);
+  }, []);
 
   const [showFinalizeBox, setShowFinalizeBox] = useState(false);
   const [showProvisionalRanking, setShowProvisionalRanking] = useState(false);
@@ -468,7 +478,7 @@ function ClassScoringPage() {
       setActiveManoeuvre(
         nextIsCompleted || nextIsMultiJudgeMode ? null : nextActiveManoeuvre
       );
-      setScoringSyncStatus(
+      updateScoringSyncStatus(
         nextIsMultiJudgeMode
           ? getJudgeScoringSessionSyncStatus(classId)
           : getScoringRunsSyncStatus(classId)
@@ -481,7 +491,26 @@ function ClassScoringPage() {
     return () => {
       isMounted = false;
     };
-  }, [classId]);
+  }, [classId, updateScoringSyncStatus]);
+
+  useEffect(() => {
+    if (scoringSyncStatus !== SCORING_SYNC_STATUS.PENDING) {
+      setScoringSyncError("");
+      return;
+    }
+
+    const failure = isMultiJudgeMode
+      ? getJudgeScoringSessionSyncFailure(classId, activeJudge?.id || null)
+      : getScoringRunsSyncFailure(classId);
+
+    setScoringSyncError(failure?.lastError || "");
+  }, [
+    activeJudge?.id,
+    classId,
+    isMultiJudgeMode,
+    scoringSyncErrorRefreshKey,
+    scoringSyncStatus,
+  ]);
 
   useEffect(() => {
     if (isMultiJudgeMode) {
@@ -672,7 +701,7 @@ function ClassScoringPage() {
     const serializedRuns = JSON.stringify(runs);
 
     if (lastPersistedRunsRef.current === serializedRuns) {
-      setScoringSyncStatus(
+      updateScoringSyncStatus(
         isMultiJudgeMode
           ? getJudgeScoringSessionSyncStatus(classId)
           : getScoringRunsSyncStatus(classId)
@@ -699,7 +728,7 @@ function ClassScoringPage() {
           judgeName: activeJudgeName,
         },
         debounceMs: SCORING_SYNC_DEBOUNCE_MS,
-        onStatusChange: setScoringSyncStatus,
+        onStatusChange: updateScoringSyncStatus,
       })
         .then((session) => {
           if (isCancelled) return;
@@ -719,7 +748,7 @@ function ClassScoringPage() {
         })
         .catch(() => {
           if (!isCancelled) {
-            setScoringSyncStatus(SCORING_SYNC_STATUS.PENDING);
+            updateScoringSyncStatus(SCORING_SYNC_STATUS.PENDING);
           }
         });
 
@@ -730,10 +759,10 @@ function ClassScoringPage() {
 
     saveScoringRunsRepository(classId, runs, {
       debounceMs: SCORING_SYNC_DEBOUNCE_MS,
-      onStatusChange: setScoringSyncStatus,
+      onStatusChange: updateScoringSyncStatus,
     })
       .catch(() => {
-        setScoringSyncStatus(SCORING_SYNC_STATUS.PENDING);
+        updateScoringSyncStatus(SCORING_SYNC_STATUS.PENDING);
       });
   }, [
     activeJudge,
@@ -746,13 +775,14 @@ function ClassScoringPage() {
     judgeClaimState.status,
     runs,
     hasLoadedSession,
+    updateScoringSyncStatus,
   ]);
 
   useEffect(() => {
     let isMounted = true;
 
     const updateSyncStatus = (status) => {
-      if (isMounted) setScoringSyncStatus(status);
+      if (isMounted) updateScoringSyncStatus(status);
     };
 
     const retryPendingSync = () => {
@@ -783,7 +813,52 @@ function ClassScoringPage() {
       isMounted = false;
       window.removeEventListener("online", retryPendingSync);
     };
-  }, [classId, isMultiJudgeMode]);
+  }, [classId, isMultiJudgeMode, updateScoringSyncStatus]);
+
+  useEffect(() => {
+    if (scoringSyncStatus !== SCORING_SYNC_STATUS.PENDING) {
+      return undefined;
+    }
+
+    let isFlushing = false;
+    const retryPendingSync = async () => {
+      if (isFlushing) return;
+      isFlushing = true;
+
+      const getStatus = isMultiJudgeMode
+        ? getJudgeScoringSessionSyncStatus
+        : getScoringRunsSyncStatus;
+      const flushQueue = isMultiJudgeMode
+        ? flushJudgeScoringSessionSyncQueue
+        : flushScoringSyncQueue;
+
+      try {
+        await flushQueue({
+          classId,
+          onStatusChange: updateScoringSyncStatus,
+        });
+        updateScoringSyncStatus(getStatus(classId));
+      } catch (error) {
+        updateScoringSyncStatus(SCORING_SYNC_STATUS.PENDING);
+      } finally {
+        isFlushing = false;
+      }
+    };
+
+    const retryTimer = window.setInterval(
+      retryPendingSync,
+      SCORING_SYNC_RETRY_MS
+    );
+
+    return () => {
+      window.clearInterval(retryTimer);
+    };
+  }, [
+    classId,
+    isMultiJudgeMode,
+    scoringSyncStatus,
+    updateScoringSyncStatus,
+  ]);
 
   useEffect(() => {
     if (!hasLoadedSession) return;
@@ -1301,7 +1376,7 @@ function ClassScoringPage() {
   };
 
   const handleRetryScoringSync = () => {
-    setScoringSyncStatus(SCORING_SYNC_STATUS.SYNCING);
+    updateScoringSyncStatus(SCORING_SYNC_STATUS.SYNCING);
 
     const getStatus = isMultiJudgeMode
       ? getJudgeScoringSessionSyncStatus
@@ -1312,13 +1387,13 @@ function ClassScoringPage() {
 
     flushQueue({
       classId,
-      onStatusChange: setScoringSyncStatus,
+      onStatusChange: updateScoringSyncStatus,
     })
       .then(() => {
-        setScoringSyncStatus(getStatus(classId));
+        updateScoringSyncStatus(getStatus(classId));
       })
       .catch(() => {
-        setScoringSyncStatus(SCORING_SYNC_STATUS.PENDING);
+        updateScoringSyncStatus(SCORING_SYNC_STATUS.PENDING);
       });
   };
 
@@ -1372,19 +1447,19 @@ function ClassScoringPage() {
       return true;
     }
 
-    setScoringSyncStatus(SCORING_SYNC_STATUS.SYNCING);
+    updateScoringSyncStatus(SCORING_SYNC_STATUS.SYNCING);
 
     try {
       await flushQueue({
         classId,
-        onStatusChange: setScoringSyncStatus,
+        onStatusChange: updateScoringSyncStatus,
       });
     } catch (error) {
-      setScoringSyncStatus(SCORING_SYNC_STATUS.PENDING);
+      updateScoringSyncStatus(SCORING_SYNC_STATUS.PENDING);
     }
 
     const nextStatus = getStatus(classId);
-    setScoringSyncStatus(nextStatus);
+    updateScoringSyncStatus(nextStatus);
 
     if (isScoringSyncBlockingStatus(nextStatus)) {
       alert(t("management.scoring.finalizeSyncBlocked"));
@@ -1662,9 +1737,10 @@ function ClassScoringPage() {
         </div>
       )}
 
-      {!isCompleted && getScoringSyncNotice(scoringSyncStatus, t) && (
+      {!isCompleted &&
+        getScoringSyncNotice(scoringSyncStatus, t, scoringSyncError) && (
         <div style={scoringSyncNoticeStyle(scoringSyncStatus)}>
-          {getScoringSyncNotice(scoringSyncStatus, t)}
+          {getScoringSyncNotice(scoringSyncStatus, t, scoringSyncError)}
         </div>
       )}
 
@@ -2025,8 +2101,20 @@ function getScoringSyncLabel(status, t) {
   return t("management.scoring.syncLocal");
 }
 
-function getScoringSyncNotice(status, t) {
+function getScoringSyncNotice(status, t, errorMessage = "") {
+  if (status === SCORING_SYNC_STATUS.LOCAL) {
+    return t("management.scoring.syncNoticeLocal");
+  }
+
   if (status === SCORING_SYNC_STATUS.PENDING) {
+    const message = String(errorMessage || "").trim();
+
+    if (message) {
+      return t("management.scoring.syncNoticePendingWithError", {
+        message,
+      });
+    }
+
     return t("management.scoring.syncNoticePending");
   }
 

@@ -10,6 +10,7 @@ import {
   getLocalScoringRunsSyncStatus,
   getPendingScoringRunsMutation,
   getQueuedScoringRunsMutations,
+  getScoringRunsSyncFailure,
   hasPendingScoringRunsMutation,
   markScoringRunsMutationAttempt,
   queueScoringRunsMutation,
@@ -196,6 +197,8 @@ export function getScoringRunsSyncStatus(classId) {
 
   return getLocalScoringRunsSyncStatus(classId);
 }
+
+export { getScoringRunsSyncFailure };
 
 export function flushScoringSyncQueue(options = {}) {
   cancelScheduledScoringSyncQueue(options.classId || null);

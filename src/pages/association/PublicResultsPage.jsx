@@ -55,6 +55,8 @@ import {
   publicTitleStyle,
 } from "../../styles/publicStyles";
 
+const PUBLIC_LIVE_FALLBACK_REFRESH_MS = 5000;
+
 function PublicResultsPage() {
   const { associationId, showId } = useParams();
   const navigate = useNavigate();
@@ -179,23 +181,23 @@ function PublicResultsPage() {
   }, [showId, publicClassIdsKey]);
 
   useEffect(() => {
-    if (!hasLiveClass) {
-      return undefined;
-    }
-
     let isMounted = true;
     const refreshTimer = window.setInterval(async () => {
+      if (document.visibilityState === "hidden") {
+        return;
+      }
+
       const nextPublicView = await getPublicShowViewRepository(showId);
 
       if (!isMounted) return;
       setPublicView(nextPublicView);
-    }, 60000);
+    }, PUBLIC_LIVE_FALLBACK_REFRESH_MS);
 
     return () => {
       isMounted = false;
       window.clearInterval(refreshTimer);
     };
-  }, [showId, hasLiveClass]);
+  }, [showId]);
 
   if (!show && !isLoading) {
     return (

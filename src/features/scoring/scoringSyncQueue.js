@@ -48,6 +48,20 @@ export function getPendingScoringRunsMutation(classId) {
   return mutation?.type === "scoring_runs" ? mutation : null;
 }
 
+export function getScoringRunsSyncFailure(classId) {
+  const mutation = getPendingScoringRunsMutation(classId);
+
+  if (!mutation) {
+    return null;
+  }
+
+  return {
+    attempts: Number(mutation.attempts) || 0,
+    lastAttemptAt: mutation.lastAttemptAt || null,
+    lastError: mutation.lastError || "",
+  };
+}
+
 export function hasPendingScoringRunsMutation(classId) {
   return Boolean(getPendingScoringRunsMutation(classId));
 }

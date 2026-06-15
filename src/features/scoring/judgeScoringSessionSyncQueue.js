@@ -91,6 +91,31 @@ export function getQueuedJudgeScoringSessionMutations(options = {}) {
     .sort((a, b) => String(a.updatedAt).localeCompare(String(b.updatedAt)));
 }
 
+export function getJudgeScoringSessionSyncFailure(classId, judgeId = null) {
+  const mutations = getQueuedJudgeScoringSessionMutations({
+    classId,
+    judgeId,
+  });
+  const [mutation] = mutations
+    .filter((candidate) => candidate?.lastError || candidate?.lastAttemptAt)
+    .sort((a, b) =>
+      String(b.lastAttemptAt || b.updatedAt).localeCompare(
+        String(a.lastAttemptAt || a.updatedAt)
+      )
+    );
+  const pendingMutation = mutation || mutations[0];
+
+  if (!pendingMutation) {
+    return null;
+  }
+
+  return {
+    attempts: Number(pendingMutation.attempts) || 0,
+    lastAttemptAt: pendingMutation.lastAttemptAt || null,
+    lastError: pendingMutation.lastError || "",
+  };
+}
+
 export function markJudgeScoringSessionMutationAttempt(
   classId,
   judgeId,

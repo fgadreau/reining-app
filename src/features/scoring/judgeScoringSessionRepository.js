@@ -6,6 +6,7 @@ import {
   saveJudgeScoringSessionLocal,
 } from "./judgeScoringSessionStorage";
 import {
+  getJudgeScoringSessionSyncFailure,
   getLocalJudgeScoringSessionSyncStatus,
   getQueuedJudgeScoringSessionMutations,
   hasPendingJudgeScoringSessionMutation,
@@ -317,6 +318,8 @@ export function getJudgeScoringSessionSyncStatus(classId, judgeId = null) {
 
   return getLocalJudgeScoringSessionSyncStatus(classId, judgeId);
 }
+
+export { getJudgeScoringSessionSyncFailure };
 
 export function flushJudgeScoringSessionSyncQueue(options = {}) {
   const classId = options.classId || null;

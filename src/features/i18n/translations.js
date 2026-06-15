@@ -674,8 +674,12 @@ export const translations = {
           "Ce bloc est sans patron. Il est utilisé pour le suivi de l’horaire et le live, sans feuille de scoring.",
         statusPrefix: "Statut",
         syncLocal: "Sauvé localement",
+        syncNoticeLocal:
+          "Les scores sont sauvegardés localement sur cet appareil, mais Supabase n’est pas disponible pour cette session. Garde cette page ouverte, vérifie la connexion ou le login, puis réessaie la sync.",
         syncNoticePending:
           "Les scores sont sauvegardés localement sur cet appareil, mais ils ne sont pas encore synchronisés. Garde cette page ouverte, réessaie la sync au besoin, ou exporte une sauvegarde locale.",
+        syncNoticePendingWithError:
+          "Les scores sont sauvegardés localement sur cet appareil, mais Supabase a refusé la sync: {{message}}. Garde cette page ouverte, réessaie la sync au besoin, ou exporte une sauvegarde locale.",
         syncPending: "Sync en attente",
         syncSynced: "Synchronisé",
         syncSyncing: "Synchronisation",
@@ -1977,8 +1981,12 @@ export const translations = {
           "This block has no pattern. It is used for schedule tracking and live display, without a scoring sheet.",
         statusPrefix: "Status",
         syncLocal: "Saved locally",
+        syncNoticeLocal:
+          "Scores are saved locally on this device, but Supabase is not available for this session. Keep this page open, check the connection or login, then retry sync.",
         syncNoticePending:
           "Scores are saved locally on this device, but they are not synced yet. Keep this page open, retry sync if needed, or export a local backup.",
+        syncNoticePendingWithError:
+          "Scores are saved locally on this device, but Supabase refused the sync: {{message}}. Keep this page open, retry sync if needed, or export a local backup.",
         syncPending: "Sync pending",
         syncSynced: "Synced",
         syncSyncing: "Syncing",
