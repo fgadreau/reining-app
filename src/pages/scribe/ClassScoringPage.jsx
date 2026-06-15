@@ -35,6 +35,10 @@ import {
   patternHasRailAdjustment,
 } from "../../features/patterns/patternDefinitions";
 import { getScoringOptionsForPattern } from "../../features/scoring/scoringOptions";
+import {
+  applySetupRunScratchPenalty,
+  buildSetupRunScoringPenalties,
+} from "../../features/scoring/setupRunScoring";
 import { buildProvisionalRanking } from "../../features/scoring/provisionalRanking";
 import {
   isScoredRunComplete,
@@ -144,10 +148,11 @@ function buildBaseRunsFromSetup(
           rider: run.rider || "",
           horse: run.horse || "",
           owner: run.owner || "",
+          status: run.status || "",
           ...getRunIntegrationMetadata(run),
           classCodes: Array.isArray(run.classCodes) ? run.classCodes : [],
           scores: [],
-          penalties: [],
+          penalties: buildSetupRunScoringPenalties(run, maneuverCount),
           penTotal: 0,
           scoreTotal: 70,
           isActive: false,
@@ -191,6 +196,7 @@ function mergeScoringRuns(
       normalizeRunArrays(
         {
           ...baseRun,
+          status: saved.status || baseRun.status || "",
           backNumber: saved.backNumber ?? baseRun.backNumber,
           rider: saved.rider ?? baseRun.rider,
           horse: saved.horse ?? baseRun.horse,
@@ -201,7 +207,7 @@ function mergeScoringRuns(
           ...getRunIntegrationMetadata(baseRun),
           ...getRunIntegrationMetadata(saved),
           penalties: Array.isArray(saved.penalties)
-            ? saved.penalties
+            ? applySetupRunScratchPenalty(baseRun, saved.penalties)
             : baseRun.penalties,
           scores: Array.isArray(saved.scores) ? saved.scores : baseRun.scores,
           penTotal: saved.penTotal ?? baseRun.penTotal,

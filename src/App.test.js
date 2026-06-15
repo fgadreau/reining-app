@@ -48,6 +48,10 @@ import {
   buildClassSetupFromHspDraw,
   normalizeHspDrawImport,
 } from "./features/classes/hspDrawImport";
+import {
+  applySetupRunScratchPenalty,
+  buildSetupRunScoringPenalties,
+} from "./features/scoring/setupRunScoring";
 import { buildHspScoredRunRows } from "./features/integrations/hspScoredRunRepository";
 import {
   buildPublicClassView,
@@ -233,6 +237,32 @@ test("treats special run statuses as complete scores", () => {
       3
     )
   ).toBe(true);
+});
+
+test("carries imported scratched runs into scoring", () => {
+  const penalties = buildSetupRunScoringPenalties(
+    {
+      status: "Scratched",
+      owner: "MARTIN BRISEBOIS / ST- APOLLINAIRE, QC - Scratched",
+    },
+    3
+  );
+  const run = recalculateRun({
+    backNumber: "2563",
+    scores: ["", "", ""],
+    penalties,
+  });
+
+  expect(penalties).toEqual(["Scratch", "", ""]);
+  expect(run.penTotal).toBe("Scratch");
+  expect(run.scoreTotal).toBe("SCR");
+  expect(isScoredRunComplete(run, 3)).toBe(true);
+  expect(
+    applySetupRunScratchPenalty(
+      { owner: "MARTIN BRISEBOIS / ST- APOLLINAIRE, QC - Scratched" },
+      ["", "", ""]
+    )
+  ).toEqual(["Scratch", "", ""]);
 });
 
 test("blocks finalization while a run is under video review", () => {
