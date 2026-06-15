@@ -184,13 +184,19 @@ function normalizeImportedClassCode(value) {
 }
 
 function getRunClassCodes(run) {
-  return Array.isArray(run?.classCodes)
-    ? run.classCodes.map(normalizeImportedClassCode).filter(Boolean)
-    : [];
+  return Array.from(
+    new Set(
+      Array.isArray(run?.classCodes)
+        ? run.classCodes.map(normalizeImportedClassCode).filter(Boolean)
+        : []
+    )
+  );
 }
 
 function buildImportedBlockClassSummary(blockClasses, runs) {
   const classesByCode = new Map();
+  const normalizedRuns = Array.isArray(runs) ? runs : [];
+  const entryCountsByCode = new Map();
 
   (Array.isArray(blockClasses) ? blockClasses : []).forEach((classEntry) => {
     const code = normalizeImportedClassCode(classEntry?.code);
@@ -201,23 +207,43 @@ function buildImportedBlockClassSummary(blockClasses, runs) {
       name: String(classEntry?.name || "").trim(),
       classNumber: String(classEntry?.classNumber || "").trim(),
       association: String(classEntry?.association || "").trim(),
+      entryCount: 0,
     });
   });
 
-  (Array.isArray(runs) ? runs : []).forEach((run) => {
-    getRunClassCodes(run).forEach((code) => {
+  normalizedRuns.forEach((run) => {
+    const classCodes = getRunClassCodes(run);
+
+    classCodes.forEach((code) => {
+      entryCountsByCode.set(code, (entryCountsByCode.get(code) || 0) + 1);
+
       if (!classesByCode.has(code)) {
         classesByCode.set(code, {
           code,
           name: "",
           classNumber: "",
           association: "",
+          entryCount: 0,
         });
       }
     });
   });
 
-  return Array.from(classesByCode.values());
+  const classSummaries = Array.from(classesByCode.values());
+
+  if (
+    classSummaries.length === 1 &&
+    normalizedRuns.length > 0 &&
+    entryCountsByCode.size === 0
+  ) {
+    classSummaries[0].entryCount = normalizedRuns.length;
+    return classSummaries;
+  }
+
+  return classSummaries.map((classEntry) => ({
+    ...classEntry,
+    entryCount: entryCountsByCode.get(classEntry.code) || 0,
+  }));
 }
 
 function isImportedRunScratched(run) {
@@ -371,6 +397,10 @@ function ClassSetupPage() {
   ].includes(classData?.publication?.status);
   const hasRunClassCodes = runs.some(
     (run) => Array.isArray(run.classCodes) && run.classCodes.length > 0
+  );
+  const blockClassesWithCounts = useMemo(
+    () => buildImportedBlockClassSummary(blockClasses, runs),
+    [blockClasses, runs]
   );
   const canManageSetup = access.canManageAssociation;
   const canEditRunIdentity =
@@ -1809,13 +1839,13 @@ function ClassSetupPage() {
               <div style={importMessageStyle}>{importMessage}</div>
             )}
 
-            {blockClasses.length > 0 && (
+            {blockClassesWithCounts.length > 0 && (
               <div style={classCodeSummaryStyle}>
                 <span style={classCodeSummaryLabelStyle}>
                   {t("management.classSetup.detectedClassCodes")}
                 </span>
                 <div style={classCodePillListStyle}>
-                  {blockClasses.map((classEntry) => (
+                  {blockClassesWithCounts.map((classEntry) => (
                     <span key={classEntry.code} style={classCodePillStyle}>
                       <strong>{classEntry.code}</strong>
                       {formatImportedBlockClassDetails(classEntry) && (
@@ -1823,6 +1853,11 @@ function ClassSetupPage() {
                           {formatImportedBlockClassDetails(classEntry)}
                         </span>
                       )}
+                      <span style={classCodeEntryCountStyle}>
+                        {t("management.classSetup.importSummaryEntryCount", {
+                          count: classEntry.entryCount || 0,
+                        })}
+                      </span>
                     </span>
                   ))}
                 </div>
@@ -2056,6 +2091,11 @@ function ClassSetupPage() {
                     <span style={importSummaryClassNameStyle}>
                       {formatImportedBlockClassDetails(classEntry) ||
                         t("management.classSetup.importSummaryUnnamedClass")}
+                    </span>
+                    <span style={importSummaryClassCountStyle}>
+                      {t("management.classSetup.importSummaryEntryCount", {
+                        count: classEntry.entryCount || 0,
+                      })}
                     </span>
                   </div>
                 ))
@@ -2436,6 +2476,15 @@ const classCodeNameStyle = {
   fontWeight: 600,
 };
 
+const classCodeEntryCountStyle = {
+  padding: "1px 6px",
+  borderRadius: "999px",
+  background: "#e0f2fe",
+  color: "#075985",
+  fontSize: "11px",
+  fontWeight: 800,
+};
+
 const mutedClassCodeStyle = {
   color: "#9ca3af",
   fontSize: "12px",
@@ -2531,7 +2580,7 @@ const importSummaryClassListStyle = {
 
 const importSummaryClassRowStyle = {
   display: "grid",
-  gridTemplateColumns: "90px 1fr",
+  gridTemplateColumns: "90px 1fr auto",
   gap: "10px",
   alignItems: "center",
   border: "1px solid #e2e8f0",
@@ -2549,6 +2598,19 @@ const importSummaryClassNameStyle = {
   color: "#334155",
   fontSize: "14px",
   fontWeight: 600,
+  minWidth: 0,
+  overflowWrap: "anywhere",
+};
+
+const importSummaryClassCountStyle = {
+  justifySelf: "end",
+  padding: "4px 8px",
+  borderRadius: "999px",
+  background: "#e0f2fe",
+  color: "#075985",
+  fontSize: "12px",
+  fontWeight: 800,
+  whiteSpace: "nowrap",
 };
 
 function getClassStatusLabel(status, t) {
