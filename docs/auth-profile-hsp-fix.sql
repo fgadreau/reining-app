@@ -83,9 +83,9 @@ returns table (
   from public.user_profiles p
   where exists (
       select 1
-      from public.organization_members admin_membership
-      where admin_membership.organization_id = target_association_id::uuid
-        and admin_membership.user_id = public.current_profile_id()
+      from public.association_memberships admin_membership
+      where admin_membership.association_id::text = target_association_id
+        and admin_membership.user_id = auth.uid()
         and admin_membership.role = 'admin'
     )
     and lower(p.email) = lower(btrim(target_email))
