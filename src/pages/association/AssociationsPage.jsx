@@ -69,7 +69,7 @@ function AssociationsPage() {
 
   const cloudStatus = getCloudSyncStatus(auth.user);
   const isLocalMode = !auth.isConfigured || auth.isLocalTestUser;
-  const canCreateAssociation = isLocalMode || auth.isAuthenticated;
+  const canCreateAssociation = isLocalMode || isPlatformAdmin;
   const canShowAssociationForm = canCreateAssociation || Boolean(editingId);
   const shouldShowLoginPrompt =
     auth.isConfigured &&
