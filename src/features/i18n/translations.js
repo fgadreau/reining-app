@@ -395,6 +395,8 @@ export const translations = {
         emailTo: "À",
         invitationCreated:
           "Utilisateur introuvable pour l’instant. Une invitation a été créée et un courriel a été envoyé.",
+        invitationCreatedEmailFailed:
+          "Invitation créée. L’envoi automatique a échoué. Utilise le lien ci-dessous pour l’envoyer manuellement.",
         invitationCreateFailed:
           "Impossible de créer l’invitation pour ce courriel.",
         invitationEmailAction:
@@ -1702,6 +1704,8 @@ export const translations = {
         emailTo: "To",
         invitationCreated:
           "User not found yet. An invitation has been created and an email was sent.",
+        invitationCreatedEmailFailed:
+          "Invitation created. Automatic email delivery failed. Use the link below to send it manually.",
         invitationCreateFailed:
           "Unable to create the invitation for this email.",
         invitationEmailAction:

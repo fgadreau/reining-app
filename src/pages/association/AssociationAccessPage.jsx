@@ -115,14 +115,18 @@ function AssociationAccessPage() {
       setLastInvitation(invitation);
       const origin = typeof window === "undefined" ? "" : window.location.origin;
       const invitationUrl = buildAssociationInvitationUrl(origin, invitation);
-      await sendInvitationEmailRepository({
+      const emailResult = await sendInvitationEmailRepository({
         email: invitation.email,
         associationName: association?.name,
         invitationUrl,
         role: invitation.role,
         locale: typeof navigator !== "undefined" ? navigator.language : "fr",
       });
-      setNotice(t("management.access.invitationCreated"));
+      setNotice(
+        emailResult.ok
+          ? t("management.access.invitationCreated")
+          : t("management.access.invitationCreatedEmailFailed")
+      );
       setEmail("");
       setRole(ASSOCIATION_ROLES.SECRETARY);
       return;

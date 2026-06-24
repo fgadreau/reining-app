@@ -37,7 +37,7 @@ function toMembership(row) {
 
 function toUserProfile(row) {
   return {
-    id: row.id,
+    id: row.user_id || row.id,
     displayName: row.display_name || "",
     email: row.email || "",
     createdAt: row.created_at || null,
@@ -185,7 +185,7 @@ export async function loadUserProfilesByIdsRepository(userIds) {
     const { data, error } = await supabase
       .from("user_profiles")
       .select("*")
-      .in("id", uniqueIds);
+      .in("user_id", uniqueIds);
 
     if (error) throw error;
 
