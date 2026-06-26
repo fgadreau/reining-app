@@ -79,6 +79,7 @@ import {
   calculatePaidWarmupScheduleSummary,
   getPaidWarmupById,
   insertPaidWarmupEntryAfter,
+  mergePaidWarmupEntriesForReplacement,
   movePaidWarmupEntry,
   normalizePaidWarmup,
   savePaidWarmup,
@@ -3318,6 +3319,53 @@ test("paid warmup live follows edited rider order while running", () => {
   expect(liveView.secondNextEntry.rider).toBe("Late add");
 });
 
+test("paid warmup draw replacement preserves live progress for known riders", () => {
+  const warmup = {
+    id: "warmup-1",
+    name: "Paid warm up",
+    activeEntryId: "entry-2",
+    activeStartedAt: "2026-05-25T14:00:00.000Z",
+    entries: [
+      {
+        id: "entry-1",
+        rider: "Marie Tremblay",
+        status: "done",
+        completedAt: "2026-05-25T13:55:00.000Z",
+      },
+      { id: "entry-2", rider: "Alex Martin", status: "pending" },
+      { id: "entry-3", rider: "Félix Goudreau", status: "pending" },
+    ],
+  };
+  const nextWarmup = mergePaidWarmupEntriesForReplacement(warmup, [
+    { id: "new-1", rider: "Félix Goudreau", status: "pending" },
+    { id: "new-2", rider: "Alex Martin", status: "pending" },
+    { id: "new-3", rider: "Late add", status: "pending" },
+    { id: "new-4", rider: "Marie Tremblay", status: "pending" },
+  ]);
+  const liveView = buildPaidWarmupLiveView(nextWarmup);
+
+  expect(nextWarmup.entries.map((entry) => entry.rider)).toEqual([
+    "Félix Goudreau",
+    "Alex Martin",
+    "Late add",
+    "Marie Tremblay",
+  ]);
+  expect(nextWarmup.entries.map((entry) => entry.order)).toEqual([1, 2, 3, 4]);
+  expect(nextWarmup.entries.find((entry) => entry.rider === "Alex Martin")).toMatchObject({
+    id: "entry-2",
+    status: "pending",
+  });
+  expect(nextWarmup.entries.find((entry) => entry.rider === "Marie Tremblay")).toMatchObject({
+    id: "entry-1",
+    status: "done",
+    completedAt: "2026-05-25T13:55:00.000Z",
+  });
+  expect(nextWarmup.activeEntryId).toBe("entry-2");
+  expect(nextWarmup.activeStartedAt).toBe("2026-05-25T14:00:00.000Z");
+  expect(liveView.activeEntry.rider).toBe("Alex Martin");
+  expect(liveView.nextEntry.rider).toBe("Late add");
+});
+
 test("public show view exposes a public paid warmup before the timer starts", () => {
   saveActiveTestShow("show-public-warmup", "association-public-warmup");
   saveDays([
@@ -3566,8 +3614,11 @@ test("paid warmup save retries without active_entry_id when HSP rejects the FK",
     expect(updateRows).toHaveLength(2);
     expect(insertRows).toHaveLength(1);
     expect(updateRows[0].active_entry_id).toBe(activeEntryId);
+    expect(updateRows[0].updated_at).toEqual(expect.any(String));
     expect(updateRows[1]).not.toHaveProperty("active_entry_id");
+    expect(updateRows[1].updated_at).toEqual(expect.any(String));
     expect(insertRows[0]).not.toHaveProperty("active_entry_id");
+    expect(insertRows[0].updated_at).toEqual(expect.any(String));
     expect(insertRows[0]).toMatchObject({
       arena: "101",
       schedule_start_mode: CLASS_START_MODE_AFTER_PREVIOUS,

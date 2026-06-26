@@ -133,6 +133,7 @@ function toPaidWarmupRow(item, options = {}) {
     arena: warmup.arena || null,
     schedule_start_mode: warmup.scheduleStartMode,
     schedule_start_time: warmup.scheduleStartTime || null,
+    updated_at: warmup.updatedAt || new Date().toISOString(),
   };
 
   if (includeActiveEntry) {

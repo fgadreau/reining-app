@@ -10,6 +10,7 @@ import {
   PAID_WARMUP_STATUSES,
   getPaidWarmupStats,
   insertPaidWarmupEntryAfter,
+  mergePaidWarmupEntriesForReplacement,
   movePaidWarmupEntry,
   normalizePaidWarmupEntries,
   savePaidWarmup as savePaidWarmupLocal,
@@ -354,10 +355,7 @@ function PaidWarmupSetupPage() {
       return;
     }
 
-    const nextWarmup = {
-      ...warmup,
-      entries,
-    };
+    const nextWarmup = mergePaidWarmupEntriesForReplacement(warmup, entries);
 
     const savedDraft = commitWarmupDraft(nextWarmup);
     if (!savedDraft) return;

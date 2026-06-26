@@ -70,6 +70,55 @@ export function normalizePaidWarmupEntries(entries) {
   }));
 }
 
+function normalizeEntryMatchKey(entry) {
+  return String(entry?.rider || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+export function mergePaidWarmupEntriesForReplacement(warmup, replacementEntries) {
+  const normalizedWarmup = normalizePaidWarmup(warmup);
+  const existingEntriesByKey = normalizedWarmup.entries.reduce((map, entry) => {
+    const key = normalizeEntryMatchKey(entry);
+    if (!key) return map;
+
+    const bucket = map.get(key) || [];
+    bucket.push(entry);
+    map.set(key, bucket);
+
+    return map;
+  }, new Map());
+  const entries = normalizePaidWarmupEntries(
+    (Array.isArray(replacementEntries) ? replacementEntries : []).map((entry) => {
+      const key = normalizeEntryMatchKey(entry);
+      const existingMatches = key ? existingEntriesByKey.get(key) : null;
+      const existingEntry = existingMatches?.shift();
+
+      if (!existingEntry) return entry;
+
+      return {
+        ...entry,
+        id: existingEntry.id || entry.id,
+        status: existingEntry.status || entry.status,
+        completedAt: existingEntry.completedAt || entry.completedAt || null,
+      };
+    })
+  );
+  const entryIds = new Set(entries.map((entry) => entry.id));
+  const keepsActiveEntry =
+    normalizedWarmup.activeEntryId && entryIds.has(normalizedWarmup.activeEntryId);
+
+  return {
+    ...normalizedWarmup,
+    entries,
+    activeEntryId: keepsActiveEntry ? normalizedWarmup.activeEntryId : null,
+    activeStartedAt: keepsActiveEntry ? normalizedWarmup.activeStartedAt : null,
+  };
+}
+
 export function movePaidWarmupEntry(entries, entryId, targetIndex) {
   const normalizedEntries = normalizePaidWarmupEntries(entries);
   const fromIndex = normalizedEntries.findIndex((entry) => entry.id === entryId);
