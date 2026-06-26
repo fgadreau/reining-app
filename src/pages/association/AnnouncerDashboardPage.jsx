@@ -33,6 +33,11 @@ let paidWarmupAudioContext = null;
 
 const ANNOUNCER_LIVE_FALLBACK_REFRESH_MS = 5000;
 
+const ANNOUNCER_LIVE_ITEM_TYPES = {
+  CLASS: "class",
+  PAID_WARMUP: "paidWarmup",
+};
+
 const PAID_WARMUP_SOUND_SEQUENCES = {
   [PAID_WARMUP_TIMER_CUES.HALF_TIME]: [
     { at: 0, frequency: 740, duration: 0.16, gain: 0.14, type: "sine" },
@@ -139,6 +144,18 @@ function AnnouncerDashboardPage() {
   const liveClassIdsKey = useMemo(
     () => getLiveViewClassIds(liveView).join("|"),
     [liveView]
+  );
+  const priorityLiveItems = useMemo(
+    () => getPriorityLiveItems(liveView),
+    [liveView]
+  );
+  const priorityLiveItemKeys = useMemo(
+    () => new Set(priorityLiveItems.map(getLiveItemKey)),
+    [priorityLiveItems]
+  );
+  const remainingSections = useMemo(
+    () => getRemainingLiveSections(liveView, priorityLiveItemKeys),
+    [liveView, priorityLiveItemKeys]
   );
 
   useEffect(() => {
@@ -392,8 +409,44 @@ function AnnouncerDashboardPage() {
         <div style={emptyStateStyle}>{t("management.announcer.loading")}</div>
       )}
 
-      <div style={{ display: "grid", gap: 16 }}>
-        {liveView.sections.map((section) => (
+      {priorityLiveItems.length > 0 && (
+        <section style={prioritySectionStyle}>
+          <div style={priorityHeaderStyle}>
+            <div>
+              <h2 style={priorityTitleStyle}>{t("public.results.inProgress")}</h2>
+              <div style={mutedTextStyle}>{show.name || t("common.show")}</div>
+            </div>
+          </div>
+          <div style={priorityListStyle}>
+            {priorityLiveItems.map((item) =>
+              item.type === ANNOUNCER_LIVE_ITEM_TYPES.PAID_WARMUP ? (
+                <PaidWarmupLiveCard
+                  key={getLiveItemKey(item)}
+                  warmup={item.warmup}
+                  now={now}
+                  isPriority
+                  onStartEntry={handleStartPaidWarmupEntry}
+                  onResetTimer={handleResetPaidWarmupTimer}
+                  onStopTimer={handleStopPaidWarmupTimer}
+                  onSetEntryStatus={handleSetPaidWarmupEntryStatus}
+                />
+              ) : (
+                <ClassLiveCard
+                  key={getLiveItemKey(item)}
+                  classView={item.classView}
+                  now={now}
+                  isPriority
+                  onOpenProvisionalRanking={setRankingClass}
+                  onSaveScheduleDetails={saveScheduleDetailsUpdate}
+                />
+              )
+            )}
+          </div>
+        </section>
+      )}
+
+      <div style={remainingSectionListStyle}>
+        {remainingSections.map((section) => (
           <section key={section.day.id} style={cardStyle}>
             <div style={sectionHeaderStyle}>
               <div>
@@ -443,6 +496,12 @@ function AnnouncerDashboardPage() {
         ))}
       </div>
 
+      {!isLoading &&
+        priorityLiveItems.length === 0 &&
+        remainingSections.length === 0 && (
+          <div style={softEmptyStyle}>{t("management.classes.emptyDay")}</div>
+        )}
+
       {rankingClass && (
         <ProvisionalRankingModal
           classView={rankingClass}
@@ -458,6 +517,87 @@ function getLiveViewClassIds(liveView) {
     .flatMap((section) => section.classes || [])
     .map((classView) => classView.classId)
     .filter(Boolean);
+}
+
+function getPriorityLiveItems(liveView) {
+  return (liveView?.sections || []).flatMap((section) => [
+    ...(section.paidWarmups || [])
+      .filter(isPriorityPaidWarmup)
+      .map((warmup) => ({
+        type: ANNOUNCER_LIVE_ITEM_TYPES.PAID_WARMUP,
+        day: section.day,
+        warmup,
+      })),
+    ...(section.classes || [])
+      .filter(isPriorityClassView)
+      .map((classView) => ({
+        type: ANNOUNCER_LIVE_ITEM_TYPES.CLASS,
+        day: section.day,
+        classView,
+      })),
+  ]);
+}
+
+function getRemainingLiveSections(liveView, priorityKeys) {
+  const sourceSections = Array.isArray(liveView?.sections) ? liveView.sections : [];
+  const keySet = priorityKeys instanceof Set ? priorityKeys : new Set();
+
+  return sourceSections
+    .map((section) => {
+      const classes = (section.classes || []).filter(
+        (classView) => !keySet.has(getClassLiveItemKey(classView))
+      );
+      const paidWarmups = (section.paidWarmups || []).filter(
+        (warmup) => !keySet.has(getPaidWarmupLiveItemKey(warmup))
+      );
+
+      return {
+        ...section,
+        classes,
+        paidWarmups,
+      };
+    })
+    .filter(
+      (section) =>
+        (section.classes || []).length > 0 ||
+        (section.paidWarmups || []).length > 0
+    );
+}
+
+function isPriorityClassView(classView) {
+  return Boolean(
+    classView?.activeRun ||
+      (classView?.scoringStarted && classView?.nextRun) ||
+      (classView?.isScheduleOnly &&
+        !classView?.isComplete &&
+        classView?.publicationStatus === PUBLICATION_STATUSES.LIVE_NO_SCORE)
+  );
+}
+
+function isPriorityPaidWarmup(warmup) {
+  return Boolean(
+    warmup?.activeEntry ||
+      warmup?.isDragDue ||
+      (warmup?.isPublicLive &&
+        !isPaidWarmupComplete(warmup) &&
+        (warmup?.nextEntry || warmup?.secondNextEntry))
+  );
+}
+
+function getLiveItemKey(item) {
+  if (item?.type === ANNOUNCER_LIVE_ITEM_TYPES.PAID_WARMUP) {
+    return getPaidWarmupLiveItemKey(item.warmup);
+  }
+
+  return getClassLiveItemKey(item?.classView);
+}
+
+function getClassLiveItemKey(classView) {
+  return `${ANNOUNCER_LIVE_ITEM_TYPES.CLASS}:${classView?.classId || ""}`;
+}
+
+function getPaidWarmupLiveItemKey(warmup) {
+  return `${ANNOUNCER_LIVE_ITEM_TYPES.PAID_WARMUP}:${warmup?.id || ""}`;
 }
 
 function ScheduleOnlyAnnouncerPanel({ classView, draft, onChange, onSave }) {
@@ -710,20 +850,43 @@ function RecentResults({ results }) {
 function PaidWarmupLiveCard({
   warmup,
   now,
+  isPriority = false,
   onStartEntry,
   onResetTimer,
   onStopTimer,
   onSetEntryStatus,
 }) {
   const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
   const remainingSeconds = getPaidWarmupRemainingSeconds(warmup, now);
   const activeEntry = warmup.activeEntry;
   const nextEntry = warmup.nextEntry;
   const secondNextEntry = warmup.secondNextEntry;
+  const isForcedOpen = Boolean(isPriority || activeEntry || warmup.isDragDue);
+  const isExpanded = isForcedOpen || isOpen;
+  const canToggle = !isForcedOpen;
+
+  function toggleCard() {
+    if (!canToggle) return;
+    setIsOpen((current) => !current);
+  }
+
+  function handleCardKeyDown(event) {
+    if (!canToggle || (event.key !== "Enter" && event.key !== " ")) return;
+    event.preventDefault();
+    toggleCard();
+  }
 
   return (
-    <div style={classCardStyle}>
-      <div style={classCardHeaderStyle}>
+    <div style={isPriority ? priorityClassCardStyle : classCardStyle}>
+      <div
+        role={canToggle ? "button" : undefined}
+        tabIndex={canToggle ? 0 : undefined}
+        aria-expanded={canToggle ? isExpanded : undefined}
+        onClick={canToggle ? toggleCard : undefined}
+        onKeyDown={canToggle ? handleCardKeyDown : undefined}
+        style={classCardHeaderToggleStyle(isExpanded, canToggle)}
+      >
         <div>
           <div style={classNameStyle}>{warmup.name}</div>
           <div style={mutedTextStyle}>
@@ -745,123 +908,134 @@ function PaidWarmupLiveCard({
               ? t("management.announcer.activeTimer")
               : t("public.results.paidWarmup")}
           </Badge>
-        </div>
-      </div>
-
-      {warmup.isDragDue && (
-        <div style={dragNoticeStyle}>
-          {t("management.announcer.dragDue", {
-            minutes: warmup.dragDurationMinutes,
-          })}
-        </div>
-      )}
-
-      <div style={runGridStyle}>
-        <div style={runBlockStyle}>
-          <div style={runLabelStyle}>{t("management.announcer.onCourse")}</div>
-          {activeEntry ? (
-            <>
-              <PaidWarmupEntryIdentity entry={activeEntry} />
-              <div style={timerInlineStyle}>
-                {formatPaidWarmupTimer(remainingSeconds)}
-              </div>
-              <PaidWarmupTimerCue
-                warmup={warmup}
-                remainingSeconds={remainingSeconds}
-              />
-            </>
-          ) : (
-            <div style={mutedTextStyle}>—</div>
+          {canToggle && (
+            <Badge tone="muted">
+              {isExpanded ? t("public.results.hide") : t("public.results.view")}
+            </Badge>
           )}
         </div>
+      </div>
 
-        <PaidWarmupEntryBlock
-          label={t("public.results.nextParticipant")}
-          entry={nextEntry}
-          statusLabel={t("public.results.statusPreparation")}
-          status="preparation"
-          emptyLabel={t("management.announcer.noPreparationRun")}
-        />
+      {!isExpanded ? null : (
+        <>
+          {warmup.isDragDue && (
+            <div style={dragNoticeStyle}>
+              {t("management.announcer.dragDue", {
+                minutes: warmup.dragDurationMinutes,
+              })}
+            </div>
+          )}
 
-        <PaidWarmupEntryBlock
-          label={t("public.results.secondNextParticipant")}
-          entry={secondNextEntry}
-          statusLabel={t("public.results.statusWaiting")}
-          status="waiting"
-          emptyLabel={t("management.announcer.noWaitingRider")}
-        />
+          <div style={runGridStyle}>
+            <div style={runBlockStyle}>
+              <div style={runLabelStyle}>
+                {t("management.announcer.onCourse")}
+              </div>
+              {activeEntry ? (
+                <>
+                  <PaidWarmupEntryIdentity entry={activeEntry} />
+                  <div style={timerInlineStyle}>
+                    {formatPaidWarmupTimer(remainingSeconds)}
+                  </div>
+                  <PaidWarmupTimerCue
+                    warmup={warmup}
+                    remainingSeconds={remainingSeconds}
+                  />
+                </>
+              ) : (
+                <div style={mutedTextStyle}>—</div>
+              )}
+            </div>
 
-        <div style={runBlockStyle}>
-          <div style={runLabelStyle}>{t("management.announcer.stats")}</div>
-          <div style={mutedTextStyle}>
-            {t("management.announcer.warmupStats", {
-              total: warmup.stats.total,
-              done: warmup.stats.done,
-              noShow: warmup.stats.noShow,
-              scratch: warmup.stats.scratch,
-            })}
+            <PaidWarmupEntryBlock
+              label={t("public.results.nextParticipant")}
+              entry={nextEntry}
+              statusLabel={t("public.results.statusPreparation")}
+              status="preparation"
+              emptyLabel={t("management.announcer.noPreparationRun")}
+            />
+
+            <PaidWarmupEntryBlock
+              label={t("public.results.secondNextParticipant")}
+              entry={secondNextEntry}
+              statusLabel={t("public.results.statusWaiting")}
+              status="waiting"
+              emptyLabel={t("management.announcer.noWaitingRider")}
+            />
+
+            <div style={runBlockStyle}>
+              <div style={runLabelStyle}>{t("management.announcer.stats")}</div>
+              <div style={mutedTextStyle}>
+                {t("management.announcer.warmupStats", {
+                  total: warmup.stats.total,
+                  done: warmup.stats.done,
+                  noShow: warmup.stats.noShow,
+                  scratch: warmup.stats.scratch,
+                })}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <div style={actionRowStyle}>
-        {!activeEntry && nextEntry && (
-          <button
-            type="button"
-            onClick={() => onStartEntry(warmup, nextEntry.id)}
-            style={primaryButtonStyle}
-          >
-            {t("management.announcer.startNext")}
-          </button>
-        )}
+          <div style={actionRowStyle}>
+            {!activeEntry && nextEntry && (
+              <button
+                type="button"
+                onClick={() => onStartEntry(warmup, nextEntry.id)}
+                style={primaryButtonStyle}
+              >
+                {t("management.announcer.startNext")}
+              </button>
+            )}
 
-        {activeEntry && (
-          <>
-            <button
-              type="button"
-              onClick={() =>
-                onSetEntryStatus(warmup, activeEntry.id, "done")
-              }
-              style={primaryButtonStyle}
-            >
-              {t("management.announcer.markPassed")}
-            </button>
-            <button
-              type="button"
-              onClick={() => onResetTimer(warmup)}
-              style={secondaryButtonStyle}
-            >
-              {t("management.announcer.resetTimer")}
-            </button>
-            <button
-              type="button"
-              onClick={() => onStopTimer(warmup)}
-              style={secondaryButtonStyle}
-            >
-              {t("management.announcer.stopAndMarkPassed")}
-            </button>
-          </>
-        )}
+            {activeEntry && (
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onSetEntryStatus(warmup, activeEntry.id, "done")
+                  }
+                  style={primaryButtonStyle}
+                >
+                  {t("management.announcer.markPassed")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onResetTimer(warmup)}
+                  style={secondaryButtonStyle}
+                >
+                  {t("management.announcer.resetTimer")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onStopTimer(warmup)}
+                  style={secondaryButtonStyle}
+                >
+                  {t("management.announcer.stopAndMarkPassed")}
+                </button>
+              </>
+            )}
 
-        {nextEntry && (
-          <>
-            <button
-              type="button"
-              onClick={() => onSetEntryStatus(warmup, nextEntry.id, "no_show")}
-              style={secondaryButtonStyle}
-            >
-              {t("management.announcer.noShowNext")}
-            </button>
-            <button
-              type="button"
-              onClick={() => onSetEntryStatus(warmup, nextEntry.id, "scratch")}
-              style={secondaryButtonStyle}
-            >
-              {t("management.announcer.scratchNext")}
-            </button>
-          </>
-        )}
-      </div>
+            {nextEntry && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onSetEntryStatus(warmup, nextEntry.id, "no_show")}
+                  style={secondaryButtonStyle}
+                >
+                  {t("management.announcer.noShowNext")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onSetEntryStatus(warmup, nextEntry.id, "scratch")}
+                  style={secondaryButtonStyle}
+                >
+                  {t("management.announcer.scratchNext")}
+                </button>
+              </>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -931,11 +1105,12 @@ function PaidWarmupTimerCue({ warmup, remainingSeconds }) {
 function ClassLiveCard({
   classView,
   now,
+  isPriority = false,
   onOpenProvisionalRanking,
   onSaveScheduleDetails,
 }) {
   const { t } = useTranslation();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(Boolean(isPriority));
   const [scheduleDraft, setScheduleDraft] = useState(
     classView.scheduleDetails || {}
   );
@@ -944,31 +1119,40 @@ function ClassLiveCard({
   const hasClassStandings = classView.classStandings?.length > 0;
   const isScheduleOnly = Boolean(classView.isScheduleOnly);
   const cardDetailsId = `announcer-live-details-${classView.classId || "class"}`;
+  const isExpanded = isPriority || isOpen;
+  const canToggle = !isPriority;
 
   useEffect(() => {
     setScheduleDraft(classView.scheduleDetails || {});
   }, [classView.scheduleDetails]);
 
+  useEffect(() => {
+    if (isPriority) {
+      setIsOpen(true);
+    }
+  }, [isPriority]);
+
   function toggleCard() {
+    if (!canToggle) return;
     setIsOpen((current) => !current);
   }
 
   function handleCardKeyDown(event) {
-    if (event.key !== "Enter" && event.key !== " ") return;
+    if (!canToggle || (event.key !== "Enter" && event.key !== " ")) return;
     event.preventDefault();
     toggleCard();
   }
 
   return (
-    <div style={classCardStyle}>
+    <div style={isPriority ? priorityClassCardStyle : classCardStyle}>
       <div
-        role="button"
-        tabIndex={0}
-        aria-expanded={isOpen}
+        role={canToggle ? "button" : undefined}
+        tabIndex={canToggle ? 0 : undefined}
+        aria-expanded={canToggle ? isExpanded : undefined}
         aria-controls={cardDetailsId}
-        onClick={toggleCard}
-        onKeyDown={handleCardKeyDown}
-        style={classCardHeaderToggleStyle(isOpen)}
+        onClick={canToggle ? toggleCard : undefined}
+        onKeyDown={canToggle ? handleCardKeyDown : undefined}
+        style={classCardHeaderToggleStyle(isExpanded, canToggle)}
       >
         <div>
           <div style={classNameStyle}>
@@ -996,13 +1180,15 @@ function ClassLiveCard({
             {getPublicationStatusLabel(classView.publicationStatus, t)}
           </Badge>
           <Badge tone={liveState.tone}>{liveState.label}</Badge>
-          <Badge tone="muted">
-            {isOpen ? t("public.results.hide") : t("public.results.view")}
-          </Badge>
+          {canToggle && (
+            <Badge tone="muted">
+              {isExpanded ? t("public.results.hide") : t("public.results.view")}
+            </Badge>
+          )}
         </div>
       </div>
 
-      {!isOpen ? null : (
+      {!isExpanded ? null : (
         <div id={cardDetailsId}>
           {isScheduleOnly ? (
             <ScheduleOnlyAnnouncerPanel
@@ -1907,6 +2093,36 @@ const sectionTitleStyle = {
   fontSize: 20,
 };
 
+const prioritySectionStyle = {
+  display: "grid",
+  gap: 12,
+  marginBottom: 18,
+};
+
+const priorityHeaderStyle = {
+  display: "flex",
+  alignItems: "flex-end",
+  justifyContent: "space-between",
+  gap: 12,
+  flexWrap: "wrap",
+};
+
+const priorityTitleStyle = {
+  margin: 0,
+  fontSize: 24,
+  color: "#0f172a",
+};
+
+const priorityListStyle = {
+  display: "grid",
+  gap: 12,
+};
+
+const remainingSectionListStyle = {
+  display: "grid",
+  gap: 16,
+};
+
 const classListStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
@@ -1920,6 +2136,13 @@ const classCardStyle = {
   background: "#fff",
 };
 
+const priorityClassCardStyle = {
+  ...classCardStyle,
+  border: "2px solid #0f766e",
+  background: "#f8fffd",
+  boxShadow: "0 10px 26px rgba(15, 118, 110, 0.14)",
+};
+
 const classCardHeaderStyle = {
   display: "flex",
   justifyContent: "space-between",
@@ -1928,10 +2151,10 @@ const classCardHeaderStyle = {
   marginBottom: 12,
 };
 
-const classCardHeaderToggleStyle = (isOpen) => ({
+const classCardHeaderToggleStyle = (isOpen, canToggle = true) => ({
   ...classCardHeaderStyle,
   marginBottom: isOpen ? 12 : 0,
-  cursor: "pointer",
+  cursor: canToggle ? "pointer" : "default",
   outlineOffset: 4,
 });
 
