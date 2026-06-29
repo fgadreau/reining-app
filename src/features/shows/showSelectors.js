@@ -8,6 +8,9 @@ function normalizeShow(show) {
     livestreamUrl: show?.livestreamUrl || "",
     isLivestreamPublic: Boolean(show?.isLivestreamPublic),
     isSchedulePublic: Boolean(show?.isSchedulePublic),
+    isTvDisplayPaused: Boolean(show?.isTvDisplayPaused),
+    tvDisplayMessageFr: show?.tvDisplayMessageFr || "",
+    tvDisplayMessageEn: show?.tvDisplayMessageEn || "",
   };
 }
 

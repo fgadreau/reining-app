@@ -69,6 +69,9 @@ function ShowDetailPage() {
     isLivestreamPublic: false,
     livestreamUrl: "",
     isSchedulePublic: false,
+    isTvDisplayPaused: false,
+    tvDisplayMessageFr: "",
+    tvDisplayMessageEn: "",
   });
   const [sponsorLogosDraft, setSponsorLogosDraft] = useState([]);
   const [isOptimizingSponsors, setIsOptimizingSponsors] = useState(false);
@@ -307,6 +310,9 @@ function ShowDetailPage() {
       isLivestreamPublic: Boolean(show?.isLivestreamPublic),
       livestreamUrl: show?.livestreamUrl || "",
       isSchedulePublic: Boolean(show?.isSchedulePublic),
+      isTvDisplayPaused: Boolean(show?.isTvDisplayPaused),
+      tvDisplayMessageFr: show?.tvDisplayMessageFr || "",
+      tvDisplayMessageEn: show?.tvDisplayMessageEn || "",
     });
     setSponsorLogosDraft(normalizeSponsorLogos(association?.sponsorLogos));
     setIsOptimizingSponsors(false);
@@ -388,6 +394,9 @@ function ShowDetailPage() {
       livestreamUrl: livestreamDraft.livestreamUrl,
       isLivestreamPublic: Boolean(livestreamDraft.isLivestreamPublic),
       isSchedulePublic: Boolean(livestreamDraft.isSchedulePublic),
+      isTvDisplayPaused: Boolean(livestreamDraft.isTvDisplayPaused),
+      tvDisplayMessageFr: livestreamDraft.tvDisplayMessageFr,
+      tvDisplayMessageEn: livestreamDraft.tvDisplayMessageEn,
     };
     const sponsorLogos = normalizeSponsorLogos(sponsorLogosDraft);
     const currentSponsorLogos = normalizeSponsorLogos(association?.sponsorLogos);
@@ -481,6 +490,25 @@ function ShowDetailPage() {
     } catch (error) {
       console.error("Erreur copie lien OBS demo:", error);
       window.prompt(t("management.shows.obsOverlayPrompt"), overlayUrl);
+    }
+  };
+
+  const copyTvDisplayLink = async (arena = "") => {
+    const normalizedArena = normalizeArenaName(arena);
+    const tvUrl = getAbsoluteTvDisplayUrl(associationId, showId, normalizedArena);
+    const copyKey = `tv:${getOverlayCopyKey(normalizedArena)}`;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(tvUrl);
+        setCopiedOverlayKey(copyKey);
+        window.setTimeout(() => setCopiedOverlayKey(""), 1800);
+      } else {
+        window.prompt(t("management.shows.tvDisplayPrompt"), tvUrl);
+      }
+    } catch (error) {
+      console.error("Erreur copie lien affichage manège:", error);
+      window.prompt(t("management.shows.tvDisplayPrompt"), tvUrl);
     }
   };
 
@@ -760,6 +788,137 @@ function ShowDetailPage() {
                 >
                   {t("management.shows.openSchedule")}
                 </Link>
+              </section>
+
+              <section style={settingsSectionStyle}>
+                <div>
+                  <h3 style={settingsTitleStyle}>
+                    {t("management.shows.tvDisplayTitle")}
+                  </h3>
+                  <div style={helpTextStyle}>
+                    {t("management.shows.tvDisplayHelp")}
+                  </div>
+                </div>
+
+                <label style={checkboxLabelStyle}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(livestreamDraft.isTvDisplayPaused)}
+                    onChange={(event) =>
+                      setLivestreamDraft((current) => ({
+                        ...current,
+                        isTvDisplayPaused: event.target.checked,
+                      }))
+                    }
+                    disabled={!access.canManageAssociation || isSaving}
+                  />
+                  <span>{t("management.shows.tvDisplayPausedLabel")}</span>
+                </label>
+
+                <div style={editGridStyle}>
+                  <div>
+                    <label style={labelStyle}>
+                      {t("management.shows.tvDisplayMessageFrLabel")}
+                    </label>
+                    <textarea
+                      value={livestreamDraft.tvDisplayMessageFr}
+                      onChange={(event) =>
+                        setLivestreamDraft((current) => ({
+                          ...current,
+                          tvDisplayMessageFr: event.target.value,
+                        }))
+                      }
+                      placeholder={t("management.shows.tvDisplayMessageFrPlaceholder")}
+                      style={textareaStyle}
+                      disabled={!access.canManageAssociation || isSaving}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>
+                      {t("management.shows.tvDisplayMessageEnLabel")}
+                    </label>
+                    <textarea
+                      value={livestreamDraft.tvDisplayMessageEn}
+                      onChange={(event) =>
+                        setLivestreamDraft((current) => ({
+                          ...current,
+                          tvDisplayMessageEn: event.target.value,
+                        }))
+                      }
+                      placeholder={t("management.shows.tvDisplayMessageEnPlaceholder")}
+                      style={textareaStyle}
+                      disabled={!access.canManageAssociation || isSaving}
+                    />
+                  </div>
+                </div>
+
+                <div style={arenaOverlayRowStyle}>
+                  <span style={arenaOverlayNameStyle}>
+                    {t("management.shows.tvDisplayGeneralTitle")}
+                  </span>
+                  <Link
+                    to={getTvDisplayPath(associationId, showId)}
+                    style={linkButtonStyle}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {t("management.shows.openTvDisplayGeneral")}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => copyTvDisplayLink()}
+                    style={secondaryButtonStyle}
+                  >
+                    {copiedOverlayKey === "tv:general"
+                      ? t("common.linkCopied")
+                      : t("management.shows.copyTvDisplayLink")}
+                  </button>
+                </div>
+
+                {overlayArenas.length > 0 ? (
+                  <div style={arenaOverlayListStyle}>
+                    <label style={labelStyle}>
+                      {t("management.shows.tvDisplayArenaTitle")}
+                    </label>
+                    <div style={arenaOverlayPickerStyle}>
+                      <select
+                        value={selectedOverlayArena}
+                        onChange={(event) =>
+                          setSelectedOverlayArena(event.target.value)
+                        }
+                        style={inputStyle}
+                      >
+                        {overlayArenas.map((arena) => (
+                          <option key={arena} value={arena}>
+                            {arena}
+                          </option>
+                        ))}
+                      </select>
+                      <Link
+                        to={getTvDisplayPath(
+                          associationId,
+                          showId,
+                          selectedOverlayArena
+                        )}
+                        style={linkButtonStyle}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {t("management.shows.openTvDisplayArena")}
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => copyTvDisplayLink(selectedOverlayArena)}
+                        style={secondaryButtonStyle}
+                      >
+                        {copiedOverlayKey ===
+                        `tv:${getOverlayCopyKey(selectedOverlayArena)}`
+                          ? t("common.linkCopied")
+                          : t("management.shows.copyTvDisplayArenaLink")}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </section>
 
               <section style={settingsSectionStyle}>
@@ -1561,6 +1720,13 @@ const inputStyle = {
   boxSizing: "border-box",
 };
 
+const textareaStyle = {
+  ...inputStyle,
+  minHeight: 86,
+  resize: "vertical",
+  fontFamily: "inherit",
+};
+
 const helpTextStyle = {
   color: "#475569",
   fontSize: 13,
@@ -1841,11 +2007,18 @@ async function getOverlayArenasForDays(days) {
 
   if (!dayList.length) return [];
 
-  let classesByDay = [];
+  let scheduleItemsByDay = [];
 
   try {
-    classesByDay = await Promise.all(
-      dayList.map((day) => getClassesForDayRepository(day.id))
+    scheduleItemsByDay = await Promise.all(
+      dayList.map(async (day) => {
+        const [classes, warmups] = await Promise.all([
+          getClassesForDayRepository(day.id),
+          getPaidWarmupsForDayRepository(day.id),
+        ]);
+
+        return [...classes, ...warmups];
+      })
     );
   } catch (error) {
     console.error("Erreur chargement arenas overlay OBS:", error);
@@ -1854,8 +2027,8 @@ async function getOverlayArenasForDays(days) {
 
   const arenasByName = new Map();
 
-  classesByDay.flat().forEach((classItem) => {
-    const arena = normalizeArenaName(classItem?.arena);
+  scheduleItemsByDay.flat().forEach((item) => {
+    const arena = normalizeArenaName(item?.arena);
     if (!arena) return;
 
     arenasByName.set(arena.toLowerCase(), arena);
@@ -1888,6 +2061,16 @@ function getOverlayDemoPath(associationId, showId) {
   return `${path}?${params.toString()}`;
 }
 
+function getTvDisplayPath(associationId, showId, arena = "") {
+  const path = `/public/associations/${associationId}/shows/${showId}/tv`;
+  const normalizedArena = normalizeArenaName(arena);
+
+  if (!normalizedArena) return path;
+
+  const params = new URLSearchParams({ arena: normalizedArena });
+  return `${path}?${params.toString()}`;
+}
+
 function getAbsoluteOverlayUrl(associationId, showId, arena = "") {
   const path = getOverlayPath(associationId, showId, arena);
   const origin =
@@ -1900,6 +2083,16 @@ function getAbsoluteOverlayUrl(associationId, showId, arena = "") {
 
 function getAbsoluteOverlayDemoUrl(associationId, showId) {
   const path = getOverlayDemoPath(associationId, showId);
+  const origin =
+    typeof window === "undefined" || !window.location?.origin
+      ? ""
+      : window.location.origin;
+
+  return `${origin}${path}`;
+}
+
+function getAbsoluteTvDisplayUrl(associationId, showId, arena = "") {
+  const path = getTvDisplayPath(associationId, showId, arena);
   const origin =
     typeof window === "undefined" || !window.location?.origin
       ? ""

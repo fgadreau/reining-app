@@ -20,6 +20,7 @@ import PublicResultsPage from "../../pages/association/PublicResultsPage";
 import PublicAssociationsPage from "../../pages/public/PublicAssociationsPage";
 import PublicAssociationShowsPage from "../../pages/public/PublicAssociationShowsPage";
 import PublicShowOverlayPage from "../../pages/public/PublicShowOverlayPage";
+import PublicShowTvPage from "../../pages/public/PublicShowTvPage";
 import ShowSchedulePreviewPage from "../../pages/association/ShowSchedulePreviewPage";
 import ShowTimeManagementPage from "../../pages/association/ShowTimeManagementPage";
 import DayClassesPage from "../../pages/association/DayClassesPage";
@@ -62,6 +63,10 @@ function AppRouter() {
         <Route
           path="/public/associations/:associationId/shows/:showId/overlay"
           element={<PublicShowOverlayPage />}
+        />
+        <Route
+          path="/public/associations/:associationId/shows/:showId/tv"
+          element={<PublicShowTvPage />}
         />
         <Route path="/associations" element={<AssociationsPage />} />
         <Route

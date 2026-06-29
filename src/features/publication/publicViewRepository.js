@@ -109,6 +109,9 @@ function toShow(row) {
     isSchedulePublic: Boolean(
       row.is_public || row.is_schedule_public || row.show_schedule_public
     ),
+    isTvDisplayPaused: Boolean(row.tv_display_paused),
+    tvDisplayMessageFr: row.tv_display_message_fr || "",
+    tvDisplayMessageEn: row.tv_display_message_en || "",
   };
 }
 

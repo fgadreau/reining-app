@@ -43,6 +43,9 @@ function toShow(row) {
     isSchedulePublic: Boolean(
       row.is_public || row.show_schedule_public || row.is_schedule_public
     ),
+    isTvDisplayPaused: Boolean(row.tv_display_paused),
+    tvDisplayMessageFr: row.tv_display_message_fr || "",
+    tvDisplayMessageEn: row.tv_display_message_en || "",
   };
 }
 
@@ -59,6 +62,9 @@ function toShowRow(show, options = {}) {
     status: toHspShowStatus(show.status),
     livestream_url: show.livestreamUrl || "",
     is_livestream_public: Boolean(show.isLivestreamPublic),
+    tv_display_paused: Boolean(show.isTvDisplayPaused),
+    tv_display_message_fr: show.tvDisplayMessageFr || "",
+    tv_display_message_en: show.tvDisplayMessageEn || "",
   };
 
   if (includePublicSchedule) {
@@ -73,6 +79,17 @@ function toLegacyShowRow(show) {
   const row = toShowRow(show, { includePublicSchedule: false });
   delete row.livestream_url;
   delete row.is_livestream_public;
+  delete row.tv_display_paused;
+  delete row.tv_display_message_fr;
+  delete row.tv_display_message_en;
+  return row;
+}
+
+function toShowRowWithoutTvDisplay(show, options = {}) {
+  const row = toShowRow(show, options);
+  delete row.tv_display_paused;
+  delete row.tv_display_message_fr;
+  delete row.tv_display_message_en;
   return row;
 }
 
@@ -90,6 +107,12 @@ function isLivestreamSchemaMissing(error) {
 
 function isScheduleSchemaMissing(error) {
   return /is_schedule_public|show_schedule_public|is_public/i.test(
+    getSupabaseErrorText(error)
+  );
+}
+
+function isTvDisplaySchemaMissing(error) {
+  return /tv_display_paused|tv_display_message_fr|tv_display_message_en/i.test(
     getSupabaseErrorText(error)
   );
 }
@@ -177,15 +200,21 @@ export async function saveShowRepository(show) {
       const { error } = await supabase.from("shows").upsert(toShowRow(show));
       if (error) throw error;
     } catch (error) {
-      if (isLivestreamSchemaMissing(error) || isScheduleSchemaMissing(error)) {
+      if (
+        isLivestreamSchemaMissing(error) ||
+        isScheduleSchemaMissing(error) ||
+        isTvDisplaySchemaMissing(error)
+      ) {
         try {
+          const includePublicSchedule = !isScheduleSchemaMissing(error);
+          const fallbackRow = isLivestreamSchemaMissing(error)
+            ? toLegacyShowRow(show)
+            : isScheduleSchemaMissing(error) || isTvDisplaySchemaMissing(error)
+              ? toShowRowWithoutTvDisplay(show, { includePublicSchedule })
+              : toShowRow(show, { includePublicSchedule: false });
           const { error: legacyError } = await supabase
             .from("shows")
-            .upsert(
-              isLivestreamSchemaMissing(error)
-                ? toLegacyShowRow(show)
-                : toShowRow(show, { includePublicSchedule: false })
-            );
+            .upsert(fallbackRow);
 
           if (legacyError) {
             throw legacyError;
