@@ -231,7 +231,7 @@ function LivePanel({ liveItem }) {
           />
         </div>
 
-        <div style={panelStyle}>
+        <div style={lastPanelStyle}>
           <div style={panelTitleStyle}>
             <BilingualText fr="Derniers passés" en="Last completed" />
           </div>
@@ -322,7 +322,7 @@ function ParticipantCard({
         <BilingualText fr={labelFr} en={labelEn} />
       </div>
       {data.meta ? <div style={participantMetaStyle}>{data.meta}</div> : null}
-      <div style={participantNameStyle(compact, isDrag)}>{data.fr}</div>
+      <div style={participantNameStyle(compact, isDrag, variant)}>{data.fr}</div>
       {data.en ? <div style={participantSecondaryNameStyle}>{data.en}</div> : null}
       {data.horse ? <div style={horseStyle}>{data.horse}</div> : null}
       {data.score ? <ScoreBlock participant={data} compact={compact} /> : null}
@@ -620,8 +620,8 @@ const pageStyle = {
     '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
   display: "grid",
   gridTemplateRows: "auto minmax(0, 1fr) auto",
-  gap: 18,
-  padding: 28,
+  gap: 16,
+  padding: 22,
   boxSizing: "border-box",
 };
 
@@ -690,8 +690,8 @@ const liveGridStyle = {
   zIndex: 1,
   minHeight: 0,
   display: "grid",
-  gridTemplateColumns: "minmax(0, 1.35fr) minmax(420px, 0.85fr)",
-  gap: 18,
+  gridTemplateColumns: "minmax(0, 1.45fr) minmax(360px, 0.75fr)",
+  gap: 16,
 };
 
 const liveHeroStyle = {
@@ -699,10 +699,11 @@ const liveHeroStyle = {
   borderRadius: 8,
   border: "1px solid rgba(244, 217, 140, 0.34)",
   background: "rgba(15, 23, 42, 0.68)",
-  padding: 22,
+  padding: 20,
   display: "grid",
   gridTemplateRows: "auto auto auto minmax(0, 1fr)",
-  gap: 12,
+  gap: 10,
+  overflow: "hidden",
 };
 
 const sectionKickerStyle = {
@@ -730,8 +731,8 @@ const sideStackStyle = {
   minWidth: 0,
   minHeight: 0,
   display: "grid",
-  gridTemplateRows: "1fr 1fr",
-  gap: 18,
+  gridTemplateRows: "minmax(0, 1fr) minmax(0, 0.9fr)",
+  gap: 16,
 };
 
 const panelStyle = {
@@ -739,9 +740,16 @@ const panelStyle = {
   borderRadius: 8,
   border: "1px solid rgba(148, 163, 184, 0.34)",
   background: "rgba(15, 23, 42, 0.54)",
-  padding: 16,
+  padding: 14,
   display: "grid",
-  gap: 12,
+  gridTemplateRows: "auto minmax(0, 1fr) minmax(0, 1fr)",
+  gap: 10,
+  overflow: "hidden",
+};
+
+const lastPanelStyle = {
+  ...panelStyle,
+  gridTemplateRows: "auto minmax(0, 1fr)",
 };
 
 const panelTitleStyle = {
@@ -754,8 +762,9 @@ const panelTitleStyle = {
 const previousGridStyle = {
   minHeight: 0,
   display: "grid",
-  gridTemplateColumns: "1fr 1fr",
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
   gap: 12,
+  overflow: "hidden",
 };
 
 const participantCardStyle = (variant, compact, isDrag) => {
@@ -769,7 +778,7 @@ const participantCardStyle = (variant, compact, isDrag) => {
 
   return {
     minWidth: 0,
-    minHeight: compact ? 0 : 150,
+    minHeight: 0,
     borderRadius: 8,
     border: `1px solid ${accent}`,
     background: isDrag
@@ -780,6 +789,7 @@ const participantCardStyle = (variant, compact, isDrag) => {
     alignContent: "start",
     gap: compact ? 5 : 8,
     boxShadow: `inset 4px 0 0 ${accent}`,
+    overflow: "hidden",
   };
 };
 
@@ -796,17 +806,26 @@ const participantMetaStyle = {
   fontWeight: 950,
 };
 
-const participantNameStyle = (compact, isDrag) => ({
-  color: "#ffffff",
-  fontSize: isDrag
-    ? "clamp(34px, 4.3vw, 72px)"
+const participantNameStyle = (compact, isDrag, variant) => {
+  const isPrimary = variant === "active";
+  const fontSize = isDrag
+    ? isPrimary
+      ? "clamp(42px, 4.5vw, 74px)"
+      : "clamp(30px, 3.4vw, 54px)"
     : compact
-      ? "clamp(22px, 2vw, 34px)"
-      : "clamp(46px, 5.4vw, 88px)",
-  lineHeight: 0.98,
-  fontWeight: 950,
-  overflowWrap: "anywhere",
-});
+      ? "clamp(22px, 1.85vw, 32px)"
+      : isPrimary
+        ? "clamp(44px, 5vw, 82px)"
+        : "clamp(28px, 3.1vw, 50px)";
+
+  return {
+    color: "#ffffff",
+    fontSize,
+    lineHeight: 1,
+    fontWeight: 950,
+    overflowWrap: "anywhere",
+  };
+};
 
 const participantSecondaryNameStyle = {
   color: "#cbd5e1",
@@ -924,15 +943,16 @@ const welcomeNoticeStyle = {
 const sponsorRailStyle = {
   position: "relative",
   zIndex: 1,
-  minHeight: 126,
+  minHeight: 118,
   borderRadius: 8,
   border: "1px solid rgba(244, 217, 140, 0.3)",
   background: "rgba(15, 23, 42, 0.58)",
   padding: 14,
   display: "grid",
-  gridTemplateColumns: "180px minmax(0, 1fr)",
+  gridTemplateColumns: "minmax(286px, 0.24fr) minmax(0, 1fr)",
   gap: 14,
   alignItems: "center",
+  overflow: "hidden",
 };
 
 const sponsorTitleStyle = {
@@ -940,6 +960,7 @@ const sponsorTitleStyle = {
   fontSize: 18,
   fontWeight: 950,
   textTransform: "uppercase",
+  whiteSpace: "nowrap",
 };
 
 const sponsorGridStyle = {
@@ -971,6 +992,7 @@ const sponsorEmptyStyle = {
   display: "flex",
   gap: 18,
   alignItems: "baseline",
+  minWidth: 0,
 };
 
 const bilingualSeparatorStyle = {
