@@ -340,30 +340,6 @@ function ScoreBlock({ participant, compact }) {
       <div style={scorePillStyle}>
         <BilingualText fr="Score" en="Score" /> · {participant.score}
       </div>
-      {participant.judgeScores?.length ? (
-        <div style={judgeScoresStyle}>
-          {participant.judgeScores.map((judgeScore) => (
-            <span key={`${judgeScore.judgeId}-${judgeScore.scoreTotal}`}>
-              {judgeScore.judgeName ||
-                formatBilingualInline(
-                  translate("fr", "public.tv.judge"),
-                  translate("en", "public.tv.judge")
-                )}{" "}
-              {judgeScore.scoreTotal}
-            </span>
-          ))}
-        </div>
-      ) : null}
-      {participant.details?.length ? (
-        <div style={scoreDetailsStyle(compact)}>
-          {participant.details.map((detail) => (
-            <div key={detail.name} style={scoreDetailItemStyle}>
-              <span>{detail.name}</span>
-              <strong>{[detail.score, detail.penalty].filter(Boolean).join(" / ")}</strong>
-            </div>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -456,7 +432,7 @@ function buildClassCurrent(classView) {
   }
 
   return formatRun(classView?.activeRun || classView?.nextRun, {
-    showDetails: classView?.showScoreDetails,
+    showScore: false,
   });
 }
 
@@ -464,18 +440,14 @@ function buildClassUpcoming(classView) {
   return [classView?.nextLiveItem, classView?.secondNextLiveItem].map((item) =>
     isLiveDragItem(item)
       ? formatDragItem(item)
-      : formatRun(item?.item || item, { showDetails: false })
+      : formatRun(item?.item || item, { showScore: false })
   );
 }
 
 function buildClassPrevious(classView) {
   return (classView?.lastPassedRuns || [])
     .slice(0, 2)
-    .map((run) =>
-      formatRun(run, {
-        showDetails: classView?.showScoreDetails,
-      })
-    );
+    .map((run) => formatRun(run));
 }
 
 function buildWarmupCurrent(warmup) {
@@ -496,22 +468,12 @@ function buildWarmupPrevious(warmup) {
   return (warmup?.lastPassedEntries || []).slice(0, 2).map(formatEntry);
 }
 
-function formatRun(run, { showDetails = false } = {}) {
+function formatRun(run, { showScore = true } = {}) {
   if (!run) return null;
 
   const draw = run.draw ? `#${run.draw}` : "";
   const back = run.backNumber ? `Back ${run.backNumber}` : "";
-  const score = String(run.scoreTotal || "").trim();
-  const judgeScores = Array.isArray(run.judgeScores) ? run.judgeScores : [];
-  const details = showDetails
-    ? (run.manoeuvres || [])
-        .filter((item) => String(item.score || item.penalty || "").trim())
-        .map((item) => ({
-          name: item.description || item.name,
-          score: item.score || "",
-          penalty: item.penalty ? `P ${item.penalty}` : "",
-        }))
-    : [];
+  const score = showScore ? String(run.scoreTotal || "").trim() : "";
 
   return {
     type: "run",
@@ -520,8 +482,6 @@ function formatRun(run, { showDetails = false } = {}) {
     horse: [run.horse, run.owner].filter(Boolean).join(" · "),
     meta: [draw, back].filter(Boolean).join(" · "),
     score,
-    judgeScores,
-    details,
   };
 }
 
@@ -891,34 +851,6 @@ const scorePillStyle = {
   fontSize: "clamp(17px, 1.25vw, 24px)",
   fontWeight: 950,
   whiteSpace: "nowrap",
-};
-
-const judgeScoresStyle = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: 8,
-  color: "#dbeafe",
-  fontSize: 15,
-  fontWeight: 800,
-};
-
-const scoreDetailsStyle = (compact) => ({
-  display: "grid",
-  gridTemplateColumns: compact ? "1fr" : "repeat(2, minmax(0, 1fr))",
-  gap: 6,
-});
-
-const scoreDetailItemStyle = {
-  minWidth: 0,
-  padding: "7px 9px",
-  borderRadius: 8,
-  background: "rgba(15, 23, 42, 0.5)",
-  display: "flex",
-  justifyContent: "space-between",
-  gap: 8,
-  color: "#e2e8f0",
-  fontSize: 14,
-  fontWeight: 800,
 };
 
 const centerPanelStyle = {
