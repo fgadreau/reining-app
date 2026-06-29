@@ -20,9 +20,12 @@ import {
   getPaidWarmupTimerCueType,
   resetPaidWarmupTimer,
   setPaidWarmupEntryStatus,
+  startPaidWarmupDrag,
   startPaidWarmupEntry,
+  stopPaidWarmupDrag,
   stopPaidWarmupTimer,
 } from "../../features/paidWarmups/paidWarmupLive";
+import { isLiveDragItem } from "../../features/live/liveQueueItems";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
@@ -232,6 +235,16 @@ function AnnouncerDashboardPage() {
   const handleStopPaidWarmupTimer = (warmup) => {
     rememberPaidWarmupUndo(warmup);
     return savePaidWarmupUpdate(stopPaidWarmupTimer(warmup));
+  };
+
+  const handleStartPaidWarmupDrag = (warmup) => {
+    rememberPaidWarmupUndo(warmup);
+    return savePaidWarmupUpdate(startPaidWarmupDrag(warmup, new Date()));
+  };
+
+  const handleStopPaidWarmupDrag = (warmup) => {
+    rememberPaidWarmupUndo(warmup);
+    return savePaidWarmupUpdate(stopPaidWarmupDrag(warmup));
   };
 
   const handleSetPaidWarmupEntryStatus = (warmup, entryId, status) => {
@@ -459,6 +472,8 @@ function AnnouncerDashboardPage() {
                   onStartEntry={handleStartPaidWarmupEntry}
                   onResetTimer={handleResetPaidWarmupTimer}
                   onStopTimer={handleStopPaidWarmupTimer}
+                  onStartDrag={handleStartPaidWarmupDrag}
+                  onStopDrag={handleStopPaidWarmupDrag}
                   onSetEntryStatus={handleSetPaidWarmupEntryStatus}
                   onUndoAction={handleUndoPaidWarmupAction}
                   canUndo={Boolean(paidWarmupUndoSnapshots[item.warmup.id])}
@@ -520,6 +535,8 @@ function AnnouncerDashboardPage() {
                     onStartEntry={handleStartPaidWarmupEntry}
                     onResetTimer={handleResetPaidWarmupTimer}
                     onStopTimer={handleStopPaidWarmupTimer}
+                    onStartDrag={handleStartPaidWarmupDrag}
+                    onStopDrag={handleStopPaidWarmupDrag}
                     onSetEntryStatus={handleSetPaidWarmupEntryStatus}
                     onUndoAction={handleUndoPaidWarmupAction}
                     canUndo={Boolean(paidWarmupUndoSnapshots[warmup.id])}
@@ -601,7 +618,8 @@ function getRemainingLiveSections(liveView, priorityKeys) {
 
 function isPriorityClassView(classView) {
   return Boolean(
-    classView?.activeRun ||
+    classView?.activeDragItem ||
+      classView?.activeRun ||
       (classView?.scoringStarted && classView?.nextRun) ||
       (classView?.isScheduleOnly &&
         !classView?.isComplete &&
@@ -612,6 +630,8 @@ function isPriorityClassView(classView) {
 function isPriorityPaidWarmup(warmup) {
   return Boolean(
     warmup?.activeEntry ||
+      warmup?.stagedEntry ||
+      warmup?.onCourseEntry ||
       warmup?.isDragDue ||
       (warmup?.isPublicLive &&
         !isPaidWarmupComplete(warmup) &&
@@ -889,6 +909,8 @@ function PaidWarmupLiveCard({
   onStartEntry,
   onResetTimer,
   onStopTimer,
+  onStartDrag,
+  onStopDrag,
   onSetEntryStatus,
   onUndoAction,
   canUndo = false,
@@ -897,9 +919,19 @@ function PaidWarmupLiveCard({
   const [isOpen, setIsOpen] = useState(false);
   const remainingSeconds = getPaidWarmupRemainingSeconds(warmup, now);
   const activeEntry = warmup.activeEntry;
+  const stagedEntry = warmup.stagedEntry;
+  const onCourseEntry = activeEntry || stagedEntry;
+  const activeDragItem = warmup.activeDragItem || null;
   const nextEntry = warmup.nextEntry;
   const secondNextEntry = warmup.secondNextEntry;
-  const isForcedOpen = Boolean(isPriority || activeEntry || warmup.isDragDue);
+  const nextLiveItem = warmup.nextLiveItem || nextEntry;
+  const secondNextLiveItem = warmup.secondNextLiveItem || secondNextEntry;
+  const isActiveDrag = Boolean(activeDragItem);
+  const plannedDragItem =
+    !isActiveDrag && isLiveDragItem(nextLiveItem) ? nextLiveItem : null;
+  const startTargetEntry = !activeEntry ? onCourseEntry || nextEntry : null;
+  const statusTargetEntry = stagedEntry || nextEntry;
+  const isForcedOpen = Boolean(isPriority || onCourseEntry || isActiveDrag);
   const isExpanded = isForcedOpen || isOpen;
   const canToggle = !isForcedOpen;
 
@@ -940,9 +972,13 @@ function PaidWarmupLiveCard({
         </div>
         <div style={badgeStackStyle}>
           <LiveFreshnessBadge updatedAt={warmup.updatedAt} now={now} />
-          <Badge tone={activeEntry ? "warn" : "muted"}>
-            {activeEntry
-              ? t("management.announcer.activeTimer")
+          <Badge tone={activeEntry || isActiveDrag ? "warn" : "muted"}>
+            {isActiveDrag
+              ? t("public.results.drag")
+              : activeEntry
+                ? t("management.announcer.activeTimer")
+                : stagedEntry
+                ? t("management.announcer.readyToStart")
               : t("public.results.paidWarmup")}
           </Badge>
           {canToggle && (
@@ -955,9 +991,9 @@ function PaidWarmupLiveCard({
 
       {!isExpanded ? null : (
         <>
-          {warmup.isDragDue && (
+          {isActiveDrag && (
             <div style={dragNoticeStyle}>
-              {t("management.announcer.dragDue", {
+              {t("public.results.dragInProgress", {
                 minutes: warmup.dragDurationMinutes,
               })}
             </div>
@@ -968,16 +1004,31 @@ function PaidWarmupLiveCard({
               <div style={runLabelStyle}>
                 {t("management.announcer.onCourse")}
               </div>
-              {activeEntry ? (
+              {isActiveDrag ? (
                 <>
-                  <PaidWarmupEntryIdentity entry={activeEntry} />
+                  <DragIdentity item={activeDragItem} />
                   <div style={timerInlineStyle}>
-                    {formatPaidWarmupTimer(remainingSeconds)}
+                    {formatPaidWarmupTimer(warmup.dragRemainingSeconds)}
                   </div>
-                  <PaidWarmupTimerCue
-                    warmup={warmup}
-                    remainingSeconds={remainingSeconds}
-                  />
+                </>
+              ) : onCourseEntry ? (
+                <>
+                  <PaidWarmupEntryIdentity entry={onCourseEntry} />
+                  {activeEntry ? (
+                    <>
+                      <div style={timerInlineStyle}>
+                        {formatPaidWarmupTimer(remainingSeconds)}
+                      </div>
+                      <PaidWarmupTimerCue
+                        warmup={warmup}
+                        remainingSeconds={remainingSeconds}
+                      />
+                    </>
+                  ) : (
+                    <div style={mutedTextStyle}>
+                      {t("management.announcer.readyToStart")}
+                    </div>
+                  )}
                 </>
               ) : (
                 <div style={mutedTextStyle}>—</div>
@@ -986,7 +1037,7 @@ function PaidWarmupLiveCard({
 
             <PaidWarmupEntryBlock
               label={t("public.results.nextParticipant")}
-              entry={nextEntry}
+              entry={nextLiveItem}
               statusLabel={t("public.results.statusPreparation")}
               status="preparation"
               emptyLabel={t("management.announcer.noPreparationRun")}
@@ -994,7 +1045,7 @@ function PaidWarmupLiveCard({
 
             <PaidWarmupEntryBlock
               label={t("public.results.secondNextParticipant")}
-              entry={secondNextEntry}
+              entry={secondNextLiveItem}
               statusLabel={t("public.results.statusWaiting")}
               status="waiting"
               emptyLabel={t("management.announcer.noWaitingRider")}
@@ -1014,13 +1065,35 @@ function PaidWarmupLiveCard({
           </div>
 
           <div style={actionRowStyle}>
-            {!activeEntry && nextEntry && (
+            {plannedDragItem && (
               <button
                 type="button"
-                onClick={() => onStartEntry(warmup, nextEntry.id)}
+                onClick={() => onStartDrag(warmup)}
+                style={secondaryButtonStyle}
+              >
+                {t("management.announcer.startDrag")}
+              </button>
+            )}
+
+            {isActiveDrag && (
+              <button
+                type="button"
+                onClick={() => onStopDrag(warmup)}
+                style={secondaryButtonStyle}
+              >
+                {t("management.announcer.stopDrag")}
+              </button>
+            )}
+
+            {startTargetEntry && (
+              <button
+                type="button"
+                onClick={() => onStartEntry(warmup, startTargetEntry.id)}
                 style={primaryButtonStyle}
               >
-                {t("management.announcer.startNext")}
+                {stagedEntry
+                  ? t("management.announcer.startOnCourse")
+                  : t("management.announcer.startNext")}
               </button>
             )}
 
@@ -1052,21 +1125,39 @@ function PaidWarmupLiveCard({
               </>
             )}
 
-            {nextEntry && (
+            {!activeEntry && stagedEntry && (
+              <button
+                type="button"
+                onClick={() => onSetEntryStatus(warmup, stagedEntry.id, "done")}
+                style={secondaryButtonStyle}
+              >
+                {t("management.announcer.markPassed")}
+              </button>
+            )}
+
+            {statusTargetEntry && (
               <>
                 <button
                   type="button"
-                  onClick={() => onSetEntryStatus(warmup, nextEntry.id, "no_show")}
+                  onClick={() =>
+                    onSetEntryStatus(warmup, statusTargetEntry.id, "no_show")
+                  }
                   style={secondaryButtonStyle}
                 >
-                  {t("management.announcer.noShowNext")}
+                  {stagedEntry
+                    ? t("management.announcer.noShowOnCourse")
+                    : t("management.announcer.noShowNext")}
                 </button>
                 <button
                   type="button"
-                  onClick={() => onSetEntryStatus(warmup, nextEntry.id, "scratch")}
+                  onClick={() =>
+                    onSetEntryStatus(warmup, statusTargetEntry.id, "scratch")
+                  }
                   style={secondaryButtonStyle}
                 >
-                  {t("management.announcer.scratchNext")}
+                  {stagedEntry
+                    ? t("management.announcer.scratchOnCourse")
+                    : t("management.announcer.scratchNext")}
                 </button>
               </>
             )}
@@ -1094,17 +1185,36 @@ function PaidWarmupEntryBlock({
   status,
   emptyLabel,
 }) {
+  const isDrag = isLiveDragItem(entry);
+
   return (
     <div style={runBlockStyle}>
       <div style={liveBlockHeaderStyle}>
         <div style={runLabelStyle}>{label}</div>
         {entry && <Badge tone={getOrderStatusTone(status)}>{statusLabel}</Badge>}
       </div>
-      {entry ? (
+      {isDrag ? (
+        <DragIdentity item={entry} />
+      ) : entry ? (
         <PaidWarmupEntryIdentity entry={entry} />
       ) : (
         <div style={mutedTextStyle}>{emptyLabel || "—"}</div>
       )}
+    </div>
+  );
+}
+
+function DragIdentity({ item }) {
+  const { t } = useTranslation();
+
+  return (
+    <div>
+      <div style={runTitleStyle}>{t("public.results.dragSurface")}</div>
+      <div style={mutedTextStyle}>
+        {t("public.results.dragPlanned", {
+          minutes: item?.durationMinutes ?? "—",
+        })}
+      </div>
     </div>
   );
 }
@@ -1165,6 +1275,10 @@ function ClassLiveCard({
   const hasProvisionalRanking = classView.provisionalRanking?.length > 0;
   const hasClassStandings = classView.classStandings?.length > 0;
   const isScheduleOnly = Boolean(classView.isScheduleOnly);
+  const activeLiveItem = classView.activeDragItem || classView.activeRun;
+  const nextLiveItem = classView.nextLiveItem || classView.nextRun;
+  const secondNextLiveItem =
+    classView.secondNextLiveItem || classView.secondNextRun;
   const cardDetailsId = `announcer-live-details-${classView.classId || "class"}`;
   const isExpanded = isPriority || isOpen;
   const canToggle = !isPriority;
@@ -1247,17 +1361,17 @@ function ClassLiveCard({
           ) : (
             <>
               <div style={runGridStyle}>
-                <RunBlock
+                <QueueItemBlock
                   label={t("management.announcer.active")}
-                  run={classView.activeRun}
+                  item={activeLiveItem}
                 />
-                <RunBlock
-                  run={classView.nextRun}
+                <QueueItemBlock
+                  item={nextLiveItem}
                   statusLabel={t("public.results.statusPreparation")}
                   status="preparation"
                 />
-                <RunBlock
-                  run={classView.secondNextRun}
+                <QueueItemBlock
+                  item={secondNextLiveItem}
                   statusLabel={t("public.results.statusWaiting")}
                   status="waiting"
                 />
@@ -1501,18 +1615,31 @@ function AnnouncerOrderList({ runs, panelId }) {
       </div>
       {isOpen && (
         <div id={panelId} style={announcerOrderListStyle}>
-          {runs.map((run) => (
-            <div key={run.id || run.draw} style={announcerOrderRowStyle}>
-              <div style={announcerOrderDrawStyle}>#{run.draw || "—"}</div>
-              <div style={announcerOrderIdentityStyle}>
-                <RunIdentity run={run} />
+          {runs.map((item) =>
+            isLiveDragItem(item) ? (
+              <div key={item.id} style={announcerOrderRowStyle}>
+                <div style={announcerOrderDrawStyle}>—</div>
+                <div style={announcerOrderIdentityStyle}>
+                  <DragIdentity item={item} />
+                </div>
+                <Badge tone={getOrderStatusTone(item.liveOrderStatus)}>
+                  {getAnnouncerRunOrderStatusLabel(item.liveOrderStatus, t)}
+                </Badge>
+                <div style={compactScoreStyle}>—</div>
               </div>
-              <Badge tone={getOrderStatusTone(run.liveOrderStatus)}>
-                {getAnnouncerRunOrderStatusLabel(run.liveOrderStatus, t)}
-              </Badge>
-              <RunScoreDisplay run={run} compact />
-            </div>
-          ))}
+            ) : (
+              <div key={item.id || item.draw} style={announcerOrderRowStyle}>
+                <div style={announcerOrderDrawStyle}>#{item.draw || "—"}</div>
+                <div style={announcerOrderIdentityStyle}>
+                  <RunIdentity run={item} />
+                </div>
+                <Badge tone={getOrderStatusTone(item.liveOrderStatus)}>
+                  {getAnnouncerRunOrderStatusLabel(item.liveOrderStatus, t)}
+                </Badge>
+                <RunScoreDisplay run={item} compact />
+              </div>
+            )
+          )}
         </div>
       )}
     </div>
@@ -1584,6 +1711,10 @@ function getClassLiveState(classView, t) {
 
   if (classView.isScheduleOnly) {
     return { label: t("public.results.classInProgress"), tone: "warn" };
+  }
+
+  if (classView.activeDragItem) {
+    return { label: t("public.results.drag"), tone: "warn" };
   }
 
   if (classView.activeRun) {
@@ -1754,6 +1885,41 @@ function RunBlock({
         </div>
       )}
       {run ? (
+        <>
+          <RunIdentity run={run} />
+          {showScore && <RunScoreDisplay run={run} compact />}
+          <RunNote note={run.note} />
+        </>
+      ) : (
+        <div style={mutedTextStyle}>—</div>
+      )}
+    </div>
+  );
+}
+
+function QueueItemBlock({
+  label,
+  item,
+  showScore = false,
+  statusLabel = null,
+  status = "waiting",
+}) {
+  const isDrag = isLiveDragItem(item);
+  const run = isDrag ? null : item;
+
+  return (
+    <div style={runBlockStyle}>
+      {(label || (item && statusLabel)) && (
+        <div style={liveBlockHeaderStyle}>
+          {label && <div style={runLabelStyle}>{label}</div>}
+          {item && statusLabel && (
+            <Badge tone={getOrderStatusTone(status)}>{statusLabel}</Badge>
+          )}
+        </div>
+      )}
+      {isDrag ? (
+        <DragIdentity item={item} />
+      ) : run ? (
         <>
           <RunIdentity run={run} />
           {showScore && <RunScoreDisplay run={run} compact />}

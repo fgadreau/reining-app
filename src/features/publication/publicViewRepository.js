@@ -39,6 +39,11 @@ import {
   toPublicScheduleItem,
 } from "../schedule/liveSchedule";
 import {
+  LIVE_QUEUE_ITEM_TYPES,
+  buildLiveQueueItems,
+  getLiveDragItemId,
+} from "../live/liveQueueItems";
+import {
   compareScheduleItemsByStart,
   hasClassScheduleDetails,
   normalizeClassScheduleDetails,
@@ -1373,6 +1378,21 @@ export function buildPublicLiveClassView({
     : runs.find((run) => run.draw === scoringSession?.activeManoeuvre?.draw) ||
       runs.find((run) => run.isActive) ||
       null;
+  const activeDragItem = buildActiveClassDragItem({
+    activeManoeuvre: scoringSession?.activeManoeuvre,
+    runs,
+    dragDurationMinutes: setup?.dragDurationMinutes,
+  });
+  const liveQueue = buildLiveQueueItems({
+    items: runs,
+    activeItem: activeRun,
+    activeDragItem,
+    dragInterval: setup?.dragInterval,
+    dragDurationMinutes: setup?.dragDurationMinutes,
+    itemType: LIVE_QUEUE_ITEM_TYPES.RUN,
+    isAvailable: (run) => !runIsPassed(run) && !run.isReview,
+    isPassed: runIsPassed,
+  });
   const upcomingRuns = findUpcomingRuns(runs, activeRun);
   const nextRun = upcomingRuns[0] || null;
   const secondNextRun = upcomingRuns[1] || null;
@@ -1380,17 +1400,11 @@ export function buildPublicLiveClassView({
     (run) => !isSameRun(run, activeRun)
   );
   const lastPassedRuns = findLastPassedRuns(runs, activeRun, 2);
-  const orderRuns = buildLiveRunOrder({
-    runs,
-    activeRun,
-    nextRun,
-    secondNextRun,
-  });
+  const orderRuns = liveQueue.orderItems;
   const dragBreak = buildPublicClassDragBreak({
     runs,
-    activeRun,
     nextRun,
-    dragInterval: setup?.dragInterval,
+    activeDragItem,
     dragDurationMinutes: setup?.dragDurationMinutes,
   });
 
@@ -1417,12 +1431,16 @@ export function buildPublicLiveClassView({
     activeRun,
     nextRun,
     secondNextRun,
+    nextLiveItem: liveQueue.nextLiveItem,
+    secondNextLiveItem: liveQueue.secondNextLiveItem,
+    upcomingLiveItems: liveQueue.upcomingLiveItems,
     upcomingRuns,
     orderRuns,
     passedRuns,
     lastPassedRuns,
     latestScore: showScores ? lastPassedRuns.find(runHasScore) || null : null,
     classStandings,
+    activeDragItem,
     dragBreak,
   };
 }
@@ -1533,6 +1551,7 @@ function normalizePublicLiveRun(
 
 function findPrimaryLiveClass(liveClasses) {
   return (
+    liveClasses.find((classView) => classView.activeDragItem) ||
     liveClasses.find((classView) => classView.activeRun) ||
     liveClasses.find((classView) => classView.latestScore) ||
     liveClasses[0] ||
@@ -1787,6 +1806,7 @@ function groupPrimaryLiveClassesByArena(liveClasses) {
 
 function findPrimaryLivePaidWarmup(livePaidWarmups) {
   return (
+    livePaidWarmups.find((warmup) => warmup.activeDragItem) ||
     livePaidWarmups.find((warmup) => warmup.activeEntry) ||
     livePaidWarmups.find((warmup) => warmup.isDragDue) ||
     livePaidWarmups[0] ||
@@ -1813,23 +1833,13 @@ function groupPrimaryLivePaidWarmupsByArena(livePaidWarmups) {
 
 function buildPublicClassDragBreak({
   runs,
-  activeRun,
   nextRun,
-  dragInterval,
+  activeDragItem,
   dragDurationMinutes,
 }) {
-  const normalizedDragInterval = Number.parseInt(dragInterval, 10);
   const normalizedDragDurationMinutes = Number.parseInt(dragDurationMinutes, 10);
-  const completedRuns = runs.filter(runIsPassed);
 
-  if (
-    activeRun ||
-    !nextRun ||
-    !Number.isFinite(normalizedDragInterval) ||
-    normalizedDragInterval <= 0 ||
-    completedRuns.length === 0 ||
-    completedRuns.length % normalizedDragInterval !== 0
-  ) {
+  if (!activeDragItem) {
     return null;
   }
 
@@ -1838,14 +1848,42 @@ function buildPublicClassDragBreak({
     normalizedDragDurationMinutes >= 0
       ? normalizedDragDurationMinutes
       : 8;
-  const lastCompletedRun = completedRuns[completedRuns.length - 1];
 
   return {
     isActive: true,
-    startedAt: lastCompletedRun?.completedAt || null,
+    startedAt: activeDragItem.startedAt || null,
     durationMinutes,
     durationSeconds: durationMinutes * 60,
     nextRun,
+  };
+}
+
+function buildActiveClassDragItem({
+  activeManoeuvre,
+  runs,
+  dragDurationMinutes,
+}) {
+  if (activeManoeuvre?.type !== LIVE_QUEUE_ITEM_TYPES.DRAG) {
+    return null;
+  }
+
+  const afterIndex = Number.isInteger(activeManoeuvre.afterIndex)
+    ? activeManoeuvre.afterIndex
+    : findLastIndex(runs, runIsPassed);
+  const afterItem = runs[afterIndex] || null;
+  const durationMinutes = Number.parseInt(
+    activeManoeuvre.durationMinutes ?? dragDurationMinutes,
+    10
+  );
+
+  return {
+    type: LIVE_QUEUE_ITEM_TYPES.DRAG,
+    id: getLiveDragItemId(afterItem, afterIndex),
+    itemId: getLiveDragItemId(afterItem, afterIndex),
+    afterIndex,
+    afterDraw: afterItem?.draw || activeManoeuvre.afterDraw || afterIndex + 1,
+    startedAt: activeManoeuvre.startedAt || null,
+    durationMinutes: Number.isFinite(durationMinutes) ? durationMinutes : 8,
   };
 }
 
@@ -1923,6 +1961,14 @@ function isSameRun(a, b) {
   if (!a || !b) return false;
   if (a.id && b.id) return a.id === b.id;
   return String(a.draw ?? "") === String(b.draw ?? "");
+}
+
+function findLastIndex(items, predicate) {
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    if (predicate(items[index])) return index;
+  }
+
+  return -1;
 }
 
 function getLatestRunActivityAt(runs) {

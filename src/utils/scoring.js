@@ -91,26 +91,106 @@ export function formatTotalValue(value) {
   )}${parsed.suffixText}`;
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizePenaltyToken(token) {
+  return String(token ?? "").replace(/\s+/g, " ").trim();
+}
+
+function isSpecialPenaltyToken(token, specialTokens = []) {
+  const normalizedToken = normalizePenaltyToken(token);
+
+  return specialTokens.some(
+    (specialToken) => normalizePenaltyToken(specialToken) === normalizedToken
+  );
+}
+
+export function splitPenaltyTokens(value, specialTokens = []) {
+  const text = String(value ?? "").trim();
+  if (!text) return [];
+
+  let tokenizedText = text;
+  const specialTokenByPlaceholder = new Map();
+  const sortedSpecialTokens = [...specialTokens]
+    .map(normalizePenaltyToken)
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+
+  sortedSpecialTokens.forEach((token, index) => {
+    const placeholder = `__SPECIAL_PENALTY_${index}__`;
+
+    specialTokenByPlaceholder.set(placeholder, token);
+    tokenizedText = tokenizedText.replace(
+      new RegExp(escapeRegExp(token), "g"),
+      ` ${placeholder} `
+    );
+  });
+
+  return tokenizedText
+    .replace(/[+;]/g, ",")
+    .split(/\s*,\s*|\s+/)
+    .map((token) => specialTokenByPlaceholder.get(token) || token)
+    .map(normalizePenaltyToken)
+    .filter(Boolean);
+}
+
+export function formatPenaltyTokens(tokens = []) {
+  return tokens.map(normalizePenaltyToken).filter(Boolean).join(", ");
+}
+
+export function formatPenaltyValue(value, specialTokens = []) {
+  return formatPenaltyTokens(splitPenaltyTokens(value, specialTokens));
+}
+
+export function appendPenaltyToken(value, token, specialTokens = []) {
+  const normalizedToken = normalizePenaltyToken(token);
+  if (!normalizedToken) return formatPenaltyValue(value, specialTokens);
+
+  if (isSpecialPenaltyToken(normalizedToken, specialTokens)) {
+    return togglePenaltySpecialToken(value, normalizedToken, specialTokens);
+  }
+
+  return formatPenaltyTokens([
+    ...splitPenaltyTokens(value, specialTokens),
+    normalizedToken,
+  ]);
+}
+
+export function removeLastPenaltyToken(value, specialTokens = []) {
+  const tokens = splitPenaltyTokens(value, specialTokens);
+
+  return formatPenaltyTokens(tokens.slice(0, -1));
+}
+
+export function togglePenaltySpecialToken(value, token, specialTokens = []) {
+  const normalizedToken = normalizePenaltyToken(token);
+  const tokens = splitPenaltyTokens(value, specialTokens);
+  const alreadySelected = tokens.includes(normalizedToken);
+  const normalTokens = tokens.filter(
+    (item) => !isSpecialPenaltyToken(item, specialTokens)
+  );
+
+  return formatPenaltyTokens(
+    alreadySelected ? normalTokens : [...normalTokens, normalizedToken]
+  );
+}
+
 export function parsePenaltyValue(value) {
   if (!value) return 0;
 
-  const text = String(value);
-  const textWithoutHalfFractions = text.replace(/½|1\/2|0\.5/g, " ");
+  const text = String(value).replace(/½|1\/2/g, "0.5");
   let total = 0;
+  const numberRegex =
+    /(^|[^A-Za-z0-9/.])([+-]?(?:\d+(?:[.,]\d+)?|\.\d+))(?=$|[^A-Za-z0-9/.])/g;
 
-  const halfMatches = text.match(/½|1\/2|0\.5/g);
-  const oneMatches = textWithoutHalfFractions.match(/\b1\b/g);
-  const twoMatches = textWithoutHalfFractions.match(/\b2\b/g);
-  const threeMatches = textWithoutHalfFractions.match(/\b3\b/g);
-  const fiveMatches = textWithoutHalfFractions.match(/\b5\b/g);
-  const tenMatches = textWithoutHalfFractions.match(/\b10\b/g);
-
-  if (halfMatches) total += halfMatches.length * 0.5;
-  if (oneMatches) total += oneMatches.length * 1;
-  if (twoMatches) total += twoMatches.length * 2;
-  if (threeMatches) total += threeMatches.length * 3;
-  if (fiveMatches) total += fiveMatches.length * 5;
-  if (tenMatches) total += tenMatches.length * 10;
+  for (const match of text.matchAll(numberRegex)) {
+    const numberValue = Number.parseFloat(match[2].replace(",", "."));
+    if (Number.isFinite(numberValue)) {
+      total += numberValue;
+    }
+  }
 
   return total;
 }

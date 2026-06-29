@@ -389,6 +389,73 @@ export const appStyles = {
     cursor: "pointer",
   },
 
+  manualPenaltyPanel: {
+    marginTop: "14px",
+    padding: "12px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "12px",
+    backgroundColor: "#f8fafc",
+    display: "grid",
+    gap: "10px",
+    maxWidth: "360px",
+  },
+
+  manualPenaltyDisplay: {
+    minHeight: "44px",
+    padding: "8px 12px",
+    border: "1px solid #94a3b8",
+    borderRadius: "10px",
+    backgroundColor: "#ffffff",
+    fontSize: "24px",
+    fontWeight: "800",
+    textAlign: "right",
+  },
+
+  manualPenaltyKeypad: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(64px, 1fr))",
+    gap: "8px",
+  },
+
+  manualPenaltyKeyButton: {
+    minHeight: "46px",
+    borderRadius: "10px",
+    border: "1px solid #cbd5e1",
+    backgroundColor: "#ffffff",
+    fontSize: "20px",
+    fontWeight: "800",
+    cursor: "pointer",
+  },
+
+  manualPenaltyActions: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+  },
+
+  dragBreakRowContent: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+    flexWrap: "wrap",
+  },
+
+  dragBreakButton: {
+    padding: "7px 12px",
+    borderRadius: "999px",
+    border: "1px solid #f59e0b",
+    backgroundColor: "#ffffff",
+    color: "#92400e",
+    fontWeight: "800",
+    cursor: "pointer",
+  },
+
+  disabledButton: {
+    opacity: 0.5,
+    cursor: "not-allowed",
+  },
+
   closeButton: {
     padding: "10px 14px",
     minWidth: "88px",

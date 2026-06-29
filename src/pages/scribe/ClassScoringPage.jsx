@@ -21,6 +21,10 @@ import {
   getRunUsageKey,
 } from "../../features/classes/runIdentity";
 import {
+  LIVE_QUEUE_ITEM_TYPES,
+  getLiveDragItemId,
+} from "../../features/live/liveQueueItems";
+import {
   finalizeClassWithJudge,
   saveFinalPdfFileName,
 } from "../../features/classes/classFinalizationService";
@@ -49,9 +53,12 @@ import {
   buildScoringDataLossWarning,
 } from "../../features/scoring/scoringDataIntegrity";
 import {
+  appendPenaltyToken,
   isScoredRunComplete,
   recalculateRun,
+  removeLastPenaltyToken,
   runHasVideoReview,
+  togglePenaltySpecialToken,
 } from "../../utils/scoring";
 import {
   loadActiveManoeuvre,
@@ -278,7 +285,31 @@ function loadRunsForClass(
 }
 
 function sameActiveManoeuvre(a, b) {
+  if (a?.type !== b?.type) return false;
+
+  if (a?.type === LIVE_QUEUE_ITEM_TYPES.DRAG) {
+    return (
+      a?.id === b?.id &&
+      a?.afterIndex === b?.afterIndex &&
+      a?.startedAt === b?.startedAt
+    );
+  }
+
   return a?.draw === b?.draw && a?.manoeuvreIndex === b?.manoeuvreIndex;
+}
+
+function activeManoeuvreExistsInRuns(activeManoeuvre, runs) {
+  if (!activeManoeuvre) return false;
+
+  if (activeManoeuvre.type === LIVE_QUEUE_ITEM_TYPES.DRAG) {
+    return (
+      Number.isInteger(activeManoeuvre.afterIndex) &&
+      activeManoeuvre.afterIndex >= 0 &&
+      activeManoeuvre.afterIndex < runs.length
+    );
+  }
+
+  return runs.some((run) => run.draw === activeManoeuvre.draw);
 }
 
 function isRunComplete(run, maneuverCount) {
@@ -518,7 +549,11 @@ function ClassScoringPage() {
       lastLoadedScoringRunsRef.current = loadedScoringRuns;
       setScoringDataLossWarning(nextScoringDataLossWarning);
       setActiveManoeuvre(
-        nextIsCompleted || nextIsMultiJudgeMode ? null : nextActiveManoeuvre
+        nextIsCompleted ||
+          nextIsMultiJudgeMode ||
+          !activeManoeuvreExistsInRuns(nextActiveManoeuvre, nextRuns)
+          ? null
+          : nextActiveManoeuvre
       );
       updateScoringSyncStatus(
         nextIsMultiJudgeMode
@@ -687,10 +722,7 @@ function ClassScoringPage() {
 
     const nextActiveManoeuvre = loadActiveManoeuvre(classId);
 
-    if (
-      nextActiveManoeuvre &&
-      nextRuns.some((run) => run.draw === nextActiveManoeuvre.draw)
-    ) {
+    if (activeManoeuvreExistsInRuns(nextActiveManoeuvre, nextRuns)) {
       setActiveManoeuvre((prev) =>
         sameActiveManoeuvre(prev, nextActiveManoeuvre)
           ? prev
@@ -736,6 +768,14 @@ function ClassScoringPage() {
 
     setActiveManoeuvre((prevActive) => {
       if (!prevActive) return prevActive;
+
+      if (prevActive.type === LIVE_QUEUE_ITEM_TYPES.DRAG) {
+        return Number.isInteger(prevActive.afterIndex) &&
+          prevActive.afterIndex >= 0 &&
+          prevActive.afterIndex < setupRuns.length
+          ? prevActive
+          : null;
+      }
 
       const stillExists = setupRuns.some(
         (run, index) => getSetupRunDraw(run, index) === prevActive.draw
@@ -959,9 +999,21 @@ function ClassScoringPage() {
   }, []);
 
   const activeRunDraw = useMemo(() => {
-    if (activeManoeuvre?.draw != null) return activeManoeuvre.draw;
+    if (
+      activeManoeuvre?.type !== LIVE_QUEUE_ITEM_TYPES.DRAG &&
+      activeManoeuvre?.draw != null
+    ) {
+      return activeManoeuvre.draw;
+    }
     return runs.find((run) => run.isActive)?.draw ?? null;
   }, [activeManoeuvre, runs]);
+  const activeDrag = useMemo(
+    () =>
+      activeManoeuvre?.type === LIVE_QUEUE_ITEM_TYPES.DRAG
+        ? activeManoeuvre
+        : null,
+    [activeManoeuvre]
+  );
 
   const runCount = runs.length;
   const canFinalize = canFinalizeClass(runs, maneuverCount);
@@ -1002,17 +1054,6 @@ function ClassScoringPage() {
     hasRailAdjustment &&
     provisionalRanking.length > 0 &&
     (canFinalize || isCompleted);
-
-  const normalizeSpaces = (value) =>
-    String(value || "").replace(/\s+/g, " ").trim();
-
-  const removeSpecialTokens = (value) => {
-    let cleaned = String(value || "");
-    specialPenaltyTokens.forEach((token) => {
-      cleaned = cleaned.replaceAll(token, " ");
-    });
-    return normalizeSpaces(cleaned);
-  };
 
   const ensureClassStartedAt = (timestamp = new Date().toISOString()) => {
     const localSetup = getClassSetup(classId);
@@ -1228,24 +1269,11 @@ function ClassScoringPage() {
 
         while (nextPenalties.length < maneuverCount) nextPenalties.push("");
 
-        const current = normalizeSpaces(nextPenalties[manoeuvreIndex] || "");
-
-        if (specialPenaltyTokens.includes(token)) {
-          const alreadySelected = current.includes(token);
-          const cleaned = removeSpecialTokens(current);
-
-          if (alreadySelected) {
-            nextPenalties[manoeuvreIndex] = cleaned;
-          } else {
-            nextPenalties[manoeuvreIndex] = cleaned
-              ? `${cleaned} ${token}`
-              : token;
-          }
-        } else {
-          nextPenalties[manoeuvreIndex] = current
-            ? `${current} ${token}`
-            : token;
-        }
+        nextPenalties[manoeuvreIndex] = appendPenaltyToken(
+          nextPenalties[manoeuvreIndex],
+          token,
+          specialPenaltyTokens
+        );
 
         return stampRunTiming(
           recalculateRun(
@@ -1290,17 +1318,11 @@ function ClassScoringPage() {
 
         while (nextPenalties.length < maneuverCount) nextPenalties.push("");
 
-        const current = normalizeSpaces(nextPenalties[manoeuvreIndex] || "");
-        const alreadySelected = current.includes(token);
-        const cleaned = removeSpecialTokens(current);
-
-        if (alreadySelected) {
-          nextPenalties[manoeuvreIndex] = cleaned;
-        } else {
-          nextPenalties[manoeuvreIndex] = cleaned
-            ? `${cleaned} ${token}`
-            : token;
-        }
+        nextPenalties[manoeuvreIndex] = togglePenaltySpecialToken(
+          nextPenalties[manoeuvreIndex],
+          token,
+          specialPenaltyTokens
+        );
 
         return stampRunTiming(
           recalculateRun(
@@ -1343,7 +1365,10 @@ function ClassScoringPage() {
           : Array(maneuverCount).fill("");
 
         while (nextPenalties.length < maneuverCount) nextPenalties.push("");
-        nextPenalties[manoeuvreIndex] = "";
+        nextPenalties[manoeuvreIndex] = removeLastPenaltyToken(
+          nextPenalties[manoeuvreIndex],
+          specialPenaltyTokens
+        );
 
         return stampRunTiming(
           recalculateRun(
@@ -1364,6 +1389,50 @@ function ClassScoringPage() {
       draw,
       manoeuvreIndex,
     });
+  };
+
+  const canStartDragAfterRun = useCallback(
+    (afterIndex) => {
+      if (!canEditScores) return false;
+      if (!Number.isInteger(afterIndex) || afterIndex < 0) return false;
+
+      return runs
+        .slice(0, afterIndex + 1)
+        .every(
+          (run) => isRunComplete(run, maneuverCount) || runHasVideoReview(run)
+        );
+    },
+    [canEditScores, maneuverCount, runs]
+  );
+
+  const startDragBreak = (afterIndex) => {
+    if (!canStartDragAfterRun(afterIndex)) return;
+
+    const changedAt = new Date().toISOString();
+    ensureClassStartedAt(changedAt);
+    const afterRun = runs[afterIndex] || null;
+
+    setRuns((prevRuns) =>
+      prevRuns.map((run) => ({
+        ...run,
+        isActive: false,
+      }))
+    );
+    setActiveManoeuvre({
+      type: LIVE_QUEUE_ITEM_TYPES.DRAG,
+      id: getLiveDragItemId(afterRun, afterIndex),
+      afterIndex,
+      afterDraw: afterRun?.draw || afterIndex + 1,
+      startedAt: changedAt,
+      durationMinutes: timingSummary.dragDurationMinutes,
+    });
+  };
+
+  const stopDragBreak = (afterIndex) => {
+    if (!canEditScores) return;
+    if (activeDrag?.afterIndex !== afterIndex) return;
+
+    setActiveManoeuvre(null);
   };
 
   const setActiveManoeuvreWithRun = (value) => {
@@ -2068,9 +2137,11 @@ function ClassScoringPage() {
         dragDurationMinutes={timingSummary.dragDurationMinutes}
         activeManoeuvre={activeManoeuvre}
         setActiveManoeuvre={setActiveManoeuvreWithRun}
+        activeDrag={activeDrag}
         scoreOptions={scoreOptions}
         scoreOptionsByIndex={scoreOptionsByIndex}
         penaltyOptions={penaltyOptions}
+        specialPenaltyTokens={specialPenaltyTokens}
         penaltyDisabledIndexes={penaltyDisabledIndexes}
         statusPenaltyOptions={statusPenaltyOptions}
         updateScoreCell={updateScoreCell}
@@ -2080,6 +2151,9 @@ function ClassScoringPage() {
         clearPenaltyCell={clearPenaltyCell}
         updateBackNumber={updateBackNumber}
         updateRunNote={updateRunNote}
+        onStartDrag={startDragBreak}
+        onStopDrag={stopDragBreak}
+        canStartDragAfterRun={canStartDragAfterRun}
         isLocked={!canEditScores}
         isBackNumberLocked={!canEditBackNumbers}
         styles={styles}

@@ -36,8 +36,9 @@ export function loadActiveManoeuvre(classId) {
 
     if (
       parsed &&
-      typeof parsed.draw === "number" &&
-      typeof parsed.manoeuvreIndex === "number"
+      ((typeof parsed.draw === "number" &&
+        typeof parsed.manoeuvreIndex === "number") ||
+        parsed.type === "drag")
     ) {
       return parsed;
     }

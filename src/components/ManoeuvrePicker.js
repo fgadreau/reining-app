@@ -1,6 +1,19 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "../features/i18n/I18nProvider";
 import { formatScoreValue, parseScoreValue } from "../utils/scoring";
+
+const MANUAL_PENALTY_DIGITS = [
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "0",
+];
 
 function ManoeuvrePicker({
   position,
@@ -23,17 +36,24 @@ function ManoeuvrePicker({
   styles,
 }) {
   const { t } = useTranslation();
+  const [isManualPenaltyOpen, setIsManualPenaltyOpen] = useState(false);
+  const [manualPenaltyValue, setManualPenaltyValue] = useState("");
+  const manoeuvreIndex = activeManoeuvre?.manoeuvreIndex;
+
+  useEffect(() => {
+    setIsManualPenaltyOpen(false);
+    setManualPenaltyValue("");
+  }, [run.draw, manoeuvreIndex]);
 
   if (
     !activeManoeuvre ||
-    typeof activeManoeuvre.manoeuvreIndex !== "number" ||
-    activeManoeuvre.manoeuvreIndex < 0 ||
-    activeManoeuvre.manoeuvreIndex >= headers.length
+    typeof manoeuvreIndex !== "number" ||
+    manoeuvreIndex < 0 ||
+    manoeuvreIndex >= headers.length
   ) {
     return null;
   }
 
-  const manoeuvreIndex = activeManoeuvre.manoeuvreIndex;
   const manoeuvreName = headers[manoeuvreIndex];
   const activePenaltyValue = run.penalties[manoeuvreIndex] || "";
   const activeScoreValue = run.scores[manoeuvreIndex] || "";
@@ -44,6 +64,13 @@ function ManoeuvrePicker({
     : null;
   const activeScoreOptions =
     scoreOptionsByIndex?.[manoeuvreIndex] || scoreOptions || [];
+  const normalizedManualPenaltyValue = manualPenaltyValue.replace(
+    /^0+(?=\d)/,
+    ""
+  );
+  const manualPenaltyNumber = Number.parseInt(normalizedManualPenaltyValue, 10);
+  const canAddManualPenalty =
+    Number.isFinite(manualPenaltyNumber) && manualPenaltyNumber > 0;
   const penaltyDisabled = (penaltyDisabledIndexes || []).includes(
     manoeuvreIndex
   );
@@ -58,6 +85,23 @@ function ManoeuvrePicker({
     if (activeScoreNumber === null) return false;
 
     return Math.abs(activeScoreNumber - parseScoreValue(option)) < 0.001;
+  };
+  const appendManualPenaltyDigit = (digit) => {
+    setManualPenaltyValue((current) =>
+      `${current}${digit}`.replace(/\D/g, "").replace(/^0+(?=\d)/, "")
+    );
+  };
+  const deleteManualPenaltyDigit = () => {
+    setManualPenaltyValue((current) => current.slice(0, -1));
+  };
+  const clearManualPenaltyValue = () => {
+    setManualPenaltyValue("");
+  };
+  const addManualPenalty = () => {
+    if (!canAddManualPenalty) return;
+
+    addPenaltyToken(run.draw, manoeuvreIndex, String(manualPenaltyNumber));
+    setManualPenaltyValue("");
   };
 
   if (position === "top" && penaltyDisabled) {
@@ -79,6 +123,7 @@ function ManoeuvrePicker({
             <div style={styles.optionGrid}>
               {penaltyOptions.map((option) => (
                 <button
+                  type="button"
                   key={`pen-${run.id || run.draw}-${manoeuvreIndex}-${option}`}
                   style={styles.optionButton}
                   onClick={() => addPenaltyToken(run.draw, manoeuvreIndex, option)}
@@ -88,6 +133,18 @@ function ManoeuvrePicker({
               ))}
 
               <button
+                type="button"
+                style={{
+                  ...styles.optionButton,
+                  ...(isManualPenaltyOpen ? styles.optionButtonSelected : {}),
+                }}
+                onClick={() => setIsManualPenaltyOpen((current) => !current)}
+              >
+                {t("management.scoring.manualPenalty")}
+              </button>
+
+              <button
+                type="button"
                 style={styles.clearButton}
                 onClick={() => clearPenaltyCell(run.draw, manoeuvreIndex)}
               >
@@ -102,6 +159,52 @@ function ManoeuvrePicker({
                 {runNoteButtonLabel}
               </button>
             </div>
+
+            {isManualPenaltyOpen && (
+              <div style={styles.manualPenaltyPanel}>
+                <div style={styles.manualPenaltyDisplay}>
+                  {manualPenaltyValue || "0"}
+                </div>
+                <div style={styles.manualPenaltyKeypad}>
+                  {MANUAL_PENALTY_DIGITS.map((digit) => (
+                    <button
+                      type="button"
+                      key={`manual-penalty-${digit}`}
+                      style={styles.manualPenaltyKeyButton}
+                      onClick={() => appendManualPenaltyDigit(digit)}
+                    >
+                      {digit}
+                    </button>
+                  ))}
+                </div>
+                <div style={styles.manualPenaltyActions}>
+                  <button
+                    type="button"
+                    style={styles.closeButton}
+                    onClick={deleteManualPenaltyDigit}
+                    disabled={!manualPenaltyValue}
+                  >
+                    {t("management.scoring.deleteLastDigit")}
+                  </button>
+                  <button
+                    type="button"
+                    style={styles.closeButton}
+                    onClick={clearManualPenaltyValue}
+                    disabled={!manualPenaltyValue}
+                  >
+                    {t("management.scoring.clearManualPenaltyInput")}
+                  </button>
+                  <button
+                    type="button"
+                    style={styles.optionButton}
+                    onClick={addManualPenalty}
+                    disabled={!canAddManualPenalty}
+                  >
+                    {t("management.scoring.addManualPenalty")}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div style={styles.statusToggleWrap}>
               {statusOptions.map((option) => (

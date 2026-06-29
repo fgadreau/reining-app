@@ -10,6 +10,11 @@ import { getPaidWarmupsByDayId } from "../paidWarmups/paidWarmupStorage";
 import { getPaidWarmupsForDayRepository } from "../paidWarmups/paidWarmupRepository";
 import { buildPaidWarmupLiveView } from "../paidWarmups/paidWarmupLive";
 import {
+  LIVE_QUEUE_ITEM_TYPES,
+  buildLiveQueueItems,
+  getLiveDragItemId,
+} from "./liveQueueItems";
+import {
   hasClassScheduleDetails,
   normalizeClassScheduleDetails,
 } from "../classes/classSchedule";
@@ -63,7 +68,8 @@ export function getAnnouncerShowView(showId) {
   const activeClasses = findActiveClasses(allClasses);
   const activeClass = activeClasses[0] || null;
   const activePaidWarmup =
-    allPaidWarmups.find((item) => item.activeEntry) || null;
+    allPaidWarmups.find((item) => item.activeEntry || item.activeDragItem) ||
+    null;
 
   return {
     sections,
@@ -106,7 +112,8 @@ export async function getAnnouncerShowViewRepository(showId) {
   const activeClasses = findActiveClasses(allClasses);
   const activeClass = activeClasses[0] || null;
   const activePaidWarmup =
-    allPaidWarmups.find((item) => item.activeEntry) || null;
+    allPaidWarmups.find((item) => item.activeEntry || item.activeDragItem) ||
+    null;
 
   return {
     sections,
@@ -261,6 +268,11 @@ export function buildAnnouncerClassView(classData) {
         : runs.find((run) => run.draw === activeManoeuvre?.draw) ||
           runs.find((run) => run.isActive) ||
           null;
+  const activeDragItem = buildActiveClassDragItem({
+    activeManoeuvre,
+    runs,
+    dragDurationMinutes: classData.setup?.dragDurationMinutes,
+  });
 
   const publicationStatus = classData.publication?.status || "hidden";
 
@@ -298,6 +310,23 @@ export function buildAnnouncerClassView(classData) {
   }
 
   const upcomingRuns = isOfficiallyCompleted ? [] : findUpcomingRuns(runs, activeRun);
+  const liveQueue = isOfficiallyCompleted
+    ? {
+        nextLiveItem: null,
+        secondNextLiveItem: null,
+        upcomingLiveItems: [],
+        orderItems: [],
+      }
+    : buildLiveQueueItems({
+        items: runs,
+        activeItem: activeRun,
+        activeDragItem,
+        dragInterval: classData.setup?.dragInterval,
+        dragDurationMinutes: classData.setup?.dragDurationMinutes,
+        itemType: LIVE_QUEUE_ITEM_TYPES.RUN,
+        isAvailable: (run) => !runIsPassed(run) && !run.isReview,
+        isPassed: runIsPassed,
+      });
   const nextRun = upcomingRuns[0] || null;
   const secondNextRun = upcomingRuns[1] || null;
   const passedRuns = findPassedRuns(runs).filter(
@@ -305,12 +334,7 @@ export function buildAnnouncerClassView(classData) {
   );
   const lastPassedRuns = findLastPassedRuns(runs, activeRun, 2);
   const latestScore = lastPassedRuns.find(runHasScore) || null;
-  const orderRuns = buildLiveRunOrder({
-    runs,
-    activeRun,
-    nextRun,
-    secondNextRun,
-  });
+  const orderRuns = liveQueue.orderItems;
   const scoringStarted = runs.some(runHasData);
   const isComplete =
     isOfficiallyCompleted ||
@@ -348,6 +372,10 @@ export function buildAnnouncerClassView(classData) {
     activeRun,
     nextRun,
     secondNextRun,
+    activeDragItem,
+    nextLiveItem: liveQueue.nextLiveItem,
+    secondNextLiveItem: liveQueue.secondNextLiveItem,
+    upcomingLiveItems: liveQueue.upcomingLiveItems,
     upcomingRuns,
     orderRuns,
     passedRuns,
@@ -360,6 +388,7 @@ export function buildAnnouncerClassView(classData) {
 function findActiveClasses(classes) {
   return classes.filter(
     (item) =>
+      item.activeDragItem ||
       item.activeRun ||
       (item.scoringStarted && item.nextRun) ||
       (item.isScheduleOnly &&
@@ -516,6 +545,35 @@ function runIsPassed(run) {
   );
 }
 
+function buildActiveClassDragItem({
+  activeManoeuvre,
+  runs,
+  dragDurationMinutes,
+}) {
+  if (activeManoeuvre?.type !== LIVE_QUEUE_ITEM_TYPES.DRAG) {
+    return null;
+  }
+
+  const afterIndex = Number.isInteger(activeManoeuvre.afterIndex)
+    ? activeManoeuvre.afterIndex
+    : findLastIndex(runs, runIsPassed);
+  const afterItem = runs[afterIndex] || null;
+  const durationMinutes = Number.parseInt(
+    activeManoeuvre.durationMinutes ?? dragDurationMinutes,
+    10
+  );
+
+  return {
+    type: LIVE_QUEUE_ITEM_TYPES.DRAG,
+    id: getLiveDragItemId(afterItem, afterIndex),
+    itemId: getLiveDragItemId(afterItem, afterIndex),
+    afterIndex,
+    afterDraw: afterItem?.draw || activeManoeuvre.afterDraw || afterIndex + 1,
+    startedAt: activeManoeuvre.startedAt || null,
+    durationMinutes: Number.isFinite(durationMinutes) ? durationMinutes : 8,
+  };
+}
+
 function buildLiveRunOrder({ runs, activeRun, nextRun, secondNextRun }) {
   return runs.map((run) => ({
     ...run,
@@ -540,6 +598,14 @@ function isSameRun(a, b) {
   if (!a || !b) return false;
   if (a.id && b.id) return a.id === b.id;
   return String(a.draw ?? "") === String(b.draw ?? "");
+}
+
+function findLastIndex(items, predicate) {
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    if (predicate(items[index])) return index;
+  }
+
+  return -1;
 }
 
 function runHasData(run) {

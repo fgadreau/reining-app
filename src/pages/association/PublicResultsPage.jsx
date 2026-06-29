@@ -19,6 +19,7 @@ import {
   getPaidWarmupDragRemainingSeconds,
   getPaidWarmupRemainingSeconds,
 } from "../../features/paidWarmups/paidWarmupLive";
+import { isLiveDragItem } from "../../features/live/liveQueueItems";
 import { formatLiveDataFreshness } from "../../features/live/liveFreshness";
 import { getAssociationWebsiteHref } from "../../features/associations/associationProfile";
 import { getShowById } from "../../features/shows/showSelectors";
@@ -1109,8 +1110,9 @@ function PublicLivePanel({ classView, now }) {
   const dragBreak = classView.dragBreak?.isActive ? classView.dragBreak : null;
   const isScheduleOnly = Boolean(classView.isScheduleOnly);
   const dragRemainingSeconds = getDragRemainingSeconds(dragBreak, now);
-  const nextRun = dragBreak?.nextRun || classView.nextRun;
-  const secondNextRun = classView.secondNextRun;
+  const nextLiveItem = classView.nextLiveItem || classView.nextRun || null;
+  const secondNextLiveItem =
+    classView.secondNextLiveItem || classView.secondNextRun || null;
   const showScores = classView.showScores !== false;
   const showScoreDetails = showScores && classView.showScoreDetails !== false;
   const showLastPassedBlock = showScoreDetails || !showScores;
@@ -1222,16 +1224,16 @@ function PublicLivePanel({ classView, now }) {
                   <div style={mutedTextStyle}>—</div>
                 )}
               </div>
-              <LiveRunBlock
+              <LiveQueueItemBlock
                 label={t("public.results.nextParticipant")}
-                run={nextRun}
+                item={nextLiveItem}
                 showDetails={showScoreDetails}
                 statusLabel={t("public.results.statusPreparation")}
                 status="preparation"
               />
-              <LiveRunBlock
+              <LiveQueueItemBlock
                 label={t("public.results.secondNextParticipant")}
-                run={secondNextRun}
+                item={secondNextLiveItem}
                 showDetails={showScoreDetails}
                 statusLabel={t("public.results.statusWaiting")}
                 status="waiting"
@@ -1475,11 +1477,16 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
   const dragRemainingSeconds = isDragDue
     ? getPaidWarmupDragRemainingSeconds(warmup, now)
     : null;
-  const secondNextEntry = warmup.secondNextEntry;
+  const onCourseEntry = warmup.onCourseEntry || warmup.activeEntry || null;
+  const nextLiveItem = warmup.nextLiveItem || warmup.nextEntry || null;
+  const secondNextLiveItem =
+    warmup.secondNextLiveItem || warmup.secondNextEntry || null;
   const statusLabel = isDragDue
     ? t("public.results.drag")
     : warmup.activeEntry
       ? t("public.results.inProgress")
+      : warmup.stagedEntry
+        ? t("public.results.statusOnCourse")
       : t("public.results.paidWarmupStatusPending");
   const panelDetailsId = `public-paid-warmup-details-${warmup.id || "warmup"}`;
 
@@ -1542,9 +1549,9 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
               <div style={runLabelStyle}>{t("public.results.onCourse")}</div>
               {isDragDue ? (
                 <PublicDragCard remainingSeconds={dragRemainingSeconds} />
-              ) : warmup.activeEntry ? (
+              ) : onCourseEntry ? (
                 <PublicPaidWarmupEntry
-                  entry={warmup.activeEntry}
+                  entry={onCourseEntry}
                   remainingSeconds={remainingSeconds}
                   warmup={warmup}
                 />
@@ -1555,14 +1562,14 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
 
             <PublicPaidWarmupEntryBlock
               label={t("public.results.nextParticipant")}
-              entry={warmup.nextEntry}
+              entry={nextLiveItem}
               statusLabel={t("public.results.statusPreparation")}
               status="preparation"
             />
 
             <PublicPaidWarmupEntryBlock
               label={t("public.results.secondNextParticipant")}
-              entry={secondNextEntry}
+              entry={secondNextLiveItem}
               statusLabel={t("public.results.statusWaiting")}
               status="waiting"
             />
@@ -1584,7 +1591,7 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
           <PublicNextScheduleItem item={warmup.nextScheduleItem} />
 
           <PublicPaidWarmupOrderTable
-            entries={warmup.entries || []}
+            entries={warmup.orderItems || warmup.entries || []}
             warmup={warmup}
             panelId={buildAccordionPanelId(
               "public-paid-warmup-order",
@@ -1654,6 +1661,8 @@ function formatPublicDate(value) {
 }
 
 function PublicPaidWarmupEntryBlock({ label, entry, statusLabel, status }) {
+  const isDrag = isLiveDragItem(entry);
+
   return (
     <div style={liveBlockStyle}>
       <div style={liveBlockHeaderStyle}>
@@ -1662,7 +1671,9 @@ function PublicPaidWarmupEntryBlock({ label, entry, statusLabel, status }) {
           <span style={orderStatusBadgeStyle(status)}>{statusLabel}</span>
         )}
       </div>
-      {entry ? (
+      {isDrag ? (
+        <PublicPlannedDragCard item={entry} />
+      ) : entry ? (
         <PublicPaidWarmupEntry entry={entry} />
       ) : (
         <div style={mutedTextStyle}>—</div>
@@ -1767,23 +1778,28 @@ function TimingMetric({ label, value }) {
   );
 }
 
-function LiveRunBlock({
+function LiveQueueItemBlock({
   label,
-  run,
+  item,
   showScore = false,
   showDetails = true,
   statusLabel = null,
   status = "waiting",
 }) {
+  const isDrag = isLiveDragItem(item);
+  const run = isDrag ? null : item;
+
   return (
     <div style={liveBlockStyle}>
       <div style={liveBlockHeaderStyle}>
         {label && <div style={runLabelStyle}>{label}</div>}
-        {run && statusLabel && (
+        {item && statusLabel && (
           <span style={orderStatusBadgeStyle(status)}>{statusLabel}</span>
         )}
       </div>
-      {run ? (
+      {isDrag ? (
+        <PublicPlannedDragCard item={item} />
+      ) : run ? (
         <LiveRunCard
           run={run}
           showScore={showScore}
@@ -1796,9 +1812,25 @@ function LiveRunBlock({
   );
 }
 
+function PublicPlannedDragCard({ item }) {
+  const { t } = useTranslation();
+
+  return (
+    <div>
+      <div style={runTitleStyle}>{t("public.results.dragSurface")}</div>
+      <div style={mutedTextStyle}>
+        {t("public.results.dragPlanned", {
+          minutes: item?.durationMinutes ?? "—",
+        })}
+      </div>
+    </div>
+  );
+}
+
 function PublicLiveOrderTable({ runs, showScores, panelId }) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
+  const runCount = runs.filter((item) => !isLiveDragItem(item)).length;
 
   if (!runs.length) {
     return null;
@@ -1832,7 +1864,7 @@ function PublicLiveOrderTable({ runs, showScores, panelId }) {
           </div>
         </div>
         <div style={badgeStackStyle}>
-          <span style={standingCountStyle}>{runs.length}</span>
+          <span style={standingCountStyle}>{runCount}</span>
           <span style={toggleIconStyle}>
             {isOpen ? t("public.results.hide") : t("public.results.view")}
           </span>
@@ -1840,32 +1872,60 @@ function PublicLiveOrderTable({ runs, showScores, panelId }) {
       </div>
       {isOpen && (
         <div id={panelId} style={orderListStyle}>
-          {runs.map((run) => (
-            <div key={run.id || run.draw} style={orderRowStyle}>
-              <div style={orderDrawStyle}>#{run.draw || "—"}</div>
-              <div style={orderIdentityStyle}>
-                <div style={runNameStyle}>
-                  {run.rider || t("public.results.riderFallback")}
+          {runs.map((item) =>
+            isLiveDragItem(item) ? (
+              <PublicOrderDragRow key={item.id} item={item} />
+            ) : (
+              <div key={item.id || item.draw} style={orderRowStyle}>
+                <div style={orderDrawStyle}>#{item.draw || "—"}</div>
+                <div style={orderIdentityStyle}>
+                  <div style={runNameStyle}>
+                    {item.rider || t("public.results.riderFallback")}
+                  </div>
+                  <div style={mutedTextStyle}>
+                    {t("public.results.backNumber")} {item.backNumber || "—"} ·{" "}
+                    {item.horse || t("public.results.horseFallback")}
+                  </div>
                 </div>
-                <div style={mutedTextStyle}>
-                  {t("public.results.backNumber")} {run.backNumber || "—"} ·{" "}
-                  {run.horse || t("public.results.horseFallback")}
+                <div style={orderRowMetaStyle}>
+                  <span style={orderStatusBadgeStyle(item.liveOrderStatus)}>
+                    {getPublicRunOrderStatusLabel(item.liveOrderStatus, t)}
+                  </span>
+                  {showScores && item.scoreTotal ? (
+                    <LiveRunScore run={item} compact />
+                  ) : (
+                    <div style={orderScoreStyle}>—</div>
+                  )}
                 </div>
               </div>
-              <div style={orderRowMetaStyle}>
-                <span style={orderStatusBadgeStyle(run.liveOrderStatus)}>
-                  {getPublicRunOrderStatusLabel(run.liveOrderStatus, t)}
-                </span>
-                {showScores && run.scoreTotal ? (
-                  <LiveRunScore run={run} compact />
-                ) : (
-                  <div style={orderScoreStyle}>—</div>
-                )}
-              </div>
-            </div>
-          ))}
+            )
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+function PublicOrderDragRow({ item }) {
+  const { t } = useTranslation();
+
+  return (
+    <div style={orderRowStyle}>
+      <div style={orderDrawStyle}>—</div>
+      <div style={orderIdentityStyle}>
+        <div style={runNameStyle}>{t("public.results.dragSurface")}</div>
+        <div style={mutedTextStyle}>
+          {t("public.results.dragPlanned", {
+            minutes: item?.durationMinutes ?? "—",
+          })}
+        </div>
+      </div>
+      <div style={orderRowMetaStyle}>
+        <span style={orderStatusBadgeStyle(item.liveOrderStatus)}>
+          {getPublicRunOrderStatusLabel(item.liveOrderStatus, t)}
+        </span>
+        <div style={orderScoreStyle}>—</div>
+      </div>
     </div>
   );
 }
@@ -1873,6 +1933,7 @@ function PublicLiveOrderTable({ runs, showScores, panelId }) {
 function PublicPaidWarmupOrderTable({ entries, warmup, panelId }) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
+  const participantCount = entries.filter((entry) => !isLiveDragItem(entry)).length;
 
   if (!entries.length) {
     return null;
@@ -1902,11 +1963,11 @@ function PublicPaidWarmupOrderTable({ entries, warmup, panelId }) {
         <div>
           <div style={runLabelStyle}>{t("public.results.orderOfGo")}</div>
           <div style={mutedTextStyle}>
-            {t("public.results.participantCount", { count: entries.length })}
+            {t("public.results.participantCount", { count: participantCount })}
           </div>
         </div>
         <div style={badgeStackStyle}>
-          <span style={standingCountStyle}>{entries.length}</span>
+          <span style={standingCountStyle}>{participantCount}</span>
           <span style={toggleIconStyle}>
             {isOpen ? t("public.results.hide") : t("public.results.view")}
           </span>
@@ -1915,6 +1976,10 @@ function PublicPaidWarmupOrderTable({ entries, warmup, panelId }) {
       {isOpen && (
         <div id={panelId} style={orderListStyle}>
           {entries.map((entry, index) => {
+            if (isLiveDragItem(entry)) {
+              return <PublicOrderDragRow key={entry.id || index} item={entry} />;
+            }
+
             const orderStatus = getPaidWarmupOrderStatus(entry, warmup);
 
             return (
@@ -2126,6 +2191,10 @@ function getPublicRunOrderStatusLabel(status, t) {
 }
 
 function getPaidWarmupOrderStatus(entry, warmup) {
+  if (warmup?.onCourseEntry?.id && entry.id === warmup.onCourseEntry.id) {
+    return "active";
+  }
+
   if (warmup?.activeEntry?.id && entry.id === warmup.activeEntry.id) {
     return "active";
   }

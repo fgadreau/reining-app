@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import ManoeuvrePicker from "./ManoeuvrePicker";
 import { useTranslation } from "../features/i18n/I18nProvider";
-import { formatScoreValue, formatTotalValue } from "../utils/scoring";
+import {
+  formatPenaltyValue,
+  formatScoreValue,
+  formatTotalValue,
+} from "../utils/scoring";
 
 function RunRows({
   run,
@@ -11,6 +15,7 @@ function RunRows({
   scoreOptions,
   scoreOptionsByIndex,
   penaltyOptions,
+  specialPenaltyTokens,
   penaltyDisabledIndexes,
   statusPenaltyOptions,
   updateScoreCell,
@@ -90,8 +95,13 @@ function RunRows({
     setEditingBackNumber(false);
   };
 
-  const renderCellValue = (value) => {
-    return value ? value : <span style={styles.placeholder}>—</span>;
+  const renderPenaltyCellValue = (value) => {
+    const formattedValue = formatPenaltyValue(value, specialPenaltyTokens);
+    return formattedValue ? (
+      formattedValue
+    ) : (
+      <span style={styles.placeholder}>—</span>
+    );
   };
   const renderScoreCellValue = (value) => {
     const formattedValue = formatScoreValue(value);
@@ -224,7 +234,7 @@ function RunRows({
               {isPenaltyDisabled ? (
                 <span style={styles.placeholder}>—</span>
               ) : (
-                renderCellValue(value)
+                renderPenaltyCellValue(value)
               )}
             </td>
           );

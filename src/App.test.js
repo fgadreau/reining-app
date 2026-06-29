@@ -1,8 +1,11 @@
 import {
+  appendPenaltyToken,
+  formatPenaltyValue,
   formatScoreValue,
   isScoredRunComplete,
   parseScoreValue,
   recalculateRun,
+  removeLastPenaltyToken,
   runHasVideoReview,
 } from "./utils/scoring";
 import {
@@ -79,6 +82,9 @@ import {
   PAID_WARMUP_TIMER_CUES,
   buildPaidWarmupLiveView,
   getPaidWarmupTimerCueType,
+  setPaidWarmupEntryStatus,
+  startPaidWarmupDrag,
+  stopPaidWarmupDrag,
 } from "./features/paidWarmups/paidWarmupLive";
 import {
   calculatePaidWarmupScheduleSummary,
@@ -208,6 +214,29 @@ test("calculates and formats fractional maneuver scores", () => {
   expect(formatScoreValue("+0.5")).toBe("+½");
   expect(formatScoreValue("-1.5")).toBe("-1½");
   expect(run.scoreTotal).toBe("71");
+});
+
+test("formats penalties with commas and clears the latest penalty token", () => {
+  const specialTokens = ["Score 0", "No score", "Scratch", "Révision vidéo"];
+
+  expect(appendPenaltyToken("1", "5", specialTokens)).toBe("1, 5");
+  expect(appendPenaltyToken("1, 5", "12", specialTokens)).toBe("1, 5, 12");
+  expect(formatPenaltyValue("1 5 Score 0", specialTokens)).toBe(
+    "1, 5, Score 0"
+  );
+  expect(removeLastPenaltyToken("1, 5, 12", specialTokens)).toBe("1, 5");
+  expect(removeLastPenaltyToken("1, 5, Score 0", specialTokens)).toBe("1, 5");
+  expect(removeLastPenaltyToken("1, Score 0, 5", specialTokens)).toBe(
+    "1, Score 0"
+  );
+
+  const run = recalculateRun({
+    scores: ["0"],
+    penalties: ["1, 5, 12"],
+  });
+
+  expect(run.penTotal).toBe("18");
+  expect(run.scoreTotal).toBe("52");
 });
 
 test("treats special run statuses as complete scores", () => {
@@ -3462,7 +3491,7 @@ test("supports schedule-only classes without scoring patterns", () => {
   expect(completedPublicView).toBeNull();
 });
 
-test("public live view exposes a drag break before the next run", () => {
+test("public live view exposes a planned drag before the next run", () => {
   const classView = buildPublicLiveClassView({
     classItem: {
       id: "class-live",
@@ -3502,6 +3531,80 @@ test("public live view exposes a drag break before the next run", () => {
 
   expect(classView.activeRun).toBeNull();
   expect(classView.nextRun.draw).toBe(3);
+  expect(classView.dragBreak).toBeNull();
+  expect(classView.nextLiveItem).toMatchObject({
+    type: "drag",
+    afterDraw: 2,
+    durationMinutes: 8,
+    liveOrderStatus: "preparation",
+  });
+  expect(classView.secondNextLiveItem).toMatchObject({
+    draw: 3,
+    liveOrderStatus: "waiting",
+  });
+  expect(classView.orderRuns.map((item) => item.liveOrderStatus)).toEqual([
+    "passed",
+    "passed",
+    "preparation",
+    "waiting",
+  ]);
+});
+
+test("public live view exposes an active drag only after the scribe starts it", () => {
+  const classView = buildPublicLiveClassView({
+    classItem: {
+      id: "class-live",
+      name: "Novice Horse",
+      pattern: "2",
+    },
+    setup: {
+      dragInterval: 2,
+      dragDurationMinutes: 8,
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE,
+    },
+    scoringSession: {
+      activeManoeuvre: {
+        type: "drag",
+        afterIndex: 1,
+        afterDraw: 2,
+        startedAt: "2026-05-25T14:03:00.000Z",
+        durationMinutes: 8,
+      },
+      runs: [
+        {
+          id: "run-1",
+          draw: 1,
+          scoreTotal: "71.0",
+          completedAt: "2026-05-25T14:00:00.000Z",
+        },
+        {
+          id: "run-2",
+          draw: 2,
+          scoreTotal: "72.0",
+          completedAt: "2026-05-25T14:03:00.000Z",
+        },
+        {
+          id: "run-3",
+          draw: 3,
+          scoreTotal: "",
+        },
+      ],
+    },
+  });
+
+  expect(classView.activeRun).toBeNull();
+  expect(classView.activeDragItem).toMatchObject({
+    type: "drag",
+    afterDraw: 2,
+    startedAt: "2026-05-25T14:03:00.000Z",
+    durationMinutes: 8,
+  });
+  expect(classView.nextLiveItem).toMatchObject({
+    draw: 3,
+    liveOrderStatus: "preparation",
+  });
   expect(classView.dragBreak).toMatchObject({
     isActive: true,
     startedAt: "2026-05-25T14:03:00.000Z",
@@ -3540,6 +3643,102 @@ test("paid warmup live follows edited rider order while running", () => {
   expect(liveView.activeEntry.rider).toBe("Marie");
   expect(liveView.nextEntry.rider).toBe("Félix");
   expect(liveView.secondNextEntry.rider).toBe("Late add");
+});
+
+test("paid warmup live stages the next rider before the timer starts", () => {
+  const liveView = buildPaidWarmupLiveView({
+    id: "warmup-staged",
+    name: "Paid warm up",
+    entries: [
+      { id: "entry-1", rider: "Marie", status: "pending" },
+      { id: "entry-2", rider: "Alex", status: "pending" },
+      { id: "entry-3", rider: "Félix", status: "pending" },
+    ],
+  });
+
+  expect(liveView.activeEntry).toBeNull();
+  expect(liveView.stagedEntry.rider).toBe("Marie");
+  expect(liveView.onCourseEntry.rider).toBe("Marie");
+  expect(liveView.nextEntry.rider).toBe("Alex");
+  expect(liveView.secondNextEntry.rider).toBe("Félix");
+});
+
+test("paid warmup live rolls riders forward when staged rider is marked done", () => {
+  const warmup = {
+    id: "warmup-roll",
+    name: "Paid warm up",
+    entries: [
+      { id: "entry-1", rider: "Marie", status: "pending" },
+      { id: "entry-2", rider: "Alex", status: "pending" },
+      { id: "entry-3", rider: "Félix", status: "pending" },
+      { id: "entry-4", rider: "Late add", status: "pending" },
+    ],
+  };
+  const liveView = buildPaidWarmupLiveView(warmup);
+  const nextWarmup = setPaidWarmupEntryStatus(
+    liveView,
+    liveView.stagedEntry.id,
+    "done",
+    new Date("2026-05-25T14:00:00.000Z")
+  );
+  const nextLiveView = buildPaidWarmupLiveView(nextWarmup);
+
+  expect(nextLiveView.activeEntry).toBeNull();
+  expect(nextLiveView.stagedEntry.rider).toBe("Alex");
+  expect(nextLiveView.onCourseEntry.rider).toBe("Alex");
+  expect(nextLiveView.nextEntry.rider).toBe("Félix");
+  expect(nextLiveView.secondNextEntry.rider).toBe("Late add");
+  expect(nextLiveView.lastPassedEntries[0].rider).toBe("Marie");
+});
+
+test("paid warmup drag starts explicitly and stays completed after stopping", () => {
+  const warmup = {
+    id: "warmup-drag",
+    name: "Paid warm up",
+    dragInterval: 1,
+    dragDurationMinutes: 6,
+    entries: [
+      {
+        id: "entry-1",
+        rider: "Marie",
+        status: "done",
+        completedAt: "2026-05-25T14:00:00.000Z",
+      },
+      { id: "entry-2", rider: "Alex", status: "pending" },
+      { id: "entry-3", rider: "Félix", status: "pending" },
+    ],
+  };
+  const plannedView = buildPaidWarmupLiveView(warmup);
+  const activeWarmup = startPaidWarmupDrag(
+    warmup,
+    new Date("2026-05-25T14:02:00.000Z")
+  );
+  const activeView = buildPaidWarmupLiveView(
+    activeWarmup,
+    new Date("2026-05-25T14:03:00.000Z")
+  );
+  const stoppedWarmup = stopPaidWarmupDrag(activeView);
+  const stoppedView = buildPaidWarmupLiveView(stoppedWarmup);
+
+  expect(plannedView.nextLiveItem).toMatchObject({
+    type: "drag",
+    afterDraw: 1,
+  });
+  expect(activeView.activeDragItem).toMatchObject({
+    type: "drag",
+    afterDraw: 1,
+    startedAt: "2026-05-25T14:02:00.000Z",
+  });
+  expect(activeView.isDragDue).toBe(true);
+  expect(stoppedView.activeDragItem).toBeNull();
+  expect(stoppedView.plannedDragItem).toBeNull();
+  expect(stoppedView.onCourseEntry).toMatchObject({
+    rider: "Alex",
+  });
+  expect(stoppedView.nextLiveItem).toMatchObject({
+    type: "drag",
+    afterDraw: 2,
+  });
 });
 
 test("paid warmup draw replacement preserves live progress for known riders", () => {
@@ -3612,6 +3811,7 @@ test("public show view exposes a public paid warmup before the timer starts", ()
     entries: [
       { id: "entry-1", rider: "Marie", status: "pending" },
       { id: "entry-2", rider: "Alex", status: "pending" },
+      { id: "entry-3", rider: "Félix", status: "pending" },
     ],
   });
 
@@ -3623,11 +3823,17 @@ test("public show view exposes a public paid warmup before the timer starts", ()
     name: "Warm up public",
   });
   expect(publicView.livePaidWarmup.activeEntry).toBeNull();
-  expect(publicView.livePaidWarmup.nextEntry).toMatchObject({
+  expect(publicView.livePaidWarmup.stagedEntry).toMatchObject({
     rider: "Marie",
   });
-  expect(publicView.livePaidWarmup.secondNextEntry).toMatchObject({
+  expect(publicView.livePaidWarmup.onCourseEntry).toMatchObject({
+    rider: "Marie",
+  });
+  expect(publicView.livePaidWarmup.nextEntry).toMatchObject({
     rider: "Alex",
+  });
+  expect(publicView.livePaidWarmup.secondNextEntry).toMatchObject({
+    rider: "Félix",
   });
   expect(
     publicView.livePaidWarmup.entries.map((entry) => ({
@@ -3637,6 +3843,7 @@ test("public show view exposes a public paid warmup before the timer starts", ()
   ).toEqual([
     { order: 1, rider: "Marie" },
     { order: 2, rider: "Alex" },
+    { order: 3, rider: "Félix" },
   ]);
 });
 

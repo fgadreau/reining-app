@@ -9,9 +9,11 @@ function ScoreTable({
   dragDurationMinutes,
   activeManoeuvre,
   setActiveManoeuvre,
+  activeDrag,
   scoreOptions,
   scoreOptionsByIndex,
   penaltyOptions,
+  specialPenaltyTokens,
   penaltyDisabledIndexes,
   statusPenaltyOptions,
   updateScoreCell,
@@ -21,6 +23,9 @@ function ScoreTable({
   clearPenaltyCell,
   updateBackNumber,
   updateRunNote,
+  onStartDrag,
+  onStopDrag,
+  canStartDragAfterRun,
   isLocked,
   isBackNumberLocked,
   styles,
@@ -90,6 +95,7 @@ function ScoreTable({
                 scoreOptions={scoreOptions}
                 scoreOptionsByIndex={scoreOptionsByIndex}
                 penaltyOptions={penaltyOptions}
+                specialPenaltyTokens={specialPenaltyTokens}
                 penaltyDisabledIndexes={penaltyDisabledIndexes}
                 statusPenaltyOptions={statusPenaltyOptions}
                 updateScoreCell={updateScoreCell}
@@ -107,7 +113,40 @@ function ScoreTable({
               {shouldShowDragAfterRun(index) && (
                 <tr>
                   <td colSpan={colSpan} style={styles.dragBreakRow}>
-                    {getDragLabel(index)}
+                    <div style={styles.dragBreakRowContent}>
+                      <span>{getDragLabel(index)}</span>
+                      {!isLocked && (
+                        activeDrag?.afterIndex === index ? (
+                          <button
+                            type="button"
+                            style={styles.dragBreakButton}
+                            onClick={() => onStopDrag?.(index)}
+                          >
+                            {t("management.scoring.stopDrag")}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={
+                              canStartDragAfterRun
+                                ? !canStartDragAfterRun(index)
+                                : false
+                            }
+                            style={{
+                              ...styles.dragBreakButton,
+                              ...((canStartDragAfterRun &&
+                                !canStartDragAfterRun(index)) ||
+                              false
+                                ? styles.disabledButton || {}
+                                : {}),
+                            }}
+                            onClick={() => onStartDrag?.(index)}
+                          >
+                            {t("management.scoring.startDrag")}
+                          </button>
+                        )
+                      )}
+                    </div>
                   </td>
                 </tr>
               )}
