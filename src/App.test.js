@@ -153,6 +153,7 @@ import {
   getPatternHeaders,
   getPatternManeuverDescription,
   NO_PATTERN_ID,
+  SLIDING_CONTEST_PATTERN_ID,
   TRAIL_CUSTOM_PATTERN_ID,
   WESTERN_HORSEMANSHIP_CUSTOM_PATTERN_ID,
   SHOWMANSHIP_CUSTOM_PATTERN_ID,
@@ -470,6 +471,53 @@ test("uses ranch riding patterns and penalties", () => {
       3
     )
   ).toBe(false);
+});
+
+test("uses sliding contest as a reining scoring pattern", () => {
+  expect(getPatternDisplayName(SLIDING_CONTEST_PATTERN_ID)).toBe(
+    "Sliding contest"
+  );
+  expect(getPatternDisplayName("Sliding contest")).toBe("Sliding contest");
+  expect(getPatternHeaders(SLIDING_CONTEST_PATTERN_ID)).toEqual([
+    "Approach",
+    "Stop",
+    "Hesitation",
+  ]);
+  expect(getPatternManeuverDescription("Approach", SLIDING_CONTEST_PATTERN_ID)).toBe(
+    "Approach"
+  );
+
+  expect(getScoringOptionsForPattern(SLIDING_CONTEST_PATTERN_ID)).toMatchObject({
+    scoreOptions: [
+      "-3",
+      "-2½",
+      "-2",
+      "-1½",
+      "-1",
+      "-½",
+      "0",
+      "+½",
+      "+1",
+      "+1½",
+      "+2",
+      "+2½",
+      "+3",
+    ],
+    penaltyOptions: ["½", "1", "2", "5", "Score 0"],
+  });
+
+  const run = recalculateRun(
+    {
+      backNumber: "700",
+      scores: ["+3", "+2½", "-1"],
+      penalties: ["1", "", ""],
+    },
+    getScoringOptionsForPattern(SLIDING_CONTEST_PATTERN_ID)
+  );
+
+  expect(run.penTotal).toBe("1");
+  expect(run.scoreTotal).toBe("73½");
+  expect(isScoredRunComplete(run, 3)).toBe(true);
 });
 
 test("uses western riding patterns and disqualification scoring", () => {
@@ -1725,6 +1773,72 @@ test("builds provisional live standings by imported class code", () => {
   expect(standings.find((group) => group.code === "NH2").entries).toMatchObject([
     { rank: 1, backNumber: "101", scoreTotal: "72" },
     { rank: 2, backNumber: "202", scoreTotal: "70½" },
+  ]);
+});
+
+test("builds complete provisional live standings by default", () => {
+  const standings = buildLiveClassStandings({
+    classItem: {
+      id: "block-complete-live",
+      name: "Open Block",
+      classCode: "OPEN",
+    },
+    blockClasses: [{ code: "OPEN", name: "Open" }],
+    setupRuns: [
+      {
+        id: "run-1",
+        draw: 1,
+        backNumber: "101",
+        rider: "Rider 1",
+        horse: "Horse 1",
+        classCodes: ["OPEN"],
+      },
+      {
+        id: "run-2",
+        draw: 2,
+        backNumber: "202",
+        rider: "Rider 2",
+        horse: "Horse 2",
+        classCodes: ["OPEN"],
+      },
+      {
+        id: "run-3",
+        draw: 3,
+        backNumber: "303",
+        rider: "Rider 3",
+        horse: "Horse 3",
+        classCodes: ["OPEN"],
+      },
+      {
+        id: "run-4",
+        draw: 4,
+        backNumber: "404",
+        rider: "Rider 4",
+        horse: "Horse 4",
+        classCodes: ["OPEN"],
+      },
+    ],
+    runs: [
+      { id: "run-1", draw: 1, scoreTotal: "72.0" },
+      { id: "run-2", draw: 2, scoreTotal: "70.5" },
+      { id: "run-3", draw: 3, scoreTotal: "71.0" },
+      { id: "run-4", draw: 4, scoreTotal: "69.0" },
+    ],
+  });
+
+  expect(standings[0].entryCount).toBe(4);
+  expect(standings[0].visibleEntries).toHaveLength(4);
+  expect(standings[0].visibleEntries.map((entry) => entry.rank)).toEqual([
+    1,
+    2,
+    3,
+    4,
+  ]);
+  expect(standings[0].visibleEntries.map((entry) => entry.backNumber)).toEqual([
+    "101",
+    "303",
+    "202",
+    "404",
   ]);
 });
 

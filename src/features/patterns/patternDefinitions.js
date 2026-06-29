@@ -19,6 +19,7 @@ export const HUNT_SEAT_EQUITATION_CUSTOM_PATTERN_ID =
   "HUNT_SEAT_EQUITATION_CUSTOM";
 export const SHOWMANSHIP_CUSTOM_PATTERN_ID = "SHOWMANSHIP_CUSTOM";
 export const NO_PATTERN_ID = "NO_PATTERN";
+export const SLIDING_CONTEST_PATTERN_ID = "SLIDING_CONTEST";
 
 export const OVERALL_FORM_EFFECTIVENESS_HEADER = "F&E";
 export const OVERALL_FORM_EFFECTIVENESS_DESCRIPTION =
@@ -545,6 +546,13 @@ const REINING_PATTERNS = Object.entries(REINING_HEADERS).map(
   })
 );
 
+const SLIDING_CONTEST_PATTERN = {
+  id: SLIDING_CONTEST_PATTERN_ID,
+  name: "Sliding contest",
+  discipline: PATTERN_DISCIPLINES.REINING,
+  maneuvers: ["Approach", "Stop", "Hesitation"],
+};
+
 const NO_PATTERN_DEFINITION = {
   id: NO_PATTERN_ID,
   name: "Sans patron",
@@ -555,6 +563,7 @@ const NO_PATTERN_DEFINITION = {
 
 const PATTERN_DEFINITIONS = [
   NO_PATTERN_DEFINITION,
+  SLIDING_CONTEST_PATTERN,
   ...REINING_PATTERNS,
   ...RANCH_RIDING_PATTERNS.map((pattern) => ({
     ...pattern,
@@ -590,7 +599,10 @@ export const PATTERN_OPTION_GROUPS = [
   },
   {
     label: "Reining",
-    options: REINING_PATTERNS.map(({ id, name }) => ({ id, name })),
+    options: [
+      { id: SLIDING_CONTEST_PATTERN.id, name: SLIDING_CONTEST_PATTERN.name },
+      ...REINING_PATTERNS.map(({ id, name }) => ({ id, name })),
+    ],
   },
   {
     label: "Ranch Riding",
@@ -638,6 +650,14 @@ export function getPatternKey(patternValue) {
     key === "NO_PATTERN"
   ) {
     return NO_PATTERN_ID;
+  }
+
+  if (
+    key === SLIDING_CONTEST_PATTERN_ID ||
+    key === "SLIDING CONTEST" ||
+    key === "SLIDE CONTEST"
+  ) {
+    return SLIDING_CONTEST_PATTERN_ID;
   }
 
   if (
@@ -730,6 +750,10 @@ export function getPatternDiscipline(patternValue, customPattern = null) {
 
 export function isNoPatternValue(patternValue) {
   return getPatternKey(patternValue) === NO_PATTERN_ID;
+}
+
+export function isSlidingContestPattern(patternValue) {
+  return getPatternKey(patternValue) === SLIDING_CONTEST_PATTERN_ID;
 }
 
 export function isRanchRidingPattern(patternValue, customPattern = null) {

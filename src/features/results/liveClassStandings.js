@@ -1,7 +1,7 @@
 import { formatTotalValue, parseScoreTotalValue } from "../../utils/scoring";
 import { normalizeBlockClasses } from "./classResults";
 
-const DEFAULT_VISIBLE_ENTRIES = 3;
+const DEFAULT_VISIBLE_ENTRIES = null;
 
 function normalizeClassCode(value) {
   return String(value || "")
@@ -70,12 +70,22 @@ export function buildLiveClassStandings({
       return {
         ...group,
         entries,
-        visibleEntries: entries.slice(0, visibleEntryCount),
+        visibleEntries: getVisibleStandingEntries(entries, visibleEntryCount),
         entryCount: entries.length,
       };
     })
     .filter((group) => group.entries.length > 0)
     .sort((a, b) => compareStandingGroups(a, b, blockClassOrder));
+}
+
+function getVisibleStandingEntries(entries, visibleEntryCount) {
+  const limit = Number.parseInt(visibleEntryCount, 10);
+
+  if (!Number.isFinite(limit) || limit <= 0) {
+    return entries;
+  }
+
+  return entries.slice(0, limit);
 }
 
 function hasClassStandingSource({ runs, setupRuns, blockClasses }) {

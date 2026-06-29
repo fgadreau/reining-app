@@ -3,6 +3,7 @@ import {
   RANCH_APPEARANCE_HEADER,
   isPerformanceCustomPattern,
   isRanchRidingPattern,
+  isSlidingContestPattern,
   isTrailPattern,
   isWesternRidingPattern,
 } from "../patterns/patternDefinitions";
@@ -44,6 +45,11 @@ const REINING_OPTIONS = {
   statusPenaltyOptions: ["No score", "Scratch", "Révision vidéo"],
 };
 
+const SLIDING_CONTEST_OPTIONS = {
+  ...REINING_OPTIONS,
+  scoreOptions: PERFORMANCE_SCORE_OPTIONS,
+};
+
 const RANCH_RIDING_OPTIONS = {
   scoreOptions: SCORE_OPTIONS,
   penaltyOptions: ["1", "3", "5"],
@@ -79,6 +85,10 @@ const PERFORMANCE_CUSTOM_OPTIONS = {
 };
 
 export function getScoringOptionsForPattern(patternValue, customPattern = null) {
+  if (isSlidingContestPattern(patternValue)) {
+    return SLIDING_CONTEST_OPTIONS;
+  }
+
   if (isPerformanceCustomPattern(patternValue, customPattern)) {
     return PERFORMANCE_CUSTOM_OPTIONS;
   }
