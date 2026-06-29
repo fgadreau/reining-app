@@ -3629,6 +3629,15 @@ test("public show view exposes a public paid warmup before the timer starts", ()
   expect(publicView.livePaidWarmup.secondNextEntry).toMatchObject({
     rider: "Alex",
   });
+  expect(
+    publicView.livePaidWarmup.entries.map((entry) => ({
+      order: entry.order,
+      rider: entry.rider,
+    }))
+  ).toEqual([
+    { order: 1, rider: "Marie" },
+    { order: 2, rider: "Alex" },
+  ]);
 });
 
 test("public show view hides draft shows even when public toggles are enabled", () => {

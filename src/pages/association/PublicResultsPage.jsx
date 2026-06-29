@@ -1582,6 +1582,15 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
           </div>
 
           <PublicNextScheduleItem item={warmup.nextScheduleItem} />
+
+          <PublicPaidWarmupOrderTable
+            entries={warmup.entries || []}
+            warmup={warmup}
+            panelId={buildAccordionPanelId(
+              "public-paid-warmup-order",
+              warmup.id || "warmup"
+            )}
+          />
         </div>
       )}
     </section>
@@ -1861,6 +1870,75 @@ function PublicLiveOrderTable({ runs, showScores, panelId }) {
   );
 }
 
+function PublicPaidWarmupOrderTable({ entries, warmup, panelId }) {
+  const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (!entries.length) {
+    return null;
+  }
+
+  function togglePanel() {
+    setIsOpen((current) => !current);
+  }
+
+  function handlePanelKeyDown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    togglePanel();
+  }
+
+  return (
+    <div style={orderPanelStyle}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        onClick={togglePanel}
+        onKeyDown={handlePanelKeyDown}
+        style={orderHeaderStyle(isOpen)}
+      >
+        <div>
+          <div style={runLabelStyle}>{t("public.results.orderOfGo")}</div>
+          <div style={mutedTextStyle}>
+            {t("public.results.participantCount", { count: entries.length })}
+          </div>
+        </div>
+        <div style={badgeStackStyle}>
+          <span style={standingCountStyle}>{entries.length}</span>
+          <span style={toggleIconStyle}>
+            {isOpen ? t("public.results.hide") : t("public.results.view")}
+          </span>
+        </div>
+      </div>
+      {isOpen && (
+        <div id={panelId} style={orderListStyle}>
+          {entries.map((entry, index) => {
+            const orderStatus = getPaidWarmupOrderStatus(entry, warmup);
+
+            return (
+              <div key={entry.id || entry.order || index} style={orderRowStyle}>
+                <div style={orderDrawStyle}>#{entry.order || index + 1}</div>
+                <div style={orderIdentityStyle}>
+                  <div style={runNameStyle}>
+                    {entry.rider || t("public.results.riderFallback")}
+                  </div>
+                </div>
+                <div style={orderRowMetaStyle}>
+                  <span style={orderStatusBadgeStyle(orderStatus)}>
+                    {getPaidWarmupOrderStatusLabel(entry, orderStatus, t)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LiveRunCard({ run, showScore = true, showDetails = true }) {
   const { t } = useTranslation();
 
@@ -2045,6 +2123,38 @@ function getPublicRunOrderStatusLabel(status, t) {
     default:
       return t("public.results.statusUpcoming");
   }
+}
+
+function getPaidWarmupOrderStatus(entry, warmup) {
+  if (warmup?.activeEntry?.id && entry.id === warmup.activeEntry.id) {
+    return "active";
+  }
+
+  if (warmup?.nextEntry?.id && entry.id === warmup.nextEntry.id) {
+    return "preparation";
+  }
+
+  if (warmup?.secondNextEntry?.id && entry.id === warmup.secondNextEntry.id) {
+    return "waiting";
+  }
+
+  if (entry.status === "done") {
+    return "passed";
+  }
+
+  if (entry.status === "no_show" || entry.status === "scratch") {
+    return entry.status;
+  }
+
+  return "upcoming";
+}
+
+function getPaidWarmupOrderStatusLabel(entry, orderStatus, t) {
+  if (["active", "preparation", "waiting", "upcoming"].includes(orderStatus)) {
+    return getPublicRunOrderStatusLabel(orderStatus, t);
+  }
+
+  return getPaidWarmupStatusLabel(entry.status, t);
 }
 
 function getScheduleDetailsSummary(details, t) {
