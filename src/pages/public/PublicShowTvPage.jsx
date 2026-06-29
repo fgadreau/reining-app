@@ -318,13 +318,17 @@ function ParticipantCard({
 
   return (
     <article style={participantCardStyle(variant, compact, isDrag)}>
-      <div style={participantLabelStyle}>
+      <div style={participantLabelStyle(variant)}>
         <BilingualText fr={labelFr} en={labelEn} />
       </div>
-      {data.meta ? <div style={participantMetaStyle}>{data.meta}</div> : null}
+      {data.meta ? (
+        <div style={participantMetaStyle(compact, variant)}>{data.meta}</div>
+      ) : null}
       <div style={participantNameStyle(compact, isDrag, variant)}>{data.fr}</div>
       {data.en ? <div style={participantSecondaryNameStyle}>{data.en}</div> : null}
-      {data.horse ? <div style={horseStyle}>{data.horse}</div> : null}
+      {data.horse ? (
+        <div style={horseStyle(compact, variant)}>{data.horse}</div>
+      ) : null}
       {data.score ? <ScoreBlock participant={data} compact={compact} /> : null}
     </article>
   );
@@ -573,6 +577,10 @@ function formatBilingualInline(fr, en) {
   return `${fr} / ${en}`;
 }
 
+function isPrimaryVariant(variant) {
+  return variant === "active";
+}
+
 function getPauseMessages(show) {
   return {
     fr:
@@ -620,8 +628,8 @@ const pageStyle = {
     '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
   display: "grid",
   gridTemplateRows: "auto minmax(0, 1fr) auto",
-  gap: 16,
-  padding: 22,
+  gap: 14,
+  padding: 18,
   boxSizing: "border-box",
 };
 
@@ -690,8 +698,8 @@ const liveGridStyle = {
   zIndex: 1,
   minHeight: 0,
   display: "grid",
-  gridTemplateColumns: "minmax(0, 1.45fr) minmax(360px, 0.75fr)",
-  gap: 16,
+  gridTemplateColumns: "minmax(0, 1.55fr) minmax(340px, 0.72fr)",
+  gap: 14,
 };
 
 const liveHeroStyle = {
@@ -699,10 +707,10 @@ const liveHeroStyle = {
   borderRadius: 8,
   border: "1px solid rgba(244, 217, 140, 0.34)",
   background: "rgba(15, 23, 42, 0.68)",
-  padding: 20,
+  padding: 18,
   display: "grid",
   gridTemplateRows: "auto auto auto minmax(0, 1fr)",
-  gap: 10,
+  gap: 8,
   overflow: "hidden",
 };
 
@@ -731,8 +739,8 @@ const sideStackStyle = {
   minWidth: 0,
   minHeight: 0,
   display: "grid",
-  gridTemplateRows: "minmax(0, 1fr) minmax(0, 0.9fr)",
-  gap: 16,
+  gridTemplateRows: "minmax(0, 1fr) minmax(0, 0.96fr)",
+  gap: 14,
 };
 
 const panelStyle = {
@@ -740,10 +748,10 @@ const panelStyle = {
   borderRadius: 8,
   border: "1px solid rgba(148, 163, 184, 0.34)",
   background: "rgba(15, 23, 42, 0.54)",
-  padding: 14,
+  padding: 12,
   display: "grid",
   gridTemplateRows: "auto minmax(0, 1fr) minmax(0, 1fr)",
-  gap: 10,
+  gap: 8,
   overflow: "hidden",
 };
 
@@ -754,9 +762,12 @@ const lastPanelStyle = {
 
 const panelTitleStyle = {
   color: "#f4d98c",
-  fontSize: 18,
+  fontSize: "clamp(15px, 1.05vw, 18px)",
   fontWeight: 950,
   textTransform: "uppercase",
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
 };
 
 const previousGridStyle = {
@@ -784,46 +795,62 @@ const participantCardStyle = (variant, compact, isDrag) => {
     background: isDrag
       ? "rgba(67, 56, 202, 0.42)"
       : "rgba(255, 255, 255, 0.08)",
-    padding: compact ? 14 : 18,
+    padding: compact ? 12 : isPrimaryVariant(variant) ? 18 : 14,
     display: "grid",
     alignContent: "start",
-    gap: compact ? 5 : 8,
+    gap: compact ? 4 : isPrimaryVariant(variant) ? 10 : 6,
     boxShadow: `inset 4px 0 0 ${accent}`,
     overflow: "hidden",
   };
 };
 
-const participantLabelStyle = {
+const participantLabelStyle = (variant) => ({
   color: "#cbd5e1",
-  fontSize: 14,
+  fontSize: isPrimaryVariant(variant)
+    ? "clamp(20px, 1.8vw, 32px)"
+    : "clamp(12px, 0.8vw, 14px)",
   fontWeight: 950,
   textTransform: "uppercase",
-};
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+});
 
-const participantMetaStyle = {
+const participantMetaStyle = (compact, variant) => ({
   color: "#f4d98c",
-  fontSize: "clamp(18px, 1.7vw, 26px)",
+  fontSize: compact
+    ? "clamp(17px, 1.25vw, 22px)"
+    : isPrimaryVariant(variant)
+      ? "clamp(34px, 3.2vw, 58px)"
+      : "clamp(17px, 1.35vw, 23px)",
   fontWeight: 950,
-};
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+});
 
 const participantNameStyle = (compact, isDrag, variant) => {
   const isPrimary = variant === "active";
   const fontSize = isDrag
     ? isPrimary
       ? "clamp(42px, 4.5vw, 74px)"
-      : "clamp(30px, 3.4vw, 54px)"
+      : "clamp(27px, 2.6vw, 42px)"
     : compact
-      ? "clamp(22px, 1.85vw, 32px)"
+      ? "clamp(20px, 1.55vw, 28px)"
       : isPrimary
-        ? "clamp(44px, 5vw, 82px)"
-        : "clamp(28px, 3.1vw, 50px)";
+        ? "clamp(36px, 4vw, 66px)"
+        : "clamp(25px, 2.35vw, 38px)";
 
   return {
     color: "#ffffff",
     fontSize,
-    lineHeight: 1,
+    lineHeight: 1.02,
     fontWeight: 950,
     overflowWrap: "anywhere",
+    display: "-webkit-box",
+    WebkitLineClamp: compact ? 2 : isPrimary ? 3 : 2,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
   };
 };
 
@@ -833,11 +860,20 @@ const participantSecondaryNameStyle = {
   fontWeight: 800,
 };
 
-const horseStyle = {
+const horseStyle = (compact, variant) => ({
   color: "#e2e8f0",
-  fontSize: "clamp(18px, 1.75vw, 30px)",
+  fontSize: compact
+    ? "clamp(17px, 1.3vw, 24px)"
+    : isPrimaryVariant(variant)
+      ? "clamp(16px, 1.45vw, 24px)"
+      : "clamp(17px, 1.35vw, 22px)",
+  lineHeight: 1.08,
   fontWeight: 800,
-};
+  display: "-webkit-box",
+  WebkitLineClamp: compact ? 3 : isPrimaryVariant(variant) ? 2 : 2,
+  WebkitBoxOrient: "vertical",
+  overflow: "hidden",
+});
 
 const scoreWrapStyle = (compact) => ({
   marginTop: compact ? 4 : 10,
@@ -847,13 +883,14 @@ const scoreWrapStyle = (compact) => ({
 
 const scorePillStyle = {
   justifySelf: "start",
-  padding: "8px 12px",
+  padding: "6px 10px",
   borderRadius: 8,
   background: "rgba(34, 197, 94, 0.16)",
   border: "1px solid rgba(34, 197, 94, 0.5)",
   color: "#bbf7d0",
-  fontSize: "clamp(18px, 1.7vw, 30px)",
+  fontSize: "clamp(17px, 1.25vw, 24px)",
   fontWeight: 950,
+  whiteSpace: "nowrap",
 };
 
 const judgeScoresStyle = {
@@ -943,7 +980,7 @@ const welcomeNoticeStyle = {
 const sponsorRailStyle = {
   position: "relative",
   zIndex: 1,
-  minHeight: 118,
+  minHeight: 104,
   borderRadius: 8,
   border: "1px solid rgba(244, 217, 140, 0.3)",
   background: "rgba(15, 23, 42, 0.58)",

@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ShowScore - Fiche rapide pour scribe</title>
+    <style>
+      @page {
+        size: letter;
+        margin: 0.42in;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: #111827;
+        background: #ffffff;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        font-size: 10.8px;
+        line-height: 1.32;
+      }
+
+      .page {
+        max-width: 8.1in;
+        margin: 0 auto;
+      }
+
+      header {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 16px;
+        align-items: start;
+        padding-bottom: 10px;
+        border-bottom: 3px solid #111827;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 28px;
+        line-height: 1;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        margin-top: 5px;
+        color: #4b5563;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .badge {
+        border: 2px solid #111827;
+        padding: 6px 9px;
+        text-align: center;
+        font-weight: 900;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 9px;
+        margin-top: 10px;
+      }
+
+      section {
+        border: 1.5px solid #d1d5db;
+        border-radius: 8px;
+        padding: 9px 10px;
+        break-inside: avoid;
+      }
+
+      section.wide {
+        grid-column: 1 / -1;
+      }
+
+      h2 {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin: 0 0 6px;
+        color: #0f172a;
+        font-size: 13px;
+        line-height: 1.1;
+        letter-spacing: 0;
+      }
+
+      .num {
+        display: inline-grid;
+        width: 22px;
+        height: 22px;
+        place-items: center;
+        border-radius: 999px;
+        background: #111827;
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      li {
+        margin: 3px 0;
+      }
+
+      strong {
+        font-weight: 900;
+      }
+
+      .callout {
+        margin-top: 8px;
+        padding: 8px 9px;
+        border-left: 5px solid #f59e0b;
+        background: #fffbeb;
+        font-weight: 800;
+      }
+
+      .danger {
+        border-left-color: #dc2626;
+        background: #fef2f2;
+      }
+
+      .ok {
+        border-left-color: #16a34a;
+        background: #f0fdf4;
+      }
+
+      .checklist {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        margin-top: 7px;
+      }
+
+      .check {
+        min-height: 34px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        padding: 5px 6px;
+        font-weight: 800;
+      }
+
+      .small {
+        color: #4b5563;
+        font-size: 9.5px;
+        font-weight: 700;
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 5px;
+      }
+
+      .step {
+        min-height: 48px;
+        border: 1px solid #cbd5e1;
+        border-radius: 7px;
+        padding: 6px;
+        background: #f8fafc;
+        font-weight: 800;
+      }
+
+      .step span {
+        display: block;
+        margin-top: 3px;
+        color: #475569;
+        font-size: 9.5px;
+        font-weight: 700;
+      }
+
+      footer {
+        margin-top: 9px;
+        padding-top: 7px;
+        border-top: 1px solid #d1d5db;
+        color: #6b7280;
+        font-size: 9.5px;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <div>
+          <h1>ShowScore - Fiche rapide pour scribe</h1>
+          <div class="subtitle">
+            Objectif: entrer les scores sans perdre le rythme, garder la sync,
+            et signaler vite les exceptions.
+          </div>
+        </div>
+        <div class="badge">À garder<br />près du iPad</div>
+      </header>
+
+      <div class="grid">
+        <section>
+          <h2><span class="num">1</span> Avant le premier cheval</h2>
+          <ul>
+            <li>Brancher le iPad ou vérifier la batterie.</li>
+            <li>Ouvrir le bon <strong>show</strong>, la bonne journée et le bon <strong>bloc</strong>.</li>
+            <li>Vérifier le <strong>patron</strong>, le juge, le draw et les back numbers.</li>
+            <li>Garder l’onglet ouvert pendant la classe.</li>
+            <li>Si le statut indique <strong>sync en attente</strong>, avertir le responsable.</li>
+          </ul>
+          <div class="callout ok">
+            Bon réflexe: confirmer le nom du bloc avec l’annonceur avant de commencer.
+          </div>
+        </section>
+
+        <section>
+          <h2><span class="num">2</span> Pendant chaque run</h2>
+          <ul>
+            <li>Toucher la cellule de la manoeuvre à scorer.</li>
+            <li>Entrer le score de manoeuvre demandé par le juge.</li>
+            <li>Ajouter chaque pénalité séparément. Elles s’affichent avec des virgules.</li>
+            <li><strong>Effacer pénalité</strong> enlève seulement la dernière pénalité entrée.</li>
+            <li>Utiliser <strong>pénalité manuelle</strong> pour une valeur cumulative, par exemple 12.</li>
+          </ul>
+          <div class="callout">
+            Si le juge hésite, attendre. Mieux vaut une cellule vide qu’un mauvais score.
+          </div>
+        </section>
+
+        <section class="wide">
+          <h2><span class="num">3</span> Flux normal d’une run</h2>
+          <div class="flow">
+            <div class="step">1. Sélectionner<span>le cavalier / manoeuvre</span></div>
+            <div class="step">2. Entrer score<span>demi-points acceptés</span></div>
+            <div class="step">3. Ajouter pénalités<span>si le juge en donne</span></div>
+            <div class="step">4. Vérifier total<span>score et pénalité</span></div>
+            <div class="step">5. Passer au suivant<span>quand le juge confirme</span></div>
+          </div>
+        </section>
+
+        <section>
+          <h2><span class="num">4</span> Cas spéciaux</h2>
+          <ul>
+            <li><strong>Révision vidéo</strong>: cocher ce statut. Le score devient Review.</li>
+            <li>Une run en révision vidéo n’est pas finale. Revenir la compléter après décision.</li>
+            <li><strong>Scratch</strong> ou <strong>No score</strong>: utiliser les boutons de statut, pas une note libre.</li>
+            <li><strong>Score 0</strong>: utiliser le bouton prévu quand la règle s’applique.</li>
+          </ul>
+          <div class="callout danger">
+            Ne pas finaliser le bloc tant qu’une run est encore en Review.
+          </div>
+        </section>
+
+        <section>
+          <h2><span class="num">5</span> Drags de surface</h2>
+          <ul>
+            <li>La ligne de drag apparaît dans la feuille au bon endroit.</li>
+            <li>Cliquer <strong>Démarrer drag</strong> quand la pause commence réellement.</li>
+            <li>Cliquer <strong>Terminer drag</strong> quand l’aréna est prêt à repartir.</li>
+            <li>Les révisions vidéo peuvent être réglées pendant le drag.</li>
+          </ul>
+          <div class="callout">
+            Le drag est visible au live seulement quand il est démarré.
+          </div>
+        </section>
+
+        <section>
+          <h2><span class="num">6</span> Sync et sécurité</h2>
+          <ul>
+            <li><strong>Synchronisé</strong>: tout est envoyé au serveur.</li>
+            <li><strong>Sync en attente</strong>: continuer, mais garder la page ouverte.</li>
+            <li><strong>Mode local</strong>: avertir le responsable immédiatement.</li>
+            <li>Ne pas fermer Safari/Chrome avant le retour à Synchronisé.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2><span class="num">7</span> Si quelque chose cloche</h2>
+          <ul>
+            <li>Ne pas paniquer et ne pas fermer l’onglet.</li>
+            <li>Prendre une photo papier du score si nécessaire.</li>
+            <li>Dire au responsable: bloc, draw, cavalier, problème exact.</li>
+            <li>Si le draw change, attendre la confirmation avant de recharger.</li>
+          </ul>
+        </section>
+
+        <section class="wide">
+          <h2><span class="num">8</span> Fin du bloc</h2>
+          <div class="checklist">
+            <div class="check">Tous les scores entrés<div class="small">aucune manoeuvre oubliée</div></div>
+            <div class="check">Aucune Review ouverte<div class="small">vidéo réglée</div></div>
+            <div class="check">Sync verte<div class="small">ne pas signer si en attente</div></div>
+            <div class="check">Juge a vérifié<div class="small">totaux et statuts</div></div>
+            <div class="check">Signature / finalisation<div class="small">seulement après accord</div></div>
+            <div class="check">Informer secrétariat<div class="small">bloc prêt</div></div>
+          </div>
+        </section>
+      </div>
+
+      <footer>
+        ShowScore - fiche scribe, version 2026-06-29. Cette fiche aide le flux de
+        travail; les règles officielles et la décision du juge priment toujours.
+      </footer>
+    </main>
+  </body>
+</html>
