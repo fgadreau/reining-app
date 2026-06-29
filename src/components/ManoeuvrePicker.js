@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "../features/i18n/I18nProvider";
 import { formatScoreValue, parseScoreValue } from "../utils/scoring";
 
@@ -44,6 +45,20 @@ function ManoeuvrePicker({
     setIsManualPenaltyOpen(false);
     setManualPenaltyValue("");
   }, [run.draw, manoeuvreIndex]);
+
+  useEffect(() => {
+    if (!isManualPenaltyOpen) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setIsManualPenaltyOpen(false);
+        setManualPenaltyValue("");
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isManualPenaltyOpen]);
 
   if (
     !activeManoeuvre ||
@@ -97,70 +112,60 @@ function ManoeuvrePicker({
   const clearManualPenaltyValue = () => {
     setManualPenaltyValue("");
   };
+  const openManualPenaltyModal = () => {
+    setManualPenaltyValue("");
+    setIsManualPenaltyOpen(true);
+  };
+  const closeManualPenaltyModal = () => {
+    setIsManualPenaltyOpen(false);
+    setManualPenaltyValue("");
+  };
   const addManualPenalty = () => {
     if (!canAddManualPenalty) return;
 
     addPenaltyToken(run.draw, manoeuvreIndex, String(manualPenaltyNumber));
-    setManualPenaltyValue("");
+    closeManualPenaltyModal();
   };
-
-  if (position === "top" && penaltyDisabled) {
-    return null;
-  }
-
-  if (position === "top") {
-    return (
-      <tr>
-        <td colSpan={getColSpan()} style={styles.inlinePickerCellTop}>
-          <div style={styles.inlinePickerBox}>
-            <div style={styles.inlineHeader}>
-              <strong>
-                {t("management.scoring.penalties")} —{" "}
-                {t("management.announcer.draw")} {run.draw} — {manoeuvreName}
-              </strong>
-            </div>
-
-            <div style={styles.optionGrid}>
-              {penaltyOptions.map((option) => (
+  const manualPenaltyModal =
+    isManualPenaltyOpen && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            style={styles.manualPenaltyModalBackdrop}
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                closeManualPenaltyModal();
+              }
+            }}
+          >
+            <div
+              style={styles.manualPenaltyModal}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="manual-penalty-title"
+            >
+              <div style={styles.manualPenaltyModalHeader}>
+                <div>
+                  <h2
+                    id="manual-penalty-title"
+                    style={styles.manualPenaltyModalTitle}
+                  >
+                    {t("management.scoring.manualPenalty")}
+                  </h2>
+                  <div style={styles.manualPenaltyModalSubtitle}>
+                    {t("management.announcer.draw")} {run.draw} —{" "}
+                    {manoeuvreName}
+                  </div>
+                </div>
                 <button
                   type="button"
-                  key={`pen-${run.id || run.draw}-${manoeuvreIndex}-${option}`}
-                  style={styles.optionButton}
-                  onClick={() => addPenaltyToken(run.draw, manoeuvreIndex, option)}
+                  style={styles.closeButton}
+                  onClick={closeManualPenaltyModal}
                 >
-                  {option}
+                  {t("management.announcer.close")}
                 </button>
-              ))}
+              </div>
 
-              <button
-                type="button"
-                style={{
-                  ...styles.optionButton,
-                  ...(isManualPenaltyOpen ? styles.optionButtonSelected : {}),
-                }}
-                onClick={() => setIsManualPenaltyOpen((current) => !current)}
-              >
-                {t("management.scoring.manualPenalty")}
-              </button>
-
-              <button
-                type="button"
-                style={styles.clearButton}
-                onClick={() => clearPenaltyCell(run.draw, manoeuvreIndex)}
-              >
-                {t("management.scoring.clearManeuverPenalty")}
-              </button>
-
-              <button
-                type="button"
-                style={styles.runNotePickerButton}
-                onClick={openRunNote}
-              >
-                {runNoteButtonLabel}
-              </button>
-            </div>
-
-            {isManualPenaltyOpen && (
               <div style={styles.manualPenaltyPanel}>
                 <div style={styles.manualPenaltyDisplay}>
                   {manualPenaltyValue || "0"}
@@ -204,29 +209,94 @@ function ManoeuvrePicker({
                   </button>
                 </div>
               </div>
-            )}
-
-            <div style={styles.statusToggleWrap}>
-              {statusOptions.map((option) => (
-                <label
-                  key={`status-${run.id || run.draw}-${manoeuvreIndex}-${option}`}
-                  style={styles.statusCheckboxLabel}
-                >
-                  <input
-                    type="checkbox"
-                    checked={activePenaltyValue.includes(option)}
-                    onChange={() =>
-                      toggleSpecialPenalty(run.draw, manoeuvreIndex, option)
-                    }
-                    style={styles.statusCheckboxInput}
-                  />
-                  {option}
-                </label>
-              ))}
             </div>
-          </div>
-        </td>
-      </tr>
+          </div>,
+          document.body
+        )
+      : null;
+
+  if (position === "top" && penaltyDisabled) {
+    return null;
+  }
+
+  if (position === "top") {
+    return (
+      <>
+        <tr>
+          <td colSpan={getColSpan()} style={styles.inlinePickerCellTop}>
+            <div style={styles.inlinePickerBox}>
+              <div style={styles.inlineHeader}>
+                <strong>
+                  {t("management.scoring.penalties")} —{" "}
+                  {t("management.announcer.draw")} {run.draw} — {manoeuvreName}
+                </strong>
+              </div>
+
+              <div style={styles.optionGrid}>
+                {penaltyOptions.map((option) => (
+                  <button
+                    type="button"
+                    key={`pen-${run.id || run.draw}-${manoeuvreIndex}-${option}`}
+                    style={styles.optionButton}
+                    onClick={() =>
+                      addPenaltyToken(run.draw, manoeuvreIndex, option)
+                    }
+                  >
+                    {option}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  style={{
+                    ...styles.optionButton,
+                    ...(isManualPenaltyOpen ? styles.optionButtonSelected : {}),
+                  }}
+                  onClick={openManualPenaltyModal}
+                >
+                  {t("management.scoring.manualPenalty")}
+                </button>
+
+                <button
+                  type="button"
+                  style={styles.clearButton}
+                  onClick={() => clearPenaltyCell(run.draw, manoeuvreIndex)}
+                >
+                  {t("management.scoring.clearManeuverPenalty")}
+                </button>
+
+                <button
+                  type="button"
+                  style={styles.runNotePickerButton}
+                  onClick={openRunNote}
+                >
+                  {runNoteButtonLabel}
+                </button>
+              </div>
+
+              <div style={styles.statusToggleWrap}>
+                {statusOptions.map((option) => (
+                  <label
+                    key={`status-${run.id || run.draw}-${manoeuvreIndex}-${option}`}
+                    style={styles.statusCheckboxLabel}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={activePenaltyValue.includes(option)}
+                      onChange={() =>
+                        toggleSpecialPenalty(run.draw, manoeuvreIndex, option)
+                      }
+                      style={styles.statusCheckboxInput}
+                    />
+                    {option}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </td>
+        </tr>
+        {manualPenaltyModal}
+      </>
     );
   }
 

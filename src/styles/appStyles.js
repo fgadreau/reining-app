@@ -389,15 +389,55 @@ export const appStyles = {
     cursor: "pointer",
   },
 
-  manualPenaltyPanel: {
-    marginTop: "14px",
-    padding: "12px",
-    border: "1px solid #cbd5e1",
+  manualPenaltyModalBackdrop: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 1000,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "16px",
+    backgroundColor: "rgba(15, 23, 42, 0.5)",
+  },
+
+  manualPenaltyModal: {
+    width: "min(420px, 100%)",
+    maxHeight: "calc(100vh - 32px)",
+    overflowY: "auto",
     borderRadius: "12px",
-    backgroundColor: "#f8fafc",
+    border: "1px solid #cbd5e1",
+    backgroundColor: "#ffffff",
+    boxShadow: "0 24px 60px rgba(15, 23, 42, 0.24)",
+  },
+
+  manualPenaltyModalHeader: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: "12px",
+    padding: "14px",
+    borderBottom: "1px solid #e2e8f0",
+  },
+
+  manualPenaltyModalTitle: {
+    margin: 0,
+    fontSize: "18px",
+    fontWeight: "900",
+    color: "#0f172a",
+  },
+
+  manualPenaltyModalSubtitle: {
+    marginTop: "4px",
+    fontSize: "13px",
+    fontWeight: "700",
+    color: "#475569",
+  },
+
+  manualPenaltyPanel: {
+    margin: 0,
+    padding: "12px",
     display: "grid",
     gap: "10px",
-    maxWidth: "360px",
   },
 
   manualPenaltyDisplay: {
