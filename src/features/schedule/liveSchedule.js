@@ -29,6 +29,10 @@ export function isPaidWarmupScheduleComplete(warmup) {
   );
 }
 
+export function isPaidWarmupScheduleLiveEligible(warmup) {
+  return Boolean(warmup?.isPublicLive) && !isPaidWarmupScheduleComplete(warmup);
+}
+
 export function buildLiveScheduleItems({
   classes = [],
   paidWarmups = [],
@@ -101,7 +105,7 @@ export function findFirstPendingPaidWarmupBeforeItem(
         (item) =>
           item.type === LIVE_SCHEDULE_ITEM_TYPES.PAID_WARMUP &&
           isSameScheduleArena(item.effectiveArena, targetItem.effectiveArena) &&
-          !isPaidWarmupScheduleComplete(item.source)
+          isPaidWarmupScheduleLiveEligible(item.source)
       ) || null
   );
 }

@@ -35,6 +35,7 @@ import {
   findNextScheduleItemInArena,
   findScheduleItem,
   getScheduleArenaKey,
+  isPaidWarmupScheduleLiveEligible,
   toPublicScheduleItem,
 } from "../schedule/liveSchedule";
 import {
@@ -317,7 +318,7 @@ export function getPublicShowView(showId) {
     const resultClasses = [];
     const paidWarmups = getPaidWarmupsByDayId(day.id);
     paidWarmups
-      .filter((warmup) => warmup.isPublicLive)
+      .filter(isPaidWarmupScheduleLiveEligible)
       .forEach((warmup) => {
         livePaidWarmups.push(buildPaidWarmupLiveView(warmup));
       });
@@ -418,7 +419,7 @@ export async function getPublicShowViewRepository(showId) {
     (await getDaysByShowRepository(showId)).map(async (day) => {
       const paidWarmups = getPaidWarmupsByDayId(day.id);
       const livePaidWarmups = paidWarmups
-        .filter((warmup) => warmup.isPublicLive)
+        .filter(isPaidWarmupScheduleLiveEligible)
         .map((warmup) => buildPaidWarmupLiveView(warmup));
       const classes = getClassesForDay(day.id);
       const resultPublicationsByClassId =
@@ -663,7 +664,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
 
         const paidWarmups = (paidWarmupResult.data || []).map(toPaidWarmup);
         const livePaidWarmups = paidWarmups
-          .filter((warmup) => warmup.isPublicLive)
+          .filter(isPaidWarmupScheduleLiveEligible)
           .map((warmup) => buildPaidWarmupLiveView(warmup));
 
         const classes = Array.isArray(classResult.data)

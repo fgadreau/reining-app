@@ -345,14 +345,38 @@ async function upsertPaidWarmupRow(supabase, id, row) {
 }
 
 export async function deletePaidWarmupRepository(id) {
+  const localWarmup = getPaidWarmupById(id);
   const supabase = getSupabaseClient();
 
   if (supabase) {
     try {
-      const { error } = await supabase.from("show_score_paid_warmups").delete().eq("id", id);
+      const { error: liveUpdateError } = await supabase
+        .from("show_score_paid_warmups")
+        .update({
+          is_public_live: false,
+          active_entry_id: null,
+          active_started_at: null,
+        })
+        .eq("id", id);
+
+      if (liveUpdateError) throw liveUpdateError;
+
+      const { data, error } = await supabase
+        .from("show_score_paid_warmups")
+        .delete()
+        .eq("id", id)
+        .select("id");
+
       if (error) throw error;
+
+      if (localWarmup && Array.isArray(data) && data.length === 0) {
+        throw new Error(
+          "Le paid warmup n'a pas été supprimé dans Supabase. Recharge et réessaie, ou vérifie les permissions."
+        );
+      }
     } catch (error) {
       console.error("Erreur suppression paid warmup Supabase:", error);
+      throw error;
     }
   }
 

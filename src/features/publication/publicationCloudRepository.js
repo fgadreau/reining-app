@@ -293,6 +293,9 @@ async function getRemoteShowLiveSchedule(supabase, showId) {
           dayId: row.show_day_id,
           name: row.name || "",
           arena: row.arena || "",
+          isPublicLive: Boolean(row.is_public_live),
+          activeEntryId: row.active_entry_id || null,
+          activeStartedAt: row.active_started_at || null,
           entries: Array.isArray(row.entries) ? row.entries : [],
           sortOrder: row.sort_order || 1,
         }))

@@ -424,9 +424,14 @@ function DayClassesPage() {
     if (!confirmed) return;
 
     setIsSaving(true);
-    await deletePaidWarmupRepository(id);
-    setPaidWarmups((current) => current.filter((item) => item.id !== id));
-    setIsSaving(false);
+    try {
+      await deletePaidWarmupRepository(id);
+      setPaidWarmups((current) => current.filter((item) => item.id !== id));
+    } catch (error) {
+      alert(error?.message || t("management.classes.deletePaidWarmupFailed"));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const scheduleItems = useMemo(() => {

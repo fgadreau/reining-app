@@ -139,6 +139,7 @@ function AnnouncerDashboardPage() {
   const [now, setNow] = useState(() => new Date());
   const [rankingClass, setRankingClass] = useState(null);
   const [isPaidWarmupAudioReady, setIsPaidWarmupAudioReady] = useState(false);
+  const [paidWarmupUndoSnapshots, setPaidWarmupUndoSnapshots] = useState({});
   const autoCompletedPaidWarmupKeyRef = useRef(null);
   const paidWarmupAudioCueKeysRef = useRef(new Set());
   const liveClassIdsKey = useMemo(
@@ -202,22 +203,52 @@ function AnnouncerDashboardPage() {
     await refreshLiveViewNow();
   }, [refreshLiveViewNow, showId]);
 
+  const rememberPaidWarmupUndo = useCallback((warmup) => {
+    if (!warmup?.id) return;
+
+    setPaidWarmupUndoSnapshots((current) => ({
+      ...current,
+      [warmup.id]: {
+        ...warmup,
+        entries: Array.isArray(warmup.entries)
+          ? warmup.entries.map((entry) => ({ ...entry }))
+          : [],
+      },
+    }));
+  }, []);
+
   const handleStartPaidWarmupEntry = (warmup, entryId) => {
     setIsPaidWarmupAudioReady(primePaidWarmupCueAudio());
+    rememberPaidWarmupUndo(warmup);
     return savePaidWarmupUpdate(startPaidWarmupEntry(warmup, entryId, new Date()));
   };
 
   const handleResetPaidWarmupTimer = (warmup) => {
     setIsPaidWarmupAudioReady(primePaidWarmupCueAudio());
+    rememberPaidWarmupUndo(warmup);
     return savePaidWarmupUpdate(resetPaidWarmupTimer(warmup, new Date()));
   };
 
   const handleStopPaidWarmupTimer = (warmup) => {
+    rememberPaidWarmupUndo(warmup);
     return savePaidWarmupUpdate(stopPaidWarmupTimer(warmup));
   };
 
   const handleSetPaidWarmupEntryStatus = (warmup, entryId, status) => {
+    rememberPaidWarmupUndo(warmup);
     return savePaidWarmupUpdate(setPaidWarmupEntryStatus(warmup, entryId, status));
+  };
+
+  const handleUndoPaidWarmupAction = async (warmup) => {
+    const snapshot = paidWarmupUndoSnapshots[warmup?.id];
+    if (!snapshot) return;
+
+    await savePaidWarmupUpdate(snapshot);
+    setPaidWarmupUndoSnapshots((current) => {
+      const next = { ...current };
+      delete next[warmup.id];
+      return next;
+    });
   };
 
   const handleEnablePaidWarmupAudio = () => {
@@ -429,6 +460,8 @@ function AnnouncerDashboardPage() {
                   onResetTimer={handleResetPaidWarmupTimer}
                   onStopTimer={handleStopPaidWarmupTimer}
                   onSetEntryStatus={handleSetPaidWarmupEntryStatus}
+                  onUndoAction={handleUndoPaidWarmupAction}
+                  canUndo={Boolean(paidWarmupUndoSnapshots[item.warmup.id])}
                 />
               ) : (
                 <ClassLiveCard
@@ -488,6 +521,8 @@ function AnnouncerDashboardPage() {
                     onResetTimer={handleResetPaidWarmupTimer}
                     onStopTimer={handleStopPaidWarmupTimer}
                     onSetEntryStatus={handleSetPaidWarmupEntryStatus}
+                    onUndoAction={handleUndoPaidWarmupAction}
+                    canUndo={Boolean(paidWarmupUndoSnapshots[warmup.id])}
                   />
                 ))}
               </div>
@@ -855,6 +890,8 @@ function PaidWarmupLiveCard({
   onResetTimer,
   onStopTimer,
   onSetEntryStatus,
+  onUndoAction,
+  canUndo = false,
 }) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
@@ -1032,6 +1069,16 @@ function PaidWarmupLiveCard({
                   {t("management.announcer.scratchNext")}
                 </button>
               </>
+            )}
+
+            {canUndo && (
+              <button
+                type="button"
+                onClick={() => onUndoAction(warmup)}
+                style={secondaryButtonStyle}
+              >
+                {t("management.announcer.undoWarmupAction")}
+              </button>
             )}
           </div>
         </>

@@ -16,6 +16,11 @@ import {
   getRunIntegrationMetadata,
 } from "../../features/classes/classSetupStorage";
 import {
+  buildUniqueRunIdentityIndex,
+  findRunIdentityMatch,
+  getRunUsageKey,
+} from "../../features/classes/runIdentity";
+import {
   finalizeClassWithJudge,
   saveFinalPdfFileName,
 } from "../../features/classes/classFinalizationService";
@@ -40,6 +45,9 @@ import {
   buildSetupRunScoringPenalties,
 } from "../../features/scoring/setupRunScoring";
 import { buildProvisionalRanking } from "../../features/scoring/provisionalRanking";
+import {
+  buildScoringDataLossWarning,
+} from "../../features/scoring/scoringDataIntegrity";
 import {
   isScoredRunComplete,
   recalculateRun,
@@ -182,10 +190,31 @@ function mergeScoringRuns(
     );
   }
 
-  const savedById = new Map(savedRuns.map((run) => [run.id, run]));
+  const savedById = new Map();
+  const savedIdentityIndex = buildUniqueRunIdentityIndex(savedRuns, {
+    includeDraw: true,
+  });
+  const usedSavedKeys = new Set();
+
+  savedRuns.forEach((run, runIndex) => {
+    if (run?.id) {
+      savedById.set(run.id, { run, runIndex });
+    }
+  });
 
   return baseRuns.map((baseRun) => {
-    const saved = savedById.get(baseRun.id);
+    let savedEntry = savedById.get(baseRun.id);
+
+    if (!savedEntry) {
+      savedEntry = findRunIdentityMatch(
+        baseRun,
+        savedIdentityIndex,
+        usedSavedKeys,
+        { includeDraw: true }
+      );
+    }
+
+    const saved = savedEntry?.run;
 
     if (!saved) {
       return recalculateRun(
@@ -193,6 +222,8 @@ function mergeScoringRuns(
         scoringCalculationOptions
       );
     }
+
+    usedSavedKeys.add(getRunUsageKey(saved, savedEntry.runIndex));
 
     return recalculateRun(
       normalizeRunArrays(
@@ -390,10 +421,12 @@ function ClassScoringPage() {
     loadRunsForClass(classId, maneuverCount, scoringCalculationOptions)
   );
   const lastPersistedRunsRef = useRef(JSON.stringify(runs));
+  const lastLoadedScoringRunsRef = useRef([]);
   const [activeManoeuvre, setActiveManoeuvre] = useState(() =>
     isCompleted ? null : loadActiveManoeuvre(classId)
   );
   const [hasLoadedSession, setHasLoadedSession] = useState(false);
+  const [scoringDataLossWarning, setScoringDataLossWarning] = useState(null);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [scoringSyncStatus, setScoringSyncStatus] = useState(() =>
     getScoringRunsSyncStatus(classId)
@@ -449,11 +482,18 @@ function ClassScoringPage() {
         nextManeuverCount,
         nextScoringCalculationOptions
       );
+      const loadedScoringRuns = nextIsMultiJudgeMode
+        ? []
+        : nextData?.scoringRuns || [];
       const nextRuns = mergeScoringRuns(
         baseRuns,
-        nextIsMultiJudgeMode ? [] : nextData?.scoringRuns || [],
+        loadedScoringRuns,
         nextManeuverCount,
         nextScoringCalculationOptions
+      );
+      const nextScoringDataLossWarning = buildScoringDataLossWarning(
+        loadedScoringRuns,
+        nextRuns
       );
       const nextActiveManoeuvre = loadActiveManoeuvre(classId);
       const nextIsCompleted = Boolean(
@@ -475,6 +515,8 @@ function ClassScoringPage() {
       });
       setRuns(nextRuns);
       lastPersistedRunsRef.current = JSON.stringify(nextRuns);
+      lastLoadedScoringRunsRef.current = loadedScoringRuns;
+      setScoringDataLossWarning(nextScoringDataLossWarning);
       setActiveManoeuvre(
         nextIsCompleted || nextIsMultiJudgeMode ? null : nextActiveManoeuvre
       );
@@ -543,6 +585,8 @@ function ClassScoringPage() {
       setActiveManoeuvre(null);
       setJudgeName("");
       setJudgeSignature(null);
+      lastLoadedScoringRunsRef.current = [];
+      setScoringDataLossWarning(null);
       setHasLoadedSession(true);
       return undefined;
     }
@@ -590,9 +634,15 @@ function ClassScoringPage() {
         maneuverCount,
         scoringCalculationOptions
       );
+      const nextScoringDataLossWarning = buildScoringDataLossWarning(
+        session?.runs || [],
+        nextRuns
+      );
 
       setRuns(nextRuns);
       lastPersistedRunsRef.current = JSON.stringify(nextRuns);
+      lastLoadedScoringRunsRef.current = session?.runs || [];
+      setScoringDataLossWarning(nextScoringDataLossWarning);
       setActiveManoeuvre(session?.activeManoeuvre || null);
       setJudgeName(session?.judgeName || activeJudgeName);
       setJudgeSignature(session?.judgeSignature || null);
@@ -699,6 +749,15 @@ function ClassScoringPage() {
   useEffect(() => {
     if (!hasLoadedSession) return;
     const serializedRuns = JSON.stringify(runs);
+    const nextScoringDataLossWarning = buildScoringDataLossWarning(
+      lastLoadedScoringRunsRef.current,
+      runs
+    );
+
+    if (nextScoringDataLossWarning?.severity === "blocked") {
+      setScoringDataLossWarning(nextScoringDataLossWarning);
+      return;
+    }
 
     if (lastPersistedRunsRef.current === serializedRuns) {
       updateScoringSyncStatus(
@@ -710,6 +769,7 @@ function ClassScoringPage() {
     }
 
     lastPersistedRunsRef.current = serializedRuns;
+    setScoringDataLossWarning(nextScoringDataLossWarning);
 
     if (isMultiJudgeMode) {
       if (judgeClaimState.status !== "claimed" || !activeJudge?.id) {
@@ -862,12 +922,19 @@ function ClassScoringPage() {
 
   useEffect(() => {
     if (!hasLoadedSession) return;
+    if (scoringDataLossWarning?.severity === "blocked") return;
     if (isMultiJudgeMode) {
       return;
     }
 
     saveActiveManoeuvreRepository(classId, activeManoeuvre);
-  }, [activeManoeuvre, classId, isMultiJudgeMode, hasLoadedSession]);
+  }, [
+    activeManoeuvre,
+    classId,
+    isMultiJudgeMode,
+    hasLoadedSession,
+    scoringDataLossWarning?.severity,
+  ]);
 
   useEffect(() => {
     setJudgeName(assignedJudgeName);
@@ -919,11 +986,15 @@ function ClassScoringPage() {
     ]
   );
   const hasBlockingScoringSync = isScoringSyncBlockingStatus(scoringSyncStatus);
+  const hasBlockedScoringDataLoss =
+    scoringDataLossWarning?.severity === "blocked";
   const canUseActiveJudgeSession =
     !isMultiJudgeMode || judgeClaimState.status === "claimed";
-  const canEditScores = !isCompleted && canUseActiveJudgeSession;
+  const canEditScores =
+    !isCompleted && !hasBlockedScoringDataLoss && canUseActiveJudgeSession;
   const canSignClass =
     canFinalize &&
+    !hasBlockedScoringDataLoss &&
     canUseActiveJudgeSession &&
     (isMultiJudgeMode || !hasBlockingScoringSync);
   const provisionalRanking = useMemo(() => buildProvisionalRanking(runs), [runs]);
@@ -1754,8 +1825,18 @@ function ClassScoringPage() {
         </div>
       )}
 
+      {!isCompleted && hasBlockedScoringDataLoss && (
+        <div style={warningBannerStyle}>
+          {t("management.scoring.dataLossBlockedBanner", {
+            previousCount: scoringDataLossWarning.previousCount,
+            nextCount: scoringDataLossWarning.nextCount,
+          })}
+        </div>
+      )}
+
       {!isCompleted &&
         !hasPendingVideoReview &&
+        !hasBlockedScoringDataLoss &&
         !canFinalize &&
         (!isMultiJudgeMode || judgeClaimState.status === "claimed") && (
           <div style={warningBannerStyle}>

@@ -40,6 +40,7 @@ import {
 } from "./features/publication/publicationCloudRepository";
 import { buildClassWithSetupScheduleStart } from "./features/classes/classRepository";
 import { normalizeClassSetup } from "./features/classes/classSetupStorage";
+import { mergeImportedRunsWithExistingIds } from "./features/classes/runIdentity";
 import {
   getUniqueScoringClasses,
   resolveClassScoringId,
@@ -52,6 +53,10 @@ import {
   applySetupRunScratchPenalty,
   buildSetupRunScoringPenalties,
 } from "./features/scoring/setupRunScoring";
+import {
+  buildScoringDataLossWarning,
+  countRunsWithScoringData,
+} from "./features/scoring/scoringDataIntegrity";
 import { buildHspScoredRunRows } from "./features/integrations/hspScoredRunRepository";
 import {
   buildPublicClassView,
@@ -264,6 +269,129 @@ test("carries imported scratched runs into scoring", () => {
       ["", "", ""]
     )
   ).toEqual(["Scratch", "", ""]);
+});
+
+test("preserves existing run IDs when a draw is reimported with a late entry", () => {
+  const existingRuns = [
+    {
+      id: "run-existing-1",
+      runId: "hsp-run-1",
+      order: 1,
+      draw: 1,
+      backNumber: "101",
+      rider: "Élodie Martin",
+      horse: "Smart Whiz",
+      owner: "Owner One",
+      classCodes: ["OPEN"],
+    },
+    {
+      id: "run-existing-2",
+      order: 2,
+      draw: 2,
+      backNumber: "202",
+      rider: "Marie Roy",
+      horse: "Custom Shine",
+      owner: "Owner Two",
+      classCodes: ["NP"],
+    },
+  ];
+  const importedRuns = [
+    {
+      id: "run-imported-1",
+      order: 1,
+      draw: 1,
+      backNumber: "101",
+      rider: "Elodie Martin",
+      horse: "Smart Whiz",
+      owner: "Owner One Updated",
+      classCodes: ["OPEN"],
+    },
+    {
+      id: "run-late-entry",
+      order: 2,
+      draw: 2,
+      backNumber: "303",
+      rider: "Late Rider",
+      horse: "Late Horse",
+      owner: "Owner Three",
+      classCodes: ["OPEN"],
+    },
+    {
+      id: "run-imported-2",
+      order: 3,
+      draw: 3,
+      backNumber: "202",
+      rider: "Marie Roy",
+      horse: "Custom Shine",
+      owner: "Owner Two Updated",
+      classCodes: ["NP"],
+    },
+  ];
+
+  const merged = mergeImportedRunsWithExistingIds(importedRuns, existingRuns);
+
+  expect(merged.map((run) => run.id)).toEqual([
+    "run-existing-1",
+    "run-late-entry",
+    "run-existing-2",
+  ]);
+  expect(merged[0]).toMatchObject({
+    runId: "hsp-run-1",
+    order: 1,
+    owner: "Owner One Updated",
+  });
+  expect(merged[2]).toMatchObject({
+    order: 3,
+    draw: 3,
+    owner: "Owner Two Updated",
+  });
+});
+
+test("does not preserve run IDs when an imported draw match is ambiguous", () => {
+  const existingRuns = [
+    { id: "run-a", rider: "Same Rider", horse: "Same Horse" },
+    { id: "run-b", rider: "Same Rider", horse: "Same Horse" },
+  ];
+  const importedRuns = [
+    { id: "run-imported", rider: "Same Rider", horse: "Same Horse" },
+  ];
+
+  const merged = mergeImportedRunsWithExistingIds(importedRuns, existingRuns);
+
+  expect(merged[0].id).toBe("run-imported");
+});
+
+test("detects full scoring data loss without treating default totals as scores", () => {
+  const savedRuns = [
+    {
+      id: "old-run",
+      scores: ["0", "", ""],
+      penalties: ["", "", ""],
+      scoreTotal: 70,
+    },
+    {
+      id: "default-run",
+      scores: ["", "", ""],
+      penalties: ["", "", ""],
+      scoreTotal: 70,
+    },
+  ];
+  const emptyMergedRuns = [
+    {
+      id: "new-run",
+      scores: ["", "", ""],
+      penalties: ["", "", ""],
+      scoreTotal: 70,
+    },
+  ];
+
+  expect(countRunsWithScoringData(savedRuns)).toBe(1);
+  expect(countRunsWithScoringData(emptyMergedRuns)).toBe(0);
+  expect(buildScoringDataLossWarning(savedRuns, emptyMergedRuns)).toEqual({
+    previousCount: 1,
+    nextCount: 0,
+    severity: "blocked",
+  });
 });
 
 test("blocks finalization while a run is under video review", () => {
@@ -2945,6 +3073,7 @@ test("public live shows a pending paid warmup scheduled before a live class", ()
     showId: "show-public-warmup-before-class",
     dayId: "day-public-warmup-before-class",
     name: "Morning paid warm up",
+    isPublicLive: true,
     sortOrder: 1,
     entries: [{ id: "entry-1", rider: "Marie", status: "pending" }],
   });
@@ -2967,6 +3096,98 @@ test("public live shows a pending paid warmup scheduled before a live class", ()
     startKind: "fixed",
   });
   expect(publicView.livePaidWarmup.nextScheduleItem.startAt).toBeTruthy();
+});
+
+test("public live does not show a paid warmup when public live is disabled", () => {
+  saveActiveTestShow("show-public-warmup-disabled");
+  saveDays([
+    {
+      id: "day-public-warmup-disabled",
+      showId: "show-public-warmup-disabled",
+      label: "Jour 1",
+      date: "2026-06-15",
+      sortOrder: 1,
+    },
+  ]);
+  saveClasses([
+    {
+      id: "public-warmup-disabled-class",
+      showId: "show-public-warmup-disabled",
+      dayId: "day-public-warmup-disabled",
+      name: "First class",
+      arena: "Main",
+      scheduleStartMode: CLASS_START_MODE_FIXED,
+      scheduleStartTime: "10:30",
+      sortOrder: 2,
+    },
+  ]);
+  savePaidWarmup({
+    id: "public-warmup-disabled",
+    showId: "show-public-warmup-disabled",
+    dayId: "day-public-warmup-disabled",
+    name: "Disabled paid warm up",
+    isPublicLive: false,
+    sortOrder: 1,
+    entries: [{ id: "entry-1", rider: "Marie", status: "pending" }],
+  });
+  savePublicationState("public-warmup-disabled-class", {
+    status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  });
+
+  const publicView = getPublicShowView("show-public-warmup-disabled");
+
+  expect(publicView.livePaidWarmup).toBeNull();
+  expect(publicView.livePaidWarmups).toEqual([]);
+  expect(publicView.liveClasses).toHaveLength(1);
+  expect(publicView.liveClasses[0]).toMatchObject({
+    classId: "public-warmup-disabled-class",
+  });
+});
+
+test("public live skips completed paid warmups even when their public flag is still on", () => {
+  saveActiveTestShow("show-public-warmup-complete");
+  saveDays([
+    {
+      id: "day-public-warmup-complete",
+      showId: "show-public-warmup-complete",
+      label: "Jour 1",
+      date: "2026-06-15",
+      sortOrder: 1,
+    },
+  ]);
+  saveClasses([
+    {
+      id: "public-warmup-complete-class",
+      showId: "show-public-warmup-complete",
+      dayId: "day-public-warmup-complete",
+      name: "First class",
+      arena: "Main",
+      scheduleStartMode: CLASS_START_MODE_FIXED,
+      scheduleStartTime: "10:30",
+      sortOrder: 2,
+    },
+  ]);
+  savePaidWarmup({
+    id: "public-warmup-complete",
+    showId: "show-public-warmup-complete",
+    dayId: "day-public-warmup-complete",
+    name: "Completed paid warm up",
+    isPublicLive: true,
+    sortOrder: 1,
+    entries: [{ id: "entry-1", rider: "Marie", status: "done" }],
+  });
+  savePublicationState("public-warmup-complete-class", {
+    status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  });
+
+  const publicView = getPublicShowView("show-public-warmup-complete");
+
+  expect(publicView.livePaidWarmup).toBeNull();
+  expect(publicView.livePaidWarmups).toEqual([]);
+  expect(publicView.liveClasses).toHaveLength(1);
+  expect(publicView.liveClasses[0]).toMatchObject({
+    classId: "public-warmup-complete-class",
+  });
 });
 
 test("public live estimates the next block from a fixed paid warmup start", () => {
@@ -3000,6 +3221,7 @@ test("public live estimates the next block from a fixed paid warmup start", () =
     scheduleStartMode: CLASS_START_MODE_FIXED,
     scheduleStartTime: "07:00",
     durationMinutesPerRider: 7,
+    isPublicLive: true,
     entries: Array.from({ length: 40 }, (_, index) => ({
       id: `entry-${index + 1}`,
       rider: `Rider ${index + 1}`,
@@ -3057,6 +3279,7 @@ test("public live hides now-based next block estimates when schedule has no anch
     arena: "Main",
     scheduleStartMode: CLASS_START_MODE_AFTER_PREVIOUS,
     durationMinutesPerRider: 7,
+    isPublicLive: true,
     entries: Array.from({ length: 40 }, (_, index) => ({
       id: `entry-${index + 1}`,
       rider: `Rider ${index + 1}`,
@@ -3627,6 +3850,89 @@ test("paid warmup save retries without active_entry_id when HSP rejects the FK",
     expect(getLocalFirstSyncState(saved)).toMatchObject({
       status: "error",
       errorMessage: expect.stringContaining("active_entry_id"),
+    });
+  } finally {
+    vi.doUnmock("./features/cloud/supabaseClient");
+    vi.resetModules();
+  }
+});
+
+test("paid warmup delete keeps the local row when Supabase does not delete it", async () => {
+  savePaidWarmup({
+    id: "warmup-delete-refused",
+    associationId: "association-1",
+    showId: "show-1",
+    dayId: "day-1",
+    name: "Delete refused",
+    isPublicLive: true,
+    activeEntryId: "entry-1",
+    activeStartedAt: "2026-06-29T12:00:00.000Z",
+    entries: [{ id: "entry-1", rider: "Marie", status: "pending" }],
+  });
+
+  const updateRows = [];
+  const deleteIds = [];
+  const supabase = {
+    from(tableName) {
+      expect(tableName).toBe("show_score_paid_warmups");
+
+      return {
+        update(row) {
+          updateRows.push(row);
+
+          return {
+            eq(columnName, value) {
+              expect(columnName).toBe("id");
+              expect(value).toBe("warmup-delete-refused");
+              return { error: null };
+            },
+          };
+        },
+        delete() {
+          return {
+            eq(columnName, value) {
+              expect(columnName).toBe("id");
+              expect(value).toBe("warmup-delete-refused");
+              deleteIds.push(value);
+
+              return {
+                async select(columnList) {
+                  expect(columnList).toBe("id");
+                  return { data: [], error: null };
+                },
+              };
+            },
+          };
+        },
+      };
+    },
+  };
+
+  vi.resetModules();
+  vi.doMock("./features/cloud/supabaseClient", () => ({
+    getSupabaseClient: () => supabase,
+  }));
+
+  try {
+    const { deletePaidWarmupRepository } = await import(
+      "./features/paidWarmups/paidWarmupRepository"
+    );
+
+    await expect(
+      deletePaidWarmupRepository("warmup-delete-refused")
+    ).rejects.toThrow(/pas été supprimé|not deleted/i);
+
+    expect(updateRows).toEqual([
+      {
+        is_public_live: false,
+        active_entry_id: null,
+        active_started_at: null,
+      },
+    ]);
+    expect(deleteIds).toEqual(["warmup-delete-refused"]);
+    expect(getPaidWarmupById("warmup-delete-refused")).toMatchObject({
+      id: "warmup-delete-refused",
+      isPublicLive: true,
     });
   } finally {
     vi.doUnmock("./features/cloud/supabaseClient");

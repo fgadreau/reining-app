@@ -10,6 +10,7 @@ import {
   createEmptyRun,
   resequenceRuns,
 } from "../../features/classes/classSetupStorage";
+import { mergeImportedRunsWithExistingIds } from "../../features/classes/runIdentity";
 import {
   CLASS_START_MODE_AFTER_PREVIOUS,
   CLASS_START_MODE_FIXED,
@@ -47,6 +48,7 @@ import {
   normalizeCustomPattern,
 } from "../../features/patterns/patternDefinitions";
 import { loadScoringRunsRepository } from "../../features/scoring/scoringRepository";
+import { countRunsWithScoringData } from "../../features/scoring/scoringDataIntegrity";
 import {
   DEFAULT_DRAG_DURATION_MINUTES,
   DRAG_INTERVAL_OPTIONS,
@@ -389,7 +391,10 @@ function ClassSetupPage() {
     [arena, classItem?.showId]
   );
 
-  const scoringStarted = hasScoringStarted(classId);
+  const localScoringStarted = hasScoringStarted(classId);
+  const remoteScoringStarted =
+    countRunsWithScoringData(classData?.scoringRuns) > 0;
+  const scoringStarted = localScoringStarted || remoteScoringStarted;
   const isStructureLocked = scoringStarted;
   const isFullyLocked = isStructureLocked || isFinalized;
   const isOrderLocked = isFullyLocked || isDrawImported;
@@ -1018,7 +1023,11 @@ function ClassSetupPage() {
   };
 
   const applyImportedDraw = (importedDraw, source = {}) => {
-    const resequencedRuns = importedDraw?.runs || [];
+    const importedRuns = importedDraw?.runs || [];
+    const resequencedRuns = mergeImportedRunsWithExistingIds(
+      importedRuns,
+      runs
+    );
     const importedBlockClasses = Array.isArray(importedDraw?.blockClasses)
       ? importedDraw.blockClasses
       : [];

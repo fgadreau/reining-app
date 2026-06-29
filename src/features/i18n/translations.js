@@ -369,6 +369,7 @@ export const translations = {
         stopAndMarkPassed: "Arrêter et marquer passé",
         reopenClass: "Réouvrir le bloc",
         undoSectionComplete: "Annuler dernière section",
+        undoWarmupAction: "Annuler dernière action",
         warmupStats:
           "Total: {{total}} · Passés: {{done}} · No show: {{noShow}} · Scratch: {{scratch}}",
         waiting: "En préparation",
@@ -533,6 +534,8 @@ export const translations = {
         delete: "Supprimer",
         deleteConfirm: "Supprimer ce bloc ?",
         deletePaidWarmupConfirm: "Supprimer ce paid warm up ?",
+        deletePaidWarmupFailed:
+          "Le paid warm up n’a pas été supprimé dans Supabase. Recharge et réessaie, ou vérifie les permissions.",
         dragAfter: "Drag après {{interval}} {{ridersLabel}}",
         duplicate: "Dupliquer",
         duplicateName: "{{name}} copie",
@@ -613,6 +616,8 @@ export const translations = {
         clearManeuverPenalty: "Effacer pénalité manoeuvre",
         clearScore: "Effacer score",
         clearSignature: "Effacer la signature",
+        dataLossBlockedBanner:
+          "Protection activée: la session chargée contenait {{previousCount}} run(s) avec des scores, mais le draw actuel en retrouve {{nextCount}}. La sauvegarde est bloquée pour éviter d’écraser les pointages. Exporte une sauvegarde locale et demande au secrétariat de fusionner le draw.",
         changeJudge: "Changer de juge",
         chooseJudge: "Choisis volontairement la feuille de juge à ouvrir.",
         confirmFinalize: "Confirmer la signature et finaliser",
@@ -1679,6 +1684,7 @@ export const translations = {
         stopAndMarkPassed: "Stop and mark done",
         reopenClass: "Reopen block",
         undoSectionComplete: "Undo last section",
+        undoWarmupAction: "Undo last action",
         warmupStats:
           "Total: {{total}} · Done: {{done}} · No show: {{noShow}} · Scratch: {{scratch}}",
         waiting: "On deck",
@@ -1842,6 +1848,8 @@ export const translations = {
         delete: "Delete",
         deleteConfirm: "Delete this block?",
         deletePaidWarmupConfirm: "Delete this paid warm up?",
+        deletePaidWarmupFailed:
+          "The paid warm up was not deleted in Supabase. Reload and try again, or check permissions.",
         dragAfter: "Drag after {{interval}} {{ridersLabel}}",
         duplicate: "Duplicate",
         duplicateName: "{{name}} copy",
@@ -1922,6 +1930,8 @@ export const translations = {
         clearManeuverPenalty: "Clear maneuver penalty",
         clearScore: "Clear score",
         clearSignature: "Clear signature",
+        dataLossBlockedBanner:
+          "Protection enabled: the loaded session had {{previousCount}} run(s) with scores, but the current draw found {{nextCount}}. Saving is blocked to avoid overwriting scores. Export a local backup and ask the secretariat to merge the draw.",
         changeJudge: "Change judge",
         chooseJudge: "Deliberately choose the judge sheet to open.",
         confirmFinalize: "Confirm signature and finalize",

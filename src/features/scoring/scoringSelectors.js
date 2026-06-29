@@ -2,6 +2,7 @@ import { getClassById } from "../classes/classSelectors";
 import { getRunsByClassId } from "../runs/runSelectors";
 import { loadClassSetup } from "../../utils/classLocalStorage";
 import { loadScoringRuns } from "./scoringStorage";
+import { runHasScoringData } from "./scoringDataIntegrity";
 
 function normalizeRunShape(run) {
   return {
@@ -33,21 +34,6 @@ export function getScoreTableRunsForClass(classId) {
       isActive: classItem?.activeRunId === run.id,
     };
   });
-}
-
-function hasNonEmptyValue(value) {
-  return String(value || "").trim() !== "";
-}
-
-function runHasScoringData(run) {
-  const scores = Array.isArray(run?.scores) ? run.scores : [];
-  const penalties = Array.isArray(run?.penalties) ? run.penalties : [];
-  const isActive = Boolean(run?.isActive);
-
-  const hasScores = scores.some(hasNonEmptyValue);
-  const hasPenalties = penalties.some(hasNonEmptyValue);
-
-  return hasScores || hasPenalties || isActive;
 }
 
 export function getSavedScoringRunsForClass(classId) {
