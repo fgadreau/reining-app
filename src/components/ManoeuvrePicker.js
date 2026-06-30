@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "../features/i18n/I18nProvider";
+import {
+  getSpecialPenaltyReasons,
+  isSpecialPenaltyReasonRequired,
+} from "../features/scoring/specialPenaltyReasons";
 import { formatScoreValue, parseScoreValue } from "../utils/scoring";
 
 const MANUAL_PENALTY_DIGITS = [
@@ -39,11 +43,15 @@ function ManoeuvrePicker({
   const { t } = useTranslation();
   const [isManualPenaltyOpen, setIsManualPenaltyOpen] = useState(false);
   const [manualPenaltyValue, setManualPenaltyValue] = useState("");
+  const [reasonRequest, setReasonRequest] = useState(null);
+  const [reasonSearch, setReasonSearch] = useState("");
   const manoeuvreIndex = activeManoeuvre?.manoeuvreIndex;
 
   useEffect(() => {
     setIsManualPenaltyOpen(false);
     setManualPenaltyValue("");
+    setReasonRequest(null);
+    setReasonSearch("");
   }, [run.draw, manoeuvreIndex]);
 
   useEffect(() => {
@@ -59,6 +67,19 @@ function ManoeuvrePicker({
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isManualPenaltyOpen]);
+
+  useEffect(() => {
+    if (!reasonRequest) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setReasonRequest(null);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [reasonRequest]);
 
   if (
     !activeManoeuvre ||
@@ -92,6 +113,18 @@ function ManoeuvrePicker({
   const statusOptions = Array.isArray(statusPenaltyOptions)
     ? statusPenaltyOptions
     : [];
+  const reasonOptions = reasonRequest
+    ? getSpecialPenaltyReasons(reasonRequest.token)
+    : [];
+  const normalizedReasonSearch = reasonSearch.trim().toLowerCase();
+  const filteredReasonOptions = normalizedReasonSearch
+    ? reasonOptions.filter((reason) =>
+        [reason.en, reason.fr, reason.id]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedReasonSearch)
+      )
+    : reasonOptions;
   const runNoteButtonLabel = String(run.note || "").trim()
     ? t("management.scoring.editJudgeNote")
     : t("management.scoring.addJudgeNote");
@@ -125,6 +158,51 @@ function ManoeuvrePicker({
 
     addPenaltyToken(run.draw, manoeuvreIndex, String(manualPenaltyNumber));
     closeManualPenaltyModal();
+  };
+  const closeReasonModal = () => {
+    setReasonRequest(null);
+    setReasonSearch("");
+  };
+  const openReasonModal = (token) => {
+    setReasonRequest({ token });
+    setReasonSearch("");
+  };
+  const selectSpecialPenaltyReason = (reasonId) => {
+    if (!reasonRequest) return;
+
+    toggleSpecialPenalty(
+      run.draw,
+      manoeuvreIndex,
+      reasonRequest.token,
+      reasonId
+    );
+    closeReasonModal();
+  };
+  const handlePenaltyOptionClick = (option) => {
+    if (!isSpecialPenaltyReasonRequired(option)) {
+      addPenaltyToken(run.draw, manoeuvreIndex, option);
+      return;
+    }
+
+    if (activePenaltyValue.includes(option)) {
+      toggleSpecialPenalty(run.draw, manoeuvreIndex, option);
+      return;
+    }
+
+    openReasonModal(option);
+  };
+  const handleStatusOptionToggle = (option) => {
+    if (!isSpecialPenaltyReasonRequired(option)) {
+      toggleSpecialPenalty(run.draw, manoeuvreIndex, option);
+      return;
+    }
+
+    if (activePenaltyValue.includes(option)) {
+      toggleSpecialPenalty(run.draw, manoeuvreIndex, option);
+      return;
+    }
+
+    openReasonModal(option);
   };
   const manualPenaltyModal =
     isManualPenaltyOpen && typeof document !== "undefined"
@@ -214,6 +292,82 @@ function ManoeuvrePicker({
           document.body
         )
       : null;
+  const specialPenaltyReasonModal =
+    reasonRequest && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            style={styles.manualPenaltyModalBackdrop}
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                closeReasonModal();
+              }
+            }}
+          >
+            <div
+              style={styles.manualPenaltyModal}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="special-penalty-reason-title"
+            >
+              <div style={styles.manualPenaltyModalHeader}>
+                <div>
+                  <h2
+                    id="special-penalty-reason-title"
+                    style={styles.manualPenaltyModalTitle}
+                  >
+                    {t("management.scoring.specialPenaltyReasonTitle", {
+                      status: reasonRequest.token,
+                    })}
+                  </h2>
+                  <div style={styles.manualPenaltyModalSubtitle}>
+                    {t("management.announcer.draw")} {run.draw} —{" "}
+                    {manoeuvreName}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  style={styles.closeButton}
+                  onClick={closeReasonModal}
+                >
+                  {t("management.announcer.close")}
+                </button>
+              </div>
+
+              <div style={styles.specialPenaltyReasonPanel}>
+                <div style={styles.specialPenaltyReasonHelp}>
+                  {t("management.scoring.specialPenaltyReasonHelp")}
+                </div>
+                <input
+                  autoFocus
+                  value={reasonSearch}
+                  onChange={(event) => setReasonSearch(event.target.value)}
+                  placeholder={t("management.scoring.specialPenaltyReasonSearch")}
+                  style={styles.specialPenaltyReasonSearchInput}
+                />
+                <div style={styles.specialPenaltyReasonList}>
+                  {filteredReasonOptions.map((reason) => (
+                    <button
+                      type="button"
+                      key={`${reasonRequest.token}-${reason.id}`}
+                      style={styles.specialPenaltyReasonButton}
+                      onClick={() => selectSpecialPenaltyReason(reason.id)}
+                    >
+                      {reason.en}
+                    </button>
+                  ))}
+                </div>
+                {!filteredReasonOptions.length && (
+                  <div style={styles.specialPenaltyReasonEmpty}>
+                    {t("management.scoring.specialPenaltyReasonEmpty")}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
 
   if (position === "top" && penaltyDisabled) {
     return null;
@@ -237,10 +391,13 @@ function ManoeuvrePicker({
                   <button
                     type="button"
                     key={`pen-${run.id || run.draw}-${manoeuvreIndex}-${option}`}
-                    style={styles.optionButton}
-                    onClick={() =>
-                      addPenaltyToken(run.draw, manoeuvreIndex, option)
-                    }
+                    style={{
+                      ...styles.optionButton,
+                      ...(activePenaltyValue.includes(option)
+                        ? styles.optionButtonSelected
+                        : {}),
+                    }}
+                    onClick={() => handlePenaltyOptionClick(option)}
                   >
                     {option}
                   </button>
@@ -283,9 +440,7 @@ function ManoeuvrePicker({
                     <input
                       type="checkbox"
                       checked={activePenaltyValue.includes(option)}
-                      onChange={() =>
-                        toggleSpecialPenalty(run.draw, manoeuvreIndex, option)
-                      }
+                      onChange={() => handleStatusOptionToggle(option)}
                       style={styles.statusCheckboxInput}
                     />
                     {option}
@@ -296,6 +451,7 @@ function ManoeuvrePicker({
           </td>
         </tr>
         {manualPenaltyModal}
+        {specialPenaltyReasonModal}
       </>
     );
   }

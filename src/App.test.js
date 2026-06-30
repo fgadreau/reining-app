@@ -57,6 +57,12 @@ import {
   buildSetupRunScoringPenalties,
 } from "./features/scoring/setupRunScoring";
 import {
+  getSpecialPenaltyReasons,
+  isSpecialPenaltyReasonRequired,
+  removeSpecialPenaltyReasonNote,
+  upsertSpecialPenaltyReasonNote,
+} from "./features/scoring/specialPenaltyReasons";
+import {
   buildScoringDataLossWarning,
   countRunsWithScoringData,
 } from "./features/scoring/scoringDataIntegrity";
@@ -273,6 +279,57 @@ test("treats special run statuses as complete scores", () => {
       3
     )
   ).toBe(true);
+});
+
+test("builds bilingual judge notes for required NRHA special penalty reasons", () => {
+  expect(isSpecialPenaltyReasonRequired("No score")).toBe(true);
+  expect(isSpecialPenaltyReasonRequired("Score 0")).toBe(true);
+  expect(isSpecialPenaltyReasonRequired("Scratch")).toBe(false);
+
+  expect(getSpecialPenaltyReasons("No score")[0]).toMatchObject({
+    en: "Legal infraction related to exhibition, care, or custody of the horse",
+  });
+
+  const noteWithNoScore = upsertSpecialPenaltyReasonNote(
+    "Manual judge note.",
+    "No score",
+    "illegal_equipment"
+  );
+
+  expect(noteWithNoScore).toContain("Manual judge note.");
+  expect(noteWithNoScore).toContain("No score - Raison: Équipement illégal");
+  expect(noteWithNoScore).toContain("Reason: Illegal equipment");
+
+  const replacedNote = upsertSpecialPenaltyReasonNote(
+    noteWithNoScore,
+    "No score",
+    "animal_abuse"
+  );
+
+  expect(replacedNote).toContain("Manual judge note.");
+  expect(replacedNote).toContain("Abus animal");
+  expect(replacedNote).toContain("Animal abuse or evidence of abuse");
+  expect(replacedNote).not.toContain("Équipement illégal");
+
+  const noteWithScoreZero = upsertSpecialPenaltyReasonNote(
+    replacedNote,
+    "Score 0",
+    "pattern_not_completed"
+  );
+
+  expect(noteWithScoreZero).toContain(
+    "Score 0 - Raison: Pattern non complété tel qu'écrit"
+  );
+  expect(noteWithScoreZero).toContain(
+    "Reason: Failure to complete pattern as written"
+  );
+
+  expect(removeSpecialPenaltyReasonNote(noteWithScoreZero, "No score")).toContain(
+    "Manual judge note."
+  );
+  expect(removeSpecialPenaltyReasonNote(noteWithScoreZero, "No score")).not.toContain(
+    "Animal abuse"
+  );
 });
 
 test("carries imported scratched runs into scoring", () => {

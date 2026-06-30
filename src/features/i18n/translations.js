@@ -675,6 +675,11 @@ export const translations = {
         addJudgeNote: "+ Note",
         hideJudgeNote: "Masquer",
         participantNotePlaceholder: "Note pour ce participant",
+        specialPenaltyReasonTitle: "Raison requise - {{status}}",
+        specialPenaltyReasonHelp:
+          "Choisis la raison dictée par le juge. Les choix sont en anglais pour faciliter la recherche en piste.",
+        specialPenaltyReasonSearch: "Rechercher une raison...",
+        specialPenaltyReasonEmpty: "Aucune raison trouvée.",
         penalties: "Pénalités",
         provisionalRanking: "Classement provisoire",
         provisionalRankingNote:
@@ -2023,6 +2028,11 @@ export const translations = {
         addJudgeNote: "+ Note",
         hideJudgeNote: "Hide",
         participantNotePlaceholder: "Note for this participant",
+        specialPenaltyReasonTitle: "Reason required - {{status}}",
+        specialPenaltyReasonHelp:
+          "Choose the reason called by the judge. Choices are shown in English for faster lookup in the pen.",
+        specialPenaltyReasonSearch: "Search for a reason...",
+        specialPenaltyReasonEmpty: "No reason found.",
         penalties: "Penalties",
         provisionalRanking: "Provisional ranking",
         provisionalRankingNote:

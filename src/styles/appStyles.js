@@ -473,6 +473,62 @@ export const appStyles = {
     flexWrap: "wrap",
   },
 
+  specialPenaltyReasonPanel: {
+    margin: 0,
+    padding: "12px",
+    display: "grid",
+    gap: "10px",
+  },
+
+  specialPenaltyReasonHelp: {
+    color: "#475569",
+    fontSize: "13px",
+    fontWeight: "700",
+    lineHeight: 1.35,
+  },
+
+  specialPenaltyReasonSearchInput: {
+    width: "100%",
+    minHeight: "44px",
+    border: "1px solid #94a3b8",
+    borderRadius: "10px",
+    padding: "10px 12px",
+    boxSizing: "border-box",
+    fontSize: "16px",
+    fontWeight: "700",
+    outline: "none",
+  },
+
+  specialPenaltyReasonList: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: "8px",
+  },
+
+  specialPenaltyReasonButton: {
+    width: "100%",
+    minHeight: "44px",
+    padding: "10px 12px",
+    borderRadius: "10px",
+    border: "1px solid #cbd5e1",
+    backgroundColor: "#ffffff",
+    color: "#0f172a",
+    fontSize: "14px",
+    fontWeight: "800",
+    textAlign: "left",
+    cursor: "pointer",
+  },
+
+  specialPenaltyReasonEmpty: {
+    padding: "12px",
+    borderRadius: "10px",
+    backgroundColor: "#f8fafc",
+    color: "#64748b",
+    fontSize: "13px",
+    fontWeight: "800",
+    textAlign: "center",
+  },
+
   dragBreakRowContent: {
     display: "flex",
     alignItems: "center",

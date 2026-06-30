@@ -58,8 +58,16 @@ import {
   recalculateRun,
   removeLastPenaltyToken,
   runHasVideoReview,
+  splitPenaltyTokens,
   togglePenaltySpecialToken,
 } from "../../utils/scoring";
+import {
+  SPECIAL_PENALTY_REASON_TOKENS,
+  isSpecialPenaltyReasonRequired,
+  isValidSpecialPenaltyReason,
+  removeSpecialPenaltyReasonNote,
+  upsertSpecialPenaltyReasonNote,
+} from "../../features/scoring/specialPenaltyReasons";
 import {
   loadActiveManoeuvre,
   loadScoringRuns,
@@ -140,6 +148,39 @@ function getScoringCalculationOptions(headers, scoringOptions) {
     baseScore: scoringOptions.baseScore ?? 70,
     penaltyDisabledIndexes: getPenaltyDisabledIndexes(headers, scoringOptions),
   };
+}
+
+function penaltiesContainToken(penalties, token, specialPenaltyTokens) {
+  return (Array.isArray(penalties) ? penalties : []).some((penalty) =>
+    splitPenaltyTokens(penalty, specialPenaltyTokens).includes(token)
+  );
+}
+
+function syncSpecialPenaltyReasonNotes(
+  note,
+  penalties,
+  specialPenaltyTokens,
+  selectedToken,
+  reasonId
+) {
+  let nextNote = String(note || "");
+
+  SPECIAL_PENALTY_REASON_TOKENS.forEach((token) => {
+    if (!penaltiesContainToken(penalties, token, specialPenaltyTokens)) {
+      nextNote = removeSpecialPenaltyReasonNote(nextNote, token);
+    }
+  });
+
+  if (
+    selectedToken &&
+    isSpecialPenaltyReasonRequired(selectedToken) &&
+    penaltiesContainToken(penalties, selectedToken, specialPenaltyTokens) &&
+    isValidSpecialPenaltyReason(selectedToken, reasonId)
+  ) {
+    nextNote = upsertSpecialPenaltyReasonNote(nextNote, selectedToken, reasonId);
+  }
+
+  return nextNote;
 }
 
 function getSetupRunDraw(run, index) {
@@ -1250,6 +1291,7 @@ function ClassScoringPage() {
   const addPenaltyToken = (draw, manoeuvreIndex, token) => {
     if (!canEditScores) return;
     if (penaltyDisabledIndexSet.has(manoeuvreIndex)) return;
+    if (isSpecialPenaltyReasonRequired(token)) return;
 
     const changedAt = new Date().toISOString();
     ensureClassStartedAt(changedAt);
@@ -1296,11 +1338,28 @@ function ClassScoringPage() {
     });
   };
 
-  const toggleSpecialPenalty = (draw, manoeuvreIndex, token) => {
+  const toggleSpecialPenalty = (draw, manoeuvreIndex, token, reasonId = "") => {
     if (!canEditScores) return;
     if (penaltyDisabledIndexSet.has(manoeuvreIndex)) return;
 
     const changedAt = new Date().toISOString();
+    const currentRun = runs.find((run) => run.draw === draw);
+    const currentPenalties = Array.isArray(currentRun?.penalties)
+      ? currentRun.penalties
+      : [];
+    const wasSelectedBefore = splitPenaltyTokens(
+      currentPenalties[manoeuvreIndex],
+      specialPenaltyTokens
+    ).includes(token);
+
+    if (
+      !wasSelectedBefore &&
+      isSpecialPenaltyReasonRequired(token) &&
+      !isValidSpecialPenaltyReason(token, reasonId)
+    ) {
+      return;
+    }
+
     ensureClassStartedAt(changedAt);
 
     setRuns((prevRuns) =>
@@ -1324,12 +1383,21 @@ function ClassScoringPage() {
           specialPenaltyTokens
         );
 
+        const nextNote = syncSpecialPenaltyReasonNotes(
+          run.note,
+          nextPenalties,
+          specialPenaltyTokens,
+          token,
+          reasonId
+        );
+
         return stampRunTiming(
           recalculateRun(
             {
               ...run,
               isActive: true,
               penalties: nextPenalties.slice(0, maneuverCount),
+              note: nextNote,
             },
             scoringCalculationOptions
           ),
@@ -1370,12 +1438,19 @@ function ClassScoringPage() {
           specialPenaltyTokens
         );
 
+        const nextNote = syncSpecialPenaltyReasonNotes(
+          run.note,
+          nextPenalties,
+          specialPenaltyTokens
+        );
+
         return stampRunTiming(
           recalculateRun(
             {
               ...run,
               isActive: true,
               penalties: nextPenalties.slice(0, maneuverCount),
+              note: nextNote,
             },
             scoringCalculationOptions
           ),
