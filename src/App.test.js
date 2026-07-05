@@ -133,6 +133,7 @@ import {
   buildChampionshipDatasetFromCsv,
   buildChampionshipDatasetFromImports,
   buildChampionshipImportBatchFromCsv,
+  getChampionshipIncludedShows,
 } from "./features/championship/championshipStandings";
 import { getDefaultShowRouteForRoles } from "./features/auth/showRoleRouting";
 import { buildAnalyticsSummary } from "./features/analytics/analyticsRepository";
@@ -251,6 +252,12 @@ test("builds championship standings by technical show occurrence and team", () =
 
   expect(dataset.validation.excludedRows).toBe(1);
   expect(dataset.validation.excludedClasses[0].classCode).toBe("5394");
+  expect(dataset.showCount).toBe(3);
+  expect(getChampionshipIncludedShows(dataset).map((show) => show.label)).toEqual([
+    "AQR MAY SHOW 1",
+    "AQR MAY SHOW 2",
+    "AQR MAY SHOW 3",
+  ]);
   expect(beginnerClass.events).toHaveLength(3);
   expect(beginnerClass.teams).toHaveLength(1);
   expect(beginnerClass.teams[0].totalPoints).toBe(19);
@@ -276,6 +283,7 @@ test("applies public labels to championship technical shows", () => {
   const openClass = labeled.classes.find((item) => item.id === "nrha-open");
 
   expect(openClass.events.map((event) => event.label)).toEqual(["Mai 1", "Mai 2"]);
+  expect(labeled.shows.map((show) => show.label)).toEqual(["Mai 1", "Mai 2"]);
   expect(openClass.teams[0].details.map((detail) => detail.eventLabel)).toEqual([
     "Mai 1",
     "Mai 2",

@@ -130,7 +130,7 @@ export function isChampionshipRowIgnored(row) {
 }
 
 export function getChampionshipEventLabelKey(eventLike) {
-  return String(eventLike?.showNum || eventLike?.showName || eventLike?.label || "")
+  return String(eventLike?.showNum || eventLike?.key || eventLike?.showName || eventLike?.label || "")
     .trim();
 }
 
@@ -152,6 +152,12 @@ export function applyChampionshipEventLabels(dataset, labelsByShow = {}) {
 
   return {
     ...dataset,
+    shows: Array.isArray(dataset.shows)
+      ? dataset.shows.map((show) => ({
+          ...show,
+          label: getLabel(show),
+        }))
+      : dataset.shows,
     publicEventLabels: labelsByShow,
     classes: dataset.classes.map((classEntry) => ({
       ...classEntry,
@@ -167,6 +173,59 @@ export function applyChampionshipEventLabels(dataset, labelsByShow = {}) {
         })),
       })),
     })),
+  };
+}
+
+export function getChampionshipIncludedShows(dataset) {
+  if (Array.isArray(dataset?.shows) && dataset.shows.length > 0) {
+    return dataset.shows
+      .map(normalizeIncludedShow)
+      .filter((show) => show.key)
+      .sort((a, b) => a.order - b.order);
+  }
+
+  const showsByKey = new Map();
+  const classes = Array.isArray(dataset?.classes) ? dataset.classes : [];
+
+  classes.forEach((classEntry) => {
+    const events = Array.isArray(classEntry?.events) ? classEntry.events : [];
+
+    events.forEach((event) => {
+      const key = getChampionshipEventLabelKey(event);
+      if (!key) return;
+
+      if (!showsByKey.has(key)) {
+        showsByKey.set(key, {
+          key,
+          label: event.label || event.showName || event.showNum || "Show",
+          showNum: event.showNum,
+          showName: event.showName,
+          order: showsByKey.size + 1,
+          occurrenceCount: 0,
+          resultCount: 0,
+        });
+      }
+
+      const show = showsByKey.get(key);
+      show.occurrenceCount += 1;
+      show.resultCount += event.resultCount || 0;
+    });
+  });
+
+  return Array.from(showsByKey.values()).sort((a, b) => a.order - b.order);
+}
+
+function normalizeIncludedShow(show, index) {
+  const key = getChampionshipEventLabelKey(show);
+
+  return {
+    key,
+    label: show.label || show.showName || show.showNum || "Show",
+    showNum: show.showNum,
+    showName: show.showName,
+    order: show.order || index + 1,
+    occurrenceCount: show.occurrenceCount || 0,
+    resultCount: show.resultCount || 0,
   };
 }
 
@@ -373,15 +432,21 @@ function buildStandings(rows) {
   const rowsWithPoints = applyTiePoints(rows);
   const classesById = new Map();
   const eventsByKey = new Map();
+  const showsByKey = new Map();
   const teamByClassAndKey = new Map();
 
   rowsWithPoints.forEach((row) => {
     const classEntry = getOrCreateClassEntry(classesById, row);
     const event = getOrCreateEventEntry(eventsByKey, classEntry, row);
+    const show = getOrCreateIncludedShow(showsByKey, row);
 
     event.totalPoints += row.points;
     event.totalMoney += row.moneyWon;
     event.resultCount += 1;
+    show.resultCount += 1;
+    if (!show.eventKeys.includes(event.eventKey)) {
+      show.eventKeys.push(event.eventKey);
+    }
 
     if (!row.teamKey) {
       return;
@@ -435,10 +500,18 @@ function buildStandings(rows) {
     (total, classEntry) => total + classEntry.teams.length,
     0
   );
+  const shows = Array.from(showsByKey.values())
+    .map(({ eventKeys, ...show }) => ({
+      ...show,
+      occurrenceCount: eventKeys.length,
+    }))
+    .sort((a, b) => a.order - b.order);
 
   return {
     classCount: classes.length,
     eventCount,
+    showCount: shows.length,
+    shows,
     teamCount,
     classes,
   };
@@ -503,6 +576,25 @@ function getOrCreateEventEntry(eventsByKey, classEntry, row) {
   }
 
   return eventsByKey.get(eventKey);
+}
+
+function getOrCreateIncludedShow(showsByKey, row) {
+  const key = getChampionshipEventLabelKey(row);
+
+  if (!showsByKey.has(key)) {
+    showsByKey.set(key, {
+      key,
+      label: row.showName || row.showNum || "Show",
+      showNum: row.showNum,
+      showName: row.showName,
+      order: showsByKey.size + 1,
+      occurrenceCount: 0,
+      resultCount: 0,
+      eventKeys: [],
+    });
+  }
+
+  return showsByKey.get(key);
 }
 
 function getOrCreateTeamEntry(teamByClassAndKey, classEntry, row) {

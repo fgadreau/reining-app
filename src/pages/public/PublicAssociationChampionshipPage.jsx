@@ -6,6 +6,7 @@ import ShareButton from "../../components/ShareButton";
 import { getAssociationWebsiteHref } from "../../features/associations/associationProfile";
 import { getPublicAssociationRepository } from "../../features/publication/publicViewRepository";
 import { getPublicChampionshipSeasonRepository } from "../../features/championship/championshipRepository";
+import { getChampionshipIncludedShows } from "../../features/championship/championshipStandings";
 import {
   formatChampionshipMoney,
   formatChampionshipPoints,
@@ -36,6 +37,10 @@ function PublicAssociationChampionshipPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const classes = Array.isArray(season?.classes) ? season.classes : [];
   const normalizedSearchQuery = normalizeSearchText(searchQuery);
+  const includedShows = useMemo(
+    () => getChampionshipIncludedShows(season),
+    [season]
+  );
   const filteredClasses = useMemo(
     () => filterChampionshipClasses(classes, normalizedSearchQuery),
     [classes, normalizedSearchQuery]
@@ -64,7 +69,7 @@ function PublicAssociationChampionshipPage() {
       if (!isMounted) return;
       setAssociation(nextAssociation);
       setSeason(nextSeason);
-      setOpenClassId(nextSeason?.classes?.[0]?.id || null);
+      setOpenClassId(null);
       setIsLoading(false);
     }
 
@@ -148,10 +153,20 @@ function PublicAssociationChampionshipPage() {
           <section style={summaryStyle}>
             <SummaryItem label={t("championship.public.classes")} value={season.classCount || 0} />
             <SummaryItem label={t("championship.public.events")} value={season.eventCount || 0} />
+            <SummaryItem
+              label={t("championship.public.shows")}
+              value={season.showCount ?? includedShows.length}
+            />
             <SummaryItem label={t("championship.public.teams")} value={season.teamCount || 0} />
             <SummaryItem
               label={t("championship.public.updated")}
               value={formatDate(season.updatedAt || season.importedAt)}
+            />
+            <SummaryShowsItem
+              label={t("championship.public.includedShows")}
+              shows={includedShows}
+              emptyText={t("championship.public.noIncludedShows")}
+              t={t}
             />
           </section>
 
@@ -314,9 +329,44 @@ function SummaryItem({ label, value }) {
   );
 }
 
+function SummaryShowsItem({ label, shows, emptyText, t }) {
+  return (
+    <div style={summaryShowsItemStyle}>
+      <div style={summaryShowsHeaderStyle}>
+        <div style={summaryShowsTitleStyle}>{label}</div>
+        <div style={mutedTextStyle}>
+          {t("championship.public.showCount", { count: shows.length })}
+        </div>
+      </div>
+      {shows.length > 0 ? (
+        <div style={showChipListStyle}>
+          {shows.map((show) => (
+            <span key={show.key} style={showChipStyle}>
+              {formatIncludedShowLabel(show)}
+              {show.occurrenceCount ? (
+                <span style={showChipMetaStyle}>
+                  {t("championship.public.eventCount", {
+                    count: show.occurrenceCount,
+                  })}
+                </span>
+              ) : null}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div style={mutedTextStyle}>{emptyText}</div>
+      )}
+    </div>
+  );
+}
+
 function formatDate(value) {
   if (!value) return "-";
   return String(value).slice(0, 10);
+}
+
+function formatIncludedShowLabel(show) {
+  return show.label || show.showName || show.showNum || show.key || "Show";
 }
 
 function filterChampionshipClasses(classes, query) {
@@ -425,6 +475,49 @@ const summaryStyle = {
 
 const summaryItemStyle = {
   ...publicCardStyle,
+};
+
+const summaryShowsItemStyle = {
+  ...summaryItemStyle,
+  gridColumn: "1 / -1",
+};
+
+const summaryShowsHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  flexWrap: "wrap",
+  marginBottom: 10,
+};
+
+const summaryShowsTitleStyle = {
+  color: publicColors.text,
+  fontWeight: 900,
+};
+
+const showChipListStyle = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
+const showChipStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  border: `1px solid ${publicColors.border}`,
+  borderRadius: 999,
+  background: "#f8fafc",
+  color: publicColors.text,
+  padding: "7px 10px",
+  fontSize: 13,
+  fontWeight: 850,
+};
+
+const showChipMetaStyle = {
+  color: publicColors.muted,
+  fontSize: 12,
+  fontWeight: 750,
 };
 
 const searchStyle = {

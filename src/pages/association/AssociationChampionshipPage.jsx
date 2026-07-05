@@ -6,7 +6,7 @@ import {
   applyChampionshipEventLabels,
   buildChampionshipDatasetFromImports,
   buildChampionshipImportBatchFromCsv,
-  getChampionshipEventLabelKey,
+  getChampionshipIncludedShows,
   buildChampionshipResultDuplicateKey,
   isChampionshipRowIgnored,
 } from "../../features/championship/championshipStandings";
@@ -85,8 +85,8 @@ function AssociationChampionshipPage() {
     [preview]
   );
   const technicalShows = useMemo(
-    () => getTechnicalShows(classSummaries),
-    [classSummaries]
+    () => getChampionshipIncludedShows(preview),
+    [preview]
   );
 
   const updateSeasonTitle = (value) => {
@@ -522,8 +522,18 @@ function AssociationChampionshipPage() {
               value={preview.eventCount || 0}
             />
             <SummaryCard
+              label={t("championship.admin.shows")}
+              value={preview.showCount ?? technicalShows.length}
+            />
+            <SummaryCard
               label={t("championship.admin.teams")}
               value={preview.teamCount || 0}
+            />
+            <SummaryShowsCard
+              label={t("championship.admin.includedShows")}
+              shows={technicalShows}
+              emptyText={t("championship.admin.noIncludedShows")}
+              t={t}
             />
           </section>
 
@@ -663,6 +673,37 @@ function SummaryCard({ label, value }) {
     <div style={summaryCardStyle}>
       <div style={summaryValueStyle}>{value}</div>
       <div style={mutedTextStyle}>{label}</div>
+    </div>
+  );
+}
+
+function SummaryShowsCard({ label, shows, emptyText, t }) {
+  return (
+    <div style={summaryShowsCardStyle}>
+      <div style={summaryShowsHeaderStyle}>
+        <div style={classTitleStyle}>{label}</div>
+        <div style={mutedTextStyle}>
+          {t("championship.admin.showCount", { count: shows.length })}
+        </div>
+      </div>
+      {shows.length > 0 ? (
+        <div style={showChipListStyle}>
+          {shows.map((show) => (
+            <span key={show.key} style={showChipStyle}>
+              {formatIncludedShowLabel(show)}
+              {show.occurrenceCount ? (
+                <span style={showChipMetaStyle}>
+                  {t("championship.admin.eventCount", {
+                    count: show.occurrenceCount,
+                  })}
+                </span>
+              ) : null}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div style={mutedTextStyle}>{emptyText}</div>
+      )}
     </div>
   );
 }
@@ -865,29 +906,8 @@ function flattenImportRows(imports) {
   );
 }
 
-function getTechnicalShows(classes) {
-  const showsByKey = new Map();
-
-  classes.forEach((classEntry) => {
-    classEntry.events.forEach((event) => {
-      const key = getChampionshipEventLabelKey(event);
-      if (!key) return;
-
-      if (!showsByKey.has(key)) {
-        showsByKey.set(key, {
-          key,
-          showNum: event.showNum,
-          showName: event.showName || event.label,
-          occurrenceCount: 0,
-          order: showsByKey.size + 1,
-        });
-      }
-
-      showsByKey.get(key).occurrenceCount += 1;
-    });
-  });
-
-  return Array.from(showsByKey.values()).sort((a, b) => a.order - b.order);
+function formatIncludedShowLabel(show) {
+  return show.label || show.showName || show.showNum || show.key || "Show";
 }
 
 function getPreviewImports(preview) {
@@ -1093,6 +1113,44 @@ const summaryGridStyle = {
 const summaryCardStyle = {
   ...panelStyle,
   marginBottom: 0,
+};
+
+const summaryShowsCardStyle = {
+  ...summaryCardStyle,
+  gridColumn: "1 / -1",
+};
+
+const summaryShowsHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  flexWrap: "wrap",
+  marginBottom: 10,
+};
+
+const showChipListStyle = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
+const showChipStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  border: "1px solid #cbd5e1",
+  borderRadius: 999,
+  background: "#f8fafc",
+  color: "#0f172a",
+  padding: "7px 10px",
+  fontSize: 13,
+  fontWeight: 850,
+};
+
+const showChipMetaStyle = {
+  color: "#64748b",
+  fontSize: 12,
+  fontWeight: 750,
 };
 
 const summaryValueStyle = {
