@@ -7,6 +7,7 @@ import { getAssociationWebsiteHref } from "../../features/associations/associati
 import { getPublicAssociationRepository } from "../../features/publication/publicViewRepository";
 import { getPublicChampionshipSeasonRepository } from "../../features/championship/championshipRepository";
 import { getChampionshipIncludedShows } from "../../features/championship/championshipStandings";
+import { buildChampionshipPublicSeo } from "../../features/seo/publicSeo";
 import {
   formatChampionshipMoney,
   formatChampionshipPoints,
@@ -45,16 +46,10 @@ function PublicAssociationChampionshipPage() {
     () => filterChampionshipClasses(classes, normalizedSearchQuery),
     [classes, normalizedSearchQuery]
   );
-  const seo = useMemo(() => {
-    const associationName =
-      association?.shortName || association?.name || t("common.association");
-    const title = `${t("championship.public.title")} | ${associationName}`;
-    const description = t("championship.public.description", {
-      associationName,
-    });
-
-    return { title, description };
-  }, [association, t]);
+  const seo = useMemo(
+    () => buildChampionshipPublicSeo({ association, season, t }),
+    [association, season, t]
+  );
 
   useEffect(() => {
     let isMounted = true;

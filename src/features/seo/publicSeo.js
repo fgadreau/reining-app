@@ -28,3 +28,19 @@ export function buildShowPublicSeo({ association, show, t }) {
     }),
   };
 }
+
+export function buildChampionshipPublicSeo({ association, season, t }) {
+  const associationName =
+    association?.shortName || association?.name || t("common.association");
+  const baseTitle = season?.title || t("championship.public.title");
+  const year = String(season?.year || "").trim();
+  const championshipTitle =
+    year && !baseTitle.includes(year) ? `${baseTitle} ${year}` : baseTitle;
+
+  return {
+    title: `${championshipTitle} | ${associationName} | ShowScore`,
+    description: t("championship.public.description", {
+      associationName,
+    }),
+  };
+}

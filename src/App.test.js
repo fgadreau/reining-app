@@ -23,6 +23,7 @@ import {
 } from "./features/i18n/i18n";
 import {
   buildAssociationPublicSeo,
+  buildChampionshipPublicSeo,
   buildShowPublicSeo,
 } from "./features/seo/publicSeo";
 import {
@@ -1062,6 +1063,11 @@ test("builds public SEO titles and descriptions", () => {
     show: { name: "Classique de printemps" },
     t,
   });
+  const championshipSeo = buildChampionshipPublicSeo({
+    association: { shortName: "AQR", name: "Association Reining Quebec" },
+    season: { title: "Championnat de saison", year: "2026" },
+    t,
+  });
 
   expect(associationSeo.title).toBe(
     "Association Reining Quebec | Shows publics | ShowScore"
@@ -1071,6 +1077,10 @@ test("builds public SEO titles and descriptions", () => {
     "Classique de printemps | Association Reining Quebec | ShowScore"
   );
   expect(showSeo.description).toContain("Classique de printemps");
+  expect(championshipSeo.title).toBe(
+    "Championnat de saison 2026 | AQR | ShowScore"
+  );
+  expect(championshipSeo.description).toContain("AQR");
 });
 
 test("combines retained judge scores without averaging", () => {

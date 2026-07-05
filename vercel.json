@@ -1,6 +1,28 @@
 {
   "rewrites": [
     {
+      "source": "/public/associations/:associationId/championnat",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|TelegramBot|SkypeUriPreview|Pinterest|bot|crawler|spider|preview).*"
+        }
+      ],
+      "destination": "/api/social-preview?type=championship&associationId=:associationId"
+    },
+    {
+      "source": "/public/associations/:associationId",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|TelegramBot|SkypeUriPreview|Pinterest|bot|crawler|spider|preview).*"
+        }
+      ],
+      "destination": "/api/social-preview?type=association&associationId=:associationId"
+    },
+    {
       "source": "/(.*)",
       "destination": "/"
     }
