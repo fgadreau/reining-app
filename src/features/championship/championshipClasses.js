@@ -184,7 +184,7 @@ export const CHAMPIONSHIP_CLASSES = [
     name: "Jeune Débutant 18 ans et moins AQR",
     englishName: "Beginner Youth 18 & under",
     order: 260,
-    classCodes: [],
+    classCodes: ["5397"],
   },
   {
     id: "aqr-short-legs-10-under",
@@ -198,7 +198,7 @@ export const CHAMPIONSHIP_CLASSES = [
     name: "Jeune Cavalier 14 à 21 ans AQR",
     englishName: "Young Rider 14 thru 21",
     order: 280,
-    classCodes: [],
+    classCodes: ["5396"],
   },
   {
     id: "ranch-riding",

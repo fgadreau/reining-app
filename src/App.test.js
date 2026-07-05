@@ -372,6 +372,8 @@ test("maps the main AQR championship class codes from the import report", () => 
     "3200",
     "5300",
     "5310",
+    "5396",
+    "5397",
   ].forEach((classCode) => {
     expect(getChampionshipClassByCode(classCode)).toBeTruthy();
   });
