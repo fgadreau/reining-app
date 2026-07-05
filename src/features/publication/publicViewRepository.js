@@ -5,6 +5,7 @@ import {
 } from "../classes/classRepository";
 import { loadAssociations } from "../associations/associationsData";
 import { normalizeSponsorLogos } from "../associations/sponsorLogos";
+import { getPublicChampionshipSeasonRepository } from "../championship/championshipRepository";
 import { getShowsByAssociationId, getShowById } from "../shows/showSelectors";
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import { getDaysByShowRepository } from "../days/dayRepository";
@@ -948,7 +949,10 @@ async function filterAssociationsWithPublicShows(associations) {
   const associationsWithShows = await Promise.all(
     associations.map(async (association) => {
       const shows = await getPublicShowsByAssociationRepository(association.id);
-      return shows.length > 0 ? association : null;
+      const championshipSeason = await getPublicChampionshipSeasonRepository(
+        association.id
+      );
+      return shows.length > 0 || championshipSeason ? association : null;
     })
   );
 

@@ -12,6 +12,7 @@ import AssociationShowPage from "../../pages/association/AssociationShowPage";
 import AssociationAccessPage from "../../pages/association/AssociationAccessPage";
 import AssociationActivityPage from "../../pages/association/AssociationActivityPage";
 import AssociationSettingsPage from "../../pages/association/AssociationSettingsPage";
+import AssociationChampionshipPage from "../../pages/association/AssociationChampionshipPage";
 import ShowDetailPage from "../../pages/association/ShowDetailPage";
 import SecretariatDashboardPage from "../../pages/association/SecretariatDashboardPage";
 import AnnouncerDashboardPage from "../../pages/association/AnnouncerDashboardPage";
@@ -19,6 +20,7 @@ import ShowScribePage from "../../pages/association/ShowScribePage";
 import PublicResultsPage from "../../pages/association/PublicResultsPage";
 import PublicAssociationsPage from "../../pages/public/PublicAssociationsPage";
 import PublicAssociationShowsPage from "../../pages/public/PublicAssociationShowsPage";
+import PublicAssociationChampionshipPage from "../../pages/public/PublicAssociationChampionshipPage";
 import PublicShowOverlayPage from "../../pages/public/PublicShowOverlayPage";
 import PublicShowTvPage from "../../pages/public/PublicShowTvPage";
 import ShowSchedulePreviewPage from "../../pages/association/ShowSchedulePreviewPage";
@@ -55,6 +57,10 @@ function AppRouter() {
         <Route
           path="/public/associations/:associationId"
           element={<PublicAssociationShowsPage />}
+        />
+        <Route
+          path="/public/associations/:associationId/championnat"
+          element={<PublicAssociationChampionshipPage />}
         />
         <Route
           path="/public/associations/:associationId/shows/:showId"
@@ -98,6 +104,14 @@ function AppRouter() {
           element={
             <ShowScoreAssociationGate>
               <AssociationSettingsPage />
+            </ShowScoreAssociationGate>
+          }
+        />
+        <Route
+          path="/associations/:associationId/championship"
+          element={
+            <ShowScoreAssociationGate>
+              <AssociationChampionshipPage />
             </ShowScoreAssociationGate>
           }
         />

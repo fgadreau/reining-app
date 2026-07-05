@@ -294,13 +294,21 @@ function AssociationShowPage() {
         </div>
 
         {access.canManageAssociation && (
-          <button
-            onClick={startCreateShow}
-            style={primaryButtonStyle}
-            disabled={isSaving}
-          >
-            {t("management.shows.addShow")}
-          </button>
+          <div style={headerActionStyle}>
+            <Link
+              to={`/associations/${associationId}/championship`}
+              style={linkButtonStyle}
+            >
+              {t("championship.admin.open")}
+            </Link>
+            <button
+              onClick={startCreateShow}
+              style={primaryButtonStyle}
+              disabled={isSaving}
+            >
+              {t("management.shows.addShow")}
+            </button>
+          </div>
         )}
       </div>
 
@@ -595,6 +603,13 @@ const showCardHeaderStyle = {
   alignItems: "flex-start",
   gap: 12,
   flexWrap: "wrap",
+};
+
+const headerActionStyle = {
+  display: "flex",
+  gap: 10,
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
 };
 
 const cardTitleStyle = {

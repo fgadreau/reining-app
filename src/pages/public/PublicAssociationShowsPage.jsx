@@ -4,6 +4,7 @@ import AssociationLogo from "../../components/AssociationLogo";
 import SeoMeta from "../../components/SeoMeta";
 import ShareButton from "../../components/ShareButton";
 import { getAssociationWebsiteHref } from "../../features/associations/associationProfile";
+import { getPublicChampionshipSeasonRepository } from "../../features/championship/championshipRepository";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import {
   getPublicAssociationRepository,
@@ -32,6 +33,7 @@ function PublicAssociationShowsPage() {
   const { associationId } = useParams();
   const [association, setAssociation] = useState(null);
   const [shows, setShows] = useState([]);
+  const [championshipSeason, setChampionshipSeason] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const { t } = useTranslation();
 
@@ -40,14 +42,16 @@ function PublicAssociationShowsPage() {
 
     async function loadShows() {
       setIsLoading(true);
-      const [nextAssociation, nextShows] = await Promise.all([
+      const [nextAssociation, nextShows, nextChampionshipSeason] = await Promise.all([
         getPublicAssociationRepository(associationId),
         getPublicShowsByAssociationRepository(associationId),
+        Promise.resolve(getPublicChampionshipSeasonRepository(associationId)),
       ]);
 
       if (!isMounted) return;
       setAssociation(nextAssociation);
       setShows(nextShows);
+      setChampionshipSeason(nextChampionshipSeason);
       setIsLoading(false);
     }
 
@@ -110,10 +114,56 @@ function PublicAssociationShowsPage() {
 
       {isLoading ? (
         <div style={emptyStateStyle}>{t("public.associationShows.loading")}</div>
-      ) : shows.length === 0 ? (
+      ) : shows.length === 0 && !championshipSeason ? (
         <div style={emptyStateStyle}>{t("public.associationShows.empty")}</div>
       ) : (
         <div style={showListStyle}>
+          {championshipSeason && (
+            <article style={cardStyle}>
+              <div>
+                <h2 style={cardTitleStyle}>
+                  {championshipSeason.title || t("championship.public.title")}
+                </h2>
+                <div style={mutedTextStyle}>
+                  {t("championship.public.associationCardMeta", {
+                    classes: championshipSeason.classCount || 0,
+                    events: championshipSeason.eventCount || 0,
+                  })}
+                </div>
+                <div style={badgeRowStyle}>
+                  <Badge tone="live">
+                    {championshipSeason.status === "final"
+                      ? t("championship.status.final")
+                      : t("championship.status.published")}
+                  </Badge>
+                  <Badge>
+                    {t("championship.public.teamsCount", {
+                      count: championshipSeason.teamCount || 0,
+                    })}
+                  </Badge>
+                </div>
+              </div>
+              <div style={cardActionsStyle}>
+                <Link
+                  to={`/public/associations/${associationId}/championnat`}
+                  style={primaryLinkStyle}
+                >
+                  {t("championship.public.viewChampionship")}
+                </Link>
+                <ShareButton
+                  url={`/public/associations/${associationId}/championnat`}
+                  title={championshipSeason.title || t("championship.public.title")}
+                  text={t("championship.public.description", {
+                    associationName:
+                      association?.shortName ||
+                      association?.name ||
+                      t("common.association"),
+                  })}
+                />
+              </div>
+            </article>
+          )}
+
           {shows.map((show) => {
             const showSeo = buildShowPublicSeo({ association, show, t });
 

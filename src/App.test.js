@@ -126,6 +126,14 @@ import {
   buildAssociationInvitationEmail,
   buildAssociationInvitationUrl,
 } from "./features/auth/invitationLinks";
+import { calculateChampionshipPoints } from "./features/championship/championshipPoints";
+import { getChampionshipClassByCode } from "./features/championship/championshipClasses";
+import {
+  applyChampionshipEventLabels,
+  buildChampionshipDatasetFromCsv,
+  buildChampionshipDatasetFromImports,
+  buildChampionshipImportBatchFromCsv,
+} from "./features/championship/championshipStandings";
 import { getDefaultShowRouteForRoles } from "./features/auth/showRoleRouting";
 import { buildAnalyticsSummary } from "./features/analytics/analyticsRepository";
 import { getPageEventContext } from "./features/analytics/analyticsRouteContext";
@@ -221,6 +229,157 @@ test("calculates and formats fractional maneuver scores", () => {
   expect(formatScoreValue("+0.5")).toBe("+½");
   expect(formatScoreValue("-1.5")).toBe("-1½");
   expect(run.scoreTotal).toBe("71");
+});
+
+test("calculates championship tie points without rounding to half points", () => {
+  expect(calculateChampionshipPoints(10, 10, 3)).toBeCloseTo(1 / 3, 8);
+});
+
+test("builds championship standings by technical show occurrence and team", () => {
+  const csv = [
+    "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+    'S1,AQR MAY SHOW 1,Débutant I / Beginner I,5399,,10,10,1,1,GOOD HORSE,,"RIDER, ALICE",,101,1,72,50',
+    'S2,AQR MAY SHOW 2,Débutant I / Beginner I,5399,,10,10,1,1,GOOD HORSE,,"RIDER, ALICE",,101,2,71,25',
+    'S3,AQR MAY SHOW 3,Débutant I / Beginner I,5399,,10,10,1,1,GOOD HORSE,,"RIDER, ALICE",,101,12,65,0',
+    'S1,AQR MAY SHOW 1,AQR Novice Horse Open,5394,,10,10,1,1,EXCLUDED HORSE,,"RIDER, BOB",,102,1,73,70',
+  ].join("\n");
+
+  const dataset = buildChampionshipDatasetFromCsv({ csvText: csv });
+  const beginnerClass = dataset.classes.find(
+    (item) => item.id === "aqr-beginner-non-pro-level-1"
+  );
+
+  expect(dataset.validation.excludedRows).toBe(1);
+  expect(dataset.validation.excludedClasses[0].classCode).toBe("5394");
+  expect(beginnerClass.events).toHaveLength(3);
+  expect(beginnerClass.teams).toHaveLength(1);
+  expect(beginnerClass.teams[0].totalPoints).toBe(19);
+  expect(beginnerClass.teams[0].totalMoney).toBe(75);
+  expect(beginnerClass.teams[0].details).toHaveLength(3);
+  expect(beginnerClass.teams[0].details[2].points).toBe(0);
+});
+
+test("applies public labels to championship technical shows", () => {
+  const csv = [
+    "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+    '201227090,AQR MAY SHOW 1,Open,1100,,5,5,1,1,HORSE A,,"RIDER, ALICE",,101,1,72,50',
+    '201227091,AQR MAY SHOW 2,Open,1100,,5,5,1,1,HORSE A,,"RIDER, ALICE",,101,2,71,25',
+  ].join("\n");
+
+  const labeled = applyChampionshipEventLabels(
+    buildChampionshipDatasetFromCsv({ csvText: csv }),
+    {
+      201227090: "Mai 1",
+      201227091: "Mai 2",
+    }
+  );
+  const openClass = labeled.classes.find((item) => item.id === "nrha-open");
+
+  expect(openClass.events.map((event) => event.label)).toEqual(["Mai 1", "Mai 2"]);
+  expect(openClass.teams[0].details.map((detail) => detail.eventLabel)).toEqual([
+    "Mai 1",
+    "Mai 2",
+  ]);
+});
+
+test("rebuilds championship standings from separate non-cumulative CSV imports", () => {
+  const firstImport = buildChampionshipImportBatchFromCsv({
+    fileName: "mai.csv",
+    csvText: [
+      "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+      'S1,AQR MAY SHOW 1,Open,1100,,5,5,1,1,HORSE A,,"RIDER, ALICE",,101,1,72,50',
+    ].join("\n"),
+  });
+  const secondImport = buildChampionshipImportBatchFromCsv({
+    fileName: "juin.csv",
+    csvText: [
+      "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+      'S2,AQR JUNE SHOW 1,Open,1100,,5,5,1,1,HORSE A,,"RIDER, ALICE",,101,2,71,25',
+    ].join("\n"),
+  });
+
+  const dataset = buildChampionshipDatasetFromImports({
+    imports: [firstImport, secondImport],
+  });
+  const openClass = dataset.classes.find((item) => item.id === "nrha-open");
+
+  expect(dataset.importCount).toBe(2);
+  expect(dataset.rowCount).toBe(2);
+  expect(dataset.uniqueRowCount).toBe(2);
+  expect(openClass.events).toHaveLength(2);
+  expect(openClass.teams[0].totalPoints).toBe(9);
+  expect(openClass.teams[0].details.map((detail) => detail.sourceFileName)).toEqual([
+    "mai.csv",
+    "juin.csv",
+  ]);
+});
+
+test("uses the latest CSV import when a result row is duplicated", () => {
+  const originalImport = buildChampionshipImportBatchFromCsv({
+    fileName: "mai-original.csv",
+    csvText: [
+      "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+      'S1,AQR MAY SHOW 1,Open,1100,,5,5,1,1,HORSE A,,"RIDER, ALICE",,101,1,72,50',
+    ].join("\n"),
+  });
+  const correctedImport = buildChampionshipImportBatchFromCsv({
+    fileName: "mai-corrige.csv",
+    csvText: [
+      "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+      'S1,AQR MAY SHOW 1,Open,1100,,5,5,1,1,HORSE A,,"RIDER, ALICE",,101,2,71,25',
+    ].join("\n"),
+  });
+
+  const dataset = buildChampionshipDatasetFromImports({
+    imports: [originalImport, correctedImport],
+  });
+  const openClass = dataset.classes.find((item) => item.id === "nrha-open");
+
+  expect(dataset.rowCount).toBe(2);
+  expect(dataset.uniqueRowCount).toBe(1);
+  expect(dataset.duplicateRowCount).toBe(1);
+  expect(dataset.validation.duplicateRows).toHaveLength(1);
+  expect(openClass.teams[0].totalPoints).toBe(4);
+  expect(openClass.teams[0].details[0].sourceFileName).toBe("mai-corrige.csv");
+});
+
+test("maps the main AQR championship class codes from the import report", () => {
+  [
+    "1100",
+    "1110",
+    "1200",
+    "1301",
+    "1350",
+    "1400",
+    "1500",
+    "1600",
+    "1650",
+    "1660",
+    "1700",
+    "1750",
+    "1800",
+    "1850",
+    "3100",
+    "3200",
+    "5300",
+    "5310",
+  ].forEach((classCode) => {
+    expect(getChampionshipClassByCode(classCode)).toBeTruthy();
+  });
+});
+
+test("assigns skipped championship ranks when total points are tied", () => {
+  const csv = [
+    "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+    'S1,AQR MAY SHOW 1,Débutant I / Beginner I,5399,,10,10,1,1,HORSE A,,"RIDER, ALICE",,101,1,72,50',
+    'S1,AQR MAY SHOW 1,Débutant I / Beginner I,5399,,10,10,1,1,HORSE B,,"RIDER, BOB",,102,1,72,50',
+    'S1,AQR MAY SHOW 1,Débutant I / Beginner I,5399,,10,10,1,1,HORSE C,,"RIDER, CAROL",,103,3,70,20',
+  ].join("\n");
+
+  const dataset = buildChampionshipDatasetFromCsv({ csvText: csv });
+  const ranks = dataset.classes[0].teams.map((team) => team.rank);
+
+  expect(ranks).toEqual([1, 1, 3]);
 });
 
 test("formats penalties with commas and clears the latest penalty token", () => {
