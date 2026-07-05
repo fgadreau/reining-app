@@ -2,17 +2,22 @@ const DEFAULT_SITE_NAME = "ShowScore";
 const DEFAULT_DESCRIPTION =
   "Shows publics, live, horaires et resultats publies dans ShowScore.";
 const DEFAULT_IMAGE_PATH = "/favicon.ico?v=showscore";
+const FALLBACK_SUPABASE_URL = "https://srzzituovoxkvvlaesxa.supabase.co";
+const FALLBACK_SUPABASE_PUBLISHABLE_KEY =
+  "sb_publishable_pNwsFl8clhcq1QpHa8_O4w_joshGiJN";
 
 function getSupabaseConfig() {
   const supabaseUrl = String(
-    process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ""
+    process.env.SUPABASE_URL ||
+      process.env.VITE_SUPABASE_URL ||
+      FALLBACK_SUPABASE_URL
   ).replace(/\/+$/, "");
   const supabaseKey = String(
     process.env.SUPABASE_PUBLISHABLE_KEY ||
       process.env.SUPABASE_ANON_KEY ||
       process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
       process.env.VITE_SUPABASE_ANON_KEY ||
-      ""
+      FALLBACK_SUPABASE_PUBLISHABLE_KEY
   ).trim();
 
   return { supabaseUrl, supabaseKey };
