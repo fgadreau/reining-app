@@ -8,16 +8,18 @@ const FALLBACK_SUPABASE_PUBLISHABLE_KEY =
 
 function getSupabaseConfig() {
   const supabaseUrl = String(
-    process.env.SUPABASE_URL ||
+    process.env.SHOWSCORE_SOCIAL_SUPABASE_URL ||
       process.env.VITE_SUPABASE_URL ||
-      FALLBACK_SUPABASE_URL
+      FALLBACK_SUPABASE_URL ||
+      process.env.SUPABASE_URL
   ).replace(/\/+$/, "");
   const supabaseKey = String(
-    process.env.SUPABASE_PUBLISHABLE_KEY ||
-      process.env.SUPABASE_ANON_KEY ||
+    process.env.SHOWSCORE_SOCIAL_SUPABASE_KEY ||
       process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
       process.env.VITE_SUPABASE_ANON_KEY ||
-      FALLBACK_SUPABASE_PUBLISHABLE_KEY
+      FALLBACK_SUPABASE_PUBLISHABLE_KEY ||
+      process.env.SUPABASE_PUBLISHABLE_KEY ||
+      process.env.SUPABASE_ANON_KEY
   ).trim();
 
   return { supabaseUrl, supabaseKey };
