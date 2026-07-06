@@ -31,6 +31,7 @@ import { useTranslation } from "../../features/i18n/I18nProvider";
 import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
 import { getShowById } from "../../features/shows/showSelectors";
 import { appStyles as styles } from "../../styles/appStyles";
+import ClassPaceSummary from "../../components/ClassPaceSummary";
 
 let paidWarmupAudioContext = null;
 
@@ -1381,6 +1382,7 @@ function ClassLiveCard({
                   showScore
                 />
               </div>
+              <ClassPaceSummary pace={classView.pace} />
 
               {hasClassStandings && (
                 <AnnouncerClassStandings

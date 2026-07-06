@@ -5446,6 +5446,57 @@ test("announcer live view exposes active, next, and recent completed runs", () =
   });
 });
 
+test("announcer live view exposes rider pace with planned drags", () => {
+  const classView = buildAnnouncerClassView({
+    classItem: {
+      id: "class-pace",
+      name: "Open Pace",
+      pattern: "5",
+    },
+    setup: {
+      dragInterval: 2,
+      dragDurationMinutes: 8,
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE,
+    },
+    scoringRuns: [
+      {
+        id: "pace-1",
+        draw: 1,
+        backNumber: "101",
+        scoreTotal: "71.0",
+        scores: Array(8).fill("0"),
+        penalties: Array(8).fill(""),
+        durationSeconds: 180,
+      },
+      {
+        id: "pace-2",
+        draw: 2,
+        backNumber: "102",
+        scores: Array(8).fill(""),
+        penalties: Array(8).fill(""),
+      },
+      {
+        id: "pace-3",
+        draw: 3,
+        backNumber: "103",
+        scores: Array(8).fill(""),
+        penalties: Array(8).fill(""),
+      },
+    ],
+  });
+
+  expect(classView.pace).toMatchObject({
+    runCount: 3,
+    completedRuns: 1,
+    remainingRuns: 2,
+    remainingDragBreaks: 1,
+    averageSecondsPerRiderWithDrags: 340,
+  });
+  expect(classView.pace.ridersPerHour).toBeCloseTo(10.59);
+});
+
 test("announcer live view reads multi-judge sessions", () => {
   const scores = getPatternHeaders("1").map(() => "0");
   saveActiveManoeuvre("class-announcer-multi", {
@@ -5597,6 +5648,8 @@ test("tracks run timing and estimates remaining class time with drags", () => {
 
   expect(completed.durationSeconds).toBe(180);
   expect(summary.averageRunSeconds).toBe(180);
+  expect(summary.averageSecondsPerRiderWithDrags).toBe(340);
+  expect(summary.ridersPerHour).toBeCloseTo(10.59);
   expect(summary.remainingRuns).toBe(2);
   expect(summary.remainingDragBreaks).toBe(1);
   expect(summary.remainingSeconds).toBe(840);
@@ -5690,6 +5743,8 @@ test("summarizes class timing by pattern", () => {
   });
   expect(timingRow.remainingRuns).toBe(2);
   expect(timingRow.remainingDragBreaks).toBe(1);
+  expect(timingRow.averageSecondsPerRiderWithDrags).toBe(280);
+  expect(timingRow.ridersPerHour).toBeCloseTo(12.86);
   expect(timingRow.remainingSeconds).toBe(720);
 
   expect(

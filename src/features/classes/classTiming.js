@@ -21,6 +21,66 @@ export function normalizeDragDurationMinutes(value) {
     : DEFAULT_DRAG_DURATION_MINUTES;
 }
 
+export function calculateClassPaceMetrics({
+  runCount,
+  completedRuns = 0,
+  averageRunSeconds,
+  dragInterval,
+  dragDurationMinutes,
+}) {
+  const normalizedRunCount = Number.parseInt(runCount, 10);
+  const safeRunCount =
+    Number.isFinite(normalizedRunCount) && normalizedRunCount > 0
+      ? normalizedRunCount
+      : 0;
+  const normalizedCompletedRuns = Number.parseInt(completedRuns, 10);
+  const safeCompletedRuns =
+    Number.isFinite(normalizedCompletedRuns) && normalizedCompletedRuns > 0
+      ? Math.min(normalizedCompletedRuns, safeRunCount)
+      : 0;
+  const normalizedAverageRunSeconds = Number(averageRunSeconds);
+  const normalizedDragInterval = normalizeDragInterval(dragInterval);
+  const normalizedDragDurationMinutes =
+    normalizeDragDurationMinutes(dragDurationMinutes);
+  const totalDragBreaks = normalizedDragInterval
+    ? Math.floor(Math.max(safeRunCount - 1, 0) / normalizedDragInterval)
+    : 0;
+  const completedDragBreaks =
+    normalizedDragInterval && safeCompletedRuns > 0
+      ? Math.floor(Math.max(safeCompletedRuns - 1, 0) / normalizedDragInterval)
+      : 0;
+  const remainingDragBreaks = Math.max(totalDragBreaks - completedDragBreaks, 0);
+  const totalRunSeconds =
+    Number.isFinite(normalizedAverageRunSeconds) &&
+    normalizedAverageRunSeconds > 0
+      ? safeRunCount * normalizedAverageRunSeconds
+      : null;
+  const totalDragSeconds =
+    totalDragBreaks * normalizedDragDurationMinutes * 60;
+  const averageSecondsPerRiderWithDrags =
+    totalRunSeconds == null || safeRunCount <= 0
+      ? null
+      : (totalRunSeconds + totalDragSeconds) / safeRunCount;
+  const ridersPerHour =
+    averageSecondsPerRiderWithDrags == null ||
+    averageSecondsPerRiderWithDrags <= 0
+      ? null
+      : 3600 / averageSecondsPerRiderWithDrags;
+
+  return {
+    runCount: safeRunCount,
+    completedRuns: safeCompletedRuns,
+    remainingRuns: Math.max(safeRunCount - safeCompletedRuns, 0),
+    dragInterval: normalizedDragInterval,
+    dragDurationMinutes: normalizedDragDurationMinutes,
+    totalDragBreaks,
+    completedDragBreaks,
+    remainingDragBreaks,
+    averageSecondsPerRiderWithDrags,
+    ridersPerHour,
+  };
+}
+
 export function formatClockTime(isoValue) {
   if (!isoValue) return "—";
 
@@ -125,14 +185,14 @@ export function calculateClassTimingSummary({
   const normalizedDragInterval = normalizeDragInterval(dragInterval);
   const normalizedDragDurationMinutes =
     normalizeDragDurationMinutes(dragDurationMinutes);
-  const totalDragBreaks = normalizedDragInterval
-    ? Math.floor(Math.max(sourceRuns.length - 1, 0) / normalizedDragInterval)
-    : 0;
-  const completedDragBreaks =
-    normalizedDragInterval && completedRuns > 0
-      ? Math.floor(Math.max(completedRuns - 1, 0) / normalizedDragInterval)
-      : 0;
-  const remainingDragBreaks = Math.max(totalDragBreaks - completedDragBreaks, 0);
+  const paceMetrics = calculateClassPaceMetrics({
+    runCount: sourceRuns.length,
+    completedRuns,
+    averageRunSeconds,
+    dragInterval: normalizedDragInterval,
+    dragDurationMinutes: normalizedDragDurationMinutes,
+  });
+  const remainingDragBreaks = paceMetrics.remainingDragBreaks;
   const remainingSeconds =
     averageRunSeconds == null
       ? null
@@ -153,7 +213,12 @@ export function calculateClassTimingSummary({
     averageRunSeconds,
     dragInterval: normalizedDragInterval,
     dragDurationMinutes: normalizedDragDurationMinutes,
+    totalDragBreaks: paceMetrics.totalDragBreaks,
+    completedDragBreaks: paceMetrics.completedDragBreaks,
     remainingDragBreaks,
+    averageSecondsPerRiderWithDrags:
+      paceMetrics.averageSecondsPerRiderWithDrags,
+    ridersPerHour: paceMetrics.ridersPerHour,
     remainingSeconds,
     estimatedEndAt,
     elapsedSeconds,

@@ -563,6 +563,18 @@ export const translations = {
           "Total: {{total}} · Passés: {{done}} · No show: {{noShow}} · Scratch: {{scratch}}",
         waiting: "En préparation",
       },
+      livePace: {
+        averageWithDrags: "{{duration}} / cav.",
+        averageWithDragsLabel: "Avec drags",
+        currentClasses: "Blocs en cours",
+        noCurrentClasses: "Aucun bloc en cours.",
+        paceUnavailable: "À mesurer",
+        progress: "{{completed}} / {{total}} passés",
+        progressLabel: "Progression",
+        remainingDragsLabel: "Drags restants",
+        ridersPerHour: "{{value}} cavaliers/h",
+        ridersPerHourLabel: "Cadence",
+      },
       access: {
         accessAdded: "Accès ajouté.",
         action: "Action",
@@ -2104,6 +2116,18 @@ export const translations = {
         warmupStats:
           "Total: {{total}} · Done: {{done}} · No show: {{noShow}} · Scratch: {{scratch}}",
         waiting: "On deck",
+      },
+      livePace: {
+        averageWithDrags: "{{duration}} / rider",
+        averageWithDragsLabel: "With drags",
+        currentClasses: "Blocks in progress",
+        noCurrentClasses: "No block in progress.",
+        paceUnavailable: "To measure",
+        progress: "{{completed}} / {{total}} done",
+        progressLabel: "Progress",
+        remainingDragsLabel: "Remaining drags",
+        ridersPerHour: "{{value}} riders/h",
+        ridersPerHourLabel: "Pace",
       },
       access: {
         accessAdded: "Access added.",

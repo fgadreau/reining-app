@@ -4,6 +4,7 @@ import {
   isNoPatternValue,
 } from "../patterns/patternDefinitions";
 import {
+  calculateClassPaceMetrics,
   calculateClassTimingSummary,
   getRunDurationSeconds,
   isMeasuredRunDurationUsable,
@@ -166,6 +167,13 @@ export function buildClassTimingRow({
   });
   const averageRunSeconds =
     summary.averageRunSeconds ?? patternAverageRunSeconds ?? null;
+  const paceMetrics = calculateClassPaceMetrics({
+    runCount,
+    completedRuns: summary.completedRuns,
+    averageRunSeconds,
+    dragInterval: summary.dragInterval,
+    dragDurationMinutes: summary.dragDurationMinutes,
+  });
   const remainingSeconds =
     summary.remainingSeconds ??
     (averageRunSeconds == null
@@ -189,6 +197,11 @@ export function buildClassTimingRow({
     averageRunSeconds,
     classAverageRunSeconds: summary.averageRunSeconds,
     usedPatternAverage: summary.averageRunSeconds == null && averageRunSeconds != null,
+    averageSecondsPerRiderWithDrags:
+      paceMetrics.averageSecondsPerRiderWithDrags,
+    ridersPerHour: paceMetrics.ridersPerHour,
+    totalDragBreaks: paceMetrics.totalDragBreaks,
+    completedDragBreaks: paceMetrics.completedDragBreaks,
     remainingDragBreaks: summary.remainingDragBreaks,
     remainingSeconds,
     estimatedEndAt,

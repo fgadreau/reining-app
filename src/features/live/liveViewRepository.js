@@ -18,6 +18,7 @@ import {
   hasClassScheduleDetails,
   normalizeClassScheduleDetails,
 } from "../classes/classSchedule";
+import { calculateClassTimingSummary } from "../classes/classTiming";
 import {
   getPatternDisplayName,
   getPatternHeaders,
@@ -249,6 +250,13 @@ export function buildAnnouncerClassView(classData) {
   const runs = sourceRuns.map((run, index) =>
     normalizeRunForAnnouncer(run, index, headers)
   );
+  const timingSummary = calculateClassTimingSummary({
+    runs,
+    maneuverCount: headers.length,
+    startedAt: classData.setup?.startedAt,
+    dragInterval: classData.setup?.dragInterval,
+    dragDurationMinutes: classData.setup?.dragDurationMinutes,
+  });
   const isOfficiallyCompleted = Boolean(
     classData.setup?.finalized ||
       classData.setup?.judgeSignedAt ||
@@ -294,6 +302,7 @@ export function buildAnnouncerClassView(classData) {
       isScheduleOnly: true,
       scheduleDetails,
       hasScheduleDetails: hasClassScheduleDetails(scheduleDetails),
+      pace: null,
       hasRailAdjustment: false,
       provisionalRanking: [],
       classStandings: [],
@@ -366,6 +375,20 @@ export function buildAnnouncerClassView(classData) {
     runCount: runs.length,
     scoringStarted,
     isComplete,
+    pace: {
+      runCount: runs.length,
+      completedRuns: timingSummary.completedRuns,
+      remainingRuns: timingSummary.remainingRuns,
+      averageRunSeconds: timingSummary.averageRunSeconds,
+      averageSecondsPerRiderWithDrags:
+        timingSummary.averageSecondsPerRiderWithDrags,
+      ridersPerHour: timingSummary.ridersPerHour,
+      dragInterval: timingSummary.dragInterval,
+      dragDurationMinutes: timingSummary.dragDurationMinutes,
+      totalDragBreaks: timingSummary.totalDragBreaks,
+      completedDragBreaks: timingSummary.completedDragBreaks,
+      remainingDragBreaks: timingSummary.remainingDragBreaks,
+    },
     hasRailAdjustment,
     provisionalRanking,
     classStandings,
@@ -426,6 +449,9 @@ function normalizeRunForAnnouncer(run, index, headers) {
     isActive: Boolean(run.isActive),
     startedAt: run.startedAt || null,
     completedAt: run.completedAt || null,
+    durationSeconds: Number.isFinite(Number(run.durationSeconds))
+      ? Number(run.durationSeconds)
+      : null,
     scores,
     penalties,
     isComplete: Boolean(run.isComplete),

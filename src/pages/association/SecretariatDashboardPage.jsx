@@ -13,6 +13,11 @@ import {
 } from "../../features/classes/classJudges";
 import { getUniqueScoringClasses } from "../../features/classes/classScoringGroups";
 import {
+  buildClassTimingRow,
+  buildPatternTimingStats,
+  getClassPatternValue,
+} from "../../features/classes/classTimeAnalytics";
+import {
   downloadJudgeScorePdf,
   downloadOfficialScorePdf,
   getOfficialPdfFileName,
@@ -51,6 +56,13 @@ import {
 import { getShowById } from "../../features/shows/showSelectors";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
+import ClassPaceSummary from "../../components/ClassPaceSummary";
+
+const CURRENT_SECRETARIAT_PUBLICATION_STATUSES = [
+  PUBLICATION_STATUSES.LIVE,
+  PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  PUBLICATION_STATUSES.LIVE_SCORING,
+];
 
 function SecretariatDashboardPage() {
   const { associationId, showId } = useParams();
@@ -126,6 +138,7 @@ function SecretariatDashboardPage() {
 
   const allClassRows = daySections.flatMap((section) => section.classRows);
   const summary = buildSummary(allClassRows);
+  const currentClassRows = buildCurrentClassRows(daySections);
 
   const refresh = () => setVersion((value) => value + 1);
 
@@ -326,6 +339,13 @@ function SecretariatDashboardPage() {
         <SummaryTile label={t("management.secretariat.published")} value={summary.published} tone="success" />
       </section>
 
+      {!isLoading && (
+        <CurrentClassesPanel
+          associationId={associationId}
+          currentClasses={currentClassRows}
+        />
+      )}
+
       {isLoading ? (
         <div style={emptyStateStyle}>{t("management.secretariat.loading")}</div>
       ) : daySections.length === 0 ? (
@@ -401,6 +421,76 @@ function SecretariatDashboardPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function CurrentClassesPanel({ associationId, currentClasses }) {
+  const { t } = useTranslation();
+
+  return (
+    <section style={currentClassesPanelStyle}>
+      <div style={sectionHeaderStyle}>
+        <div>
+          <h2 style={sectionTitleStyle}>
+            {t("management.livePace.currentClasses")}
+          </h2>
+          <div style={metaStyle}>
+            {t("management.secretariat.classCount", {
+              count: currentClasses.length,
+            })}
+          </div>
+        </div>
+      </div>
+
+      {currentClasses.length === 0 ? (
+        <div style={softEmptyStyle}>
+          {t("management.livePace.noCurrentClasses")}
+        </div>
+      ) : (
+        <div style={currentClassesGridStyle}>
+          {currentClasses.map(({ classData, day, timing }) => {
+            const classItem = classData.classItem || {};
+            const setup = classData.setup || {};
+            const classId = classItem.id;
+
+            return (
+              <div
+                key={`${day?.id || "day"}-${classId || classItem.name}`}
+                style={currentClassCardStyle}
+              >
+                <div style={currentClassHeaderStyle}>
+                  <div>
+                    <div style={classNameStyle}>
+                      {classItem.name || t("management.classes.unnamedClass")}
+                      {classItem.classCode ? ` (${classItem.classCode})` : ""}
+                    </div>
+                    <div style={metaStyle}>
+                      {day?.label || t("management.days.dayFallback")} ·{" "}
+                      {t("public.results.pattern")}{" "}
+                      {setup.pattern || classItem.pattern || "—"}
+                    </div>
+                  </div>
+                  <Badge tone="warn">
+                    {getCurrentClassStatusLabel(classData, t)}
+                  </Badge>
+                </div>
+                <ClassPaceSummary pace={timing} />
+                {classId && (
+                  <div style={currentClassActionsStyle}>
+                    <Link
+                      to={`/associations/${associationId}/scribe/classes/${classId}`}
+                      style={smallLinkButtonStyle}
+                    >
+                      {t("management.secretariat.scoring")}
+                    </Link>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -721,6 +811,60 @@ function Badge({ children, tone = "default" }) {
   return <span style={badgeStyle(tone)}>{children}</span>;
 }
 
+function buildCurrentClassRows(daySections) {
+  const allClassRows = daySections.flatMap((section) => section.classRows || []);
+  const patternAverageByValue = new Map(
+    buildPatternTimingStats(allClassRows).map((stat) => [
+      stat.pattern,
+      stat.averageRunSeconds,
+    ])
+  );
+
+  return daySections.flatMap((section) =>
+    (section.classRows || [])
+      .filter(isCurrentSecretariatClass)
+      .map((classData) => ({
+        day: section.day,
+        classData,
+        timing: buildClassTimingRow({
+          classData,
+          day: section.day,
+          patternAverageRunSeconds:
+            patternAverageByValue.get(getClassPatternValue(classData)) || null,
+        }),
+      }))
+  );
+}
+
+function isCurrentSecretariatClass(classData) {
+  if (classData?.status === "in_progress") return true;
+
+  if (
+    CURRENT_SECRETARIAT_PUBLICATION_STATUSES.includes(
+      classData?.publication?.status
+    )
+  ) {
+    return true;
+  }
+
+  const judgeSummary = getJudgeSheetSummary(classData);
+  return Boolean(
+    judgeSummary.isMultiJudge && judgeSummary.anyStarted && !judgeSummary.allSigned
+  );
+}
+
+function getCurrentClassStatusLabel(classData, t) {
+  if (
+    CURRENT_SECRETARIAT_PUBLICATION_STATUSES.includes(
+      classData?.publication?.status
+    )
+  ) {
+    return getPublicationStatusLabel(classData.publication.status, t);
+  }
+
+  return getClassStatusLabel(classData?.status, t);
+}
+
 function buildSummary(classRows) {
   return classRows.reduce(
     (summary, classData) => {
@@ -906,6 +1050,40 @@ const cardStyle = {
   borderRadius: 12,
   padding: 16,
   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+};
+
+const currentClassesPanelStyle = {
+  ...cardStyle,
+  marginBottom: 16,
+};
+
+const currentClassesGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
+  gap: 12,
+};
+
+const currentClassCardStyle = {
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  padding: 12,
+  background: "#fff",
+};
+
+const currentClassHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 10,
+  flexWrap: "wrap",
+};
+
+const currentClassActionsStyle = {
+  display: "flex",
+  justifyContent: "flex-end",
+  gap: 8,
+  flexWrap: "wrap",
+  marginTop: 10,
 };
 
 const sectionHeaderStyle = {
