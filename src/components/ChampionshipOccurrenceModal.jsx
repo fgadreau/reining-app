@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   formatChampionshipMoney,
   formatChampionshipPoints,
@@ -6,6 +6,8 @@ import {
 } from "../features/championship/championshipPoints";
 
 function ChampionshipOccurrenceModal({ occurrence, onClose, t }) {
+  const isCompactLayout = useCompactModalViewport(Boolean(occurrence));
+
   useEffect(() => {
     if (!occurrence) return undefined;
 
@@ -27,30 +29,36 @@ function ChampionshipOccurrenceModal({ occurrence, onClose, t }) {
   const sourceFiles = formatSourceFiles(results, t);
   const goLabel = formatGoLabel(event, t);
   const entriesLabel = formatEntriesLabel(event, results, t);
+  const layoutStyles = isCompactLayout ? compactLayoutStyles : regularLayoutStyles;
 
   return (
     <div
-      style={backdropStyle}
+      style={layoutStyles.backdrop}
       role="dialog"
       aria-modal="true"
       aria-labelledby="championship-occurrence-title"
       onClick={onClose}
     >
-      <div style={modalStyle} onClick={(clickEvent) => clickEvent.stopPropagation()}>
-        <div style={headerStyle}>
-          <div>
-            <div style={eyebrowStyle}>{t("championship.occurrence.title")}</div>
-            <h2 id="championship-occurrence-title" style={titleStyle}>
+      <div
+        style={layoutStyles.modal}
+        onClick={(clickEvent) => clickEvent.stopPropagation()}
+      >
+        <div style={layoutStyles.header}>
+          <div style={headerTextStyle}>
+            <div style={layoutStyles.eyebrow}>
+              {t("championship.occurrence.title")}
+            </div>
+            <h2 id="championship-occurrence-title" style={layoutStyles.title}>
               {event?.label || event?.showName || event?.showNum || "-"}
             </h2>
-            <div style={subtitleStyle}>{classEntry?.name || "-"}</div>
+            <div style={layoutStyles.subtitle}>{classEntry?.name || "-"}</div>
           </div>
           <button type="button" onClick={onClose} style={closeButtonStyle}>
             {t("championship.occurrence.close")}
           </button>
         </div>
 
-        <div style={metaGridStyle}>
+        <div style={layoutStyles.metaGrid}>
           <MetaItem label={t("championship.occurrence.show")} value={event?.showName || event?.showNum || "-"} />
           <MetaItem label={t("championship.occurrence.sourceClass")} value={sourceClass} />
           <MetaItem label={t("championship.occurrence.go")} value={goLabel} />
@@ -58,7 +66,9 @@ function ChampionshipOccurrenceModal({ occurrence, onClose, t }) {
           <MetaItem label={t("championship.occurrence.source")} value={sourceFiles} />
         </div>
 
-        <div style={noteStyle}>{t("championship.occurrence.moneyReferenceNote")}</div>
+        {!isCompactLayout && (
+          <div style={noteStyle}>{t("championship.occurrence.moneyReferenceNote")}</div>
+        )}
 
         <div style={tableWrapStyle}>
           <table style={tableStyle}>
@@ -112,6 +122,32 @@ function ChampionshipOccurrenceModal({ occurrence, onClose, t }) {
       </div>
     </div>
   );
+}
+
+function useCompactModalViewport(isOpen) {
+  const [isCompact, setIsCompact] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || typeof window === "undefined") {
+      setIsCompact(false);
+      return undefined;
+    }
+
+    const update = () => {
+      setIsCompact(window.innerHeight <= 520 && window.innerWidth > window.innerHeight);
+    };
+
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
+  }, [isOpen]);
+
+  return isCompact;
 }
 
 function MetaItem({ label, value }) {
@@ -261,9 +297,14 @@ const backdropStyle = {
   padding: 16,
 };
 
+const compactBackdropStyle = {
+  ...backdropStyle,
+  padding: 6,
+};
+
 const modalStyle = {
   width: "min(1120px, 100%)",
-  maxHeight: "88vh",
+  maxHeight: "calc(100dvh - 32px)",
   background: "#fff",
   borderRadius: 8,
   border: "1px solid #dbe3ef",
@@ -271,6 +312,13 @@ const modalStyle = {
   overflow: "hidden",
   display: "flex",
   flexDirection: "column",
+};
+
+const compactModalStyle = {
+  ...modalStyle,
+  width: "calc(100vw - 12px)",
+  height: "calc(100dvh - 12px)",
+  maxHeight: "calc(100dvh - 12px)",
 };
 
 const headerStyle = {
@@ -282,12 +330,28 @@ const headerStyle = {
   borderBottom: "1px solid #e2e8f0",
 };
 
+const compactHeaderStyle = {
+  ...headerStyle,
+  gap: 8,
+  padding: "7px 10px",
+  alignItems: "center",
+};
+
+const headerTextStyle = {
+  minWidth: 0,
+};
+
 const eyebrowStyle = {
   color: "#64748b",
   fontSize: 12,
   fontWeight: 900,
   textTransform: "uppercase",
   letterSpacing: 0,
+};
+
+const compactEyebrowStyle = {
+  ...eyebrowStyle,
+  display: "none",
 };
 
 const titleStyle = {
@@ -297,10 +361,30 @@ const titleStyle = {
   lineHeight: 1.16,
 };
 
+const compactTitleStyle = {
+  ...titleStyle,
+  margin: 0,
+  fontSize: 16,
+  lineHeight: 1.12,
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+};
+
 const subtitleStyle = {
   color: "#475569",
   fontSize: 14,
   fontWeight: 800,
+};
+
+const compactSubtitleStyle = {
+  ...subtitleStyle,
+  marginTop: 2,
+  fontSize: 11,
+  lineHeight: 1.1,
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
 };
 
 const closeButtonStyle = {
@@ -324,8 +408,18 @@ const metaGridStyle = {
   borderBottom: "1px solid #e2e8f0",
 };
 
+const compactMetaGridStyle = {
+  ...metaGridStyle,
+  display: "flex",
+  gap: 8,
+  padding: "6px 10px",
+  overflowX: "auto",
+  flex: "0 0 auto",
+};
+
 const metaItemStyle = {
   minWidth: 0,
+  flex: "0 0 min(190px, 62vw)",
 };
 
 const metaLabelStyle = {
@@ -355,6 +449,9 @@ const noteStyle = {
 
 const tableWrapStyle = {
   overflow: "auto",
+  flex: "1 1 auto",
+  minHeight: 0,
+  WebkitOverflowScrolling: "touch",
 };
 
 const tableStyle = {
@@ -428,6 +525,26 @@ const emptyTdStyle = {
   padding: 18,
   color: "#64748b",
   fontWeight: 800,
+};
+
+const regularLayoutStyles = {
+  backdrop: backdropStyle,
+  modal: modalStyle,
+  header: headerStyle,
+  eyebrow: eyebrowStyle,
+  title: titleStyle,
+  subtitle: subtitleStyle,
+  metaGrid: metaGridStyle,
+};
+
+const compactLayoutStyles = {
+  backdrop: compactBackdropStyle,
+  modal: compactModalStyle,
+  header: compactHeaderStyle,
+  eyebrow: compactEyebrowStyle,
+  title: compactTitleStyle,
+  subtitle: compactSubtitleStyle,
+  metaGrid: compactMetaGridStyle,
 };
 
 export default ChampionshipOccurrenceModal;
