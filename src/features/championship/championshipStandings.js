@@ -164,6 +164,12 @@ export function applyChampionshipEventLabels(dataset, labelsByShow = {}) {
       events: classEntry.events.map((event) => ({
         ...event,
         label: getLabel(event),
+        results: Array.isArray(event.results)
+          ? event.results.map((result) => ({
+              ...result,
+              eventLabel: getLabel(event),
+            }))
+          : event.results,
       })),
       teams: classEntry.teams.map((team) => ({
         ...team,
@@ -173,6 +179,41 @@ export function applyChampionshipEventLabels(dataset, labelsByShow = {}) {
         })),
       })),
     })),
+  };
+}
+
+export function ensureChampionshipOccurrenceResults(dataset) {
+  if (
+    !dataset ||
+    hasCompleteOccurrenceResults(dataset) ||
+    !Array.isArray(dataset.imports) ||
+    dataset.imports.length === 0
+  ) {
+    return dataset;
+  }
+
+  const rebuilt = buildChampionshipDatasetFromImports({
+    imports: dataset.imports,
+    seasonTitle: dataset.title,
+    year: dataset.year,
+    status: dataset.status,
+  });
+  const labeled = applyChampionshipEventLabels(
+    {
+      ...rebuilt,
+      id: dataset.id || rebuilt.id,
+      associationId: dataset.associationId || rebuilt.associationId,
+      createdAt: dataset.createdAt || rebuilt.createdAt,
+      updatedAt: dataset.updatedAt || rebuilt.updatedAt,
+    },
+    dataset.publicEventLabels || {}
+  );
+
+  return {
+    ...dataset,
+    ...labeled,
+    imports: dataset.imports,
+    publicEventLabels: dataset.publicEventLabels || {},
   };
 }
 
@@ -213,6 +254,21 @@ export function getChampionshipIncludedShows(dataset) {
   });
 
   return Array.from(showsByKey.values()).sort((a, b) => a.order - b.order);
+}
+
+function hasCompleteOccurrenceResults(dataset) {
+  const events = (Array.isArray(dataset?.classes) ? dataset.classes : []).flatMap(
+    (classEntry) => (Array.isArray(classEntry?.events) ? classEntry.events : [])
+  );
+
+  return (
+    events.length > 0 &&
+    events.every(
+      (event) =>
+        Array.isArray(event.results) &&
+        event.results.length >= (event.resultCount || 0)
+    )
+  );
 }
 
 function normalizeIncludedShow(show, index) {
@@ -258,7 +314,9 @@ function normalizeCsvRows(rows, index, { fileName = "", importId = "" } = {}) {
       classCode,
       patternNum: cell(row, index.PatternNum),
       entryCount: toNumber(cell(row, index.EntryCount)),
+      rawEntryCount: cell(row, index.EntryCount),
       shownCount: toNumber(cell(row, index.ShownCount)),
+      rawShownCount: cell(row, index.ShownCount),
       goType: cell(row, index.GoType),
       goNum: cell(row, index.GoNum),
       horse,
@@ -267,8 +325,11 @@ function normalizeCsvRows(rows, index, { fileName = "", importId = "" } = {}) {
       memberNrha: cell(row, index.MemberNrha),
       backNumber: cell(row, index.BackNum),
       placeNum: toNumber(cell(row, index.PlaceNum)),
+      rawPlaceNum: cell(row, index.PlaceNum),
       totalScore: toNumber(cell(row, index.TotalScore)),
+      rawTotalScore: cell(row, index.TotalScore),
       moneyWon: toNumber(cell(row, index.MoneyWon)),
+      rawMoneyWon: cell(row, index.MoneyWon),
       riderKey,
       horseKey,
       teamKey: riderKey && horseKey ? `${riderKey}|${horseKey}` : "",
@@ -443,6 +504,7 @@ function buildStandings(rows) {
     event.totalPoints += row.points;
     event.totalMoney += row.moneyWon;
     event.resultCount += 1;
+    event.results.push(buildOccurrenceResult(row));
     show.resultCount += 1;
     if (!show.eventKeys.includes(event.eventKey)) {
       show.eventKeys.push(event.eventKey);
@@ -465,11 +527,18 @@ function buildStandings(rows) {
       goType: row.goType,
       goNum: row.goNum,
       entryCount: row.entryCount,
+      rawEntryCount: row.rawEntryCount,
       shownCount: row.shownCount,
+      rawShownCount: row.rawShownCount,
       placeNum: row.placeNum,
+      rawPlaceNum: row.rawPlaceNum,
       totalScore: row.totalScore,
+      rawTotalScore: row.rawTotalScore,
       moneyWon: row.moneyWon,
+      rawMoneyWon: row.rawMoneyWon,
       points: row.points,
+      tieCount: row.tieCount,
+      backNumber: row.backNumber,
       sourceFileName: row.sourceFileName,
       sourceRowNumber: row.sourceRowNumber,
     });
@@ -485,7 +554,12 @@ function buildStandings(rows) {
 
       return {
         ...classEntry,
-        events: classEntry.events.sort((a, b) => a.order - b.order),
+        events: classEntry.events
+          .map((event) => ({
+            ...event,
+            results: event.results.slice().sort(compareOccurrenceResults),
+          }))
+          .sort((a, b) => a.order - b.order),
         teams: rankedTeams,
       };
     })
@@ -570,6 +644,7 @@ function getOrCreateEventEntry(eventsByKey, classEntry, row) {
       totalPoints: 0,
       totalMoney: 0,
       resultCount: 0,
+      results: [],
     };
     eventsByKey.set(eventKey, event);
     classEntry.events.push(event);
@@ -614,6 +689,59 @@ function getOrCreateTeamEntry(teamByClassAndKey, classEntry, row) {
   }
 
   return teamByClassAndKey.get(key);
+}
+
+function buildOccurrenceResult(row) {
+  return {
+    teamKey: row.teamKey,
+    rider: row.rider,
+    horse: row.horse,
+    backNumber: row.backNumber,
+    horseNrha: row.horseNrha,
+    memberNrha: row.memberNrha,
+    placeNum: row.placeNum,
+    rawPlaceNum: row.rawPlaceNum,
+    totalScore: row.totalScore,
+    rawTotalScore: row.rawTotalScore,
+    points: row.points,
+    tieCount: row.tieCount,
+    moneyWon: row.moneyWon,
+    rawMoneyWon: row.rawMoneyWon,
+    entryCount: row.entryCount,
+    rawEntryCount: row.rawEntryCount,
+    shownCount: row.shownCount,
+    rawShownCount: row.rawShownCount,
+    showNum: row.showNum,
+    showName: row.showName,
+    classCode: row.classCode,
+    className: row.className,
+    championshipClassId: row.championshipClassId,
+    championshipClassName: row.championshipClassName,
+    goType: row.goType,
+    goNum: row.goNum,
+    patternNum: row.patternNum,
+    sourceImportId: row.sourceImportId,
+    sourceFileName: row.sourceFileName,
+    sourceRowNumber: row.sourceRowNumber,
+  };
+}
+
+function compareOccurrenceResults(a, b) {
+  const aPlace = toNumber(a.placeNum);
+  const bPlace = toNumber(b.placeNum);
+  const aHasPlace = aPlace > 0;
+  const bHasPlace = bPlace > 0;
+
+  if (aHasPlace && bHasPlace && aPlace !== bPlace) return aPlace - bPlace;
+  if (aHasPlace !== bHasPlace) return aHasPlace ? -1 : 1;
+
+  const scoreDiff = toNumber(b.totalScore) - toNumber(a.totalScore);
+  if (Math.abs(scoreDiff) > 1e-9) return scoreDiff;
+
+  return (
+    toNumber(a.sourceRowNumber) - toNumber(b.sourceRowNumber) ||
+    `${a.rider} ${a.horse}`.localeCompare(`${b.rider} ${b.horse}`)
+  );
 }
 
 function compareTeams(a, b) {

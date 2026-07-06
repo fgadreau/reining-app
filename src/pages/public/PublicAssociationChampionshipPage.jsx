@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import AssociationLogo from "../../components/AssociationLogo";
+import ChampionshipOccurrenceModal from "../../components/ChampionshipOccurrenceModal";
 import SeoMeta from "../../components/SeoMeta";
 import ShareButton from "../../components/ShareButton";
 import { getAssociationWebsiteHref } from "../../features/associations/associationProfile";
@@ -39,6 +40,7 @@ function PublicAssociationChampionshipPage() {
   const [season, setSeason] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [openClassId, setOpenClassId] = useState(null);
+  const [selectedOccurrence, setSelectedOccurrence] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const classes = Array.isArray(season?.classes) ? season.classes : [];
   const normalizedSearchQuery = normalizeSearchText(searchQuery);
@@ -69,6 +71,7 @@ function PublicAssociationChampionshipPage() {
       setAssociation(nextAssociation);
       setSeason(nextSeason);
       setOpenClassId(null);
+      setSelectedOccurrence(null);
       setIsLoading(false);
     }
 
@@ -82,8 +85,29 @@ function PublicAssociationChampionshipPage() {
   useEffect(() => {
     if (!normalizedSearchQuery) return;
 
+    setSelectedOccurrence(null);
     setOpenClassId(filteredClasses[0]?.id || null);
   }, [filteredClasses, normalizedSearchQuery]);
+
+  const toggleClass = (classId, isOpen) => {
+    setSelectedOccurrence(null);
+    setOpenClassId(isOpen ? null : classId);
+  };
+
+  const openOccurrence = ({ classEntry, event, teamKey = "" }) => {
+    const fullClassEntry =
+      classes.find((item) => item.id === classEntry?.id) || classEntry;
+    const fullEvent =
+      (Array.isArray(fullClassEntry?.events) ? fullClassEntry.events : []).find(
+        (item) => item.eventKey === event?.eventKey
+      ) || event;
+
+    setSelectedOccurrence({
+      classEntry: fullClassEntry,
+      event: fullEvent,
+      teamKey,
+    });
+  };
 
   const downloadChampionshipPdf = () => {
     if (!season) return;
@@ -238,7 +262,7 @@ function PublicAssociationChampionshipPage() {
                 <article key={classEntry.id} style={classCardStyle}>
                   <button
                     type="button"
-                    onClick={() => setOpenClassId(isOpen ? null : classEntry.id)}
+                    onClick={() => toggleClass(classEntry.id, isOpen)}
                     style={classHeaderButtonStyle}
                   >
                     <span>
@@ -256,7 +280,11 @@ function PublicAssociationChampionshipPage() {
                   </button>
 
                   {isOpen && (
-                    <ChampionshipClassTable classEntry={classEntry} t={t} />
+                    <ChampionshipClassTable
+                      classEntry={classEntry}
+                      onSelectOccurrence={openOccurrence}
+                      t={t}
+                    />
                   )}
                 </article>
               );
@@ -265,11 +293,17 @@ function PublicAssociationChampionshipPage() {
           )}
         </>
       )}
+
+      <ChampionshipOccurrenceModal
+        occurrence={selectedOccurrence}
+        onClose={() => setSelectedOccurrence(null)}
+        t={t}
+      />
     </div>
   );
 }
 
-function ChampionshipClassTable({ classEntry, t }) {
+function ChampionshipClassTable({ classEntry, onSelectOccurrence, t }) {
   return (
     <div style={tableWrapStyle}>
       <table style={tableStyle}>
@@ -282,7 +316,13 @@ function ChampionshipClassTable({ classEntry, t }) {
             <th style={thStyle}>{t("championship.public.totalMoney")}</th>
             {classEntry.events.map((event) => (
               <th key={event.eventKey} style={eventThStyle}>
-                <div>{event.label}</div>
+                <button
+                  type="button"
+                  onClick={() => onSelectOccurrence({ classEntry, event })}
+                  style={eventHeaderButtonStyle}
+                >
+                  {event.label}
+                </button>
                 <div style={smallHeaderStyle}>Pts / $</div>
               </th>
             ))}
@@ -310,8 +350,19 @@ function ChampionshipClassTable({ classEntry, t }) {
 
                   return (
                     <td key={`${team.teamKey}-${event.eventKey}`} style={tdStyle}>
-                      {detail ? (
-                        <div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onSelectOccurrence({
+                            classEntry,
+                            event,
+                            teamKey: team.teamKey,
+                          })
+                        }
+                        style={detail ? eventCellButtonStyle : mutedEventCellButtonStyle}
+                      >
+                        {detail ? (
+                          <>
                           <div style={eventCellPointsStyle}>
                             {formatChampionshipPoints(detail.points)}
                           </div>
@@ -324,10 +375,11 @@ function ChampionshipClassTable({ classEntry, t }) {
                               score: detail.totalScore || "-",
                             })}
                           </div>
-                        </div>
-                      ) : (
-                        <span style={mutedCellStyle}>0 / 0.00 $</span>
-                      )}
+                          </>
+                        ) : (
+                          <span style={mutedCellStyle}>0 / 0.00 $</span>
+                        )}
+                      </button>
                     </td>
                   );
                 })}
@@ -681,6 +733,20 @@ const eventThStyle = {
   minWidth: 120,
 };
 
+const eventHeaderButtonStyle = {
+  width: "100%",
+  border: 0,
+  background: "transparent",
+  color: publicColors.text,
+  padding: 0,
+  font: "inherit",
+  fontWeight: 900,
+  cursor: "pointer",
+  textAlign: "center",
+  lineHeight: 1.2,
+  wordBreak: "break-word",
+};
+
 const smallHeaderStyle = {
   color: publicColors.muted,
   fontSize: 11,
@@ -726,6 +792,23 @@ const eventCellMetaStyle = {
 
 const mutedCellStyle = {
   color: publicColors.muted,
+};
+
+const eventCellButtonStyle = {
+  width: "100%",
+  minHeight: 54,
+  border: 0,
+  background: "transparent",
+  padding: 0,
+  font: "inherit",
+  color: "inherit",
+  cursor: "pointer",
+  textAlign: "center",
+};
+
+const mutedEventCellButtonStyle = {
+  ...eventCellButtonStyle,
+  minHeight: 40,
 };
 
 const footerTdStyle = {

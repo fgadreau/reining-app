@@ -134,6 +134,7 @@ import {
   buildChampionshipDatasetFromCsv,
   buildChampionshipDatasetFromImports,
   buildChampionshipImportBatchFromCsv,
+  ensureChampionshipOccurrenceResults,
   getChampionshipIncludedShows,
 } from "./features/championship/championshipStandings";
 import {
@@ -271,6 +272,85 @@ test("builds championship standings by technical show occurrence and team", () =
   expect(beginnerClass.teams[0].totalMoney).toBe(75);
   expect(beginnerClass.teams[0].details).toHaveLength(3);
   expect(beginnerClass.teams[0].details[2].points).toBe(0);
+});
+
+test("keeps full source results on championship show occurrences", () => {
+  const csv = [
+    "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+    'S1,AQR MAY SHOW 1,Débutant I / Beginner I,5399,8,12,11,1,1,GOOD HORSE,123,"RIDER, ALICE",456,101,1,72.5,50',
+    'S1,AQR MAY SHOW 1,Débutant I / Beginner I,5399,8,12,11,1,1,NICE HORSE,321,"RIDER, BOB",654,202,2,71,25',
+    'S1,AQR MAY SHOW 1,Débutant I / Beginner I,5399,8,12,11,1,1,LEARNING HORSE,,"RIDER, CAROL",,303,12,66,0',
+  ].join("\n");
+
+  const dataset = buildChampionshipDatasetFromCsv({
+    csvText: csv,
+    fileName: "may.csv",
+  });
+  const beginnerClass = dataset.classes.find(
+    (item) => item.id === "aqr-beginner-non-pro-level-1"
+  );
+  const event = beginnerClass.events[0];
+
+  expect(event.resultCount).toBe(3);
+  expect(event.results).toMatchObject([
+    {
+      backNumber: "101",
+      rider: "RIDER, ALICE",
+      horse: "GOOD HORSE",
+      classCode: "5399",
+      className: "Débutant I / Beginner I",
+      rawTotalScore: "72.5",
+      points: 10,
+      moneyWon: 50,
+      sourceFileName: "may.csv",
+      sourceRowNumber: 2,
+    },
+    {
+      backNumber: "202",
+      points: 9,
+      rawMoneyWon: "25",
+    },
+    {
+      backNumber: "303",
+      placeNum: 12,
+      points: 0,
+    },
+  ]);
+});
+
+test("rehydrates championship occurrence results from stored imports", () => {
+  const importBatch = buildChampionshipImportBatchFromCsv({
+    fileName: "may.csv",
+    csvText: [
+      "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+      'S1,AQR MAY SHOW 1,Débutant I / Beginner I,5399,,5,5,1,1,GOOD HORSE,,"RIDER, ALICE",,101,1,72,50',
+    ].join("\n"),
+  });
+  const dataset = buildChampionshipDatasetFromImports({
+    imports: [importBatch],
+  });
+  const storedSeason = {
+    ...dataset,
+    id: "season-1",
+    associationId: "assoc-1",
+    publicEventLabels: { S1: "Mai 1" },
+    classes: dataset.classes.map((classEntry) => ({
+      ...classEntry,
+      events: classEntry.events.map(({ results, ...event }) => event),
+    })),
+  };
+
+  const upgraded = ensureChampionshipOccurrenceResults(storedSeason);
+  const event = upgraded.classes[0].events[0];
+
+  expect(event.label).toBe("Mai 1");
+  expect(event.results).toMatchObject([
+    {
+      backNumber: "101",
+      rider: "RIDER, ALICE",
+      sourceFileName: "may.csv",
+    },
+  ]);
 });
 
 test("applies public labels to championship technical shows", () => {

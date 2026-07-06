@@ -5,6 +5,7 @@ import {
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 import { createId } from "../../utils/createId";
+import { ensureChampionshipOccurrenceResults } from "./championshipStandings";
 
 const STORAGE_KEY = "showscore_championship_seasons_v1";
 const PRIVATE_TABLE = "show_score_championship_seasons";
@@ -73,11 +74,12 @@ export async function getPublicChampionshipSeasonRepository(associationId) {
 
 export async function saveChampionshipSeasonRepository(season) {
   const now = new Date().toISOString();
+  const normalizedSeason = ensureChampionshipOccurrenceResults(season);
   const nextSeason = {
-    ...season,
-    id: season.id || createId("championship"),
+    ...normalizedSeason,
+    id: normalizedSeason.id || createId("championship"),
     updatedAt: now,
-    createdAt: season.createdAt || now,
+    createdAt: normalizedSeason.createdAt || now,
   };
   const savedLocal = saveChampionshipSeasonLocally(nextSeason);
   const supabase = getSupabaseClient();
@@ -167,7 +169,7 @@ function toPrivateSeason(row) {
       ? row.season_payload
       : {};
 
-  return {
+  return ensureChampionshipOccurrenceResults({
     ...payload,
     id: row.id,
     associationId: row.organization_id || payload.associationId || "",
@@ -176,7 +178,7 @@ function toPrivateSeason(row) {
     status: row.status || payload.status || "draft",
     createdAt: row.created_at || payload.createdAt || null,
     updatedAt: row.updated_at || payload.updatedAt || null,
-  };
+  });
 }
 
 function toPublicSeason(row) {
@@ -201,7 +203,9 @@ function compareSeasons(a, b) {
 }
 
 function toPublicChampionshipSeason(season) {
-  const { imports, validation, _localFirstSync, ...publicSeason } = season;
+  const normalizedSeason = ensureChampionshipOccurrenceResults(season);
+  const { imports, validation, _localFirstSync, ...publicSeason } =
+    normalizedSeason;
 
   return publicSeason;
 }
