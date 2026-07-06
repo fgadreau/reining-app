@@ -354,6 +354,7 @@ export function buildChampionshipFunFacts(dataset) {
           classNames: [],
           classCount: 0,
           podiumCount: 0,
+          scoreEntries: [],
           totalPoints: 0,
         };
 
@@ -366,6 +367,18 @@ export function buildChampionshipFunFacts(dataset) {
         details.forEach((detail) => {
           if (isPodiumPlacement(detail)) {
             entry.podiumCount += 1;
+          }
+
+          const score = toNumber(detail.totalScore || detail.rawTotalScore);
+          if (score > 0) {
+            entry.scoreEntries.push({
+              score,
+              showNum: detail.showNum || "",
+              sourceImportedAt: detail.sourceImportedAt || "",
+              sourceImportOrder: detail.sourceImportOrder,
+              sourceRowNumber: detail.sourceRowNumber,
+              sequence: entry.scoreEntries.length,
+            });
           }
 
           const points = toNumber(detail.points);
@@ -393,10 +406,16 @@ export function buildChampionshipFunFacts(dataset) {
     });
   });
 
-  const teamFacts = Array.from(teamsByKey.values()).map((team) => ({
-    ...team,
-    className: team.classNames.join(", "),
-  }));
+  const teamFacts = Array.from(teamsByKey.values()).map((team) => {
+    const { scoreEntries, ...teamFact } = team;
+    const progression = buildScoreProgression(scoreEntries);
+
+    return {
+      ...teamFact,
+      ...(progression || {}),
+      className: team.classNames.join(", "),
+    };
+  });
 
   return {
     highestScore: pickLeader(highestScores, compareHighestScores),
@@ -425,6 +444,11 @@ export function buildChampionshipFunFacts(dataset) {
       comparePodiumLeaders,
       "podiumCount"
     ),
+    bestProgression: pickLeaders(
+      teamFacts.filter((team) => toNumber(team.progressionDelta) > 0),
+      compareProgressionLeaders,
+      "progressionDelta"
+    ),
     mostClasses: pickLeaders(teamFacts, compareMostClasses, "classCount"),
   };
 }
@@ -432,6 +456,61 @@ export function buildChampionshipFunFacts(dataset) {
 function isPodiumPlacement(detail) {
   const place = toNumber(detail?.placeNum || detail?.rawPlaceNum);
   return place >= 1 && place <= 3;
+}
+
+function buildScoreProgression(scoreEntries) {
+  const scores = (Array.isArray(scoreEntries) ? scoreEntries : [])
+    .filter((entry) => toNumber(entry.score) > 0)
+    .slice()
+    .sort(compareScoreEntries);
+
+  if (scores.length < 4) return null;
+
+  const firstScoreAverage = averageNumbers(
+    scores.slice(0, 2).map((entry) => entry.score)
+  );
+  const lastScoreAverage = averageNumbers(
+    scores.slice(-2).map((entry) => entry.score)
+  );
+  const progressionDelta = lastScoreAverage - firstScoreAverage;
+
+  if (progressionDelta <= 0) return null;
+
+  return {
+    firstScoreAverage,
+    lastScoreAverage,
+    progressionDelta,
+    scoreCount: scores.length,
+  };
+}
+
+function averageNumbers(values) {
+  const numbers = values.map(toNumber).filter((value) => value > 0);
+  if (!numbers.length) return 0;
+
+  return numbers.reduce((total, value) => total + value, 0) / numbers.length;
+}
+
+function compareScoreEntries(a, b) {
+  const importDiff = toNumber(a.sourceImportOrder) - toNumber(b.sourceImportOrder);
+  if (Math.abs(importDiff) > 1e-9) return importDiff;
+
+  const showDiff = String(a.showNum || "").localeCompare(
+    String(b.showNum || ""),
+    undefined,
+    { numeric: true, sensitivity: "base" }
+  );
+  if (showDiff !== 0) return showDiff;
+
+  const importedAtDiff = String(a.sourceImportedAt || "").localeCompare(
+    String(b.sourceImportedAt || "")
+  );
+  if (importedAtDiff !== 0) return importedAtDiff;
+
+  const rowDiff = toNumber(a.sourceRowNumber) - toNumber(b.sourceRowNumber);
+  if (Math.abs(rowDiff) > 1e-9) return rowDiff;
+
+  return toNumber(a.sequence) - toNumber(b.sequence);
 }
 
 function addPointAggregate(map, key, fact) {
@@ -541,6 +620,18 @@ function comparePodiumLeaders(a, b) {
 
   const pointDiff = toNumber(b.totalPoints) - toNumber(a.totalPoints);
   if (Math.abs(pointDiff) > 1e-9) return pointDiff;
+
+  return compareFunFactNames(a, b);
+}
+
+function compareProgressionLeaders(a, b) {
+  const progressionDiff =
+    toNumber(b.progressionDelta) - toNumber(a.progressionDelta);
+  if (Math.abs(progressionDiff) > 1e-9) return progressionDiff;
+
+  const lastScoreDiff =
+    toNumber(b.lastScoreAverage) - toNumber(a.lastScoreAverage);
+  if (Math.abs(lastScoreDiff) > 1e-9) return lastScoreDiff;
 
   return compareFunFactNames(a, b);
 }
@@ -808,6 +899,8 @@ function buildStandings(rows) {
       points: row.points,
       tieCount: row.tieCount,
       backNumber: row.backNumber,
+      sourceImportedAt: row.sourceImportedAt,
+      sourceImportOrder: row.sourceImportOrder,
       sourceFileName: row.sourceFileName,
       sourceRowNumber: row.sourceRowNumber,
     });

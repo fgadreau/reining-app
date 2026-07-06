@@ -535,6 +535,10 @@ test("builds lightweight championship fun facts", () => {
       'S3,AQR JULY SHOW 1,Youth Beginner,5397,,10,10,1,1,HORSE E,,"RIDER, ERIN",,105,1,75.5,0',
       'S4,AQR AUGUST SHOW 1,Youth Beginner,5397,,10,10,1,1,HORSE F,,"RIDER, ALICE",,106,1,74,0',
       'S5,AQR SEPTEMBER SHOW 1,Youth Beginner,5397,,10,10,1,1,HORSE A,,"RIDER, FRANK",,107,2,73,0',
+      'S6,AQR SEPTEMBER SHOW 2,Youth Beginner,5397,,10,10,1,1,HORSE G,,"RIDER, GINA",,108,8,68,0',
+      'S7,AQR OCTOBER SHOW 1,Youth Beginner,5397,,10,10,1,1,HORSE G,,"RIDER, GINA",,108,7,69,0',
+      'S8,AQR OCTOBER SHOW 2,Youth Beginner,5397,,10,10,1,1,HORSE G,,"RIDER, GINA",,108,4,73,0',
+      'S9,AQR NOVEMBER SHOW 1,Youth Beginner,5397,,10,10,1,1,HORSE G,,"RIDER, GINA",,108,3,74,0',
       'S3,AQR JULY SHOW 1,Ranch Riding,399,,10,10,1,1,HORSE D,,"RIDER, DANA",,104,1,78,0',
     ].join("\n"),
   });
@@ -596,11 +600,21 @@ test("builds lightweight championship fun facts", () => {
       podiumCount: 3,
     },
   ]);
+  expect(funFacts.bestProgression).toMatchObject([
+    {
+      rider: "RIDER, GINA",
+      horse: "HORSE G",
+      firstScoreAverage: 68.5,
+      lastScoreAverage: 73.5,
+      progressionDelta: 5,
+      scoreCount: 4,
+    },
+  ]);
   expect(funFacts.mostClasses).toMatchObject([
     {
-      rider: "RIDER, ALICE",
-      horse: "HORSE A",
-      classCount: 3,
+      rider: "RIDER, GINA",
+      horse: "HORSE G",
+      classCount: 4,
     },
   ]);
 });

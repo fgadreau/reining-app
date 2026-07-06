@@ -629,6 +629,18 @@ function ChampionshipFunFactsModal({ isOpen, onClose, funFacts, t }) {
       renderMeta: () => t("championship.public.funFactsAllClassesAndTeams"),
     },
     {
+      key: "bestProgression",
+      title: t("championship.public.funFactsBestProgression"),
+      entries: funFacts.bestProgression || [],
+      renderValue: (entry) =>
+        `${formatSignedChampionshipPoints(entry.progressionDelta)} pts`,
+      renderMeta: (entry) =>
+        t("championship.public.funFactsProgressionMeta", {
+          first: formatChampionshipPoints(entry.firstScoreAverage),
+          last: formatChampionshipPoints(entry.lastScoreAverage),
+        }),
+    },
+    {
       key: "mostClasses",
       title: t("championship.public.funFactsMostClasses"),
       entries: funFacts.mostClasses || [],
@@ -792,8 +804,16 @@ function hasChampionshipFunFacts(funFacts) {
         (funFacts.topHorsePoints || []).length ||
         (funFacts.topTeamPoints || []).length ||
         (funFacts.mostPodiums || []).length ||
+        (funFacts.bestProgression || []).length ||
         (funFacts.mostClasses || []).length)
   );
+}
+
+function formatSignedChampionshipPoints(value) {
+  const number = Number(value);
+  const formatted = formatChampionshipPoints(value);
+
+  return number > 0 ? `+${formatted}` : formatted;
 }
 
 function formatFunFactTeam(entry, t) {
