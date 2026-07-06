@@ -13,7 +13,15 @@ import {
   parseImportedRuns,
   parsePositionedPdfPages,
 } from "./features/classes/classSetupImport";
+import {
+  deleteAssociationRepository,
+  isDeleteAssociationRpcMissing,
+} from "./features/associations/associationRepository";
 import { filterAssociationsBySearch } from "./features/associations/associationSearch";
+import {
+  loadAssociations,
+  saveAssociations,
+} from "./features/associations/associationsData";
 import { normalizeAssociationWebsiteUrl } from "./features/associations/associationProfile";
 import {
   detectBrowserLanguage,
@@ -510,16 +518,33 @@ test("builds lightweight championship fun facts", () => {
       'S3,AQR JULY SHOW 1,Intermediate Open,1110,,10,10,1,1,HORSE A,,"RIDER, ALICE",,101,3,72,25',
       'S1,AQR MAY SHOW 1,Youth Beginner,5397,,10,10,1,1,HORSE B,,"RIDER, BOB",,102,1,75.5,20',
       'S2,AQR JUNE SHOW 1,Youth Beginner,5397,,10,10,1,1,HORSE C,,"RIDER, CAROL",,103,1,70,100',
+      'S3,AQR JULY SHOW 1,Ranch Riding,399,,10,10,1,1,HORSE D,,"RIDER, DANA",,104,1,78,0',
     ].join("\n"),
   });
   const funFacts = buildChampionshipFunFacts(dataset);
 
   expect(funFacts.highestScore).toMatchObject([
     {
+      rider: "RIDER, DANA",
+      horse: "HORSE D",
+      score: 78,
+      showLabel: "AQR JULY SHOW 1",
+    },
+  ]);
+  expect(funFacts.highestReiningScore).toMatchObject([
+    {
       rider: "RIDER, BOB",
       horse: "HORSE B",
       score: 75.5,
       showLabel: "AQR MAY SHOW 1",
+    },
+  ]);
+  expect(funFacts.highestRanchRidingScore).toMatchObject([
+    {
+      rider: "RIDER, DANA",
+      horse: "HORSE D",
+      score: 78,
+      showLabel: "AQR JULY SHOW 1",
     },
   ]);
   expect(funFacts.topMoney).toMatchObject([
@@ -1316,6 +1341,29 @@ test("filters associations by short name or full name", () => {
   expect(
     filterAssociationsBySearch(associations, "classic").map((item) => item.id)
   ).toEqual(["nrc"]);
+});
+
+test("deletes an association from local storage when cloud sync is unavailable", async () => {
+  saveAssociations([
+    { id: "association-1", name: "Association One", shortName: "ONE" },
+    { id: "association-2", name: "Association Two", shortName: "TWO" },
+  ]);
+
+  await deleteAssociationRepository("association-1");
+
+  expect(loadAssociations().map((association) => association.id)).toEqual([
+    "association-2",
+  ]);
+});
+
+test("detects when the association delete RPC is missing", () => {
+  expect(isDeleteAssociationRpcMissing({ code: "PGRST202" })).toBe(true);
+  expect(
+    isDeleteAssociationRpcMissing({
+      message: "Could not find function delete_association_as_admin",
+    })
+  ).toBe(true);
+  expect(isDeleteAssociationRpcMissing({ code: "42501" })).toBe(false);
 });
 
 test("normalizes association website urls for public links", () => {

@@ -259,11 +259,14 @@ export function getChampionshipIncludedShows(dataset) {
 export function buildChampionshipFunFacts(dataset) {
   const classes = Array.isArray(dataset?.classes) ? dataset.classes : [];
   const highestScores = [];
+  const highestRanchRidingScores = [];
+  const highestReiningScores = [];
   const teamsByKey = new Map();
 
   classes.forEach((classEntry) => {
     const events = Array.isArray(classEntry?.events) ? classEntry.events : [];
     const teams = Array.isArray(classEntry?.teams) ? classEntry.teams : [];
+    const isRanchRidingClass = isRanchRidingChampionshipClass(classEntry);
 
     events.forEach((event) => {
       const results = Array.isArray(event?.results) ? event.results : [];
@@ -272,14 +275,22 @@ export function buildChampionshipFunFacts(dataset) {
         const score = toNumber(result.totalScore);
         if (score <= 0) return;
 
-        highestScores.push({
+        const entry = {
           rider: result.rider || "",
           horse: result.horse || "",
           className: classEntry.name || result.championshipClassName || "",
           showLabel:
             event.label || result.eventLabel || result.showName || result.showNum || "",
           score,
-        });
+        };
+
+        highestScores.push(entry);
+
+        if (isRanchRidingClass) {
+          highestRanchRidingScores.push(entry);
+        } else {
+          highestReiningScores.push(entry);
+        }
       });
     });
 
@@ -313,6 +324,16 @@ export function buildChampionshipFunFacts(dataset) {
 
   return {
     highestScore: pickLeaders(highestScores, compareHighestScores, "score"),
+    highestReiningScore: pickLeaders(
+      highestReiningScores,
+      compareHighestScores,
+      "score"
+    ),
+    highestRanchRidingScore: pickLeaders(
+      highestRanchRidingScores,
+      compareHighestScores,
+      "score"
+    ),
     topMoney: pickLeaders(
       teamFacts.filter((team) => team.totalMoney > 0),
       compareMoneyLeaders,
@@ -320,6 +341,18 @@ export function buildChampionshipFunFacts(dataset) {
     ),
     mostClasses: pickLeaders(teamFacts, compareMostClasses, "classCount"),
   };
+}
+
+function isRanchRidingChampionshipClass(classEntry) {
+  const id = String(classEntry?.id || "").trim().toLowerCase();
+  const name = String(classEntry?.name || "").trim().toLowerCase();
+  const events = Array.isArray(classEntry?.events) ? classEntry.events : [];
+
+  return (
+    id === "ranch-riding" ||
+    name.includes("ranch riding") ||
+    events.some((event) => normalizeClassCode(event?.classCode) === "399")
+  );
 }
 
 function hasCompleteOccurrenceResults(dataset) {

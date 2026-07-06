@@ -22,6 +22,7 @@ import {
 } from "../../features/auth/accessRepository";
 import {
   ASSOCIATION_ROLES,
+  canAdminAssociation,
   canManageAssociation,
   hasAssociationRole,
 } from "../../features/auth/accessRoles";
@@ -309,14 +310,24 @@ function AssociationsPage() {
     }
 
     setIsSaving(true);
-    await deleteAssociationRepository(id);
-    setAssociations((current) =>
-      current.filter((association) => association.id !== id)
-    );
-    setIsSaving(false);
+    setNotice("");
 
-    if (editingId === id) {
-      resetForm();
+    try {
+      await deleteAssociationRepository(id);
+      setAssociations((current) =>
+        current.filter((association) => association.id !== id)
+      );
+      setNotice(t("management.associations.deletedNotice"));
+
+      if (editingId === id) {
+        resetForm();
+      }
+    } catch (error) {
+      const message =
+        error?.message || t("management.associations.deleteFailedFallback");
+      setNotice(t("management.associations.deleteFailed", { message }));
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -540,6 +551,10 @@ function AssociationsPage() {
               ? true
               : isPlatformAdmin ||
                 canManageAssociation(memberships, association.id);
+            const canDelete = isLocalMode
+              ? true
+              : isPlatformAdmin ||
+                canAdminAssociation(memberships, association.id);
 
             return (
               <div key={association.id} style={associationCardStyle}>
@@ -585,7 +600,6 @@ function AssociationsPage() {
                   </Link>
 
                   {canManage && (
-                    <>
                       <button
                         type="button"
                         onClick={() => handleEdit(association)}
@@ -594,7 +608,9 @@ function AssociationsPage() {
                       >
                         {t("management.associations.edit")}
                       </button>
+                  )}
 
+                  {canDelete && (
                       <button
                         type="button"
                         onClick={() => handleDelete(association.id)}
@@ -603,7 +619,6 @@ function AssociationsPage() {
                       >
                         {t("management.associations.delete")}
                       </button>
-                    </>
                   )}
                 </div>
               </div>

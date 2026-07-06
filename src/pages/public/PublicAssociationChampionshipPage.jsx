@@ -454,9 +454,17 @@ function ChampionshipFunFactsModal({ isOpen, onClose, funFacts, t }) {
 
   const facts = [
     {
-      key: "highestScore",
-      title: t("championship.public.funFactsHighestScore"),
-      entries: funFacts.highestScore,
+      key: "highestReiningScore",
+      title: t("championship.public.funFactsHighestReiningScore"),
+      entries: funFacts.highestReiningScore || [],
+      renderValue: (entry) => formatChampionshipPoints(entry.score),
+      renderMeta: (entry) =>
+        [entry.className, entry.showLabel].filter(Boolean).join(" · "),
+    },
+    {
+      key: "highestRanchRidingScore",
+      title: t("championship.public.funFactsHighestRanchRidingScore"),
+      entries: funFacts.highestRanchRidingScore || [],
       renderValue: (entry) => formatChampionshipPoints(entry.score),
       renderMeta: (entry) =>
         [entry.className, entry.showLabel].filter(Boolean).join(" · "),
@@ -587,9 +595,11 @@ function getCurrentPageUrl() {
 function hasChampionshipFunFacts(funFacts) {
   return Boolean(
     funFacts &&
-      (funFacts.highestScore.length ||
-        funFacts.topMoney.length ||
-        funFacts.mostClasses.length)
+      ((funFacts.highestReiningScore || []).length ||
+        (funFacts.highestRanchRidingScore || []).length ||
+        (funFacts.highestScore || []).length ||
+        (funFacts.topMoney || []).length ||
+        (funFacts.mostClasses || []).length)
   );
 }
 

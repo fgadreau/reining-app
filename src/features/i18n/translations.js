@@ -278,6 +278,8 @@ export const translations = {
         funFactsClose: "Fermer",
         funFactsEyebrow: "Juste pour le fun",
         funFactsHighestScore: "Meilleur score",
+        funFactsHighestRanchRidingScore: "Meilleur score Ranch Riding",
+        funFactsHighestReiningScore: "Meilleur score Reining",
         funFactsMostClasses: "Le plus actif",
         funFactsOpen: "Fun facts",
         funFactsTitle: "Fun facts de la saison",
@@ -628,6 +630,11 @@ export const translations = {
         createdNotice: "Association créée. Tu es admin de cette association.",
         delete: "Supprimer",
         deleteConfirm: "Supprimer cette association ?",
+        deleteFailed:
+          "Impossible de supprimer l'association. {{message}}",
+        deleteFailedFallback:
+          "La suppression a été refusée par Supabase.",
+        deletedNotice: "Association supprimée.",
         edit: "Modifier",
         editTitle: "Modifier une association",
         empty:
@@ -1815,6 +1822,8 @@ export const translations = {
         funFactsClose: "Close",
         funFactsEyebrow: "Just for fun",
         funFactsHighestScore: "Highest score",
+        funFactsHighestRanchRidingScore: "Highest Ranch Riding score",
+        funFactsHighestReiningScore: "Highest Reining score",
         funFactsMostClasses: "Most active",
         funFactsOpen: "Fun facts",
         funFactsTitle: "Season fun facts",
@@ -2162,6 +2171,11 @@ export const translations = {
         createdNotice: "Association created. You are an admin for this association.",
         delete: "Delete",
         deleteConfirm: "Delete this association?",
+        deleteFailed:
+          "Unable to delete the association. {{message}}",
+        deleteFailedFallback:
+          "Supabase refused the delete request.",
+        deletedNotice: "Association deleted.",
         edit: "Edit",
         editTitle: "Edit association",
         empty:

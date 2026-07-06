@@ -60,12 +60,31 @@ async function updateAssociationRow(supabase, association) {
 }
 
 async function deleteAssociationRow(supabase, associationId) {
-  const { error } = await supabase
+  const { error: rpcError } = await supabase.rpc("delete_association_as_admin", {
+    target_association_id: associationId,
+  });
+
+  if (!rpcError) {
+    return;
+  }
+
+  if (!isDeleteAssociationRpcMissing(rpcError)) {
+    throw rpcError;
+  }
+
+  const { data, error } = await supabase
     .from("organizations")
     .delete()
-    .eq("id", associationId);
+    .eq("id", associationId)
+    .select("id");
 
   if (error) throw error;
+
+  if (!Array.isArray(data) || data.length === 0) {
+    throw new Error(
+      "Supabase n'a supprimé aucune association. Vérifie le RPC delete_association_as_admin ou les politiques DELETE."
+    );
+  }
 }
 
 function saveAssociationLocally(association) {
@@ -202,6 +221,15 @@ export function isCreateAssociationWithOwnerMissing(error) {
   );
 }
 
+export function isDeleteAssociationRpcMissing(error) {
+  const message = String(error?.message || "");
+
+  return (
+    error?.code === "PGRST202" ||
+    /delete_association_as_admin/i.test(message)
+  );
+}
+
 export async function deleteAssociationRepository(associationId) {
   const supabase = getSupabaseClient();
   const existingAssociation = loadAssociations().find(
@@ -213,6 +241,7 @@ export async function deleteAssociationRepository(associationId) {
       await deleteAssociationRow(supabase, associationId);
     } catch (error) {
       console.error("Erreur suppression association Supabase:", error);
+      throw error;
     }
   }
 
