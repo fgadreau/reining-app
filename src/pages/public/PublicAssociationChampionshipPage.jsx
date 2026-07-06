@@ -40,6 +40,7 @@ import {
 function PublicAssociationChampionshipPage() {
   const { associationId } = useParams();
   const { t } = useTranslation();
+  const isMobileLayout = useChampionshipMobileLayout();
   const [association, setAssociation] = useState(null);
   const [season, setSeason] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -159,13 +160,15 @@ function PublicAssociationChampionshipPage() {
         </Link>
       </div>
 
-      <section style={heroStyle}>
+      <section style={isMobileLayout ? mobileHeroStyle : heroStyle}>
         <div style={heroBrandStyle}>
-          <AssociationLogo association={association} size={58} />
+          <AssociationLogo association={association} size={isMobileLayout ? 44 : 58} />
           <div>
             <div style={eyebrowStyle}>{t("championship.public.eyebrow")}</div>
-            <h1 style={titleStyle}>{season?.title || t("championship.public.title")}</h1>
-            {season?.status === "published" && (
+            <h1 style={isMobileLayout ? mobileTitleStyle : titleStyle}>
+              {season?.title || t("championship.public.title")}
+            </h1>
+            {season?.status === "published" && !isMobileLayout && (
               <div style={provisionalHeaderStyle}>
                 {t("championship.status.published")}
               </div>
@@ -176,7 +179,7 @@ function PublicAssociationChampionshipPage() {
             </div>
           </div>
         </div>
-        <div style={heroActionsStyle}>
+        <div style={isMobileLayout ? mobileHeroActionsStyle : heroActionsStyle}>
           {season?.status && (
             <span style={publicBadgeStyle(season.status === "final" ? "success" : "info")}>
               {season.status === "final"
@@ -235,17 +238,31 @@ function PublicAssociationChampionshipPage() {
         <div style={emptyStateStyle}>{t("championship.public.empty")}</div>
       ) : (
         <>
-          <section style={summaryStyle}>
-            <SummaryItem label={t("championship.public.classes")} value={season.classCount || 0} />
-            <SummaryItem label={t("championship.public.events")} value={season.eventCount || 0} />
+          <section style={isMobileLayout ? mobileSummaryStyle : summaryStyle}>
+            <SummaryItem
+              label={t("championship.public.classes")}
+              value={season.classCount || 0}
+              compact={isMobileLayout}
+            />
+            <SummaryItem
+              label={t("championship.public.events")}
+              value={season.eventCount || 0}
+              compact={isMobileLayout}
+            />
             <SummaryItem
               label={t("championship.public.shows")}
               value={season.showCount ?? includedShows.length}
+              compact={isMobileLayout}
             />
-            <SummaryItem label={t("championship.public.teams")} value={season.teamCount || 0} />
+            <SummaryItem
+              label={t("championship.public.teams")}
+              value={season.teamCount || 0}
+              compact={isMobileLayout}
+            />
             <SummaryItem
               label={t("championship.public.updated")}
               value={formatDate(season.updatedAt || season.importedAt)}
+              compact={isMobileLayout}
             />
             <SummaryShowsItem
               label={t("championship.public.includedShows")}
@@ -255,11 +272,11 @@ function PublicAssociationChampionshipPage() {
             />
           </section>
 
-          <section style={searchStyle}>
+          <section style={isMobileLayout ? mobileSearchStyle : searchStyle}>
             <label style={searchLabelStyle} htmlFor="championship-search">
               {t("championship.public.searchLabel")}
             </label>
-            <div style={searchRowStyle}>
+            <div style={isMobileLayout ? mobileSearchRowStyle : searchRowStyle}>
               <input
                 id="championship-search"
                 value={searchQuery}
@@ -291,10 +308,18 @@ function PublicAssociationChampionshipPage() {
                   <button
                     type="button"
                     onClick={() => toggleClass(classEntry.id, isOpen)}
-                    style={classHeaderButtonStyle}
+                    style={
+                      isMobileLayout
+                        ? mobileClassHeaderButtonStyle
+                        : classHeaderButtonStyle
+                    }
                   >
                     <span>
-                      <span style={classTitleStyle}>{classEntry.name}</span>
+                      <span
+                        style={isMobileLayout ? mobileClassTitleStyle : classTitleStyle}
+                      >
+                        {classEntry.name}
+                      </span>
                       <span style={classMetaStyle}>
                         {t("championship.public.classMeta", {
                           events: classEntry.events.length,
@@ -302,7 +327,7 @@ function PublicAssociationChampionshipPage() {
                         })}
                       </span>
                     </span>
-                    <span style={viewToggleStyle}>
+                    <span style={isMobileLayout ? mobileViewToggleStyle : viewToggleStyle}>
                       {isOpen ? t("public.results.hide") : t("public.results.view")}
                     </span>
                   </button>
@@ -310,6 +335,7 @@ function PublicAssociationChampionshipPage() {
                   {isOpen && (
                     <ChampionshipClassTable
                       classEntry={classEntry}
+                      isMobileLayout={isMobileLayout}
                       onSelectOccurrence={openOccurrence}
                       t={t}
                     />
@@ -347,7 +373,22 @@ function PublicAssociationChampionshipPage() {
   );
 }
 
-function ChampionshipClassTable({ classEntry, onSelectOccurrence, t }) {
+function ChampionshipClassTable({
+  classEntry,
+  isMobileLayout,
+  onSelectOccurrence,
+  t,
+}) {
+  if (isMobileLayout) {
+    return (
+      <ChampionshipClassMobileStandings
+        classEntry={classEntry}
+        onSelectOccurrence={onSelectOccurrence}
+        t={t}
+      />
+    );
+  }
+
   return (
     <div style={tableWrapStyle}>
       <table style={tableStyle}>
@@ -449,6 +490,102 @@ function ChampionshipClassTable({ classEntry, onSelectOccurrence, t }) {
   );
 }
 
+function ChampionshipClassMobileStandings({ classEntry, onSelectOccurrence, t }) {
+  const eventsByKey = new Map(
+    (classEntry.events || []).map((event) => [event.eventKey, event])
+  );
+
+  return (
+    <div style={mobileStandingsStyle}>
+      {classEntry.teams.map((team) => {
+        const details = Array.isArray(team.details) ? team.details : [];
+
+        return (
+          <article key={team.teamKey} style={mobileTeamCardStyle}>
+            <div style={mobileTeamHeaderStyle}>
+              <div style={mobileRankStyle}>#{team.rank}</div>
+              <div style={mobileTeamIdentityStyle}>
+                <div style={mobileRiderStyle}>{team.rider || "-"}</div>
+                <div style={mobileHorseStyle}>{team.horse || "-"}</div>
+              </div>
+            </div>
+
+            <div style={mobileTotalsStyle}>
+              <MobileTotal
+                label={t("championship.public.totalPoints")}
+                value={formatChampionshipPoints(team.totalPoints)}
+              />
+              <MobileTotal
+                label={t("championship.public.totalMoney")}
+                value={formatChampionshipMoney(team.totalMoney)}
+              />
+            </div>
+
+            <div style={mobileOccurrenceHeaderStyle}>
+              {t("championship.public.mobileOccurrences")}
+            </div>
+            {details.length > 0 ? (
+              <div style={mobileOccurrenceListStyle}>
+                {details.map((detail) => {
+                  const event = eventsByKey.get(detail.eventKey) || detail;
+                  const detailLabel =
+                    detail.eventLabel ||
+                    event.label ||
+                    detail.showName ||
+                    detail.showNum ||
+                    "-";
+
+                  return (
+                    <button
+                      key={`${team.teamKey}-${detail.eventKey}`}
+                      type="button"
+                      onClick={() =>
+                        onSelectOccurrence({
+                          classEntry,
+                          event,
+                          teamKey: team.teamKey,
+                        })
+                      }
+                      style={mobileOccurrenceButtonStyle}
+                    >
+                      <span style={mobileOccurrenceLabelStyle}>
+                        {detailLabel}
+                      </span>
+                      <span style={mobileOccurrenceValueStyle}>
+                        {formatChampionshipPoints(detail.points)} ·{" "}
+                        {formatChampionshipMoney(detail.moneyWon)}
+                      </span>
+                      <span style={mobileOccurrenceMetaStyle}>
+                        {t("championship.public.placeScore", {
+                          place: detail.placeNum || "-",
+                          score: detail.totalScore || "-",
+                        })}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={mutedTextStyle}>
+                {t("championship.public.mobileNoOccurrences")}
+              </div>
+            )}
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function MobileTotal({ label, value }) {
+  return (
+    <div style={mobileTotalStyle}>
+      <div style={mobileTotalLabelStyle}>{label}</div>
+      <div style={mobileTotalValueStyle}>{value}</div>
+    </div>
+  );
+}
+
 function ChampionshipFunFactsModal({ isOpen, onClose, funFacts, t }) {
   if (!isOpen) return null;
 
@@ -539,13 +676,49 @@ function ChampionshipFunFactsModal({ isOpen, onClose, funFacts, t }) {
   );
 }
 
-function SummaryItem({ label, value }) {
+function SummaryItem({ label, value, compact = false }) {
   return (
-    <div style={summaryItemStyle}>
-      <div style={summaryValueStyle}>{value}</div>
+    <div style={compact ? mobileSummaryItemStyle : summaryItemStyle}>
+      <div style={compact ? mobileSummaryValueStyle : summaryValueStyle}>
+        {value}
+      </div>
       <div style={mutedTextStyle}>{label}</div>
     </div>
   );
+}
+
+function useChampionshipMobileLayout() {
+  const [isMobileLayout, setIsMobileLayout] = useState(() =>
+    getChampionshipMobileMediaQuery()?.matches || false
+  );
+
+  useEffect(() => {
+    const mediaQuery = getChampionshipMobileMediaQuery();
+
+    if (!mediaQuery) {
+      setIsMobileLayout(false);
+      return undefined;
+    }
+
+    const update = () => setIsMobileLayout(mediaQuery.matches);
+
+    update();
+    mediaQuery.addEventListener?.("change", update);
+
+    return () => {
+      mediaQuery.removeEventListener?.("change", update);
+    };
+  }, []);
+
+  return isMobileLayout;
+}
+
+function getChampionshipMobileMediaQuery() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return null;
+  }
+
+  return window.matchMedia("(max-width: 680px)");
 }
 
 function SummaryShowsItem({ label, shows, emptyText, t }) {
@@ -652,6 +825,13 @@ const heroStyle = {
   ...publicHeroStyle,
 };
 
+const mobileHeroStyle = {
+  ...publicHeroStyle,
+  padding: 12,
+  gap: 10,
+  marginBottom: 10,
+};
+
 const heroBrandStyle = {
   display: "flex",
   gap: 14,
@@ -667,6 +847,13 @@ const heroActionsStyle = {
   alignItems: "center",
 };
 
+const mobileHeroActionsStyle = {
+  ...heroActionsStyle,
+  width: "100%",
+  justifyContent: "flex-start",
+  gap: 6,
+};
+
 const eyebrowStyle = {
   ...publicEyebrowStyle,
 };
@@ -674,6 +861,13 @@ const eyebrowStyle = {
 const titleStyle = {
   ...publicTitleStyle,
   fontSize: 30,
+};
+
+const mobileTitleStyle = {
+  ...publicTitleStyle,
+  margin: "2px 0",
+  fontSize: 21,
+  lineHeight: 1.08,
 };
 
 const provisionalHeaderStyle = {
@@ -735,8 +929,20 @@ const summaryStyle = {
   marginBottom: 12,
 };
 
+const mobileSummaryStyle = {
+  ...summaryStyle,
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gap: 8,
+  marginBottom: 10,
+};
+
 const summaryItemStyle = {
   ...publicCardStyle,
+};
+
+const mobileSummaryItemStyle = {
+  ...summaryItemStyle,
+  padding: 10,
 };
 
 const summaryShowsItemStyle = {
@@ -787,6 +993,12 @@ const searchStyle = {
   marginBottom: 12,
 };
 
+const mobileSearchStyle = {
+  ...searchStyle,
+  padding: 10,
+  marginBottom: 10,
+};
+
 const searchLabelStyle = {
   display: "block",
   color: publicColors.text,
@@ -800,6 +1012,11 @@ const searchRowStyle = {
   gap: 8,
   alignItems: "center",
   flexWrap: "wrap",
+};
+
+const mobileSearchRowStyle = {
+  ...searchRowStyle,
+  gap: 6,
 };
 
 const searchInputStyle = {
@@ -823,6 +1040,12 @@ const summaryValueStyle = {
   fontSize: 24,
   fontWeight: 900,
   color: publicColors.text,
+};
+
+const mobileSummaryValueStyle = {
+  ...summaryValueStyle,
+  fontSize: 20,
+  lineHeight: 1,
 };
 
 const funFactsBackdropStyle = {
@@ -948,12 +1171,25 @@ const classHeaderButtonStyle = {
   textAlign: "left",
 };
 
+const mobileClassHeaderButtonStyle = {
+  ...classHeaderButtonStyle,
+  padding: 11,
+  gap: 8,
+  alignItems: "flex-start",
+};
+
 const classTitleStyle = {
   display: "block",
   color: publicColors.text,
   fontSize: 18,
   fontWeight: 900,
   lineHeight: 1.2,
+};
+
+const mobileClassTitleStyle = {
+  ...classTitleStyle,
+  fontSize: 16,
+  lineHeight: 1.16,
 };
 
 const classMetaStyle = {
@@ -970,6 +1206,148 @@ const viewToggleStyle = {
   padding: "7px 10px",
   fontSize: 13,
   flex: "0 0 auto",
+};
+
+const mobileViewToggleStyle = {
+  ...viewToggleStyle,
+  minHeight: 30,
+  padding: "5px 8px",
+  fontSize: 12,
+};
+
+const mobileStandingsStyle = {
+  display: "grid",
+  gap: 8,
+  padding: 10,
+  borderTop: `1px solid ${publicColors.border}`,
+  background: publicColors.surfaceSoft,
+};
+
+const mobileTeamCardStyle = {
+  background: publicColors.surface,
+  border: `1px solid ${publicColors.border}`,
+  borderRadius: 8,
+  padding: 10,
+};
+
+const mobileTeamHeaderStyle = {
+  display: "grid",
+  gridTemplateColumns: "42px minmax(0, 1fr)",
+  gap: 9,
+  alignItems: "start",
+};
+
+const mobileRankStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: 34,
+  borderRadius: 8,
+  background: publicColors.primary,
+  color: publicColors.primaryText,
+  fontWeight: 950,
+  fontSize: 14,
+};
+
+const mobileTeamIdentityStyle = {
+  minWidth: 0,
+};
+
+const mobileRiderStyle = {
+  color: publicColors.text,
+  fontWeight: 950,
+  fontSize: 15,
+  lineHeight: 1.2,
+  overflowWrap: "anywhere",
+};
+
+const mobileHorseStyle = {
+  marginTop: 2,
+  color: publicColors.softText,
+  fontWeight: 800,
+  fontSize: 13,
+  lineHeight: 1.22,
+  overflowWrap: "anywhere",
+};
+
+const mobileTotalsStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gap: 8,
+  marginTop: 10,
+};
+
+const mobileTotalStyle = {
+  border: `1px solid ${publicColors.border}`,
+  borderRadius: 8,
+  background: publicColors.surfaceSoft,
+  padding: "7px 8px",
+};
+
+const mobileTotalLabelStyle = {
+  color: publicColors.muted,
+  fontSize: 10,
+  fontWeight: 900,
+  textTransform: "uppercase",
+  letterSpacing: 0,
+};
+
+const mobileTotalValueStyle = {
+  marginTop: 2,
+  color: publicColors.text,
+  fontWeight: 950,
+  fontSize: 15,
+};
+
+const mobileOccurrenceHeaderStyle = {
+  marginTop: 10,
+  color: publicColors.muted,
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: "uppercase",
+  letterSpacing: 0,
+};
+
+const mobileOccurrenceListStyle = {
+  display: "grid",
+  gap: 6,
+  marginTop: 6,
+};
+
+const mobileOccurrenceButtonStyle = {
+  width: "100%",
+  border: `1px solid ${publicColors.border}`,
+  borderRadius: 8,
+  background: publicColors.surface,
+  padding: "8px 9px",
+  font: "inherit",
+  color: publicColors.text,
+  textAlign: "left",
+  cursor: "pointer",
+};
+
+const mobileOccurrenceLabelStyle = {
+  display: "block",
+  color: publicColors.text,
+  fontSize: 13,
+  fontWeight: 900,
+  lineHeight: 1.18,
+};
+
+const mobileOccurrenceValueStyle = {
+  display: "block",
+  marginTop: 3,
+  color: publicColors.text,
+  fontSize: 13,
+  fontWeight: 950,
+};
+
+const mobileOccurrenceMetaStyle = {
+  display: "block",
+  marginTop: 2,
+  color: publicColors.muted,
+  fontSize: 11,
+  fontWeight: 750,
 };
 
 const tableWrapStyle = {
