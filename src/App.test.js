@@ -143,6 +143,11 @@ import {
   buildChampionshipPdfTableOfContentsColumns,
   generateChampionshipPdf,
 } from "./utils/generateChampionshipPdf";
+import {
+  buildChampionshipVerificationPayload,
+  CHAMPIONSHIP_VERIFICATION_SCOPES,
+  validateChampionshipVerificationForm,
+} from "./features/championship/championshipVerificationRequestRepository";
 import { getDefaultShowRouteForRoles } from "./features/auth/showRoleRouting";
 import { buildAnalyticsSummary } from "./features/analytics/analyticsRepository";
 import { getPageEventContext } from "./features/analytics/analyticsRouteContext";
@@ -351,6 +356,119 @@ test("rehydrates championship occurrence results from stored imports", () => {
       sourceFileName: "may.csv",
     },
   ]);
+});
+
+test("validates required championship verification request fields", () => {
+  const classEntry = { id: "open", events: [{ eventKey: "S1|1100|1|1" }] };
+
+  expect(
+    validateChampionshipVerificationForm(
+      {
+        requesterName: "",
+        requesterEmail: "invalid-email",
+        classId: "open",
+        scope: CHAMPIONSHIP_VERIFICATION_SCOPES.SELECTED_SHOWS,
+        showKeys: [],
+        rider: "",
+        horse: "",
+        explanation: "",
+      },
+      classEntry
+    )
+  ).toMatchObject({
+    requesterName: "required",
+    requesterEmail: "email",
+    showKeys: "required",
+    rider: "required",
+    horse: "required",
+    explanation: "required",
+  });
+});
+
+test("builds a championship verification email payload with selected shows", () => {
+  const importBatch = buildChampionshipImportBatchFromCsv({
+    fileName: "may.csv",
+    csvText: [
+      "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+      'S1,AQR MAY SHOW 1,Open,1100,,5,5,1,1,HORSE A,,"RIDER, ALICE",,101,1,72,50',
+      'S2,AQR MAY SHOW 2,Open,1100,,5,5,1,1,HORSE A,,"RIDER, ALICE",,101,2,71,25',
+    ].join("\n"),
+  });
+  const season = buildChampionshipDatasetFromImports({
+    imports: [importBatch],
+    seasonTitle: "Championnat AQR",
+    year: "2026",
+    status: "published",
+  });
+  const openClass = season.classes.find((item) => item.id === "nrha-open");
+  const firstEventKey = openClass.events[0].eventKey;
+  const payload = buildChampionshipVerificationPayload({
+    associationId: "assoc-1",
+    association: { name: "Association Quebec Reining", shortName: "AQR" },
+    season: { ...season, id: "season-1", associationId: "assoc-1" },
+    championshipUrl: "https://showscore.app/public/associations/assoc-1/championnat",
+    classEntry: openClass,
+    submittedAt: "2026-07-06T12:00:00.000Z",
+    form: {
+      requesterName: "Marie Tremblay",
+      requesterEmail: "MARIE@example.com",
+      classId: openClass.id,
+      scope: CHAMPIONSHIP_VERIFICATION_SCOPES.SELECTED_SHOWS,
+      showKeys: [firstEventKey],
+      rider: "RIDER, ALICE",
+      horse: "HORSE A",
+      explanation: "Le total du premier show semble different.",
+    },
+  });
+
+  expect(payload).toMatchObject({
+    source: "showscore_public_championship",
+    submittedAt: "2026-07-06T12:00:00.000Z",
+    championshipUrl: "https://showscore.app/public/associations/assoc-1/championnat",
+    association: {
+      id: "assoc-1",
+      name: "Association Quebec Reining",
+      shortName: "AQR",
+    },
+    season: {
+      id: "season-1",
+      title: "Championnat AQR",
+      year: "2026",
+      status: "published",
+    },
+    requester: {
+      name: "Marie Tremblay",
+      email: "marie@example.com",
+    },
+    request: {
+      classId: "nrha-open",
+      className: "Omnium NRHA (Open)",
+      scope: "selected_shows",
+      rider: "RIDER, ALICE",
+      horse: "HORSE A",
+      explanation: "Le total du premier show semble different.",
+    },
+    currentStanding: {
+      rank: 1,
+      rider: "RIDER, ALICE",
+      horse: "HORSE A",
+      totalPoints: "9",
+      totalMoney: "75.00 $",
+    },
+  });
+  expect(payload.request.shows).toHaveLength(1);
+  expect(payload.request.shows[0]).toMatchObject({
+    eventKey: firstEventKey,
+    label: "AQR MAY SHOW 1",
+    classCode: "1100",
+  });
+  expect(payload.currentStanding.details).toHaveLength(1);
+  expect(payload.currentStanding.details[0]).toMatchObject({
+    eventKey: firstEventKey,
+    points: "5",
+    moneyWon: "50.00 $",
+    sourceFileName: "may.csv",
+  });
 });
 
 test("applies public labels to championship technical shows", () => {

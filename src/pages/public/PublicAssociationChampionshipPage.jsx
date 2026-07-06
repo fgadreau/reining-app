@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import AssociationLogo from "../../components/AssociationLogo";
 import ChampionshipOccurrenceModal from "../../components/ChampionshipOccurrenceModal";
+import ChampionshipVerificationRequestPanel from "../../components/ChampionshipVerificationRequestPanel";
 import SeoMeta from "../../components/SeoMeta";
 import ShareButton from "../../components/ShareButton";
 import { getAssociationWebsiteHref } from "../../features/associations/associationProfile";
@@ -41,6 +42,7 @@ function PublicAssociationChampionshipPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [openClassId, setOpenClassId] = useState(null);
   const [selectedOccurrence, setSelectedOccurrence] = useState(null);
+  const [isVerificationPanelOpen, setIsVerificationPanelOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const classes = Array.isArray(season?.classes) ? season.classes : [];
   const normalizedSearchQuery = normalizeSearchText(searchQuery);
@@ -72,6 +74,7 @@ function PublicAssociationChampionshipPage() {
       setSeason(nextSeason);
       setOpenClassId(null);
       setSelectedOccurrence(null);
+      setIsVerificationPanelOpen(false);
       setIsLoading(false);
     }
 
@@ -175,13 +178,22 @@ function PublicAssociationChampionshipPage() {
             </span>
           )}
           {classes.length > 0 && (
-            <button
-              type="button"
-              onClick={downloadChampionshipPdf}
-              style={secondaryButtonStyle}
-            >
-              {t("championship.public.downloadPdf")}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setIsVerificationPanelOpen(true)}
+                style={primaryActionButtonStyle}
+              >
+                {t("championship.verification.open")}
+              </button>
+              <button
+                type="button"
+                onClick={downloadChampionshipPdf}
+                style={secondaryButtonStyle}
+              >
+                {t("championship.public.downloadPdf")}
+              </button>
+            </>
           )}
           {getAssociationWebsiteHref(association) && (
             <a
@@ -297,6 +309,16 @@ function PublicAssociationChampionshipPage() {
       <ChampionshipOccurrenceModal
         occurrence={selectedOccurrence}
         onClose={() => setSelectedOccurrence(null)}
+        t={t}
+      />
+      <ChampionshipVerificationRequestPanel
+        isOpen={isVerificationPanelOpen}
+        onClose={() => setIsVerificationPanelOpen(false)}
+        associationId={associationId}
+        association={association}
+        season={season}
+        classes={classes}
+        championshipUrl={getCurrentPageUrl()}
         t={t}
       />
     </div>
@@ -454,6 +476,10 @@ function formatIncludedShowLabel(show) {
   return show.label || show.showName || show.showNum || show.key || "Show";
 }
 
+function getCurrentPageUrl() {
+  return typeof window === "undefined" ? "" : window.location.href;
+}
+
 function filterChampionshipClasses(classes, query) {
   if (!query) return classes;
 
@@ -547,6 +573,12 @@ const secondaryLinkStyle = {
 
 const secondaryButtonStyle = {
   ...publicSecondaryActionStyle,
+  maxWidth: "100%",
+  font: "inherit",
+};
+
+const primaryActionButtonStyle = {
+  ...publicPrimaryActionStyle,
   maxWidth: "100%",
   font: "inherit",
 };
