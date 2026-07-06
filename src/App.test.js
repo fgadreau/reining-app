@@ -134,6 +134,7 @@ import {
   buildChampionshipDatasetFromCsv,
   buildChampionshipDatasetFromImports,
   buildChampionshipImportBatchFromCsv,
+  buildChampionshipFunFacts,
   ensureChampionshipOccurrenceResults,
   getChampionshipIncludedShows,
 } from "./features/championship/championshipStandings";
@@ -492,6 +493,43 @@ test("applies public labels to championship technical shows", () => {
   expect(openClass.teams[0].details.map((detail) => detail.eventLabel)).toEqual([
     "Mai 1",
     "Mai 2",
+  ]);
+});
+
+test("builds lightweight championship fun facts", () => {
+  const dataset = buildChampionshipDatasetFromCsv({
+    csvText: [
+      "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+      'S1,AQR MAY SHOW 1,Open,1100,,10,10,1,1,HORSE A,,"RIDER, ALICE",,101,1,74,80',
+      'S2,AQR JUNE SHOW 1,Open,1100,,10,10,1,1,HORSE A,,"RIDER, ALICE",,101,2,73,40',
+      'S3,AQR JULY SHOW 1,Intermediate Open,1110,,10,10,1,1,HORSE A,,"RIDER, ALICE",,101,3,72,25',
+      'S1,AQR MAY SHOW 1,Youth Beginner,5397,,10,10,1,1,HORSE B,,"RIDER, BOB",,102,1,75.5,20',
+      'S2,AQR JUNE SHOW 1,Youth Beginner,5397,,10,10,1,1,HORSE C,,"RIDER, CAROL",,103,1,70,100',
+    ].join("\n"),
+  });
+  const funFacts = buildChampionshipFunFacts(dataset);
+
+  expect(funFacts.highestScore).toMatchObject([
+    {
+      rider: "RIDER, BOB",
+      horse: "HORSE B",
+      score: 75.5,
+      showLabel: "AQR MAY SHOW 1",
+    },
+  ]);
+  expect(funFacts.topMoney).toMatchObject([
+    {
+      rider: "RIDER, ALICE",
+      horse: "HORSE A",
+      totalMoney: 145,
+    },
+  ]);
+  expect(funFacts.mostClasses).toMatchObject([
+    {
+      rider: "RIDER, ALICE",
+      horse: "HORSE A",
+      classCount: 3,
+    },
   ]);
 });
 

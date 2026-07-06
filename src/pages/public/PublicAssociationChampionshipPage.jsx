@@ -8,7 +8,10 @@ import ShareButton from "../../components/ShareButton";
 import { getAssociationWebsiteHref } from "../../features/associations/associationProfile";
 import { getPublicAssociationRepository } from "../../features/publication/publicViewRepository";
 import { getPublicChampionshipSeasonRepository } from "../../features/championship/championshipRepository";
-import { getChampionshipIncludedShows } from "../../features/championship/championshipStandings";
+import {
+  buildChampionshipFunFacts,
+  getChampionshipIncludedShows,
+} from "../../features/championship/championshipStandings";
 import { buildChampionshipPublicSeo } from "../../features/seo/publicSeo";
 import {
   formatChampionshipMoney,
@@ -43,6 +46,7 @@ function PublicAssociationChampionshipPage() {
   const [openClassId, setOpenClassId] = useState(null);
   const [selectedOccurrence, setSelectedOccurrence] = useState(null);
   const [isVerificationPanelOpen, setIsVerificationPanelOpen] = useState(false);
+  const [isFunFactsOpen, setIsFunFactsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const classes = Array.isArray(season?.classes) ? season.classes : [];
   const normalizedSearchQuery = normalizeSearchText(searchQuery);
@@ -50,6 +54,8 @@ function PublicAssociationChampionshipPage() {
     () => getChampionshipIncludedShows(season),
     [season]
   );
+  const funFacts = useMemo(() => buildChampionshipFunFacts(season), [season]);
+  const hasFunFacts = hasChampionshipFunFacts(funFacts);
   const filteredClasses = useMemo(
     () => filterChampionshipClasses(classes, normalizedSearchQuery),
     [classes, normalizedSearchQuery]
@@ -75,6 +81,7 @@ function PublicAssociationChampionshipPage() {
       setOpenClassId(null);
       setSelectedOccurrence(null);
       setIsVerificationPanelOpen(false);
+      setIsFunFactsOpen(false);
       setIsLoading(false);
     }
 
@@ -179,6 +186,15 @@ function PublicAssociationChampionshipPage() {
           )}
           {classes.length > 0 && (
             <>
+              {hasFunFacts && (
+                <button
+                  type="button"
+                  onClick={() => setIsFunFactsOpen(true)}
+                  style={quietActionButtonStyle}
+                >
+                  {t("championship.public.funFactsOpen")}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setIsVerificationPanelOpen(true)}
@@ -311,6 +327,12 @@ function PublicAssociationChampionshipPage() {
         onClose={() => setSelectedOccurrence(null)}
         t={t}
       />
+      <ChampionshipFunFactsModal
+        isOpen={isFunFactsOpen}
+        onClose={() => setIsFunFactsOpen(false)}
+        funFacts={funFacts}
+        t={t}
+      />
       <ChampionshipVerificationRequestPanel
         isOpen={isVerificationPanelOpen}
         onClose={() => setIsVerificationPanelOpen(false)}
@@ -427,6 +449,88 @@ function ChampionshipClassTable({ classEntry, onSelectOccurrence, t }) {
   );
 }
 
+function ChampionshipFunFactsModal({ isOpen, onClose, funFacts, t }) {
+  if (!isOpen) return null;
+
+  const facts = [
+    {
+      key: "highestScore",
+      title: t("championship.public.funFactsHighestScore"),
+      entries: funFacts.highestScore,
+      renderValue: (entry) => formatChampionshipPoints(entry.score),
+      renderMeta: (entry) =>
+        [entry.className, entry.showLabel].filter(Boolean).join(" · "),
+    },
+    {
+      key: "topMoney",
+      title: t("championship.public.funFactsTopMoney"),
+      entries: funFacts.topMoney,
+      renderValue: (entry) => formatChampionshipMoney(entry.totalMoney),
+      renderMeta: (entry) => entry.className,
+    },
+    {
+      key: "mostClasses",
+      title: t("championship.public.funFactsMostClasses"),
+      entries: funFacts.mostClasses,
+      renderValue: (entry) =>
+        entry.classCount === 1
+          ? t("championship.public.funFactsClassCountOne")
+          : t("championship.public.funFactsClassCount", {
+              count: entry.classCount,
+            }),
+      renderMeta: (entry) => entry.className,
+    },
+  ].filter((fact) => fact.entries.length > 0);
+
+  return (
+    <div style={funFactsBackdropStyle} role="presentation" onClick={onClose}>
+      <section
+        style={funFactsModalStyle}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="championship-fun-facts-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div style={funFactsHeaderStyle}>
+          <div>
+            <div style={eyebrowStyle}>{t("championship.public.funFactsEyebrow")}</div>
+            <h2 id="championship-fun-facts-title" style={funFactsTitleStyle}>
+              {t("championship.public.funFactsTitle")}
+            </h2>
+          </div>
+          <button type="button" onClick={onClose} style={funFactsCloseButtonStyle}>
+            {t("championship.public.funFactsClose")}
+          </button>
+        </div>
+
+        <div style={funFactsListStyle}>
+          {facts.map((fact) => (
+            <div key={fact.key} style={funFactsRowStyle}>
+              <div style={funFactLabelStyle}>{fact.title}</div>
+              <div style={funFactEntryListStyle}>
+                {fact.entries.map((entry) => (
+                  <div
+                    key={`${fact.key}-${entry.rider}-${entry.horse}-${fact.renderValue(entry)}-${fact.renderMeta(entry)}`}
+                    style={funFactEntryStyle}
+                  >
+                    <div style={funFactValueStyle}>{fact.renderValue(entry)}</div>
+                    <div style={funFactNameStyle}>
+                      {formatFunFactTeam(entry, t)}
+                    </div>
+                    {fact.renderMeta(entry) && (
+                      <div style={funFactMetaStyle}>{fact.renderMeta(entry)}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function SummaryItem({ label, value }) {
   return (
     <div style={summaryItemStyle}>
@@ -478,6 +582,24 @@ function formatIncludedShowLabel(show) {
 
 function getCurrentPageUrl() {
   return typeof window === "undefined" ? "" : window.location.href;
+}
+
+function hasChampionshipFunFacts(funFacts) {
+  return Boolean(
+    funFacts &&
+      (funFacts.highestScore.length ||
+        funFacts.topMoney.length ||
+        funFacts.mostClasses.length)
+  );
+}
+
+function formatFunFactTeam(entry, t) {
+  const label = [entry.rider, entry.horse]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(` ${t("championship.public.funFactsWithHorse")} `);
+
+  return label || "-";
 }
 
 function filterChampionshipClasses(classes, query) {
@@ -575,6 +697,13 @@ const secondaryButtonStyle = {
   ...publicSecondaryActionStyle,
   maxWidth: "100%",
   font: "inherit",
+};
+
+const quietActionButtonStyle = {
+  ...publicSecondaryActionStyle,
+  maxWidth: "100%",
+  font: "inherit",
+  background: "#f8fafc",
 };
 
 const primaryActionButtonStyle = {
@@ -684,6 +813,105 @@ const summaryValueStyle = {
   fontSize: 24,
   fontWeight: 900,
   color: publicColors.text,
+};
+
+const funFactsBackdropStyle = {
+  position: "fixed",
+  inset: 0,
+  zIndex: 940,
+  background: "rgba(15, 23, 42, 0.32)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 14,
+};
+
+const funFactsModalStyle = {
+  width: "min(520px, 100%)",
+  maxHeight: "calc(100dvh - 28px)",
+  overflow: "auto",
+  background: publicColors.surface,
+  border: `1px solid ${publicColors.border}`,
+  borderRadius: 8,
+  boxShadow: "0 22px 70px rgba(15, 23, 42, 0.25)",
+  padding: 16,
+};
+
+const funFactsHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 12,
+  marginBottom: 10,
+};
+
+const funFactsTitleStyle = {
+  margin: "2px 0 0",
+  color: publicColors.text,
+  fontSize: 20,
+  lineHeight: 1.2,
+};
+
+const funFactsCloseButtonStyle = {
+  ...publicSecondaryActionStyle,
+  font: "inherit",
+  flex: "0 0 auto",
+  minHeight: 36,
+  padding: "7px 10px",
+};
+
+const funFactsListStyle = {
+  display: "grid",
+  gap: 0,
+  borderTop: `1px solid ${publicColors.border}`,
+};
+
+const funFactsRowStyle = {
+  display: "grid",
+  gridTemplateColumns: "minmax(120px, 0.8fr) minmax(0, 1.2fr)",
+  gap: 12,
+  padding: "13px 0",
+  borderBottom: `1px solid ${publicColors.border}`,
+};
+
+const funFactLabelStyle = {
+  color: publicColors.muted,
+  fontSize: 13,
+  fontWeight: 900,
+  textTransform: "uppercase",
+  letterSpacing: 0,
+};
+
+const funFactEntryListStyle = {
+  display: "grid",
+  gap: 10,
+};
+
+const funFactEntryStyle = {
+  minWidth: 0,
+};
+
+const funFactValueStyle = {
+  color: publicColors.text,
+  fontSize: 22,
+  fontWeight: 950,
+  lineHeight: 1.05,
+};
+
+const funFactNameStyle = {
+  marginTop: 4,
+  color: publicColors.text,
+  fontSize: 14,
+  fontWeight: 850,
+  lineHeight: 1.25,
+};
+
+const funFactMetaStyle = {
+  marginTop: 2,
+  color: publicColors.muted,
+  fontSize: 12,
+  fontWeight: 700,
+  lineHeight: 1.25,
 };
 
 const classListStyle = {

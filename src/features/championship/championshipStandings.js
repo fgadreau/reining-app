@@ -256,6 +256,72 @@ export function getChampionshipIncludedShows(dataset) {
   return Array.from(showsByKey.values()).sort((a, b) => a.order - b.order);
 }
 
+export function buildChampionshipFunFacts(dataset) {
+  const classes = Array.isArray(dataset?.classes) ? dataset.classes : [];
+  const highestScores = [];
+  const teamsByKey = new Map();
+
+  classes.forEach((classEntry) => {
+    const events = Array.isArray(classEntry?.events) ? classEntry.events : [];
+    const teams = Array.isArray(classEntry?.teams) ? classEntry.teams : [];
+
+    events.forEach((event) => {
+      const results = Array.isArray(event?.results) ? event.results : [];
+
+      results.forEach((result) => {
+        const score = toNumber(result.totalScore);
+        if (score <= 0) return;
+
+        highestScores.push({
+          rider: result.rider || "",
+          horse: result.horse || "",
+          className: classEntry.name || result.championshipClassName || "",
+          showLabel:
+            event.label || result.eventLabel || result.showName || result.showNum || "",
+          score,
+        });
+      });
+    });
+
+    teams.forEach((team) => {
+      const details = Array.isArray(team?.details) ? team.details : [];
+
+      if (details.length > 0) {
+        const key = team.teamKey || `${team.rider || ""}|${team.horse || ""}`;
+        const entry = teamsByKey.get(key) || {
+          rider: team.rider || "",
+          horse: team.horse || "",
+          classNames: [],
+          totalMoney: 0,
+          classCount: 0,
+        };
+
+        entry.totalMoney += toNumber(team.totalMoney);
+        entry.classCount += details.length;
+        if (classEntry.name && !entry.classNames.includes(classEntry.name)) {
+          entry.classNames.push(classEntry.name);
+        }
+        teamsByKey.set(key, entry);
+      }
+    });
+  });
+
+  const teamFacts = Array.from(teamsByKey.values()).map((team) => ({
+    ...team,
+    className: team.classNames.join(", "),
+  }));
+
+  return {
+    highestScore: pickLeaders(highestScores, compareHighestScores, "score"),
+    topMoney: pickLeaders(
+      teamFacts.filter((team) => team.totalMoney > 0),
+      compareMoneyLeaders,
+      "totalMoney"
+    ),
+    mostClasses: pickLeaders(teamFacts, compareMostClasses, "classCount"),
+  };
+}
+
 function hasCompleteOccurrenceResults(dataset) {
   const events = (Array.isArray(dataset?.classes) ? dataset.classes : []).flatMap(
     (classEntry) => (Array.isArray(classEntry?.events) ? classEntry.events : [])
@@ -283,6 +349,44 @@ function normalizeIncludedShow(show, index) {
     occurrenceCount: show.occurrenceCount || 0,
     resultCount: show.resultCount || 0,
   };
+}
+
+function pickLeaders(items, compare, valueKey) {
+  const sorted = items.slice().sort(compare);
+  const leader = sorted[0] || null;
+
+  if (!leader) return [];
+
+  return sorted.filter(
+    (item) => Math.abs(toNumber(item[valueKey]) - toNumber(leader[valueKey])) < 1e-9
+  );
+}
+
+function compareHighestScores(a, b) {
+  const scoreDiff = toNumber(b.score) - toNumber(a.score);
+  if (Math.abs(scoreDiff) > 1e-9) return scoreDiff;
+
+  return compareFunFactNames(a, b);
+}
+
+function compareMoneyLeaders(a, b) {
+  const moneyDiff = toNumber(b.totalMoney) - toNumber(a.totalMoney);
+  if (Math.abs(moneyDiff) > 1e-9) return moneyDiff;
+
+  return compareFunFactNames(a, b);
+}
+
+function compareMostClasses(a, b) {
+  const classDiff = toNumber(b.classCount) - toNumber(a.classCount);
+  if (Math.abs(classDiff) > 1e-9) return classDiff;
+
+  return compareFunFactNames(a, b);
+}
+
+function compareFunFactNames(a, b) {
+  return `${a.rider} ${a.horse} ${a.className}`.localeCompare(
+    `${b.rider} ${b.horse} ${b.className}`
+  );
 }
 
 function normalizeSearchKey(value) {
