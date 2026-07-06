@@ -423,6 +423,9 @@ function pickOverlayLiveClass(liveClasses, arena = "") {
   const classes = filterLiveClassesByArena(liveClasses, arena);
 
   return (
+    classes.find(
+      (classView) => classView.activeDragItem || classView.dragBreak?.isActive
+    ) ||
     classes.find((classView) => classView.activeRun) ||
     classes.find((classView) => classView.nextRun) ||
     classes.find(

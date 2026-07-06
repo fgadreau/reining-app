@@ -260,19 +260,19 @@ export function buildAnnouncerClassView(classData) {
     classId && !isOfficiallyCompleted && !isMultiJudgeLive
       ? loadActiveManoeuvre(classId)
       : null;
+  const activeDragItem = buildActiveClassDragItem({
+    activeManoeuvre,
+    runs,
+    dragDurationMinutes: classData.setup?.dragDurationMinutes,
+  });
   const activeRun =
-    isOfficiallyCompleted
+    isOfficiallyCompleted || activeDragItem
       ? null
       : isMultiJudgeLive
         ? runs.find((run) => run.isActive) || null
         : runs.find((run) => run.draw === activeManoeuvre?.draw) ||
           runs.find((run) => run.isActive) ||
           null;
-  const activeDragItem = buildActiveClassDragItem({
-    activeManoeuvre,
-    runs,
-    dragDurationMinutes: classData.setup?.dragDurationMinutes,
-  });
 
   const publicationStatus = classData.publication?.status || "hidden";
 

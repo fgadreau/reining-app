@@ -25,6 +25,16 @@ import { appStyles as styles } from "../../styles/appStyles";
 
 const LEGAL_VERSION = "2026-05-26";
 
+function sanitizeNextPath(value) {
+  const text = String(value || "").trim();
+
+  if (!text || !text.startsWith("/") || text.startsWith("//")) {
+    return "";
+  }
+
+  return text;
+}
+
 function LoginPage() {
   const navigate = useNavigate();
   const auth = useAuthUser();
@@ -32,6 +42,7 @@ function LoginPage() {
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get("invite") || "";
   const inviteEmail = searchParams.get("email") || "";
+  const nextPath = sanitizeNextPath(searchParams.get("next"));
   const hasLockedInviteEmail = Boolean(inviteToken && inviteEmail);
   const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
@@ -117,13 +128,18 @@ function LoginPage() {
   }, [inviteToken, t]);
 
   const navigateAfterAuth = useCallback((redeemed) => {
+    if (nextPath) {
+      navigate(nextPath);
+      return;
+    }
+
     if (redeemed?.membership?.associationId) {
       navigate(`/associations/${redeemed.membership.associationId}/shows`);
       return;
     }
 
     navigate("/associations");
-  }, [navigate]);
+  }, [navigate, nextPath]);
 
   useEffect(() => {
     if (!inviteToken || !auth.user) {
@@ -250,7 +266,9 @@ function LoginPage() {
               ? undefined
               : inviteToken
                 ? window.location.href
-                : `${window.location.origin}/login`,
+                : `${window.location.origin}/login${
+                    nextPath ? `?next=${encodeURIComponent(nextPath)}` : ""
+                  }`,
         });
 
         if (data?.session && data?.user) {
@@ -325,7 +343,7 @@ function LoginPage() {
           email: LOCAL_TEST_EMAIL,
         },
       });
-      navigate("/associations");
+      navigate(nextPath || "/associations");
     } catch (error) {
       setMessage(error.message || t("login.localTestFailed"));
     } finally {

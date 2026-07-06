@@ -1380,16 +1380,18 @@ export function buildPublicLiveClassView({
       })
     : [];
 
-  const activeRun = isMultiJudgeLive
-    ? runs.find((run) => run.isActive) || null
-    : runs.find((run) => run.draw === scoringSession?.activeManoeuvre?.draw) ||
-      runs.find((run) => run.isActive) ||
-      null;
   const activeDragItem = buildActiveClassDragItem({
     activeManoeuvre: scoringSession?.activeManoeuvre,
     runs,
     dragDurationMinutes: setup?.dragDurationMinutes,
   });
+  const activeRun = activeDragItem
+    ? null
+    : isMultiJudgeLive
+      ? runs.find((run) => run.isActive) || null
+      : runs.find((run) => run.draw === scoringSession?.activeManoeuvre?.draw) ||
+        runs.find((run) => run.isActive) ||
+        null;
   const liveQueue = buildLiveQueueItems({
     items: runs,
     activeItem: activeRun,

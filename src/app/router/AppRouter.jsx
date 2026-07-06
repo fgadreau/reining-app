@@ -30,6 +30,7 @@ import ClassSetupPage from "../../pages/association/ClassSetupPage";
 import PaidWarmupSetupPage from "../../pages/association/PaidWarmupSetupPage";
 import ClassScoringPage from "../../pages/scribe/ClassScoringPage";
 import LoginPage from "../../pages/auth/LoginPage";
+import RoleEntryPage from "../../pages/RoleEntryPage";
 import HomePage from "../../pages/home/HomePage";
 import AppPresentationPage from "../../pages/home/AppPresentationPage";
 import NotFoundPage from "../../pages/common/NotFoundPage";
@@ -49,6 +50,7 @@ function AppRouter() {
         <Route path="/" element={<HomePage />} />
         <Route path="/presentation" element={<AppPresentationPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/go/:roleKey" element={<RoleEntryPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/results-notice" element={<ResultsNoticePage />} />

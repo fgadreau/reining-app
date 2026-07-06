@@ -124,6 +124,11 @@ import {
   canScoreAssociation,
 } from "./features/auth/accessRoles";
 import {
+  buildRoleEntryPath,
+  getRoleEntryAssociationIds,
+  normalizeRoleEntryKey,
+} from "./features/auth/roleEntryRouting";
+import {
   buildAssociationInvitationEmail,
   buildAssociationInvitationUrl,
 } from "./features/auth/invitationLinks";
@@ -4291,6 +4296,92 @@ test("public live view exposes an active drag only after the scribe starts it", 
   expect(classView.dragBreak.nextRun.draw).toBe(3);
 });
 
+test("active class drag overrides a stale selected competitor", () => {
+  const scoringRuns = [
+    {
+      id: "run-1",
+      draw: 1,
+      scoreTotal: "71.0",
+      completedAt: "2026-05-25T14:00:00.000Z",
+    },
+    {
+      id: "run-2",
+      draw: 2,
+      isActive: true,
+      scoreTotal: "72.0",
+      completedAt: "2026-05-25T14:03:00.000Z",
+    },
+    {
+      id: "run-3",
+      draw: 3,
+      scoreTotal: "",
+    },
+  ];
+  const activeDrag = {
+    type: "drag",
+    afterIndex: 1,
+    afterDraw: 2,
+    startedAt: "2026-05-25T14:03:00.000Z",
+    durationMinutes: 8,
+  };
+
+  const publicClassView = buildPublicLiveClassView({
+    classItem: {
+      id: "class-live",
+      name: "Novice Horse",
+      pattern: "2",
+    },
+    setup: {
+      dragInterval: 2,
+      dragDurationMinutes: 8,
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE,
+    },
+    scoringSession: {
+      activeManoeuvre: activeDrag,
+      runs: scoringRuns,
+    },
+  });
+
+  expect(publicClassView.activeRun).toBeNull();
+  expect(publicClassView.activeDragItem).toMatchObject({
+    type: "drag",
+    afterDraw: 2,
+  });
+  expect(publicClassView.dragBreak).toMatchObject({
+    isActive: true,
+    nextRun: expect.objectContaining({ draw: 3 }),
+  });
+
+  saveActiveManoeuvre("class-announcer-drag", activeDrag);
+  const announcerClassView = buildAnnouncerClassView({
+    classItem: {
+      id: "class-announcer-drag",
+      name: "Novice Horse",
+      pattern: "2",
+    },
+    setup: {
+      dragInterval: 2,
+      dragDurationMinutes: 8,
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE,
+    },
+    scoringRuns,
+  });
+
+  expect(announcerClassView.activeRun).toBeNull();
+  expect(announcerClassView.activeDragItem).toMatchObject({
+    type: "drag",
+    afterDraw: 2,
+  });
+  expect(announcerClassView.nextLiveItem).toMatchObject({
+    draw: 3,
+    liveOrderStatus: "preparation",
+  });
+});
+
 test("paid warmup live follows edited rider order while running", () => {
   const entries = [
     { id: "entry-1", order: 1, rider: "Marie", status: "pending" },
@@ -4913,6 +5004,48 @@ test("routes show entry by a single operational role", () => {
       roles: [ASSOCIATION_ROLES.ADMIN],
     })
   ).toBe("/associations/association-1/shows/show-1");
+});
+
+test("routes generic role QR entries to the relevant association surface", () => {
+  const memberships = [
+    {
+      userId: "user-1",
+      associationId: "association-1",
+      role: ASSOCIATION_ROLES.SCRIBE,
+    },
+    {
+      userId: "user-1",
+      associationId: "association-2",
+      role: ASSOCIATION_ROLES.ANNOUNCER,
+    },
+    {
+      userId: "user-1",
+      associationId: "association-2",
+      role: ASSOCIATION_ROLES.SECRETARY,
+    },
+  ];
+
+  expect(normalizeRoleEntryKey("annonceur")).toBe("announcer");
+  expect(normalizeRoleEntryKey("secretaire")).toBe("secretariat");
+  expect(
+    getRoleEntryAssociationIds({ roleKey: "scribe", memberships })
+  ).toEqual(["association-1", "association-2"]);
+  expect(
+    getRoleEntryAssociationIds({ roleKey: "annonceur", memberships })
+  ).toEqual(["association-2"]);
+  expect(
+    buildRoleEntryPath({
+      roleKey: "annonceur",
+      associationId: "association-2",
+      showId: "show-9",
+    })
+  ).toBe("/associations/association-2/shows/show-9/announcer");
+  expect(
+    buildRoleEntryPath({
+      roleKey: "secretariat",
+      associationId: "association-2",
+    })
+  ).toBe("/associations/association-2/shows");
 });
 
 test("defers automatic app reloads on scribe scoring pages", () => {
