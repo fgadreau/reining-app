@@ -136,6 +136,12 @@ import {
   buildChampionshipImportBatchFromCsv,
   getChampionshipIncludedShows,
 } from "./features/championship/championshipStandings";
+import {
+  buildChampionshipPdfFileName,
+  buildChampionshipPdfTableOfContents,
+  buildChampionshipPdfTableOfContentsColumns,
+  generateChampionshipPdf,
+} from "./utils/generateChampionshipPdf";
 import { getDefaultShowRouteForRoles } from "./features/auth/showRoleRouting";
 import { buildAnalyticsSummary } from "./features/analytics/analyticsRepository";
 import { getPageEventContext } from "./features/analytics/analyticsRouteContext";
@@ -377,6 +383,91 @@ test("maps the main AQR championship class codes from the import report", () => 
   ].forEach((classCode) => {
     expect(getChampionshipClassByCode(classCode)).toBeTruthy();
   });
+});
+
+test("generates a season championship PDF with a class table of contents", () => {
+  const csv = [
+    "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+    'S1,AQR JULY SHOW,Youth Beginner,5397,,10,10,1,1,YOUTH HORSE,,"RIDER, YOUTH",,101,1,72,15',
+    'S1,AQR JULY SHOW,Young Rider 14-21,5396,,8,8,1,1,YOUNG HORSE,,"RIDER, YOUNG",,102,1,73,25',
+  ].join("\n");
+  const dataset = buildChampionshipDatasetFromCsv({
+    csvText: csv,
+    seasonTitle: "Championnat AQR",
+    year: "2026",
+    status: "final",
+  });
+  const pageNumbers = new Map(
+    dataset.classes.map((classEntry, index) => [classEntry.id, index + 3])
+  );
+  const tableOfContents = buildChampionshipPdfTableOfContents(
+    dataset,
+    pageNumbers
+  );
+  const tableOfContentsColumns = buildChampionshipPdfTableOfContentsColumns(
+    dataset,
+    pageNumbers
+  );
+  const generatedAt = new Date("2026-07-05T12:00:00");
+  const pdf = generateChampionshipPdf({
+    associationName: "Association Quebec Reining",
+    associationAbbreviation: "AQR",
+    season: dataset,
+    generatedAt,
+  });
+
+  expect(tableOfContents).toMatchObject([
+    {
+      name: "Jeune Débutant 18 ans et moins AQR (Beginner Youth 18 & under)",
+      pageNumber: 3,
+      eventCount: 1,
+      teamCount: 1,
+    },
+    {
+      name: "Jeune Cavalier 14 à 21 ans AQR (Young Rider 14 thru 21)",
+      pageNumber: 4,
+      eventCount: 1,
+      teamCount: 1,
+    },
+  ]);
+  expect(tableOfContentsColumns.map((column) => column.length)).toEqual([1, 1]);
+  expect(pdf.getNumberOfPages()).toBeGreaterThanOrEqual(4);
+  expect(
+    buildChampionshipPdfFileName({
+      associationAbbreviation: "AQR",
+      seasonTitle: "Championnat AQR",
+      year: "2026",
+      generatedAt,
+    })
+  ).toMatch(/^AQR-Championnat_AQR-2026-championship-\d{8}-\d{6}\.pdf$/);
+});
+
+test("keeps a 20-team championship class on one PDF page", () => {
+  const resultRows = Array.from({ length: 20 }, (_, index) => {
+    const number = index + 1;
+
+    return `S1,AQR JULY SHOW,Youth Beginner,5397,,20,20,1,1,HORSE ${number},,"RIDER, ${number}",,${100 + number},1,72,0`;
+  });
+  const csv = [
+    "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+    ...resultRows,
+  ].join("\n");
+  const dataset = buildChampionshipDatasetFromCsv({
+    csvText: csv,
+    seasonTitle: "Championnat AQR",
+    year: "2026",
+    status: "final",
+  });
+  const pdf = generateChampionshipPdf({
+    associationName: "Association Quebec Reining",
+    associationAbbreviation: "AQR",
+    season: dataset,
+    generatedAt: new Date("2026-07-05T12:00:00"),
+  });
+
+  expect(dataset.classes).toHaveLength(1);
+  expect(dataset.classes[0].teams).toHaveLength(20);
+  expect(pdf.getNumberOfPages()).toBe(3);
 });
 
 test("assigns skipped championship ranks when total points are tied", () => {

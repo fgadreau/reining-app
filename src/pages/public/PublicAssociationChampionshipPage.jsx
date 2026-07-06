@@ -14,6 +14,10 @@ import {
 } from "../../features/championship/championshipPoints";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import {
+  buildChampionshipPdfFileName,
+  generateChampionshipPdf,
+} from "../../utils/generateChampionshipPdf";
+import {
   publicBadgeStyle,
   publicCardStyle,
   publicColors,
@@ -81,6 +85,31 @@ function PublicAssociationChampionshipPage() {
     setOpenClassId(filteredClasses[0]?.id || null);
   }, [filteredClasses, normalizedSearchQuery]);
 
+  const downloadChampionshipPdf = () => {
+    if (!season) return;
+
+    try {
+      const generatedAt = new Date();
+      const pdf = generateChampionshipPdf({
+        associationName: association?.name || association?.shortName || "",
+        associationAbbreviation: association?.shortName || "ASSOC",
+        associationLogoDataUrl: association?.logoDataUrl || null,
+        season,
+        generatedAt,
+      });
+      const fileName = buildChampionshipPdfFileName({
+        associationAbbreviation: association?.shortName || "ASSOC",
+        seasonTitle: season?.title || t("championship.public.title"),
+        year: season?.year || "",
+        generatedAt,
+      });
+
+      pdf.save(fileName);
+    } catch (error) {
+      alert(error?.message || t("championship.public.downloadPdfFailed"));
+    }
+  };
+
   return (
     <div style={publicPageStyle}>
       <SeoMeta
@@ -120,6 +149,15 @@ function PublicAssociationChampionshipPage() {
                 ? t("championship.status.final")
                 : t("championship.status.published")}
             </span>
+          )}
+          {classes.length > 0 && (
+            <button
+              type="button"
+              onClick={downloadChampionshipPdf}
+              style={secondaryButtonStyle}
+            >
+              {t("championship.public.downloadPdf")}
+            </button>
           )}
           {getAssociationWebsiteHref(association) && (
             <a
@@ -453,6 +491,12 @@ const mutedTextStyle = {
 const secondaryLinkStyle = {
   ...publicSecondaryActionStyle,
   maxWidth: "100%",
+};
+
+const secondaryButtonStyle = {
+  ...publicSecondaryActionStyle,
+  maxWidth: "100%",
+  font: "inherit",
 };
 
 const emptyStateStyle = {

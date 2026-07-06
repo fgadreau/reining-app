@@ -24,6 +24,10 @@ import {
 } from "../../features/championship/championshipPoints";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
+import {
+  buildChampionshipPdfFileName,
+  generateChampionshipPdf,
+} from "../../utils/generateChampionshipPdf";
 
 function AssociationChampionshipPage() {
   const { associationId } = useParams();
@@ -353,6 +357,37 @@ function AssociationChampionshipPage() {
     }
   };
 
+  const exportChampionshipPdf = () => {
+    if (!preview) return;
+
+    try {
+      const pdfSeason = {
+        ...preview,
+        title: seasonTitle,
+        year: seasonYear,
+        status: seasonStatus,
+      };
+      const generatedAt = new Date();
+      const pdf = generateChampionshipPdf({
+        associationName: association?.name || association?.shortName || "",
+        associationAbbreviation: association?.shortName || "ASSOC",
+        associationLogoDataUrl: association?.logoDataUrl || null,
+        season: pdfSeason,
+        generatedAt,
+      });
+      const fileName = buildChampionshipPdfFileName({
+        associationAbbreviation: association?.shortName || "ASSOC",
+        seasonTitle,
+        year: seasonYear,
+        generatedAt,
+      });
+
+      pdf.save(fileName);
+    } catch (error) {
+      setErrorMessage(error?.message || t("championship.admin.exportPdfFailed"));
+    }
+  };
+
   if (isLoading) {
     return (
       <div style={styles.app}>
@@ -628,6 +663,14 @@ function AssociationChampionshipPage() {
           </section>
 
           <div style={actionRowStyle}>
+            <button
+              type="button"
+              onClick={exportChampionshipPdf}
+              style={secondaryButtonStyle}
+              disabled={!classSummaries.length}
+            >
+              {t("championship.admin.exportPdf")}
+            </button>
             <button
               type="button"
               onClick={() => saveSeason(seasonStatus)}
