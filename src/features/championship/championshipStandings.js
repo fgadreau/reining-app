@@ -353,6 +353,7 @@ export function buildChampionshipFunFacts(dataset) {
           horse: team.horse || "",
           classNames: [],
           classCount: 0,
+          podiumCount: 0,
           totalPoints: 0,
         };
 
@@ -363,6 +364,10 @@ export function buildChampionshipFunFacts(dataset) {
         teamsByKey.set(key, entry);
 
         details.forEach((detail) => {
+          if (isPodiumPlacement(detail)) {
+            entry.podiumCount += 1;
+          }
+
           const points = toNumber(detail.points);
           if (points <= 0) return;
 
@@ -415,8 +420,18 @@ export function buildChampionshipFunFacts(dataset) {
       comparePointLeaders,
       "totalPoints"
     ),
+    mostPodiums: pickLeaders(
+      teamFacts.filter((team) => toNumber(team.podiumCount) > 0),
+      comparePodiumLeaders,
+      "podiumCount"
+    ),
     mostClasses: pickLeaders(teamFacts, compareMostClasses, "classCount"),
   };
+}
+
+function isPodiumPlacement(detail) {
+  const place = toNumber(detail?.placeNum || detail?.rawPlaceNum);
+  return place >= 1 && place <= 3;
 }
 
 function addPointAggregate(map, key, fact) {
@@ -514,6 +529,16 @@ function compareHighestScores(a, b) {
 }
 
 function comparePointLeaders(a, b) {
+  const pointDiff = toNumber(b.totalPoints) - toNumber(a.totalPoints);
+  if (Math.abs(pointDiff) > 1e-9) return pointDiff;
+
+  return compareFunFactNames(a, b);
+}
+
+function comparePodiumLeaders(a, b) {
+  const podiumDiff = toNumber(b.podiumCount) - toNumber(a.podiumCount);
+  if (Math.abs(podiumDiff) > 1e-9) return podiumDiff;
+
   const pointDiff = toNumber(b.totalPoints) - toNumber(a.totalPoints);
   if (Math.abs(pointDiff) > 1e-9) return pointDiff;
 

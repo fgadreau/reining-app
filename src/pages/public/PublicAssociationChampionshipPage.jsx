@@ -617,6 +617,18 @@ function ChampionshipFunFactsModal({ isOpen, onClose, funFacts, t }) {
       renderMeta: () => t("championship.public.funFactsAllClassesAndTeams"),
     },
     {
+      key: "mostPodiums",
+      title: t("championship.public.funFactsMostPodiums"),
+      entries: funFacts.mostPodiums || [],
+      renderValue: (entry) =>
+        entry.podiumCount === 1
+          ? t("championship.public.funFactsPodiumCountOne")
+          : t("championship.public.funFactsPodiumCount", {
+              count: entry.podiumCount,
+            }),
+      renderMeta: () => t("championship.public.funFactsAllClassesAndTeams"),
+    },
+    {
       key: "mostClasses",
       title: t("championship.public.funFactsMostClasses"),
       entries: funFacts.mostClasses || [],
@@ -779,6 +791,7 @@ function hasChampionshipFunFacts(funFacts) {
         (funFacts.topRiderPoints || []).length ||
         (funFacts.topHorsePoints || []).length ||
         (funFacts.topTeamPoints || []).length ||
+        (funFacts.mostPodiums || []).length ||
         (funFacts.mostClasses || []).length)
   );
 }

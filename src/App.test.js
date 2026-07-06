@@ -589,6 +589,13 @@ test("builds lightweight championship fun facts", () => {
       totalPoints: 27,
     },
   ]);
+  expect(funFacts.mostPodiums).toMatchObject([
+    {
+      rider: "RIDER, ALICE",
+      horse: "HORSE A",
+      podiumCount: 3,
+    },
+  ]);
   expect(funFacts.mostClasses).toMatchObject([
     {
       rider: "RIDER, ALICE",
