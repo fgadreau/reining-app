@@ -518,11 +518,13 @@ test("builds lightweight championship fun facts", () => {
       'S3,AQR JULY SHOW 1,Intermediate Open,1110,,10,10,1,1,HORSE A,,"RIDER, ALICE",,101,3,72,25',
       'S1,AQR MAY SHOW 1,Youth Beginner,5397,,10,10,1,1,HORSE B,,"RIDER, BOB",,102,1,75.5,20',
       'S2,AQR JUNE SHOW 1,Youth Beginner,5397,,10,10,1,1,HORSE C,,"RIDER, CAROL",,103,1,70,100',
+      'S3,AQR JULY SHOW 1,Youth Beginner,5397,,10,10,1,1,HORSE E,,"RIDER, ERIN",,105,1,75.5,0',
       'S3,AQR JULY SHOW 1,Ranch Riding,399,,10,10,1,1,HORSE D,,"RIDER, DANA",,104,1,78,0',
     ].join("\n"),
   });
   const funFacts = buildChampionshipFunFacts(dataset);
 
+  expect(funFacts.highestScore).toHaveLength(1);
   expect(funFacts.highestScore).toMatchObject([
     {
       rider: "RIDER, DANA",
@@ -531,6 +533,7 @@ test("builds lightweight championship fun facts", () => {
       showLabel: "AQR JULY SHOW 1",
     },
   ]);
+  expect(funFacts.highestReiningScore).toHaveLength(1);
   expect(funFacts.highestReiningScore).toMatchObject([
     {
       rider: "RIDER, BOB",
@@ -539,6 +542,7 @@ test("builds lightweight championship fun facts", () => {
       showLabel: "AQR MAY SHOW 1",
     },
   ]);
+  expect(funFacts.highestRanchRidingScore).toHaveLength(1);
   expect(funFacts.highestRanchRidingScore).toMatchObject([
     {
       rider: "RIDER, DANA",

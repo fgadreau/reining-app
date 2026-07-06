@@ -323,16 +323,11 @@ export function buildChampionshipFunFacts(dataset) {
   }));
 
   return {
-    highestScore: pickLeaders(highestScores, compareHighestScores, "score"),
-    highestReiningScore: pickLeaders(
-      highestReiningScores,
-      compareHighestScores,
-      "score"
-    ),
-    highestRanchRidingScore: pickLeaders(
+    highestScore: pickLeader(highestScores, compareHighestScores),
+    highestReiningScore: pickLeader(highestReiningScores, compareHighestScores),
+    highestRanchRidingScore: pickLeader(
       highestRanchRidingScores,
-      compareHighestScores,
-      "score"
+      compareHighestScores
     ),
     topMoney: pickLeaders(
       teamFacts.filter((team) => team.totalMoney > 0),
@@ -393,6 +388,11 @@ function pickLeaders(items, compare, valueKey) {
   return sorted.filter(
     (item) => Math.abs(toNumber(item[valueKey]) - toNumber(leader[valueKey])) < 1e-9
   );
+}
+
+function pickLeader(items, compare) {
+  const leader = items.slice().sort(compare)[0] || null;
+  return leader ? [leader] : [];
 }
 
 function compareHighestScores(a, b) {
