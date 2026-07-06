@@ -18,10 +18,7 @@ import {
   formatLocalFirstSyncNotice,
   getLocalFirstSyncNoticeTone,
 } from "../../features/cloud/localFirstSyncMessages";
-import {
-  formatChampionshipMoney,
-  formatChampionshipPoints,
-} from "../../features/championship/championshipPoints";
+import { formatChampionshipPoints } from "../../features/championship/championshipPoints";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
 import {
@@ -653,8 +650,7 @@ function AssociationChampionshipPage() {
                   {classEntry.teams[0] && (
                     <div style={leaderStyle}>
                       #{classEntry.teams[0].rank} {classEntry.teams[0].rider} ·{" "}
-                      {formatChampionshipPoints(classEntry.teams[0].totalPoints)} pts ·{" "}
-                      {formatChampionshipMoney(classEntry.teams[0].totalMoney)}
+                      {formatChampionshipPoints(classEntry.teams[0].totalPoints)} pts
                     </div>
                   )}
                 </div>
@@ -898,8 +894,7 @@ function DuplicateResult({ title, row }) {
         {row.rider} · {row.horse}
       </div>
       <div style={duplicateLineStyle}>
-        Pl. {row.placeNum || "-"} · Score {row.totalScore || "-"} ·{" "}
-        {formatChampionshipMoney(row.moneyWon)}
+        Pl. {row.placeNum || "-"} · Score {row.totalScore || "-"}
       </div>
     </div>
   );

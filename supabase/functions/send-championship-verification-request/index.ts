@@ -348,7 +348,7 @@ function htmlStandingSection(standing) {
   return `
     <h3 style="margin:20px 0 8px;font-size:16px;">Classement actuel</h3>
     <p style="margin:0 0 10px;">
-      Rang ${escapeHtml(sanitizeText(standing.rank) || "-")} - ${escapeHtml(sanitizeText(standing.totalPoints) || "0")} pts - ${escapeHtml(sanitizeText(standing.totalMoney) || "$0.00")}
+      Rang ${escapeHtml(sanitizeText(standing.rank) || "-")} - ${escapeHtml(sanitizeText(standing.totalPoints) || "0")} pts
     </p>
     ${
       detailRows
@@ -392,7 +392,6 @@ function formatStandingText(standing) {
     "Classement actuel:",
     `Rang: ${sanitizeText(standing.rank) || "-"}`,
     `Points: ${sanitizeText(standing.totalPoints) || "0"}`,
-    `Gains: ${sanitizeText(standing.totalMoney) || "$0.00"}`,
   ];
 
   const details = Array.isArray(standing.details) ? standing.details : [];

@@ -288,7 +288,9 @@ test("builds championship standings by technical show occurrence and team", () =
   expect(beginnerClass.events).toHaveLength(3);
   expect(beginnerClass.teams).toHaveLength(1);
   expect(beginnerClass.teams[0].totalPoints).toBe(19);
-  expect(beginnerClass.teams[0].totalMoney).toBe(75);
+  expect(beginnerClass.teams[0]).not.toHaveProperty("totalMoney");
+  expect(beginnerClass.events[0]).not.toHaveProperty("totalMoney");
+  expect(dataset.imports[0].rows[0]).not.toHaveProperty("moneyWon");
   expect(beginnerClass.teams[0].details).toHaveLength(3);
   expect(beginnerClass.teams[0].details[2].points).toBe(0);
 });
@@ -320,14 +322,12 @@ test("keeps full source results on championship show occurrences", () => {
       className: "Débutant I / Beginner I",
       rawTotalScore: "72.5",
       points: 10,
-      moneyWon: 50,
       sourceFileName: "may.csv",
       sourceRowNumber: 2,
     },
     {
       backNumber: "202",
       points: 9,
-      rawMoneyWon: "25",
     },
     {
       backNumber: "303",
@@ -335,6 +335,9 @@ test("keeps full source results on championship show occurrences", () => {
       points: 0,
     },
   ]);
+  expect(event.results[0]).not.toHaveProperty("moneyWon");
+  expect(event.results[1]).not.toHaveProperty("rawMoneyWon");
+  expect(dataset.imports[0].rows[0]).not.toHaveProperty("moneyWon");
 });
 
 test("rehydrates championship occurrence results from stored imports", () => {
@@ -345,8 +348,17 @@ test("rehydrates championship occurrence results from stored imports", () => {
       'S1,AQR MAY SHOW 1,Débutant I / Beginner I,5399,,5,5,1,1,GOOD HORSE,,"RIDER, ALICE",,101,1,72,50',
     ].join("\n"),
   });
+  const storedImportBatch = {
+    ...importBatch,
+    rows: importBatch.rows.map((row) => ({
+      ...row,
+      moneyWon: 50,
+      rawMoneyWon: "50",
+      totalMoney: 999,
+    })),
+  };
   const dataset = buildChampionshipDatasetFromImports({
-    imports: [importBatch],
+    imports: [storedImportBatch],
   });
   const storedSeason = {
     ...dataset,
@@ -370,6 +382,8 @@ test("rehydrates championship occurrence results from stored imports", () => {
       sourceFileName: "may.csv",
     },
   ]);
+  expect(dataset.imports[0].rows[0]).not.toHaveProperty("moneyWon");
+  expect(event.results[0]).not.toHaveProperty("moneyWon");
 });
 
 test("validates required championship verification request fields", () => {
@@ -467,9 +481,9 @@ test("builds a championship verification email payload with selected shows", () 
       rider: "RIDER, ALICE",
       horse: "HORSE A",
       totalPoints: "9",
-      totalMoney: "75.00 $",
     },
   });
+  expect(payload.currentStanding).not.toHaveProperty("totalMoney");
   expect(payload.request.shows).toHaveLength(1);
   expect(payload.request.shows[0]).toMatchObject({
     eventKey: firstEventKey,
@@ -480,9 +494,9 @@ test("builds a championship verification email payload with selected shows", () 
   expect(payload.currentStanding.details[0]).toMatchObject({
     eventKey: firstEventKey,
     points: "5",
-    moneyWon: "50.00 $",
     sourceFileName: "may.csv",
   });
+  expect(payload.currentStanding.details[0]).not.toHaveProperty("moneyWon");
 });
 
 test("applies public labels to championship technical shows", () => {
@@ -551,13 +565,7 @@ test("builds lightweight championship fun facts", () => {
       showLabel: "AQR JULY SHOW 1",
     },
   ]);
-  expect(funFacts.topMoney).toMatchObject([
-    {
-      rider: "RIDER, ALICE",
-      horse: "HORSE A",
-      totalMoney: 145,
-    },
-  ]);
+  expect(funFacts).not.toHaveProperty("topMoney");
   expect(funFacts.mostClasses).toMatchObject([
     {
       rider: "RIDER, ALICE",

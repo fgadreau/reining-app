@@ -13,10 +13,7 @@ import {
   getChampionshipIncludedShows,
 } from "../../features/championship/championshipStandings";
 import { buildChampionshipPublicSeo } from "../../features/seo/publicSeo";
-import {
-  formatChampionshipMoney,
-  formatChampionshipPoints,
-} from "../../features/championship/championshipPoints";
+import { formatChampionshipPoints } from "../../features/championship/championshipPoints";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import {
   buildChampionshipPdfFileName,
@@ -398,7 +395,6 @@ function ChampionshipClassTable({
             <th style={stickyThStyle}>{t("public.results.rider")}</th>
             <th style={stickyThStyle}>{t("public.results.horse")}</th>
             <th style={thStyle}>{t("championship.public.totalPoints")}</th>
-            <th style={thStyle}>{t("championship.public.totalMoney")}</th>
             {classEntry.events.map((event) => (
               <th key={event.eventKey} style={eventThStyle}>
                 <button
@@ -408,7 +404,7 @@ function ChampionshipClassTable({
                 >
                   {event.label}
                 </button>
-                <div style={smallHeaderStyle}>Pts / $</div>
+                <div style={smallHeaderStyle}>Pts</div>
               </th>
             ))}
           </tr>
@@ -426,9 +422,6 @@ function ChampionshipClassTable({
                 <td style={nameTdStyle}>{team.horse}</td>
                 <td style={strongTdStyle}>
                   {formatChampionshipPoints(team.totalPoints)}
-                </td>
-                <td style={strongTdStyle}>
-                  {formatChampionshipMoney(team.totalMoney)}
                 </td>
                 {classEntry.events.map((event) => {
                   const detail = detailsByEvent.get(event.eventKey);
@@ -451,9 +444,6 @@ function ChampionshipClassTable({
                           <div style={eventCellPointsStyle}>
                             {formatChampionshipPoints(detail.points)}
                           </div>
-                          <div style={eventCellMoneyStyle}>
-                            {formatChampionshipMoney(detail.moneyWon)}
-                          </div>
                           <div style={eventCellMetaStyle}>
                             {t("championship.public.placeScore", {
                               place: detail.placeNum || "-",
@@ -462,7 +452,7 @@ function ChampionshipClassTable({
                           </div>
                           </>
                         ) : (
-                          <span style={mutedCellStyle}>0 / 0.00 $</span>
+                          <span style={mutedCellStyle}>0</span>
                         )}
                       </button>
                     </td>
@@ -474,13 +464,12 @@ function ChampionshipClassTable({
         </tbody>
         <tfoot>
           <tr>
-            <td style={footerTdStyle} colSpan={5}>
+            <td style={footerTdStyle} colSpan={4}>
               {t("championship.public.eventTotals")}
             </td>
             {classEntry.events.map((event) => (
               <td key={`${event.eventKey}-total`} style={footerTdStyle}>
                 <div>{formatChampionshipPoints(event.totalPoints)}</div>
-                <div>{formatChampionshipMoney(event.totalMoney)}</div>
               </td>
             ))}
           </tr>
@@ -515,10 +504,6 @@ function ChampionshipClassMobileStandings({ classEntry, onSelectOccurrence, t })
                 label={t("championship.public.totalPoints")}
                 value={formatChampionshipPoints(team.totalPoints)}
               />
-              <MobileTotal
-                label={t("championship.public.totalMoney")}
-                value={formatChampionshipMoney(team.totalMoney)}
-              />
             </div>
 
             <div style={mobileOccurrenceHeaderStyle}>
@@ -552,8 +537,7 @@ function ChampionshipClassMobileStandings({ classEntry, onSelectOccurrence, t })
                         {detailLabel}
                       </span>
                       <span style={mobileOccurrenceValueStyle}>
-                        {formatChampionshipPoints(detail.points)} ·{" "}
-                        {formatChampionshipMoney(detail.moneyWon)}
+                        {formatChampionshipPoints(detail.points)} pts
                       </span>
                       <span style={mobileOccurrenceMetaStyle}>
                         {t("championship.public.placeScore", {
@@ -605,13 +589,6 @@ function ChampionshipFunFactsModal({ isOpen, onClose, funFacts, t }) {
       renderValue: (entry) => formatChampionshipPoints(entry.score),
       renderMeta: (entry) =>
         [entry.className, entry.showLabel].filter(Boolean).join(" · "),
-    },
-    {
-      key: "topMoney",
-      title: t("championship.public.funFactsTopMoney"),
-      entries: funFacts.topMoney,
-      renderValue: (entry) => formatChampionshipMoney(entry.totalMoney),
-      renderMeta: (entry) => entry.className,
     },
     {
       key: "mostClasses",
@@ -771,7 +748,6 @@ function hasChampionshipFunFacts(funFacts) {
       ((funFacts.highestReiningScore || []).length ||
         (funFacts.highestRanchRidingScore || []).length ||
         (funFacts.highestScore || []).length ||
-        (funFacts.topMoney || []).length ||
         (funFacts.mostClasses || []).length)
   );
 }
@@ -1272,7 +1248,7 @@ const mobileHorseStyle = {
 
 const mobileTotalsStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gridTemplateColumns: "1fr",
   gap: 8,
   marginTop: 10,
 };
@@ -1425,11 +1401,6 @@ const strongTdStyle = {
 const eventCellPointsStyle = {
   fontWeight: 900,
   color: publicColors.text,
-};
-
-const eventCellMoneyStyle = {
-  color: publicColors.softText,
-  marginTop: 2,
 };
 
 const eventCellMetaStyle = {

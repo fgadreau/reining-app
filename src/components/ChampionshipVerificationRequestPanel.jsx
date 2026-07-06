@@ -7,7 +7,6 @@ import {
   validateChampionshipVerificationForm,
 } from "../features/championship/championshipVerificationRequestRepository";
 import {
-  formatChampionshipMoney,
   formatChampionshipPoints,
 } from "../features/championship/championshipPoints";
 
@@ -286,8 +285,7 @@ function ChampionshipVerificationRequestPanel({
             </div>
             <div>
               #{matchedTeam.rank} ·{" "}
-              {formatChampionshipPoints(matchedTeam.totalPoints)} pts ·{" "}
-              {formatChampionshipMoney(matchedTeam.totalMoney)}
+              {formatChampionshipPoints(matchedTeam.totalPoints)} pts
             </div>
           </div>
         )}

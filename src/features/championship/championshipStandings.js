@@ -94,6 +94,53 @@ export function buildChampionshipDatasetFromImports({
   };
 }
 
+export function stripChampionshipMoneyData(dataset) {
+  if (!dataset || typeof dataset !== "object") return dataset;
+
+  const classes = Array.isArray(dataset.classes)
+    ? dataset.classes.map((classEntry) => ({
+        ...classEntry,
+        events: Array.isArray(classEntry?.events)
+          ? classEntry.events.map(({ totalMoney, ...event }) => ({
+              ...event,
+              results: Array.isArray(event.results)
+                ? event.results.map(stripMoneyFields)
+                : [],
+            }))
+          : [],
+        teams: Array.isArray(classEntry?.teams)
+          ? classEntry.teams.map(({ totalMoney, ...team }) => ({
+              ...team,
+              details: Array.isArray(team.details)
+                ? team.details.map(stripMoneyFields)
+                : [],
+            }))
+          : [],
+      }))
+    : dataset.classes;
+  const imports = Array.isArray(dataset.imports)
+    ? dataset.imports.map((importBatch) => ({
+        ...importBatch,
+        rows: Array.isArray(importBatch.rows)
+          ? importBatch.rows.map(stripMoneyFields)
+          : [],
+      }))
+    : dataset.imports;
+
+  return {
+    ...dataset,
+    classes,
+    imports,
+  };
+}
+
+function stripMoneyFields(source) {
+  if (!source || typeof source !== "object") return source;
+
+  const { moneyWon, rawMoneyWon, totalMoney, ...rest } = source;
+  return rest;
+}
+
 export function normalizePersonKey(value) {
   const source = String(value || "").trim();
   let swapped = source;
@@ -303,11 +350,9 @@ export function buildChampionshipFunFacts(dataset) {
           rider: team.rider || "",
           horse: team.horse || "",
           classNames: [],
-          totalMoney: 0,
           classCount: 0,
         };
 
-        entry.totalMoney += toNumber(team.totalMoney);
         entry.classCount += details.length;
         if (classEntry.name && !entry.classNames.includes(classEntry.name)) {
           entry.classNames.push(classEntry.name);
@@ -328,11 +373,6 @@ export function buildChampionshipFunFacts(dataset) {
     highestRanchRidingScore: pickLeader(
       highestRanchRidingScores,
       compareHighestScores
-    ),
-    topMoney: pickLeaders(
-      teamFacts.filter((team) => team.totalMoney > 0),
-      compareMoneyLeaders,
-      "totalMoney"
     ),
     mostClasses: pickLeaders(teamFacts, compareMostClasses, "classCount"),
   };
@@ -402,13 +442,6 @@ function compareHighestScores(a, b) {
   return compareFunFactNames(a, b);
 }
 
-function compareMoneyLeaders(a, b) {
-  const moneyDiff = toNumber(b.totalMoney) - toNumber(a.totalMoney);
-  if (Math.abs(moneyDiff) > 1e-9) return moneyDiff;
-
-  return compareFunFactNames(a, b);
-}
-
 function compareMostClasses(a, b) {
   const classDiff = toNumber(b.classCount) - toNumber(a.classCount);
   if (Math.abs(classDiff) > 1e-9) return classDiff;
@@ -465,8 +498,6 @@ function normalizeCsvRows(rows, index, { fileName = "", importId = "" } = {}) {
       rawPlaceNum: cell(row, index.PlaceNum),
       totalScore: toNumber(cell(row, index.TotalScore)),
       rawTotalScore: cell(row, index.TotalScore),
-      moneyWon: toNumber(cell(row, index.MoneyWon)),
-      rawMoneyWon: cell(row, index.MoneyWon),
       riderKey,
       horseKey,
       teamKey: riderKey && horseKey ? `${riderKey}|${horseKey}` : "",
@@ -550,11 +581,13 @@ function normalizeImportBatches(imports) {
       const importId = importBatch?.id || createId("championship-import");
       const fileName = importBatch?.fileName || `CSV ${index + 1}`;
       const rows = Array.isArray(importBatch?.rows)
-        ? importBatch.rows.map((row) => ({
-            ...row,
-            sourceImportId: row.sourceImportId || importId,
-            sourceFileName: row.sourceFileName || fileName,
-          }))
+        ? importBatch.rows.map((row) =>
+            stripMoneyFields({
+              ...row,
+              sourceImportId: row.sourceImportId || importId,
+              sourceFileName: row.sourceFileName || fileName,
+            })
+          )
         : [];
 
       return {
@@ -639,7 +672,6 @@ function buildStandings(rows) {
     const show = getOrCreateIncludedShow(showsByKey, row);
 
     event.totalPoints += row.points;
-    event.totalMoney += row.moneyWon;
     event.resultCount += 1;
     event.results.push(buildOccurrenceResult(row));
     show.resultCount += 1;
@@ -653,7 +685,6 @@ function buildStandings(rows) {
 
     const teamEntry = getOrCreateTeamEntry(teamByClassAndKey, classEntry, row);
     teamEntry.totalPoints += row.points;
-    teamEntry.totalMoney += row.moneyWon;
     teamEntry.details.push({
       eventKey: event.eventKey,
       eventLabel: event.label,
@@ -671,8 +702,6 @@ function buildStandings(rows) {
       rawPlaceNum: row.rawPlaceNum,
       totalScore: row.totalScore,
       rawTotalScore: row.rawTotalScore,
-      moneyWon: row.moneyWon,
-      rawMoneyWon: row.rawMoneyWon,
       points: row.points,
       tieCount: row.tieCount,
       backNumber: row.backNumber,
@@ -685,7 +714,7 @@ function buildStandings(rows) {
     .map((classEntry) => {
       const teams = Array.from(teamByClassAndKey.values())
         .filter((team) => team.championshipClassId === classEntry.id)
-        .filter((team) => team.totalPoints > 0 || team.totalMoney > 0)
+        .filter((team) => team.totalPoints > 0)
         .sort(compareTeams);
       const rankedTeams = applyRanks(teams);
 
@@ -779,7 +808,6 @@ function getOrCreateEventEntry(eventsByKey, classEntry, row) {
       goNum: row.goNum,
       order: eventsByKey.size + 1,
       totalPoints: 0,
-      totalMoney: 0,
       resultCount: 0,
       results: [],
     };
@@ -819,7 +847,6 @@ function getOrCreateTeamEntry(teamByClassAndKey, classEntry, row) {
       rider: row.rider,
       horse: row.horse,
       totalPoints: 0,
-      totalMoney: 0,
       rank: null,
       details: [],
     });
@@ -842,8 +869,6 @@ function buildOccurrenceResult(row) {
     rawTotalScore: row.rawTotalScore,
     points: row.points,
     tieCount: row.tieCount,
-    moneyWon: row.moneyWon,
-    rawMoneyWon: row.rawMoneyWon,
     entryCount: row.entryCount,
     rawEntryCount: row.rawEntryCount,
     shownCount: row.shownCount,

@@ -35,9 +35,3 @@ export function formatChampionshipPoints(value, digits = 2) {
 
   return number.toFixed(digits).replace(/0+$/, "").replace(/\.$/, "");
 }
-
-export function formatChampionshipMoney(value) {
-  const number = toNumber(value);
-
-  return `${number.toFixed(2)} $`;
-}

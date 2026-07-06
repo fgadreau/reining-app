@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  formatChampionshipMoney,
   formatChampionshipPoints,
   toNumber,
 } from "../features/championship/championshipPoints";
@@ -66,10 +65,6 @@ function ChampionshipOccurrenceModal({ occurrence, onClose, t }) {
           <MetaItem label={t("championship.occurrence.source")} value={sourceFiles} />
         </div>
 
-        {!isCompactLayout && (
-          <div style={noteStyle}>{t("championship.occurrence.moneyReferenceNote")}</div>
-        )}
-
         <div style={tableWrapStyle}>
           <table style={tableStyle}>
             <thead>
@@ -80,7 +75,6 @@ function ChampionshipOccurrenceModal({ occurrence, onClose, t }) {
                 <th style={leftThStyle}>{t("championship.occurrence.horse")}</th>
                 <th style={thStyle}>{t("championship.occurrence.score")}</th>
                 <th style={thStyle}>{t("championship.occurrence.points")}</th>
-                <th style={thStyle}>{t("championship.occurrence.money")}</th>
                 <th style={leftThStyle}>{t("championship.occurrence.csvClass")}</th>
                 <th style={leftThStyle}>{t("championship.occurrence.sourceRow")}</th>
               </tr>
@@ -102,7 +96,6 @@ function ChampionshipOccurrenceModal({ occurrence, onClose, t }) {
                     <td style={strongTdStyle}>
                       {formatChampionshipPoints(result.points)}
                     </td>
-                    <td style={tdStyle}>{formatChampionshipMoney(result.moneyWon)}</td>
                     <td style={sourceClassTdStyle}>
                       {formatClassLabel(result.classCode, result.className)}
                     </td>
@@ -111,7 +104,7 @@ function ChampionshipOccurrenceModal({ occurrence, onClose, t }) {
                 ))
               ) : (
                 <tr>
-                  <td style={emptyTdStyle} colSpan={9}>
+                  <td style={emptyTdStyle} colSpan={8}>
                     {t("championship.occurrence.noResults")}
                   </td>
                 </tr>
@@ -437,14 +430,6 @@ const metaValueStyle = {
   fontWeight: 850,
   lineHeight: 1.25,
   wordBreak: "break-word",
-};
-
-const noteStyle = {
-  padding: "10px 18px",
-  color: "#475569",
-  fontSize: 13,
-  fontWeight: 750,
-  borderBottom: "1px solid #e2e8f0",
 };
 
 const tableWrapStyle = {

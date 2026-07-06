@@ -1,8 +1,5 @@
 import { getSupabaseClient } from "../cloud/supabaseClient";
-import {
-  formatChampionshipMoney,
-  formatChampionshipPoints,
-} from "./championshipPoints";
+import { formatChampionshipPoints } from "./championshipPoints";
 
 export const CHAMPIONSHIP_VERIFICATION_FUNCTION =
   "send-championship-verification-request";
@@ -204,7 +201,6 @@ function toVerificationStanding(team, selectedEvents) {
     rider: team.rider || "",
     horse: team.horse || "",
     totalPoints: formatChampionshipPoints(team.totalPoints),
-    totalMoney: formatChampionshipMoney(team.totalMoney),
     details: details.map((detail) => ({
       eventKey: detail.eventKey || "",
       eventLabel: detail.eventLabel || detail.showName || detail.showNum || "",
@@ -215,7 +211,6 @@ function toVerificationStanding(team, selectedEvents) {
       placeNum: detail.rawPlaceNum || detail.placeNum || "",
       totalScore: detail.rawTotalScore || detail.totalScore || "",
       points: formatChampionshipPoints(detail.points),
-      moneyWon: formatChampionshipMoney(detail.moneyWon),
       sourceFileName: detail.sourceFileName || "",
       sourceRowNumber: detail.sourceRowNumber || "",
     })),

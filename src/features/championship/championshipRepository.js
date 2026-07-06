@@ -5,7 +5,10 @@ import {
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 import { createId } from "../../utils/createId";
-import { ensureChampionshipOccurrenceResults } from "./championshipStandings";
+import {
+  ensureChampionshipOccurrenceResults,
+  stripChampionshipMoneyData,
+} from "./championshipStandings";
 
 const STORAGE_KEY = "showscore_championship_seasons_v1";
 const PRIVATE_TABLE = "show_score_championship_seasons";
@@ -74,7 +77,9 @@ export async function getPublicChampionshipSeasonRepository(associationId) {
 
 export async function saveChampionshipSeasonRepository(season) {
   const now = new Date().toISOString();
-  const normalizedSeason = ensureChampionshipOccurrenceResults(season);
+  const normalizedSeason = stripChampionshipMoneyData(
+    ensureChampionshipOccurrenceResults(season)
+  );
   const nextSeason = {
     ...normalizedSeason,
     id: normalizedSeason.id || createId("championship"),
@@ -137,15 +142,17 @@ export async function saveChampionshipSeasonRepository(season) {
 }
 
 function toPrivateRow(season) {
+  const cleanSeason = stripChampionshipMoneyData(season);
+
   return {
-    id: season.id,
-    organization_id: season.associationId,
-    title: season.title || "",
-    season_year: season.year || "",
-    status: season.status || "draft",
-    season_payload: sanitizeJsonPayload(season),
-    created_at: season.createdAt || new Date().toISOString(),
-    updated_at: season.updatedAt || new Date().toISOString(),
+    id: cleanSeason.id,
+    organization_id: cleanSeason.associationId,
+    title: cleanSeason.title || "",
+    season_year: cleanSeason.year || "",
+    status: cleanSeason.status || "draft",
+    season_payload: sanitizeJsonPayload(cleanSeason),
+    created_at: cleanSeason.createdAt || new Date().toISOString(),
+    updated_at: cleanSeason.updatedAt || new Date().toISOString(),
   };
 }
 
@@ -169,7 +176,7 @@ function toPrivateSeason(row) {
       ? row.season_payload
       : {};
 
-  return ensureChampionshipOccurrenceResults({
+  return stripChampionshipMoneyData(ensureChampionshipOccurrenceResults({
     ...payload,
     id: row.id,
     associationId: row.organization_id || payload.associationId || "",
@@ -178,7 +185,7 @@ function toPrivateSeason(row) {
     status: row.status || payload.status || "draft",
     createdAt: row.created_at || payload.createdAt || null,
     updatedAt: row.updated_at || payload.updatedAt || null,
-  });
+  }));
 }
 
 function toPublicSeason(row) {
@@ -187,7 +194,7 @@ function toPublicSeason(row) {
       ? row.public_payload
       : {};
 
-  return {
+  return stripChampionshipMoneyData({
     ...payload,
     id: row.season_id || payload.id || "",
     associationId: row.organization_id || payload.associationId || "",
@@ -195,7 +202,7 @@ function toPublicSeason(row) {
     year: row.season_year || payload.year || "",
     status: row.status || payload.status || "published",
     updatedAt: row.updated_at || payload.updatedAt || null,
-  };
+  });
 }
 
 function compareSeasons(a, b) {
@@ -207,7 +214,7 @@ function toPublicChampionshipSeason(season) {
   const { imports, validation, _localFirstSync, ...publicSeason } =
     normalizedSeason;
 
-  return publicSeason;
+  return stripChampionshipMoneyData(publicSeason);
 }
 
 function isPublicChampionshipStatus(status) {
@@ -215,7 +222,11 @@ function isPublicChampionshipStatus(status) {
 }
 
 function getLocalChampionshipSeasons(associationId) {
-  return readSeasons().filter((season) => season.associationId === associationId);
+  return readSeasons()
+    .filter((season) => season.associationId === associationId)
+    .map((season) =>
+      stripChampionshipMoneyData(ensureChampionshipOccurrenceResults(season))
+    );
 }
 
 function saveChampionshipSeasonLocally(season) {
