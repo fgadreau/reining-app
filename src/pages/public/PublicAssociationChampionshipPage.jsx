@@ -591,9 +591,27 @@ function ChampionshipFunFactsModal({ isOpen, onClose, funFacts, t }) {
         [entry.className, entry.showLabel].filter(Boolean).join(" · "),
     },
     {
+      key: "topRiderPoints",
+      title: t("championship.public.funFactsTopRiderPoints"),
+      entries: funFacts.topRiderPoints || [],
+      renderValue: (entry) =>
+        `${formatChampionshipPoints(entry.totalPoints)} pts`,
+      renderName: (entry) => entry.rider || "-",
+      renderMeta: () => t("championship.public.funFactsAllClassesAndTeams"),
+    },
+    {
+      key: "topHorsePoints",
+      title: t("championship.public.funFactsTopHorsePoints"),
+      entries: funFacts.topHorsePoints || [],
+      renderValue: (entry) =>
+        `${formatChampionshipPoints(entry.totalPoints)} pts`,
+      renderName: (entry) => entry.horse || "-",
+      renderMeta: () => t("championship.public.funFactsAllClassesAndTeams"),
+    },
+    {
       key: "mostClasses",
       title: t("championship.public.funFactsMostClasses"),
-      entries: funFacts.mostClasses,
+      entries: funFacts.mostClasses || [],
       renderValue: (entry) =>
         entry.classCount === 1
           ? t("championship.public.funFactsClassCountOne")
@@ -637,7 +655,9 @@ function ChampionshipFunFactsModal({ isOpen, onClose, funFacts, t }) {
                   >
                     <div style={funFactValueStyle}>{fact.renderValue(entry)}</div>
                     <div style={funFactNameStyle}>
-                      {formatFunFactTeam(entry, t)}
+                      {fact.renderName
+                        ? fact.renderName(entry)
+                        : formatFunFactTeam(entry, t)}
                     </div>
                     {fact.renderMeta(entry) && (
                       <div style={funFactMetaStyle}>{fact.renderMeta(entry)}</div>
@@ -748,6 +768,8 @@ function hasChampionshipFunFacts(funFacts) {
       ((funFacts.highestReiningScore || []).length ||
         (funFacts.highestRanchRidingScore || []).length ||
         (funFacts.highestScore || []).length ||
+        (funFacts.topRiderPoints || []).length ||
+        (funFacts.topHorsePoints || []).length ||
         (funFacts.mostClasses || []).length)
   );
 }

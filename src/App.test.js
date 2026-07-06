@@ -533,6 +533,8 @@ test("builds lightweight championship fun facts", () => {
       'S1,AQR MAY SHOW 1,Youth Beginner,5397,,10,10,1,1,HORSE B,,"RIDER, BOB",,102,1,75.5,20',
       'S2,AQR JUNE SHOW 1,Youth Beginner,5397,,10,10,1,1,HORSE C,,"RIDER, CAROL",,103,1,70,100',
       'S3,AQR JULY SHOW 1,Youth Beginner,5397,,10,10,1,1,HORSE E,,"RIDER, ERIN",,105,1,75.5,0',
+      'S4,AQR AUGUST SHOW 1,Youth Beginner,5397,,10,10,1,1,HORSE F,,"RIDER, ALICE",,106,1,74,0',
+      'S5,AQR SEPTEMBER SHOW 1,Youth Beginner,5397,,10,10,1,1,HORSE A,,"RIDER, FRANK",,107,2,73,0',
       'S3,AQR JULY SHOW 1,Ranch Riding,399,,10,10,1,1,HORSE D,,"RIDER, DANA",,104,1,78,0',
     ].join("\n"),
   });
@@ -566,6 +568,20 @@ test("builds lightweight championship fun facts", () => {
     },
   ]);
   expect(funFacts).not.toHaveProperty("topMoney");
+  expect(funFacts.topRiderPoints).toMatchObject([
+    {
+      rider: "RIDER, ALICE",
+      totalPoints: 37,
+      horseCount: 2,
+    },
+  ]);
+  expect(funFacts.topHorsePoints).toMatchObject([
+    {
+      horse: "HORSE A",
+      totalPoints: 36,
+      riderCount: 2,
+    },
+  ]);
   expect(funFacts.mostClasses).toMatchObject([
     {
       rider: "RIDER, ALICE",

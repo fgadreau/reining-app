@@ -309,6 +309,8 @@ export function buildChampionshipFunFacts(dataset) {
   const highestRanchRidingScores = [];
   const highestReiningScores = [];
   const teamsByKey = new Map();
+  const ridersByKey = new Map();
+  const horsesByKey = new Map();
 
   classes.forEach((classEntry) => {
     const events = Array.isArray(classEntry?.events) ? classEntry.events : [];
@@ -358,6 +360,28 @@ export function buildChampionshipFunFacts(dataset) {
           entry.classNames.push(classEntry.name);
         }
         teamsByKey.set(key, entry);
+
+        details.forEach((detail) => {
+          const points = toNumber(detail.points);
+          if (points <= 0) return;
+
+          addPointAggregate(ridersByKey, normalizePersonKey(team.rider), {
+            rider: team.rider || "",
+            horse: "",
+            relationKey: "horse",
+            relationName: team.horse || "",
+            className: classEntry.name || "",
+            points,
+          });
+          addPointAggregate(horsesByKey, normalizeHorseKey(team.horse), {
+            rider: "",
+            horse: team.horse || "",
+            relationKey: "rider",
+            relationName: team.rider || "",
+            className: classEntry.name || "",
+            points,
+          });
+        });
       }
     });
   });
@@ -374,8 +398,48 @@ export function buildChampionshipFunFacts(dataset) {
       highestRanchRidingScores,
       compareHighestScores
     ),
+    topRiderPoints: pickLeaders(
+      Array.from(ridersByKey.values()),
+      comparePointLeaders,
+      "totalPoints"
+    ),
+    topHorsePoints: pickLeaders(
+      Array.from(horsesByKey.values()),
+      comparePointLeaders,
+      "totalPoints"
+    ),
     mostClasses: pickLeaders(teamFacts, compareMostClasses, "classCount"),
   };
+}
+
+function addPointAggregate(map, key, fact) {
+  if (!key) return;
+
+  const entry = map.get(key) || {
+    rider: fact.rider || "",
+    horse: fact.horse || "",
+    totalPoints: 0,
+    detailCount: 0,
+    classNames: [],
+    relatedNames: [],
+  };
+
+  entry.totalPoints += fact.points;
+  entry.detailCount += 1;
+
+  if (fact.className && !entry.classNames.includes(fact.className)) {
+    entry.classNames.push(fact.className);
+  }
+
+  if (fact.relationName && !entry.relatedNames.includes(fact.relationName)) {
+    entry.relatedNames.push(fact.relationName);
+  }
+
+  entry.classCount = entry.classNames.length;
+  entry[`${fact.relationKey}Count`] = entry.relatedNames.length;
+  entry.className = entry.classNames.join(", ");
+
+  map.set(key, entry);
 }
 
 function isRanchRidingChampionshipClass(classEntry) {
@@ -438,6 +502,13 @@ function pickLeader(items, compare) {
 function compareHighestScores(a, b) {
   const scoreDiff = toNumber(b.score) - toNumber(a.score);
   if (Math.abs(scoreDiff) > 1e-9) return scoreDiff;
+
+  return compareFunFactNames(a, b);
+}
+
+function comparePointLeaders(a, b) {
+  const pointDiff = toNumber(b.totalPoints) - toNumber(a.totalPoints);
+  if (Math.abs(pointDiff) > 1e-9) return pointDiff;
 
   return compareFunFactNames(a, b);
 }
