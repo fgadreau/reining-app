@@ -638,7 +638,7 @@ function ChampionshipFunFactsModal({ isOpen, onClose, funFacts, t }) {
           : t("championship.public.funFactsClassCount", {
               count: entry.classCount,
             }),
-      renderMeta: (entry) => entry.className,
+      renderMeta: () => t("championship.public.funFactsActiveMeta"),
     },
   ].filter((fact) => fact.entries.length > 0);
 
