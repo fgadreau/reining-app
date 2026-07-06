@@ -353,6 +353,7 @@ export function buildChampionshipFunFacts(dataset) {
           horse: team.horse || "",
           classNames: [],
           classCount: 0,
+          totalPoints: 0,
         };
 
         entry.classCount += details.length;
@@ -365,6 +366,7 @@ export function buildChampionshipFunFacts(dataset) {
           const points = toNumber(detail.points);
           if (points <= 0) return;
 
+          entry.totalPoints += points;
           addPointAggregate(ridersByKey, normalizePersonKey(team.rider), {
             rider: team.rider || "",
             horse: "",
@@ -405,6 +407,11 @@ export function buildChampionshipFunFacts(dataset) {
     ),
     topHorsePoints: pickLeaders(
       Array.from(horsesByKey.values()),
+      comparePointLeaders,
+      "totalPoints"
+    ),
+    topTeamPoints: pickLeaders(
+      teamFacts.filter((team) => toNumber(team.totalPoints) > 0),
       comparePointLeaders,
       "totalPoints"
     ),
