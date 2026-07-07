@@ -319,82 +319,26 @@ export const translations = {
     },
     home: {
       continueManagement: "Continuer la gestion",
-      developmentNotice: "Utilisation gratuite en 2026, année de développement.",
       eyebrow: "Pointage live · Vitrine publique",
-      legalText:
-        "Conditions, confidentialité et avis sur les résultats publics.",
-      legalTitle: "Cadre d'utilisation",
       localRole: "Local",
-      learnMore: "Présentation",
       managerLogin: "Connexion gestionnaire",
       managementEmpty: "Aucune association disponible pour ce compte.",
-      managementText: "Associations accessibles avec votre rôle actuel.",
       managementTitle: "Espace gestion",
       myAssociations: "Mes associations",
       noRole: "Aucun rôle",
       open: "Ouvrir",
       openPublicShowcase: "Ouvrir la vitrine",
-      organizerPathText:
-        "Le secrétariat, les scribes et l’annonceur se connectent à l’espace gestion.",
-      organizerPathTitle: "Organisateurs",
-      platform: "Plateforme",
       platformAdmin: "Admin général",
-      platformConnected: "Connectée",
-      platformLocal: "Mode local",
-      platformLocalTest: "Test local",
-      platformPublic: "Publique",
-      platformText:
-        "Feuilles de pointage publiques, live et outils de gestion du temps pour les associations.",
-      publicAvailableText:
-        "Associations avec un live autorisé ou des feuilles de pointage publiées.",
       publicAvailableTitle: "Vitrine publique disponible",
       publicEmpty: "Aucun contenu public disponible pour l’instant.",
       publicLabel: "Vitrine publique",
-      publicPathText:
-        "Les visiteurs suivent les shows, le live et les résultats dans la vitrine publique, sans compte.",
-      publicPathTitle: "Public",
       privacy: "Confidentialité",
       resultsNotice: "Avis sur les résultats",
-      signalSection: "Points forts ShowScore",
-      signals: {
-        public: {
-          title: "Live lisible pour le public",
-          text: "La vitrine affiche le déroulement, les pointages publiés et le livestream quand il est ouvert.",
-        },
-        scribe: {
-          title: "Saisie simple pour le scribe",
-          text: "L’écran de pointage reste direct: manoeuvres, pénalités, notes et sauvegarde sans détour.",
-        },
-        offline: {
-          title: "Pensé pour le terrain",
-          text: "Les données locales et la synchronisation cloud aident quand le wifi du manège devient instable.",
-        },
-      },
-      subtitle:
-        "ShowScore donne au secrétariat et aux scribes un outil de pointage live, tout en gardant une vitrine publique simple pour les compétiteurs et spectateurs.",
-      supportedDisciplines: "Disciplines supportées",
+      subtitle: "Vitrine publique et gestion des shows au même endroit.",
       terms: "Conditions d'utilisation",
-      title: "Pointage live sans compliquer l’accès au public",
+      title: "ShowScore",
       viewPublicShowcase: "Voir la vitrine publique",
       viewShows: "Voir les shows",
-      workflow: {
-        prepare: {
-          title: "Préparer l’événement",
-          text: "Créez vos shows, journées, blocs et patterns au même endroit.",
-        },
-        importDraws: {
-          title: "Importer les draws",
-          text: "Ajoutez les ordres de passage par CSV, PDF ou saisie manuelle.",
-        },
-        score: {
-          title: "Enregistrer les pointages",
-          text: "Entrez les scores en direct avec une protection prévue pour les connexions instables en concours.",
-        },
-        publish: {
-          title: "Publier les pointages",
-          text: "Suivez le live, validez les feuilles de pointage et partagez la vitrine publique.",
-        },
-      },
     },
     presentation: {
       closingText:
@@ -1882,81 +1826,26 @@ export const translations = {
     },
     home: {
       continueManagement: "Continue management",
-      developmentNotice: "Free use in 2026, the development year.",
       eyebrow: "Live scoring · Public showcase",
-      legalText: "Terms, privacy, and public results notice.",
-      legalTitle: "Use framework",
       localRole: "Local",
-      learnMore: "Presentation",
       managerLogin: "Manager sign in",
       managementEmpty: "No association available for this account.",
-      managementText: "Associations available with your current role.",
       managementTitle: "Management area",
       myAssociations: "My associations",
       noRole: "No role",
       open: "Open",
       openPublicShowcase: "Open showcase",
-      organizerPathText:
-        "The secretariat, scribes, and announcer sign in to the management area.",
-      organizerPathTitle: "Organizers",
-      platform: "Platform",
       platformAdmin: "Platform admin",
-      platformConnected: "Connected",
-      platformLocal: "Local mode",
-      platformLocalTest: "Local test",
-      platformPublic: "Public",
-      platformText:
-        "Public score sheets, live scoring, and time-management tools for associations.",
-      publicAvailableText:
-        "Associations with an authorized live feed or published score sheets.",
       publicAvailableTitle: "Available public showcase",
       publicEmpty: "No public content is available yet.",
       publicLabel: "Public showcase",
-      publicPathText:
-        "Visitors follow shows, live updates, and results in the public showcase, no account needed.",
-      publicPathTitle: "Public",
       privacy: "Privacy",
       resultsNotice: "Results notice",
-      signalSection: "ShowScore highlights",
-      signals: {
-        public: {
-          title: "Readable live for the public",
-          text: "The showcase displays show progress, published scores, and livestreams when enabled.",
-        },
-        scribe: {
-          title: "Simple scribe entry",
-          text: "The scoring screen stays direct: maneuvers, penalties, notes, and saving without extra noise.",
-        },
-        offline: {
-          title: "Built for the arena",
-          text: "Local data and cloud sync help when the show-ground wifi becomes unstable.",
-        },
-      },
-      subtitle:
-        "ShowScore gives the secretariat and scribes a live scoring tool while keeping the public showcase simple for competitors and spectators.",
-      supportedDisciplines: "Supported disciplines",
+      subtitle: "Public showcase and show management in one place.",
       terms: "Terms of use",
-      title: "Live scoring without making public access complicated",
+      title: "ShowScore",
       viewPublicShowcase: "View public showcase",
       viewShows: "View shows",
-      workflow: {
-        prepare: {
-          title: "Prepare the event",
-          text: "Create shows, days, blocks, and patterns in one place.",
-        },
-        importDraws: {
-          title: "Import draws",
-          text: "Add orders of go by CSV, PDF, or manual entry.",
-        },
-        score: {
-          title: "Record scores",
-          text: "Enter live scores with safeguards designed for unstable show-ground connections.",
-        },
-        publish: {
-          title: "Publish scores",
-          text: "Follow the live feed, validate score sheets, and share the public showcase.",
-        },
-      },
     },
     presentation: {
       closingText:
