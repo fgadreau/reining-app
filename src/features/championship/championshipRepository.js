@@ -194,15 +194,17 @@ function toPublicSeason(row) {
       ? row.public_payload
       : {};
 
-  return stripChampionshipMoneyData({
-    ...payload,
-    id: row.season_id || payload.id || "",
-    associationId: row.organization_id || payload.associationId || "",
-    title: row.title || payload.title || "",
-    year: row.season_year || payload.year || "",
-    status: row.status || payload.status || "published",
-    updatedAt: row.updated_at || payload.updatedAt || null,
-  });
+  return stripChampionshipMoneyData(
+    ensureChampionshipOccurrenceResults({
+      ...payload,
+      id: row.season_id || payload.id || "",
+      associationId: row.organization_id || payload.associationId || "",
+      title: row.title || payload.title || "",
+      year: row.season_year || payload.year || "",
+      status: row.status || payload.status || "published",
+      updatedAt: row.updated_at || payload.updatedAt || null,
+    })
+  );
 }
 
 function compareSeasons(a, b) {

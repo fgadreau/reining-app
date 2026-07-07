@@ -8,6 +8,47 @@ import { parseChampionshipCsv } from "./championshipCsvParser";
 import { calculateChampionshipPoints, toNumber } from "./championshipPoints";
 import { createId } from "../../utils/createId";
 
+const CHAMPIONSHIP_MONTH_ORDER = new Map(
+  [
+    ["jan", 1],
+    ["janvier", 1],
+    ["january", 1],
+    ["feb", 2],
+    ["fevrier", 2],
+    ["february", 2],
+    ["mar", 3],
+    ["mars", 3],
+    ["march", 3],
+    ["apr", 4],
+    ["avril", 4],
+    ["april", 4],
+    ["mai", 5],
+    ["may", 5],
+    ["jun", 6],
+    ["juin", 6],
+    ["june", 6],
+    ["jul", 7],
+    ["juillet", 7],
+    ["july", 7],
+    ["aug", 8],
+    ["aout", 8],
+    ["august", 8],
+    ["sep", 9],
+    ["sept", 9],
+    ["septembre", 9],
+    ["september", 9],
+    ["oct", 10],
+    ["octobre", 10],
+    ["october", 10],
+    ["nov", 11],
+    ["novembre", 11],
+    ["november", 11],
+    ["dec", 12],
+    ["decembre", 12],
+    ["december", 12],
+  ].map(([label, order]) => [label, order])
+);
+
 export function buildChampionshipDatasetFromCsv({
   csvText,
   fileName = "",
@@ -181,7 +222,11 @@ export function getChampionshipEventLabelKey(eventLike) {
     .trim();
 }
 
-export function applyChampionshipEventLabels(dataset, labelsByShow = {}) {
+export function applyChampionshipEventLabels(
+  dataset,
+  labelsByShow = {},
+  orderByShow = {}
+) {
   if (!dataset || !Array.isArray(dataset.classes)) {
     return dataset;
   }
@@ -196,47 +241,73 @@ export function applyChampionshipEventLabels(dataset, labelsByShow = {}) {
       ""
     );
   };
+  const getPublicOrder = (eventLike) => {
+    const key = getChampionshipEventLabelKey(eventLike);
+    const explicitOrder = toNumber(orderByShow[key]);
+    const existingOrder = toNumber(eventLike?.publicOrder);
+    const order = explicitOrder > 0 ? explicitOrder : existingOrder;
+
+    return order > 0 ? order : undefined;
+  };
 
   return {
     ...dataset,
     shows: Array.isArray(dataset.shows)
-      ? dataset.shows.map((show) => ({
-          ...show,
-          label: getLabel(show),
-        }))
+      ? dataset.shows
+          .map((show) => ({
+            ...show,
+            label: getLabel(show),
+            publicOrder: getPublicOrder(show),
+          }))
+          .sort(compareChampionshipOccurrences)
       : dataset.shows,
     publicEventLabels: labelsByShow,
+    publicEventOrder: orderByShow,
     classes: dataset.classes.map((classEntry) => ({
       ...classEntry,
-      events: classEntry.events.map((event) => ({
-        ...event,
-        label: getLabel(event),
-        results: Array.isArray(event.results)
-          ? event.results.map((result) => ({
-              ...result,
-              eventLabel: getLabel(event),
-            }))
-          : event.results,
-      })),
+      events: classEntry.events
+        .map((event) => ({
+          ...event,
+          label: getLabel(event),
+          publicOrder: getPublicOrder(event),
+          results: Array.isArray(event.results)
+            ? event.results.map((result) => ({
+                ...result,
+                eventLabel: getLabel(event),
+                publicOrder: getPublicOrder(event),
+              }))
+            : event.results,
+        }))
+        .sort(compareChampionshipOccurrences),
       teams: classEntry.teams.map((team) => ({
         ...team,
-        details: team.details.map((detail) => ({
-          ...detail,
-          eventLabel: getLabel(detail),
-        })),
+        details: team.details
+          .map((detail) => ({
+            ...detail,
+            eventLabel: getLabel(detail),
+            publicOrder: getPublicOrder(detail),
+          }))
+          .sort(compareChampionshipOccurrences),
       })),
     })),
   };
 }
 
 export function ensureChampionshipOccurrenceResults(dataset) {
+  if (!dataset) {
+    return dataset;
+  }
+
   if (
-    !dataset ||
     hasCompleteOccurrenceResults(dataset) ||
     !Array.isArray(dataset.imports) ||
     dataset.imports.length === 0
   ) {
-    return dataset;
+    return applyChampionshipEventLabels(
+      dataset,
+      dataset.publicEventLabels || {},
+      dataset.publicEventOrder || {}
+    );
   }
 
   const rebuilt = buildChampionshipDatasetFromImports({
@@ -253,7 +324,8 @@ export function ensureChampionshipOccurrenceResults(dataset) {
       createdAt: dataset.createdAt || rebuilt.createdAt,
       updatedAt: dataset.updatedAt || rebuilt.updatedAt,
     },
-    dataset.publicEventLabels || {}
+    dataset.publicEventLabels || {},
+    dataset.publicEventOrder || {}
   );
 
   return {
@@ -261,6 +333,7 @@ export function ensureChampionshipOccurrenceResults(dataset) {
     ...labeled,
     imports: dataset.imports,
     publicEventLabels: dataset.publicEventLabels || {},
+    publicEventOrder: dataset.publicEventOrder || {},
   };
 }
 
@@ -269,7 +342,7 @@ export function getChampionshipIncludedShows(dataset) {
     return dataset.shows
       .map(normalizeIncludedShow)
       .filter((show) => show.key)
-      .sort((a, b) => a.order - b.order);
+      .sort(compareChampionshipOccurrences);
   }
 
   const showsByKey = new Map();
@@ -300,7 +373,7 @@ export function getChampionshipIncludedShows(dataset) {
     });
   });
 
-  return Array.from(showsByKey.values()).sort((a, b) => a.order - b.order);
+  return Array.from(showsByKey.values()).sort(compareChampionshipOccurrences);
 }
 
 export function buildChampionshipFunFacts(dataset) {
@@ -579,6 +652,7 @@ function normalizeIncludedShow(show, index) {
     showNum: show.showNum,
     showName: show.showName,
     order: show.order || index + 1,
+    publicOrder: show.publicOrder,
     occurrenceCount: show.occurrenceCount || 0,
     resultCount: show.resultCount || 0,
   };
@@ -921,7 +995,7 @@ function buildStandings(rows) {
             ...event,
             results: event.results.slice().sort(compareOccurrenceResults),
           }))
-          .sort((a, b) => a.order - b.order),
+          .sort(compareChampionshipOccurrences),
         teams: rankedTeams,
       };
     })
@@ -941,7 +1015,7 @@ function buildStandings(rows) {
       ...show,
       occurrenceCount: eventKeys.length,
     }))
-    .sort((a, b) => a.order - b.order);
+    .sort(compareChampionshipOccurrences);
 
   return {
     classCount: classes.length,
@@ -1102,6 +1176,104 @@ function compareOccurrenceResults(a, b) {
   );
 }
 
+function compareChampionshipOccurrences(a, b) {
+  const aParts = getChampionshipOccurrenceSortParts(a);
+  const bParts = getChampionshipOccurrenceSortParts(b);
+  const aHasManualOrder = aParts.publicOrder > 0;
+  const bHasManualOrder = bParts.publicOrder > 0;
+
+  if (
+    aHasManualOrder &&
+    bHasManualOrder &&
+    aParts.publicOrder !== bParts.publicOrder
+  ) {
+    return aParts.publicOrder - bParts.publicOrder;
+  }
+
+  if (aHasManualOrder !== bHasManualOrder) {
+    return aHasManualOrder ? -1 : 1;
+  }
+
+  if (aParts.month && bParts.month && aParts.month !== bParts.month) {
+    return aParts.month - bParts.month;
+  }
+
+  if (Boolean(aParts.month) !== Boolean(bParts.month)) {
+    return aParts.month ? -1 : 1;
+  }
+
+  if (aParts.sequence !== bParts.sequence) {
+    return aParts.sequence - bParts.sequence;
+  }
+
+  return (
+    compareNumericText(aParts.showNum, bParts.showNum) ||
+    compareNumericText(aParts.goType, bParts.goType) ||
+    compareNumericText(aParts.goNum, bParts.goNum) ||
+    compareNumericText(aParts.label, bParts.label) ||
+    toNumber(a.order) - toNumber(b.order) ||
+    compareNumericText(aParts.key, bParts.key)
+  );
+}
+
+function getChampionshipOccurrenceSortParts(occurrence) {
+  const label =
+    occurrence?.label ||
+    occurrence?.eventLabel ||
+    occurrence?.showName ||
+    occurrence?.showNum ||
+    occurrence?.key ||
+    occurrence?.eventKey ||
+    "";
+  const searchable = [
+    occurrence?.label,
+    occurrence?.eventLabel,
+    occurrence?.showName,
+    occurrence?.showNum,
+    occurrence?.key,
+    occurrence?.eventKey,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const tokens = normalizeSearchKey(searchable).split(" ").filter(Boolean);
+  const monthIndex = tokens.findIndex((token) =>
+    CHAMPIONSHIP_MONTH_ORDER.has(token)
+  );
+  const month =
+    monthIndex >= 0 ? CHAMPIONSHIP_MONTH_ORDER.get(tokens[monthIndex]) : 0;
+  const sequence =
+    findNumberInTokens(tokens, monthIndex >= 0 ? monthIndex + 1 : 0) ??
+    findNumberInTokens(tokens, 0) ??
+    Number.MAX_SAFE_INTEGER;
+
+  return {
+    key: occurrence?.eventKey || occurrence?.key || "",
+    label,
+    publicOrder: toNumber(occurrence?.publicOrder),
+    month,
+    sequence,
+    showNum: occurrence?.showNum || "",
+    goType: occurrence?.goType || "",
+    goNum: occurrence?.goNum || "",
+  };
+}
+
+function findNumberInTokens(tokens, startIndex) {
+  for (let index = startIndex; index < tokens.length; index += 1) {
+    const match = String(tokens[index] || "").match(/\d+/);
+    if (match) return Number(match[0]);
+  }
+
+  return null;
+}
+
+function compareNumericText(a, b) {
+  return String(a || "").localeCompare(String(b || ""), undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
 function compareTeams(a, b) {
   const pointDiff = b.totalPoints - a.totalPoints;
   if (Math.abs(pointDiff) > 1e-9) return pointDiff;
@@ -1125,7 +1297,7 @@ function applyRanks(teams) {
     return {
       ...team,
       rank,
-      details: team.details.sort((a, b) => a.eventKey.localeCompare(b.eventKey)),
+      details: team.details.slice().sort(compareChampionshipOccurrences),
     };
   });
 }

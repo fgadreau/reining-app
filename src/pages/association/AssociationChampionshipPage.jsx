@@ -43,6 +43,7 @@ function AssociationChampionshipPage() {
   const [resetInputKey, setResetInputKey] = useState(0);
   const [preview, setPreview] = useState(null);
   const [eventLabels, setEventLabels] = useState({});
+  const [eventOrder, setEventOrder] = useState({});
   const [pendingDuplicateImport, setPendingDuplicateImport] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
@@ -63,11 +64,23 @@ function AssociationChampionshipPage() {
       setAssociation(nextAssociation);
       setSeason(nextSeason);
       if (nextSeason) {
+        const nextEventLabels = nextSeason.publicEventLabels || {};
+        const nextEventOrder = buildEventOrderSettings(
+          getChampionshipIncludedShows(nextSeason),
+          nextSeason.publicEventOrder || {}
+        );
+        const nextPreview = applyChampionshipEventLabels(
+          nextSeason,
+          nextEventLabels,
+          nextEventOrder
+        );
+
         setSeasonTitle(nextSeason.title || "Championnat de saison");
         setSeasonYear(nextSeason.year || String(new Date().getFullYear()));
         setSeasonStatus(nextSeason.status || "draft");
-        setEventLabels(nextSeason.publicEventLabels || {});
-        setPreview(nextSeason);
+        setEventLabels(nextEventLabels);
+        setEventOrder(nextEventOrder);
+        setPreview(nextPreview);
       }
       setIsLoading(false);
     }
@@ -108,6 +121,7 @@ function AssociationChampionshipPage() {
   const rebuildPreviewFromImports = (
     imports,
     labels = eventLabels,
+    order = eventOrder,
     nextStatus = seasonStatus
   ) => {
     const nextEventLabels = sanitizeEventLabels(labels);
@@ -117,6 +131,10 @@ function AssociationChampionshipPage() {
       year: seasonYear,
       status: nextStatus,
     });
+    const nextEventOrder = buildEventOrderSettings(
+      getChampionshipIncludedShows(dataset),
+      order
+    );
 
     return applyChampionshipEventLabels(
       {
@@ -124,7 +142,8 @@ function AssociationChampionshipPage() {
         id: season?.id || preview?.id || "",
         associationId,
       },
-      nextEventLabels
+      nextEventLabels,
+      nextEventOrder
     );
   };
 
@@ -158,8 +177,13 @@ function AssociationChampionshipPage() {
       ? importBatches
       : [...getPreviewImports(preview), ...importBatches];
     const nextEventLabels = sanitizeEventLabels(eventLabels);
-    const nextPreview = rebuildPreviewFromImports(nextImports, nextEventLabels);
+    const nextPreview = rebuildPreviewFromImports(
+      nextImports,
+      nextEventLabels,
+      eventOrder
+    );
     setEventLabels(nextEventLabels);
+    setEventOrder(nextPreview.publicEventOrder || {});
     setPreview(nextPreview);
     setPendingDuplicateImport(null);
     setCsvText("");
@@ -300,6 +324,7 @@ function AssociationChampionshipPage() {
     );
     const nextPreview = rebuildPreviewFromImports(nextImports);
     setPreview(nextPreview);
+    setEventOrder(nextPreview.publicEventOrder || {});
     setSaveMessage("");
   };
 
@@ -315,7 +340,24 @@ function AssociationChampionshipPage() {
 
     setEventLabels(nextLabels);
     setSaveMessage("");
-    setPreview((current) => applyChampionshipEventLabels(current, nextLabels));
+    setPreview((current) =>
+      applyChampionshipEventLabels(current, nextLabels, eventOrder)
+    );
+  };
+
+  const handleEventOrderChange = (eventKey, value) => {
+    const nextEventOrder = reorderEventSettings(
+      technicalShows,
+      eventOrder,
+      eventKey,
+      value
+    );
+
+    setEventOrder(nextEventOrder);
+    setSaveMessage("");
+    setPreview((current) =>
+      applyChampionshipEventLabels(current, eventLabels, nextEventOrder)
+    );
   };
 
   const saveSeason = async (nextStatus = seasonStatus) => {
@@ -328,7 +370,12 @@ function AssociationChampionshipPage() {
     try {
       const allowedKeys = new Set(technicalShows.map((event) => event.key));
       const nextEventLabels = sanitizeEventLabels(eventLabels, allowedKeys);
-      const labeledPreview = applyChampionshipEventLabels(preview, nextEventLabels);
+      const nextEventOrder = buildEventOrderSettings(technicalShows, eventOrder);
+      const labeledPreview = applyChampionshipEventLabels(
+        preview,
+        nextEventLabels,
+        nextEventOrder
+      );
       const saved = await saveChampionshipSeasonRepository({
         ...labeledPreview,
         id: season?.id || preview.id,
@@ -337,10 +384,12 @@ function AssociationChampionshipPage() {
         year: seasonYear,
         status: nextStatus,
         publicEventLabels: nextEventLabels,
+        publicEventOrder: nextEventOrder,
       });
       setSeason(saved);
       setPreview(saved);
       setEventLabels(nextEventLabels);
+      setEventOrder(nextEventOrder);
       setSeasonStatus(saved.status || nextStatus);
       setSaveMessage(
         getLocalFirstSyncNoticeTone(saved) === "synced"
@@ -606,25 +655,47 @@ function AssociationChampionshipPage() {
                 {t("championship.admin.publicLabelsHelp")}
               </div>
               <div style={labelGridStyle}>
-                {technicalShows.map((event) => (
-                  <label key={event.key} style={fieldStyle}>
-                    <span style={labelStyle}>
+                {technicalShows.map((event, index) => (
+                  <div key={event.key} style={showSettingsStyle}>
+                    <div style={labelStyle}>
                       {event.showName || event.key}{" "}
                       <span style={mutedInlineStyle}>
                         ({t("championship.admin.eventCount", {
                           count: event.occurrenceCount,
                         })})
                       </span>
-                    </span>
-                    <input
-                      value={eventLabels[event.key] || ""}
-                      onChange={(changeEvent) =>
-                        handleEventLabelChange(event.key, changeEvent.target.value)
-                      }
-                      placeholder={event.showName || event.key}
-                      style={inputStyle}
-                    />
-                  </label>
+                    </div>
+                    <div style={showSettingsFieldsStyle}>
+                      <label style={fieldStyle}>
+                        <span style={labelStyle}>
+                          {t("championship.admin.publicOrder")}
+                        </span>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={getEventOrderValue(event, index, eventOrder)}
+                          onChange={(changeEvent) =>
+                            handleEventOrderChange(event.key, changeEvent.target.value)
+                          }
+                          style={orderInputStyle}
+                        />
+                      </label>
+                      <label style={fieldStyle}>
+                        <span style={labelStyle}>
+                          {t("championship.admin.publicLabel")}
+                        </span>
+                        <input
+                          value={eventLabels[event.key] || ""}
+                          onChange={(changeEvent) =>
+                            handleEventLabelChange(event.key, changeEvent.target.value)
+                          }
+                          placeholder={event.showName || event.key}
+                          style={inputStyle}
+                        />
+                      </label>
+                    </div>
+                  </div>
                 ))}
               </div>
             </section>
@@ -960,6 +1031,64 @@ function sanitizeEventLabels(labelsByShow, allowedKeys = null) {
   );
 }
 
+function buildEventOrderSettings(shows, orderByShow = {}) {
+  const entries = (Array.isArray(shows) ? shows : [])
+    .map((show, index) => {
+      const key = String(show?.key || "").trim();
+      if (!key) return null;
+
+      return {
+        key,
+        index,
+        order: normalizeOrderValue(
+          orderByShow[key] ?? show.publicOrder ?? show.order,
+          index + 1
+        ),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.order - b.order || a.index - b.index);
+
+  return Object.fromEntries(
+    entries.map((entry, index) => [entry.key, index + 1])
+  );
+}
+
+function reorderEventSettings(shows, orderByShow, eventKey, nextValue) {
+  const entries = (Array.isArray(shows) ? shows : [])
+    .map((show, index) => ({
+      key: String(show?.key || "").trim(),
+      index,
+      order: normalizeOrderValue(
+        orderByShow?.[show?.key] ?? show?.publicOrder ?? show?.order,
+        index + 1
+      ),
+    }))
+    .filter((entry) => entry.key)
+    .sort((a, b) => a.order - b.order || a.index - b.index);
+  const selected = entries.find((entry) => entry.key === eventKey);
+
+  if (!selected) {
+    return buildEventOrderSettings(shows, orderByShow);
+  }
+
+  const rest = entries.filter((entry) => entry.key !== eventKey);
+  const targetOrder = normalizeOrderValue(nextValue, selected.order);
+  const targetIndex = Math.min(Math.max(targetOrder - 1, 0), rest.length);
+  rest.splice(targetIndex, 0, selected);
+
+  return Object.fromEntries(rest.map((entry, index) => [entry.key, index + 1]));
+}
+
+function getEventOrderValue(event, index, eventOrder) {
+  return eventOrder[event.key] ?? event.publicOrder ?? event.order ?? index + 1;
+}
+
+function normalizeOrderValue(value, fallback) {
+  const order = Number.parseInt(String(value || ""), 10);
+  return Number.isFinite(order) && order > 0 ? order : fallback;
+}
+
 function formatShortDateTime(value) {
   if (!value) return "-";
 
@@ -1045,9 +1174,22 @@ const formGridStyle = {
 
 const labelGridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
   gap: 12,
   marginTop: 12,
+};
+
+const showSettingsStyle = {
+  display: "grid",
+  gap: 8,
+  alignContent: "start",
+};
+
+const showSettingsFieldsStyle = {
+  display: "grid",
+  gridTemplateColumns: "86px minmax(0, 1fr)",
+  gap: 10,
+  alignItems: "end",
 };
 
 const fieldStyle = {
@@ -1068,6 +1210,11 @@ const inputStyle = {
   padding: "9px 10px",
   fontSize: 14,
   boxSizing: "border-box",
+};
+
+const orderInputStyle = {
+  ...inputStyle,
+  width: "100%",
 };
 
 const fileRowStyle = {

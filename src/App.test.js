@@ -523,6 +523,91 @@ test("applies public labels to championship technical shows", () => {
   ]);
 });
 
+test("uses configured championship show order for occurrence columns", () => {
+  const csv = [
+    "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+    'SHOW-B,Commanditaires Bleu,Open,1100,,5,5,1,1,HORSE A,,"RIDER, ALICE",,101,1,72,50',
+    'SHOW-C,Invité spécial,Open,1100,,5,5,1,1,HORSE A,,"RIDER, ALICE",,101,2,71,25',
+    'SHOW-A,Levée spéciale,Open,1100,,5,5,1,1,HORSE A,,"RIDER, ALICE",,101,3,70,15',
+    'SHOW-B,Commanditaires Bleu,Débutant I / Beginner I,5399,,5,5,1,1,HORSE B,,"RIDER, BOB",,102,1,72,50',
+    'SHOW-A,Levée spéciale,Débutant I / Beginner I,5399,,5,5,1,1,HORSE B,,"RIDER, BOB",,102,2,71,25',
+  ].join("\n");
+
+  const labeled = applyChampionshipEventLabels(
+    buildChampionshipDatasetFromCsv({ csvText: csv }),
+    {
+      "SHOW-A": "Ouverture",
+      "SHOW-B": "Circuit bleu",
+      "SHOW-C": "Soirée spéciale",
+    },
+    {
+      "SHOW-A": 1,
+      "SHOW-B": 2,
+      "SHOW-C": 3,
+    }
+  );
+  const openClass = labeled.classes.find((item) => item.id === "nrha-open");
+  const beginnerClass = labeled.classes.find(
+    (item) => item.id === "aqr-beginner-non-pro-level-1"
+  );
+
+  expect(openClass.events.map((event) => event.label)).toEqual([
+    "Ouverture",
+    "Circuit bleu",
+    "Soirée spéciale",
+  ]);
+  expect(beginnerClass.events.map((event) => event.label)).toEqual([
+    "Ouverture",
+    "Circuit bleu",
+  ]);
+  expect(beginnerClass.teams[0].details.map((detail) => detail.eventLabel)).toEqual([
+    "Ouverture",
+    "Circuit bleu",
+  ]);
+  expect(getChampionshipIncludedShows(labeled).map((show) => show.label)).toEqual([
+    "Ouverture",
+    "Circuit bleu",
+    "Soirée spéciale",
+  ]);
+  expect(labeled.publicEventOrder).toEqual({
+    "SHOW-A": 1,
+    "SHOW-B": 2,
+    "SHOW-C": 3,
+  });
+});
+
+test("reapplies saved championship show order to stored occurrence results", () => {
+  const storedSeason = {
+    ...buildChampionshipDatasetFromCsv({
+      csvText: [
+        "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+        'SHOW-B,Commanditaires Bleu,Open,1100,,5,5,1,1,HORSE A,,"RIDER, ALICE",,101,1,72,50',
+        'SHOW-A,Levée spéciale,Open,1100,,5,5,1,1,HORSE A,,"RIDER, ALICE",,101,2,71,25',
+      ].join("\n"),
+    }),
+    imports: [],
+    publicEventLabels: {
+      "SHOW-A": "Ouverture",
+      "SHOW-B": "Circuit bleu",
+    },
+    publicEventOrder: {
+      "SHOW-A": 1,
+      "SHOW-B": 2,
+    },
+  };
+
+  const upgraded = ensureChampionshipOccurrenceResults(storedSeason);
+
+  expect(upgraded.classes[0].events.map((event) => event.label)).toEqual([
+    "Ouverture",
+    "Circuit bleu",
+  ]);
+  expect(upgraded.classes[0].teams[0].details.map((detail) => detail.eventLabel)).toEqual([
+    "Ouverture",
+    "Circuit bleu",
+  ]);
+});
+
 test("builds lightweight championship fun facts", () => {
   const dataset = buildChampionshipDatasetFromCsv({
     csvText: [
