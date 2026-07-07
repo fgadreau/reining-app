@@ -39,19 +39,24 @@ function getBrowserMetadata() {
       userAgent: "",
       timezone: "",
       viewport: null,
+      deviceType: "unknown",
     };
   }
 
+  const userAgent = window.navigator?.userAgent || "";
+  const viewport = {
+    width: window.innerWidth || null,
+    height: window.innerHeight || null,
+  };
+
   return {
     path: `${window.location.pathname}${window.location.search}`,
-    userAgent: window.navigator?.userAgent || "",
+    userAgent,
     timezone:
       Intl.DateTimeFormat().resolvedOptions().timeZone ||
       "",
-    viewport: {
-      width: window.innerWidth || null,
-      height: window.innerHeight || null,
-    },
+    viewport,
+    deviceType: getAnalyticsDeviceType({ userAgent, viewport }),
   };
 }
 
@@ -161,6 +166,7 @@ export async function trackEvent({
     metadata: {
       ...safeMetadata,
       viewport: browserMetadata.viewport,
+      deviceType: browserMetadata.deviceType,
     },
   };
   const supabase = getSupabaseClient();
@@ -253,6 +259,33 @@ function countBy(items, getKey) {
   return Array.from(counts.entries())
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+}
+
+function getAnalyticsDeviceType(eventOrMetadata = {}) {
+  const metadata = eventOrMetadata.metadata || eventOrMetadata || {};
+  const explicitType = String(metadata.deviceType || "")
+    .trim()
+    .toLowerCase();
+
+  if (["desktop", "mobile", "tablet"].includes(explicitType)) {
+    return explicitType;
+  }
+
+  const userAgent = String(
+    eventOrMetadata.userAgent || metadata.userAgent || ""
+  ).toLowerCase();
+  const viewport = metadata.viewport || eventOrMetadata.viewport || null;
+  const width = Number(viewport?.width);
+
+  if (/ipad|tablet|playbook|silk/.test(userAgent)) return "tablet";
+  if (/mobi|iphone|ipod|android.*mobile|blackberry|phone/.test(userAgent)) {
+    return "mobile";
+  }
+  if (/android/.test(userAgent)) return "tablet";
+  if (width > 0) return width < 768 ? "mobile" : "desktop";
+  if (userAgent) return "desktop";
+
+  return "unknown";
 }
 
 function getEventDate(event) {
@@ -377,6 +410,7 @@ export function buildAnalyticsSummary(events) {
       pageViews,
       (event) => event.metadata?.pageCategory || "unknown"
     ),
+    deviceTypes: countBy(pageViews, getAnalyticsDeviceType),
     eventTypes: countBy(safeEvents, (event) => event.eventType),
     topLocales: countBy(safeEvents, (event) => event.locale).slice(0, 6),
     topTimezones: countBy(safeEvents, (event) => event.timezone).slice(0, 6),

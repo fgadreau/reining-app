@@ -267,6 +267,12 @@ function PlatformAnalyticsPage() {
           total={summary.pageViewCount}
         />
         <TopList
+          title={t("analytics.deviceUsage")}
+          items={summary.deviceTypes}
+          getLabel={(label) => t(`analytics.deviceTypes.${label}`)}
+          total={summary.pageViewCount}
+        />
+        <TopList
           title={t("analytics.technicalContext")}
           items={[...summary.topLocales, ...summary.topTimezones]}
           total={summary.totalEvents}

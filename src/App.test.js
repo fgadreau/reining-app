@@ -5279,7 +5279,9 @@ test("builds analytics route context and summary", () => {
       eventName: "page_view",
       sessionId: "session-1",
       path: "/public",
-      metadata: { isPublicPath: true },
+      userAgent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile",
+      metadata: { isPublicPath: true, viewport: { width: 390, height: 844 } },
       createdAt: "2026-06-06T12:00:00.000Z",
     },
     {
@@ -5287,7 +5289,13 @@ test("builds analytics route context and summary", () => {
       eventName: "page_view",
       sessionId: "session-1",
       path: "/associations",
-      metadata: { isPublicPath: false },
+      userAgent:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+      metadata: {
+        isPublicPath: false,
+        deviceType: "desktop",
+        viewport: { width: 1440, height: 900 },
+      },
       associationId: "association-1",
       showId: "show-1",
       createdAt: "2026-06-06T12:05:00.000Z",
@@ -5297,7 +5305,11 @@ test("builds analytics route context and summary", () => {
       eventName: "page_view",
       sessionId: "session-2",
       path: "/associations/association-1/scribe/classes/class-1",
-      metadata: { pageCategory: "scribe_class", isPublicPath: false },
+      metadata: {
+        pageCategory: "scribe_class",
+        isPublicPath: false,
+        viewport: { width: 1024, height: 768 },
+      },
       associationId: "association-1",
       classId: "class-1",
       createdAt: "2026-06-06T12:10:00.000Z",
@@ -5323,6 +5335,10 @@ test("builds analytics route context and summary", () => {
   });
   expect(summary.topShows[0]).toEqual({ label: "show-1", count: 1 });
   expect(summary.topClasses[0]).toEqual({ label: "class-1", count: 1 });
+  expect(summary.deviceTypes).toEqual([
+    { label: "desktop", count: 2 },
+    { label: "mobile", count: 1 },
+  ]);
   expect(summary.latestEventAt).toBe("2026-06-06T12:15:00.000Z");
 });
 
