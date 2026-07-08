@@ -44,9 +44,14 @@ function PublicAssociationChampionshipPage() {
   const [openClassId, setOpenClassId] = useState(null);
   const [selectedOccurrence, setSelectedOccurrence] = useState(null);
   const [isVerificationPanelOpen, setIsVerificationPanelOpen] = useState(false);
+  const [verificationPrefill, setVerificationPrefill] = useState(null);
   const [isFunFactsOpen, setIsFunFactsOpen] = useState(false);
+  const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
+  const [isMobileShowsOpen, setIsMobileShowsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedClassId, setSelectedClassId] = useState("");
   const classes = Array.isArray(season?.classes) ? season.classes : [];
+  const associationWebsiteHref = getAssociationWebsiteHref(association);
   const normalizedSearchQuery = normalizeSearchText(searchQuery);
   const includedShows = useMemo(
     () => getChampionshipIncludedShows(season),
@@ -55,8 +60,9 @@ function PublicAssociationChampionshipPage() {
   const funFacts = useMemo(() => buildChampionshipFunFacts(season), [season]);
   const hasFunFacts = hasChampionshipFunFacts(funFacts);
   const filteredClasses = useMemo(
-    () => filterChampionshipClasses(classes, normalizedSearchQuery),
-    [classes, normalizedSearchQuery]
+    () =>
+      filterChampionshipClasses(classes, normalizedSearchQuery, selectedClassId),
+    [classes, normalizedSearchQuery, selectedClassId]
   );
   const seo = useMemo(
     () => buildChampionshipPublicSeo({ association, season, t }),
@@ -79,7 +85,11 @@ function PublicAssociationChampionshipPage() {
       setOpenClassId(null);
       setSelectedOccurrence(null);
       setIsVerificationPanelOpen(false);
+      setVerificationPrefill(null);
       setIsFunFactsOpen(false);
+      setIsMobileMoreOpen(false);
+      setIsMobileShowsOpen(false);
+      setSelectedClassId("");
       setIsLoading(false);
     }
 
@@ -97,9 +107,23 @@ function PublicAssociationChampionshipPage() {
     setOpenClassId(filteredClasses[0]?.id || null);
   }, [filteredClasses, normalizedSearchQuery]);
 
+  useEffect(() => {
+    if (!isMobileLayout) {
+      setIsMobileMoreOpen(false);
+      setIsMobileShowsOpen(false);
+      setSelectedClassId("");
+    }
+  }, [isMobileLayout]);
+
   const toggleClass = (classId, isOpen) => {
     setSelectedOccurrence(null);
     setOpenClassId(isOpen ? null : classId);
+  };
+
+  const updateSelectedClassFilter = (classId) => {
+    setSelectedClassId(classId);
+    setSelectedOccurrence(null);
+    setOpenClassId(classId || null);
   };
 
   const openOccurrence = ({ classEntry, event, teamKey = "" }) => {
@@ -115,6 +139,21 @@ function PublicAssociationChampionshipPage() {
       event: fullEvent,
       teamKey,
     });
+  };
+
+  const openVerificationPanel = (prefill = null) => {
+    setVerificationPrefill(prefill);
+    setIsVerificationPanelOpen(true);
+  };
+
+  const requestOccurrenceVerification = ({ classEntry, event, result }) => {
+    openVerificationPanel({
+      classId: classEntry?.id || "",
+      showKeys: event?.eventKey ? [event.eventKey] : [],
+      rider: result?.rider || "",
+      horse: result?.horse || "",
+    });
+    setSelectedOccurrence(null);
   };
 
   const downloadChampionshipPdf = () => {
@@ -184,48 +223,124 @@ function PublicAssociationChampionshipPage() {
                 : t("championship.status.published")}
             </span>
           )}
-          {classes.length > 0 && (
+          {isMobileLayout ? (
             <>
-              {hasFunFacts && (
+              {classes.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setIsFunFactsOpen(true)}
-                  style={quietActionButtonStyle}
+                  onClick={() => openVerificationPanel()}
+                  style={primaryActionButtonStyle}
                 >
-                  {t("championship.public.funFactsOpen")}
+                  {t("championship.verification.open")}
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => setIsVerificationPanelOpen(true)}
-                style={primaryActionButtonStyle}
-              >
-                {t("championship.verification.open")}
-              </button>
-              <button
-                type="button"
-                onClick={downloadChampionshipPdf}
-                style={secondaryButtonStyle}
-              >
-                {t("championship.public.downloadPdf")}
-              </button>
+              <ShareButton
+                url={`/public/associations/${associationId}/championnat`}
+                title={seo.title}
+                text={seo.description}
+              />
+              {(classes.length > 0 || associationWebsiteHref) && (
+                <div style={mobileMoreActionsWrapStyle}>
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileMoreOpen((value) => !value)}
+                    style={secondaryButtonStyle}
+                    aria-expanded={isMobileMoreOpen}
+                    aria-controls="championship-mobile-more-actions"
+                  >
+                    {t("championship.public.moreActions")}
+                  </button>
+                  {isMobileMoreOpen && (
+                    <div
+                      id="championship-mobile-more-actions"
+                      style={mobileMoreActionsPanelStyle}
+                    >
+                      {classes.length > 0 && hasFunFacts && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsFunFactsOpen(true);
+                            setIsMobileMoreOpen(false);
+                          }}
+                          style={mobileMoreActionButtonStyle}
+                        >
+                          {t("championship.public.funFactsOpen")}
+                        </button>
+                      )}
+                      {classes.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            downloadChampionshipPdf();
+                            setIsMobileMoreOpen(false);
+                          }}
+                          style={mobileMoreActionButtonStyle}
+                        >
+                          {t("championship.public.downloadPdf")}
+                        </button>
+                      )}
+                      {associationWebsiteHref && (
+                        <a
+                          href={associationWebsiteHref}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={mobileMoreActionLinkStyle}
+                          onClick={() => setIsMobileMoreOpen(false)}
+                        >
+                          {t("common.website")}
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {classes.length > 0 && (
+                <>
+                  {hasFunFacts && (
+                    <button
+                      type="button"
+                      onClick={() => setIsFunFactsOpen(true)}
+                      style={quietActionButtonStyle}
+                    >
+                      {t("championship.public.funFactsOpen")}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => openVerificationPanel()}
+                    style={primaryActionButtonStyle}
+                  >
+                    {t("championship.verification.open")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={downloadChampionshipPdf}
+                    style={secondaryButtonStyle}
+                  >
+                    {t("championship.public.downloadPdf")}
+                  </button>
+                </>
+              )}
+              {associationWebsiteHref && (
+                <a
+                  href={associationWebsiteHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={secondaryLinkStyle}
+                >
+                  {t("common.website")}
+                </a>
+              )}
+              <ShareButton
+                url={`/public/associations/${associationId}/championnat`}
+                title={seo.title}
+                text={seo.description}
+              />
             </>
           )}
-          {getAssociationWebsiteHref(association) && (
-            <a
-              href={getAssociationWebsiteHref(association)}
-              target="_blank"
-              rel="noreferrer"
-              style={secondaryLinkStyle}
-            >
-              {t("common.website")}
-            </a>
-          )}
-          <ShareButton
-            url={`/public/associations/${associationId}/championnat`}
-            title={seo.title}
-            text={seo.description}
-          />
         </div>
       </section>
 
@@ -235,44 +350,64 @@ function PublicAssociationChampionshipPage() {
         <div style={emptyStateStyle}>{t("championship.public.empty")}</div>
       ) : (
         <>
-          <section style={isMobileLayout ? mobileSummaryStyle : summaryStyle}>
-            <SummaryItem
-              label={t("championship.public.classes")}
-              value={season.classCount || 0}
-              compact={isMobileLayout}
-            />
-            <SummaryItem
-              label={t("championship.public.events")}
-              value={season.eventCount || 0}
-              compact={isMobileLayout}
-            />
-            <SummaryItem
-              label={t("championship.public.shows")}
-              value={season.showCount ?? includedShows.length}
-              compact={isMobileLayout}
-            />
-            <SummaryItem
-              label={t("championship.public.teams")}
-              value={season.teamCount || 0}
-              compact={isMobileLayout}
-            />
-            <SummaryItem
-              label={t("championship.public.updated")}
-              value={formatDate(season.updatedAt || season.importedAt)}
-              compact={isMobileLayout}
-            />
-            <SummaryShowsItem
-              label={t("championship.public.includedShows")}
+          {isMobileLayout ? (
+            <MobileChampionshipSummary
+              updatedAt={season.updatedAt || season.importedAt}
               shows={includedShows}
-              emptyText={t("championship.public.noIncludedShows")}
+              isShowsOpen={isMobileShowsOpen}
+              onToggleShows={() => setIsMobileShowsOpen((value) => !value)}
               t={t}
             />
-          </section>
+          ) : (
+            <section style={summaryStyle}>
+              <SummaryItem
+                label={t("championship.public.classes")}
+                value={season.classCount || 0}
+              />
+              <SummaryItem
+                label={t("championship.public.events")}
+                value={season.eventCount || 0}
+              />
+              <SummaryItem
+                label={t("championship.public.shows")}
+                value={season.showCount ?? includedShows.length}
+              />
+              <SummaryItem
+                label={t("championship.public.teams")}
+                value={season.teamCount || 0}
+              />
+              <SummaryItem
+                label={t("championship.public.updated")}
+                value={formatDate(season.updatedAt || season.importedAt)}
+              />
+              <SummaryShowsItem
+                label={t("championship.public.includedShows")}
+                shows={includedShows}
+                emptyText={t("championship.public.noIncludedShows")}
+                t={t}
+              />
+            </section>
+          )}
 
           <section style={isMobileLayout ? mobileSearchStyle : searchStyle}>
             <label style={searchLabelStyle} htmlFor="championship-search">
               {t("championship.public.searchLabel")}
             </label>
+            {isMobileLayout && classes.length > 1 && (
+              <select
+                value={selectedClassId}
+                onChange={(event) => updateSelectedClassFilter(event.target.value)}
+                style={mobileClassFilterSelectStyle}
+                aria-label={t("championship.public.classFilter")}
+              >
+                <option value="">{t("championship.public.allClasses")}</option>
+                {classes.map((classEntry) => (
+                  <option key={classEntry.id} value={classEntry.id}>
+                    {classEntry.name}
+                  </option>
+                ))}
+              </select>
+            )}
             <div style={isMobileLayout ? mobileSearchRowStyle : searchRowStyle}>
               <input
                 id="championship-search"
@@ -348,6 +483,7 @@ function PublicAssociationChampionshipPage() {
       <ChampionshipOccurrenceModal
         occurrence={selectedOccurrence}
         onClose={() => setSelectedOccurrence(null)}
+        onRequestVerification={requestOccurrenceVerification}
         t={t}
       />
       <ChampionshipFunFactsModal
@@ -364,6 +500,7 @@ function PublicAssociationChampionshipPage() {
         season={season}
         classes={classes}
         championshipUrl={getCurrentPageUrl()}
+        prefill={verificationPrefill}
         t={t}
       />
     </div>
@@ -494,17 +631,12 @@ function ChampionshipClassMobileStandings({ classEntry, onSelectOccurrence, t })
                 <div style={mobileRiderStyle}>{team.rider || "-"}</div>
                 <div style={mobileHorseStyle}>{team.horse || "-"}</div>
               </div>
-            </div>
-
-            <div style={mobileTotalsStyle}>
-              <MobileTotal
-                label={t("championship.public.totalPoints")}
-                value={formatChampionshipPoints(team.totalPoints)}
-              />
-            </div>
-
-            <div style={mobileOccurrenceHeaderStyle}>
-              {t("championship.public.mobileOccurrences")}
+              <div style={mobilePointsPillStyle}>
+                <span style={mobilePointsValueStyle}>
+                  {formatChampionshipPoints(team.totalPoints)}
+                </span>
+                <span style={mobilePointsLabelStyle}>pts</span>
+              </div>
             </div>
             {details.length > 0 ? (
               <div style={mobileOccurrenceListStyle}>
@@ -551,15 +683,6 @@ function ChampionshipClassMobileStandings({ classEntry, onSelectOccurrence, t })
           </article>
         );
       })}
-    </div>
-  );
-}
-
-function MobileTotal({ label, value }) {
-  return (
-    <div style={mobileTotalStyle}>
-      <div style={mobileTotalLabelStyle}>{label}</div>
-      <div style={mobileTotalValueStyle}>{value}</div>
     </div>
   );
 }
@@ -699,12 +822,60 @@ function ChampionshipFunFactsModal({ isOpen, onClose, funFacts, t }) {
   );
 }
 
-function SummaryItem({ label, value, compact = false }) {
+function MobileChampionshipSummary({
+  updatedAt,
+  shows,
+  isShowsOpen,
+  onToggleShows,
+  t,
+}) {
+  const showCount = Array.isArray(shows) ? shows.length : 0;
+
   return (
-    <div style={compact ? mobileSummaryItemStyle : summaryItemStyle}>
-      <div style={compact ? mobileSummaryValueStyle : summaryValueStyle}>
-        {value}
+    <section style={mobileCompactSummaryStyle}>
+      <div style={mobileCompactSummaryLineStyle}>
+        <div style={mobileCompactUpdatedStyle}>
+          <span style={mobileCompactSummaryLabelStyle}>
+            {t("championship.public.updated")}
+          </span>
+          <strong style={mobileCompactSummaryValueStyle}>
+            {formatDate(updatedAt)}
+          </strong>
+        </div>
+        <button
+          type="button"
+          onClick={onToggleShows}
+          style={mobileIncludedShowsButtonStyle}
+          aria-expanded={isShowsOpen}
+        >
+          {showCount > 0
+            ? t("championship.public.includedShowCount", { count: showCount })
+            : t("championship.public.noIncludedShows")}
+        </button>
       </div>
+      {isShowsOpen && (
+        <div style={mobileIncludedShowsListStyle}>
+          {showCount > 0 ? (
+            shows.map((show) => (
+              <span key={show.key} style={mobileIncludedShowChipStyle}>
+                {formatIncludedShowLabel(show)}
+              </span>
+            ))
+          ) : (
+            <span style={mutedTextStyle}>
+              {t("championship.public.noIncludedShows")}
+            </span>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SummaryItem({ label, value }) {
+  return (
+    <div style={summaryItemStyle}>
+      <div style={summaryValueStyle}>{value}</div>
       <div style={mutedTextStyle}>{label}</div>
     </div>
   );
@@ -741,7 +912,7 @@ function getChampionshipMobileMediaQuery() {
     return null;
   }
 
-  return window.matchMedia("(max-width: 680px)");
+  return window.matchMedia("(max-width: 980px)");
 }
 
 function SummaryShowsItem({ label, shows, emptyText, t }) {
@@ -831,10 +1002,14 @@ function formatFunFactTeam(entry, t) {
   return label || "-";
 }
 
-function filterChampionshipClasses(classes, query) {
-  if (!query) return classes;
+function filterChampionshipClasses(classes, query, selectedClassId = "") {
+  const selectedClasses = selectedClassId
+    ? classes.filter((classEntry) => classEntry.id === selectedClassId)
+    : classes;
 
-  return classes
+  if (!query) return selectedClasses;
+
+  return selectedClasses
     .map((classEntry) => {
       const classMatches = normalizeSearchText(classEntry.name).includes(query);
       const matchingTeams = classEntry.teams.filter((team) =>
@@ -898,6 +1073,42 @@ const mobileHeroActionsStyle = {
   width: "100%",
   justifyContent: "flex-start",
   gap: 6,
+};
+
+const mobileMoreActionsWrapStyle = {
+  position: "relative",
+  display: "inline-flex",
+  alignItems: "center",
+};
+
+const mobileMoreActionsPanelStyle = {
+  position: "absolute",
+  top: "calc(100% + 6px)",
+  left: 0,
+  zIndex: 30,
+  width: "min(220px, calc(100vw - 32px))",
+  display: "grid",
+  gap: 6,
+  padding: 8,
+  border: `1px solid ${publicColors.border}`,
+  borderRadius: 8,
+  background: publicColors.surface,
+  boxShadow: "0 16px 40px rgba(15, 23, 42, 0.18)",
+};
+
+const mobileMoreActionButtonStyle = {
+  ...publicSecondaryActionStyle,
+  width: "100%",
+  justifyContent: "flex-start",
+  minHeight: 40,
+  padding: "8px 10px",
+  font: "inherit",
+  background: "#fff",
+};
+
+const mobileMoreActionLinkStyle = {
+  ...mobileMoreActionButtonStyle,
+  boxSizing: "border-box",
 };
 
 const eyebrowStyle = {
@@ -975,25 +1186,80 @@ const summaryStyle = {
   marginBottom: 12,
 };
 
-const mobileSummaryStyle = {
-  ...summaryStyle,
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-  gap: 8,
-  marginBottom: 10,
-};
-
 const summaryItemStyle = {
   ...publicCardStyle,
-};
-
-const mobileSummaryItemStyle = {
-  ...summaryItemStyle,
-  padding: 10,
 };
 
 const summaryShowsItemStyle = {
   ...summaryItemStyle,
   gridColumn: "1 / -1",
+};
+
+const mobileCompactSummaryStyle = {
+  ...publicCardStyle,
+  padding: "8px 10px",
+  marginBottom: 10,
+};
+
+const mobileCompactSummaryLineStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 8,
+};
+
+const mobileCompactUpdatedStyle = {
+  minWidth: 0,
+};
+
+const mobileCompactSummaryLabelStyle = {
+  display: "block",
+  color: publicColors.muted,
+  fontSize: 10,
+  fontWeight: 900,
+  textTransform: "uppercase",
+  letterSpacing: 0,
+};
+
+const mobileCompactSummaryValueStyle = {
+  display: "block",
+  color: publicColors.text,
+  fontSize: 13,
+  lineHeight: 1.12,
+};
+
+const mobileIncludedShowsButtonStyle = {
+  border: `1px solid ${publicColors.border}`,
+  borderRadius: 8,
+  background: "#f8fafc",
+  color: publicColors.text,
+  padding: "7px 9px",
+  font: "inherit",
+  fontSize: 12,
+  fontWeight: 850,
+  cursor: "pointer",
+  flex: "0 0 auto",
+};
+
+const mobileIncludedShowsListStyle = {
+  display: "flex",
+  gap: 6,
+  flexWrap: "wrap",
+  marginTop: 8,
+  paddingTop: 8,
+  borderTop: `1px solid ${publicColors.border}`,
+};
+
+const mobileIncludedShowChipStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  border: `1px solid ${publicColors.border}`,
+  borderRadius: 999,
+  background: "#f8fafc",
+  color: publicColors.text,
+  padding: "5px 8px",
+  fontSize: 12,
+  fontWeight: 850,
 };
 
 const summaryShowsHeaderStyle = {
@@ -1065,6 +1331,21 @@ const mobileSearchRowStyle = {
   gap: 6,
 };
 
+const mobileClassFilterSelectStyle = {
+  width: "100%",
+  minHeight: 40,
+  border: `1px solid ${publicColors.border}`,
+  borderRadius: 8,
+  padding: "8px 10px",
+  marginBottom: 7,
+  color: publicColors.text,
+  background: publicColors.surface,
+  font: "inherit",
+  fontSize: 14,
+  fontWeight: 800,
+  boxSizing: "border-box",
+};
+
 const searchInputStyle = {
   flex: "1 1 260px",
   minHeight: 42,
@@ -1086,12 +1367,6 @@ const summaryValueStyle = {
   fontSize: 24,
   fontWeight: 900,
   color: publicColors.text,
-};
-
-const mobileSummaryValueStyle = {
-  ...summaryValueStyle,
-  fontSize: 20,
-  lineHeight: 1,
 };
 
 const funFactsBackdropStyle = {
@@ -1263,8 +1538,8 @@ const mobileViewToggleStyle = {
 
 const mobileStandingsStyle = {
   display: "grid",
-  gap: 8,
-  padding: 10,
+  gap: 6,
+  padding: 8,
   borderTop: `1px solid ${publicColors.border}`,
   background: publicColors.surfaceSoft,
 };
@@ -1273,21 +1548,21 @@ const mobileTeamCardStyle = {
   background: publicColors.surface,
   border: `1px solid ${publicColors.border}`,
   borderRadius: 8,
-  padding: 10,
+  padding: 8,
 };
 
 const mobileTeamHeaderStyle = {
   display: "grid",
-  gridTemplateColumns: "42px minmax(0, 1fr)",
-  gap: 9,
-  alignItems: "start",
+  gridTemplateColumns: "40px minmax(0, 1fr) auto",
+  gap: 8,
+  alignItems: "center",
 };
 
 const mobileRankStyle = {
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
-  minHeight: 34,
+  minHeight: 32,
   borderRadius: 8,
   background: publicColors.primary,
   color: publicColors.primaryText,
@@ -1308,29 +1583,33 @@ const mobileRiderStyle = {
 };
 
 const mobileHorseStyle = {
-  marginTop: 2,
+  marginTop: 1,
   color: publicColors.softText,
   fontWeight: 800,
-  fontSize: 13,
-  lineHeight: 1.22,
+  fontSize: 12,
+  lineHeight: 1.16,
   overflowWrap: "anywhere",
 };
 
-const mobileTotalsStyle = {
+const mobilePointsPillStyle = {
   display: "grid",
-  gridTemplateColumns: "1fr",
-  gap: 8,
-  marginTop: 10,
-};
-
-const mobileTotalStyle = {
-  border: `1px solid ${publicColors.border}`,
+  justifyItems: "end",
+  alignSelf: "stretch",
+  minWidth: 44,
   borderRadius: 8,
   background: publicColors.surfaceSoft,
-  padding: "7px 8px",
+  padding: "5px 7px",
+  border: `1px solid ${publicColors.border}`,
 };
 
-const mobileTotalLabelStyle = {
+const mobilePointsValueStyle = {
+  color: publicColors.text,
+  fontWeight: 950,
+  fontSize: 16,
+  lineHeight: 1,
+};
+
+const mobilePointsLabelStyle = {
   color: publicColors.muted,
   fontSize: 10,
   fontWeight: 900,
@@ -1338,26 +1617,10 @@ const mobileTotalLabelStyle = {
   letterSpacing: 0,
 };
 
-const mobileTotalValueStyle = {
-  marginTop: 2,
-  color: publicColors.text,
-  fontWeight: 950,
-  fontSize: 15,
-};
-
-const mobileOccurrenceHeaderStyle = {
-  marginTop: 10,
-  color: publicColors.muted,
-  fontSize: 11,
-  fontWeight: 950,
-  textTransform: "uppercase",
-  letterSpacing: 0,
-};
-
 const mobileOccurrenceListStyle = {
   display: "grid",
-  gap: 6,
-  marginTop: 6,
+  gap: 5,
+  marginTop: 7,
 };
 
 const mobileOccurrenceButtonStyle = {
@@ -1365,35 +1628,45 @@ const mobileOccurrenceButtonStyle = {
   border: `1px solid ${publicColors.border}`,
   borderRadius: 8,
   background: publicColors.surface,
-  padding: "8px 9px",
+  padding: "6px 8px",
   font: "inherit",
   color: publicColors.text,
   textAlign: "left",
   cursor: "pointer",
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr) auto",
+  columnGap: 8,
+  rowGap: 1,
+  alignItems: "center",
 };
 
 const mobileOccurrenceLabelStyle = {
   display: "block",
   color: publicColors.text,
-  fontSize: 13,
+  fontSize: 12,
   fontWeight: 900,
-  lineHeight: 1.18,
+  lineHeight: 1.12,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
 };
 
 const mobileOccurrenceValueStyle = {
   display: "block",
-  marginTop: 3,
   color: publicColors.text,
-  fontSize: 13,
+  fontSize: 12,
   fontWeight: 950,
+  lineHeight: 1.1,
+  whiteSpace: "nowrap",
 };
 
 const mobileOccurrenceMetaStyle = {
   display: "block",
-  marginTop: 2,
+  gridColumn: "1 / -1",
   color: publicColors.muted,
-  fontSize: 11,
+  fontSize: 10,
   fontWeight: 750,
+  lineHeight: 1.15,
 };
 
 const tableWrapStyle = {

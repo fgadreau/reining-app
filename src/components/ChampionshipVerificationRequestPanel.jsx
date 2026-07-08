@@ -29,8 +29,10 @@ function ChampionshipVerificationRequestPanel({
   season,
   classes,
   championshipUrl,
+  prefill,
   t,
 }) {
+  const isMobilePanel = useVerificationMobilePanel();
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [submitState, setSubmitState] = useState({ status: "idle", message: "" });
@@ -62,6 +64,35 @@ function ChampionshipVerificationRequestPanel({
       showKeys: current.showKeys.filter((eventKey) => validEventKeys.has(eventKey)),
     }));
   }, [availableEvents, selectedClass]);
+
+  useEffect(() => {
+    if (!isOpen || !prefill) return;
+
+    const showKeys = Array.isArray(prefill.showKeys)
+      ? prefill.showKeys.filter(Boolean)
+      : [];
+
+    setForm((current) => ({
+      ...current,
+      classId: prefill.classId || current.classId,
+      scope:
+        prefill.scope ||
+        (showKeys.length
+          ? CHAMPIONSHIP_VERIFICATION_SCOPES.SELECTED_SHOWS
+          : current.scope),
+      showKeys: showKeys.length ? showKeys : current.showKeys,
+      rider: prefill.rider || current.rider,
+      horse: prefill.horse || current.horse,
+    }));
+    setErrors((current) => ({
+      ...current,
+      classId: undefined,
+      showKeys: undefined,
+      rider: undefined,
+      horse: undefined,
+    }));
+    setSubmitState({ status: "idle", message: "" });
+  }, [isOpen, prefill]);
 
   if (!isOpen) return null;
 
@@ -151,12 +182,13 @@ function ChampionshipVerificationRequestPanel({
     selectedClass &&
     form.scope === CHAMPIONSHIP_VERIFICATION_SCOPES.SELECTED_SHOWS;
 
-  return (
+  const panel = (
     <aside
-      style={panelStyle}
+      style={isMobilePanel ? mobilePanelStyle : panelStyle}
       role="dialog"
-      aria-modal="false"
+      aria-modal={isMobilePanel}
       aria-labelledby="championship-verification-title"
+      onClick={(event) => event.stopPropagation()}
     >
       <form style={formStyle} onSubmit={submitRequest}>
         <div style={headerStyle}>
@@ -317,6 +349,34 @@ function ChampionshipVerificationRequestPanel({
       </form>
     </aside>
   );
+
+  if (!isMobilePanel) return panel;
+
+  return (
+    <div style={mobileBackdropStyle} role="presentation" onClick={onClose}>
+      {panel}
+    </div>
+  );
+}
+
+function useVerificationMobilePanel() {
+  const [isMobilePanel, setIsMobilePanel] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth <= 680 : false
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const update = () => {
+      setIsMobilePanel(window.innerWidth <= 680);
+    };
+
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  return isMobilePanel;
 }
 
 const panelStyle = {
@@ -331,6 +391,27 @@ const panelStyle = {
   borderRadius: 8,
   boxShadow: "0 22px 70px rgba(15, 23, 42, 0.25)",
   overflow: "auto",
+};
+
+const mobileBackdropStyle = {
+  position: "fixed",
+  zIndex: 920,
+  inset: 0,
+  display: "flex",
+  alignItems: "flex-end",
+  background: "rgba(15, 23, 42, 0.38)",
+};
+
+const mobilePanelStyle = {
+  ...panelStyle,
+  position: "relative",
+  right: "auto",
+  bottom: "auto",
+  width: "100%",
+  maxHeight: "min(92dvh, calc(100dvh - 22px))",
+  borderRadius: "14px 14px 0 0",
+  borderBottom: "none",
+  boxShadow: "0 -20px 70px rgba(15, 23, 42, 0.24)",
 };
 
 const formStyle = {

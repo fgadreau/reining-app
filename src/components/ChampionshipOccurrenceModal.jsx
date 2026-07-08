@@ -4,8 +4,8 @@ import {
   toNumber,
 } from "../features/championship/championshipPoints";
 
-function ChampionshipOccurrenceModal({ occurrence, onClose, t }) {
-  const isCompactLayout = useCompactModalViewport(Boolean(occurrence));
+function ChampionshipOccurrenceModal({ occurrence, onClose, onRequestVerification, t }) {
+  const modalViewport = useModalViewport(Boolean(occurrence));
 
   useEffect(() => {
     if (!occurrence) return undefined;
@@ -28,7 +28,11 @@ function ChampionshipOccurrenceModal({ occurrence, onClose, t }) {
   const sourceFiles = formatSourceFiles(results, t);
   const goLabel = formatGoLabel(event, t);
   const entriesLabel = formatEntriesLabel(event, results, t);
-  const layoutStyles = isCompactLayout ? compactLayoutStyles : regularLayoutStyles;
+  const selectedResult = teamKey
+    ? results.find((result) => result.teamKey && result.teamKey === teamKey) || null
+    : null;
+  const isDenseLayout = modalViewport.isCompactLayout || modalViewport.isCardLayout;
+  const layoutStyles = isDenseLayout ? compactLayoutStyles : regularLayoutStyles;
 
   return (
     <div
@@ -65,69 +69,61 @@ function ChampionshipOccurrenceModal({ occurrence, onClose, t }) {
           <MetaItem label={t("championship.occurrence.source")} value={sourceFiles} />
         </div>
 
-        <div style={tableWrapStyle}>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={thStyle}>{t("championship.occurrence.rank")}</th>
-                <th style={thStyle}>{t("championship.occurrence.backNumber")}</th>
-                <th style={leftThStyle}>{t("championship.occurrence.rider")}</th>
-                <th style={leftThStyle}>{t("championship.occurrence.horse")}</th>
-                <th style={thStyle}>{t("championship.occurrence.score")}</th>
-                <th style={thStyle}>{t("championship.occurrence.points")}</th>
-                <th style={leftThStyle}>{t("championship.occurrence.csvClass")}</th>
-                <th style={leftThStyle}>{t("championship.occurrence.sourceRow")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.length > 0 ? (
-                results.map((result, index) => (
-                  <tr
-                    key={buildResultKey(result, index)}
-                    style={result.teamKey && result.teamKey === teamKey ? selectedRowStyle : null}
-                  >
-                    <td style={tdStyle}>{formatValue(result.rawPlaceNum, result.placeNum)}</td>
-                    <td style={tdStyle}>{result.backNumber || "-"}</td>
-                    <td style={nameTdStyle}>{result.rider || "-"}</td>
-                    <td style={nameTdStyle}>{result.horse || "-"}</td>
-                    <td style={tdStyle}>
-                      {formatValue(result.rawTotalScore, result.totalScore)}
-                    </td>
-                    <td style={strongTdStyle}>
-                      {formatChampionshipPoints(result.points)}
-                    </td>
-                    <td style={sourceClassTdStyle}>
-                      {formatClassLabel(result.classCode, result.className)}
-                    </td>
-                    <td style={sourceTdStyle}>{formatSourceRow(result, t)}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td style={emptyTdStyle} colSpan={8}>
-                    {t("championship.occurrence.noResults")}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {selectedResult && onRequestVerification && (
+          <div style={isDenseLayout ? compactActionBarStyle : actionBarStyle}>
+            <button
+              type="button"
+              onClick={() =>
+                onRequestVerification({
+                  classEntry,
+                  event,
+                  result: selectedResult,
+                })
+              }
+              style={requestVerificationButtonStyle}
+            >
+              {t("championship.verification.open")}
+            </button>
+          </div>
+        )}
+
+        {modalViewport.isCardLayout ? (
+          <OccurrenceResultCards
+            results={results}
+            teamKey={teamKey}
+            t={t}
+          />
+        ) : (
+          <OccurrenceResultTable
+            results={results}
+            teamKey={teamKey}
+            t={t}
+          />
+        )}
       </div>
     </div>
   );
 }
 
-function useCompactModalViewport(isOpen) {
-  const [isCompact, setIsCompact] = useState(false);
+function useModalViewport(isOpen) {
+  const [viewport, setViewport] = useState({
+    isCardLayout: false,
+    isCompactLayout: false,
+  });
 
   useEffect(() => {
     if (!isOpen || typeof window === "undefined") {
-      setIsCompact(false);
+      setViewport({ isCardLayout: false, isCompactLayout: false });
       return undefined;
     }
 
     const update = () => {
-      setIsCompact(window.innerHeight <= 520 && window.innerWidth > window.innerHeight);
+      const isCompactLayout =
+        window.innerHeight <= 520 && window.innerWidth > window.innerHeight;
+      setViewport({
+        isCardLayout: window.innerWidth <= 820,
+        isCompactLayout,
+      });
     };
 
     update();
@@ -140,7 +136,139 @@ function useCompactModalViewport(isOpen) {
     };
   }, [isOpen]);
 
-  return isCompact;
+  return viewport;
+}
+
+function OccurrenceResultTable({ results, teamKey, t }) {
+  return (
+    <div style={tableWrapStyle}>
+      <table style={tableStyle}>
+        <thead>
+          <tr>
+            <th style={thStyle}>{t("championship.occurrence.rank")}</th>
+            <th style={thStyle}>{t("championship.occurrence.backNumber")}</th>
+            <th style={leftThStyle}>{t("championship.occurrence.rider")}</th>
+            <th style={leftThStyle}>{t("championship.occurrence.horse")}</th>
+            <th style={thStyle}>{t("championship.occurrence.score")}</th>
+            <th style={thStyle}>{t("championship.occurrence.points")}</th>
+            <th style={leftThStyle}>{t("championship.occurrence.csvClass")}</th>
+            <th style={leftThStyle}>{t("championship.occurrence.sourceRow")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {results.length > 0 ? (
+            results.map((result, index) => (
+              <tr
+                key={buildResultKey(result, index)}
+                style={result.teamKey && result.teamKey === teamKey ? selectedRowStyle : null}
+              >
+                <td style={tdStyle}>{formatValue(result.rawPlaceNum, result.placeNum)}</td>
+                <td style={tdStyle}>{result.backNumber || "-"}</td>
+                <td style={nameTdStyle}>{result.rider || "-"}</td>
+                <td style={nameTdStyle}>{result.horse || "-"}</td>
+                <td style={tdStyle}>
+                  {formatValue(result.rawTotalScore, result.totalScore)}
+                </td>
+                <td style={strongTdStyle}>
+                  {formatChampionshipPoints(result.points)}
+                </td>
+                <td style={sourceClassTdStyle}>
+                  {formatClassLabel(result.classCode, result.className)}
+                </td>
+                <td style={sourceTdStyle}>{formatSourceRow(result, t)}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td style={emptyTdStyle} colSpan={8}>
+                {t("championship.occurrence.noResults")}
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function OccurrenceResultCards({ results, teamKey, t }) {
+  if (results.length === 0) {
+    return (
+      <div style={mobileResultListStyle}>
+        <div style={mobileEmptyResultStyle}>
+          {t("championship.occurrence.noResults")}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={mobileResultListStyle}>
+      {results.map((result, index) => {
+        const isSelected = result.teamKey && result.teamKey === teamKey;
+
+        return (
+          <article
+            key={buildResultKey(result, index)}
+            style={mobileResultCardStyle(isSelected)}
+          >
+            <div style={mobileResultHeaderStyle}>
+              <div style={mobileResultRankStyle}>
+                <div style={mobileResultRankLabelStyle}>
+                  {t("championship.occurrence.rank")}
+                </div>
+                <div style={mobileResultRankValueStyle}>
+                  {formatValue(result.rawPlaceNum, result.placeNum)}
+                </div>
+              </div>
+              <div style={mobileResultIdentityStyle}>
+                <div style={mobileResultNameStyle}>{result.rider || "-"}</div>
+                <div style={mobileResultHorseStyle}>{result.horse || "-"}</div>
+                {result.backNumber && (
+                  <div style={mobileResultBackNumberStyle}>
+                    {t("championship.occurrence.backNumber")} {result.backNumber}
+                  </div>
+                )}
+              </div>
+              <div style={mobileResultPointsStyle}>
+                <div style={mobileResultPointsValueStyle}>
+                  {formatChampionshipPoints(result.points)}
+                </div>
+                <div style={mobileResultPointsLabelStyle}>
+                  {t("championship.occurrence.points")}
+                </div>
+              </div>
+            </div>
+
+            <div style={mobileResultDetailsStyle}>
+              <MobileResultDetail
+                label={t("championship.occurrence.score")}
+                value={formatValue(result.rawTotalScore, result.totalScore)}
+              />
+              <MobileResultDetail
+                label={t("championship.occurrence.csvClass")}
+                value={formatClassLabel(result.classCode, result.className)}
+              />
+              <MobileResultDetail
+                label={t("championship.occurrence.sourceRow")}
+                value={formatSourceRow(result, t)}
+                wide
+              />
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function MobileResultDetail({ label, value, wide = false }) {
+  return (
+    <div style={wide ? mobileResultDetailWideStyle : mobileResultDetailStyle}>
+      <div style={mobileResultDetailLabelStyle}>{label}</div>
+      <div style={mobileResultDetailValueStyle}>{value || "-"}</div>
+    </div>
+  );
 }
 
 function MetaItem({ label, value }) {
@@ -430,6 +558,189 @@ const metaValueStyle = {
   fontWeight: 850,
   lineHeight: 1.25,
   wordBreak: "break-word",
+};
+
+const actionBarStyle = {
+  display: "flex",
+  justifyContent: "flex-end",
+  gap: 8,
+  padding: "10px 18px",
+  borderBottom: "1px solid #e2e8f0",
+  background: "#fff",
+};
+
+const compactActionBarStyle = {
+  ...actionBarStyle,
+  padding: "7px 10px",
+  justifyContent: "stretch",
+};
+
+const requestVerificationButtonStyle = {
+  border: "1px solid #0f172a",
+  borderRadius: 8,
+  background: "#0f172a",
+  color: "#ffffff",
+  padding: "9px 12px",
+  font: "inherit",
+  fontWeight: 950,
+  cursor: "pointer",
+  maxWidth: "100%",
+};
+
+const mobileResultListStyle = {
+  overflow: "auto",
+  flex: "1 1 auto",
+  minHeight: 0,
+  display: "grid",
+  alignContent: "start",
+  gap: 8,
+  padding: 10,
+  background: "#f8fafc",
+  WebkitOverflowScrolling: "touch",
+};
+
+const mobileResultCardBaseStyle = {
+  border: "1px solid #dbe3ef",
+  borderRadius: 8,
+  background: "#ffffff",
+  padding: 10,
+};
+
+const mobileSelectedResultCardStyle = {
+  borderColor: "#0891b2",
+  background: "#ecfeff",
+  boxShadow: "0 0 0 1px rgba(8, 145, 178, 0.16)",
+};
+
+const mobileResultCardStyle = (isSelected) => ({
+  ...mobileResultCardBaseStyle,
+  ...(isSelected ? mobileSelectedResultCardStyle : {}),
+});
+
+const mobileResultHeaderStyle = {
+  display: "grid",
+  gridTemplateColumns: "48px minmax(0, 1fr) auto",
+  gap: 9,
+  alignItems: "start",
+};
+
+const mobileResultRankStyle = {
+  minHeight: 44,
+  borderRadius: 8,
+  background: "#f1f5f9",
+  display: "grid",
+  placeItems: "center",
+  padding: "5px 4px",
+};
+
+const mobileResultRankLabelStyle = {
+  color: "#64748b",
+  fontSize: 10,
+  fontWeight: 900,
+  textTransform: "uppercase",
+  letterSpacing: 0,
+};
+
+const mobileResultRankValueStyle = {
+  color: "#0f172a",
+  fontSize: 16,
+  fontWeight: 950,
+  lineHeight: 1,
+};
+
+const mobileResultIdentityStyle = {
+  minWidth: 0,
+};
+
+const mobileResultNameStyle = {
+  color: "#0f172a",
+  fontSize: 15,
+  fontWeight: 950,
+  lineHeight: 1.18,
+  overflowWrap: "anywhere",
+};
+
+const mobileResultHorseStyle = {
+  marginTop: 2,
+  color: "#334155",
+  fontSize: 13,
+  fontWeight: 850,
+  lineHeight: 1.22,
+  overflowWrap: "anywhere",
+};
+
+const mobileResultBackNumberStyle = {
+  marginTop: 4,
+  color: "#64748b",
+  fontSize: 12,
+  fontWeight: 800,
+};
+
+const mobileResultPointsStyle = {
+  minWidth: 58,
+  textAlign: "right",
+};
+
+const mobileResultPointsValueStyle = {
+  color: "#0f172a",
+  fontSize: 16,
+  fontWeight: 950,
+  lineHeight: 1.05,
+};
+
+const mobileResultPointsLabelStyle = {
+  marginTop: 2,
+  color: "#64748b",
+  fontSize: 10,
+  fontWeight: 900,
+  textTransform: "uppercase",
+  letterSpacing: 0,
+};
+
+const mobileResultDetailsStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gap: 7,
+  marginTop: 9,
+};
+
+const mobileResultDetailStyle = {
+  minWidth: 0,
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  background: "#ffffff",
+  padding: "7px 8px",
+};
+
+const mobileResultDetailWideStyle = {
+  ...mobileResultDetailStyle,
+  gridColumn: "1 / -1",
+};
+
+const mobileResultDetailLabelStyle = {
+  color: "#64748b",
+  fontSize: 10,
+  fontWeight: 900,
+  textTransform: "uppercase",
+  letterSpacing: 0,
+};
+
+const mobileResultDetailValueStyle = {
+  marginTop: 2,
+  color: "#0f172a",
+  fontSize: 12,
+  fontWeight: 850,
+  lineHeight: 1.22,
+  overflowWrap: "anywhere",
+};
+
+const mobileEmptyResultStyle = {
+  border: "1px dashed #cbd5e1",
+  borderRadius: 8,
+  background: "#ffffff",
+  color: "#64748b",
+  padding: 14,
+  fontWeight: 850,
 };
 
 const tableWrapStyle = {

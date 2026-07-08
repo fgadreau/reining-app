@@ -289,12 +289,105 @@ function AppMenu() {
         {link.label}
       </Link>
     ));
+  const publicAccessLink = canOpenManagement
+    ? {
+        to: "/associations",
+        label: t("nav.managementAccess"),
+        isActive: location.pathname.startsWith("/associations"),
+      }
+    : {
+        to: "/login",
+        label: t("nav.login"),
+        isActive: location.pathname.startsWith("/login"),
+      };
+  const publicMobileLinks = [
+    {
+      to: "/public",
+      label: t("nav.publicShowcase"),
+      isActive: location.pathname === "/public",
+    },
+    {
+      to: "/",
+      label: t("nav.home"),
+      isActive: location.pathname === "/",
+    },
+    publicAccessLink,
+  ];
 
   if (isPublicOverlayPath) {
     return null;
   }
 
   if (isPublicPath) {
+    if (isMobile) {
+      return (
+        <div style={publicMenuShellStyle}>
+          <div style={publicMobileTopBarStyle}>
+            <Link to="/public" style={publicBrandStyle}>
+              <span style={publicBrandMarkStyle}>ShowScore</span>
+              <span style={publicBrandLabelStyle}>{t("nav.publicShowcase")}</span>
+            </Link>
+            <div style={publicMobileActionsStyle}>
+              <LanguageSwitcher />
+              <button
+                type="button"
+                style={publicMobileMenuButtonStyle}
+                onClick={() => setIsMenuOpen((value) => !value)}
+                aria-controls="showscore-public-mobile-menu"
+                aria-expanded={isMenuOpen}
+                aria-hidden={isMenuOpen ? true : undefined}
+                aria-label={isMenuOpen ? undefined : t("nav.openMenu")}
+                tabIndex={isMenuOpen ? -1 : 0}
+              >
+                {isMenuOpen ? "×" : "☰"}
+              </button>
+            </div>
+          </div>
+
+          {isMenuOpen && (
+            <div
+              id="showscore-public-mobile-menu"
+              style={publicMobileDrawerStyle}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t("nav.main")}
+            >
+              <div style={mobileDrawerHeaderStyle}>
+                <Link
+                  to="/public"
+                  style={publicBrandStyle}
+                  onClick={closeMobileMenu}
+                >
+                  <span style={publicBrandMarkStyle}>ShowScore</span>
+                  <span style={publicBrandLabelStyle}>
+                    {t("nav.publicShowcase")}
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  style={publicMobileMenuButtonStyle}
+                  onClick={closeMobileMenu}
+                  aria-label={t("nav.closeMenu")}
+                >
+                  ×
+                </button>
+              </div>
+
+              <nav style={mobileDrawerNavStyle} aria-label={t("nav.main")}>
+                <div style={mobileDrawerSectionStyle}>
+                  {renderMobileLinks(publicMobileLinks)}
+                </div>
+              </nav>
+
+              <div style={mobileDrawerFooterStyle}>
+                <LanguageSwitcher />
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div style={publicMenuShellStyle}>
         <nav style={publicNavStyle} aria-label={t("nav.main")}>
@@ -335,7 +428,7 @@ function AppMenu() {
             aria-controls="showscore-mobile-menu"
             aria-expanded={isMenuOpen}
             aria-hidden={isMenuOpen ? true : undefined}
-            aria-label={isMenuOpen ? undefined : "Ouvrir la navigation"}
+            aria-label={isMenuOpen ? undefined : t("nav.openMenu")}
             tabIndex={isMenuOpen ? -1 : 0}
           >
             {isMenuOpen ? "×" : "☰"}
@@ -356,7 +449,7 @@ function AppMenu() {
                 type="button"
                 style={mobileMenuButtonStyle}
                 onClick={closeMobileMenu}
-                aria-label="Fermer la navigation"
+                aria-label={t("nav.closeMenu")}
               >
                 ×
               </button>
@@ -651,6 +744,46 @@ const publicNavStyle = {
   padding: "8px 12px",
   minHeight: 56,
   boxSizing: "border-box",
+};
+
+const publicMobileTopBarStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 10,
+  minHeight: 56,
+  padding: "7px 12px",
+  boxSizing: "border-box",
+};
+
+const publicMobileActionsStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  flex: "0 0 auto",
+};
+
+const publicMobileMenuButtonStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minWidth: 38,
+  minHeight: 38,
+  border: "1px solid #cbd5e1",
+  borderRadius: 8,
+  background: "#fff",
+  color: "#101827",
+  font: "inherit",
+  fontSize: 20,
+  fontWeight: 950,
+  lineHeight: 1,
+  cursor: "pointer",
+};
+
+const publicMobileDrawerStyle = {
+  ...mobileDrawerStyle,
+  zIndex: 120,
+  background: "#f8fafc",
 };
 
 const publicBrandStyle = {
