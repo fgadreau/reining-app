@@ -445,10 +445,7 @@ function ChampionshipClassTable({
                             {formatChampionshipPoints(detail.points)}
                           </div>
                           <div style={eventCellMetaStyle}>
-                            {t("championship.public.placeScore", {
-                              place: detail.placeNum || "-",
-                              score: detail.totalScore || "-",
-                            })}
+                            {formatChampionshipDetailMeta(detail, t)}
                           </div>
                           </>
                         ) : (
@@ -540,10 +537,7 @@ function ChampionshipClassMobileStandings({ classEntry, onSelectOccurrence, t })
                         {formatChampionshipPoints(detail.points)} pts
                       </span>
                       <span style={mobileOccurrenceMetaStyle}>
-                        {t("championship.public.placeScore", {
-                          place: detail.placeNum || "-",
-                          score: detail.totalScore || "-",
-                        })}
+                        {formatChampionshipDetailMeta(detail, t)}
                       </span>
                     </button>
                   );
@@ -788,6 +782,18 @@ function formatDate(value) {
 
 function formatIncludedShowLabel(show) {
   return show.label || show.showName || show.showNum || show.key || "Show";
+}
+
+function formatChampionshipDetailMeta(detail, t) {
+  const placeScore = t("championship.public.placeScore", {
+    place: detail.placeNum || "-",
+    score: detail.totalScore || "-",
+  });
+  const backNumber = String(detail.backNumber || "").trim();
+
+  return backNumber
+    ? `${t("public.results.backNumber")} ${backNumber} · ${placeScore}`
+    : placeScore;
 }
 
 function getCurrentPageUrl() {

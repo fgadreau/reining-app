@@ -142,6 +142,11 @@ import {
 } from "./features/auth/invitationLinks";
 import { calculateChampionshipPoints } from "./features/championship/championshipPoints";
 import { getChampionshipClassByCode } from "./features/championship/championshipClasses";
+import { buildAssociationChampionshipClassSummary } from "./features/championship/associationClassDictionary";
+import {
+  buildShowScoreChampionshipImportBatch,
+  buildShowScoreChampionshipImportPreview,
+} from "./features/championship/showScoreChampionshipImport";
 import {
   applyChampionshipEventLabels,
   buildChampionshipDatasetFromCsv,
@@ -384,6 +389,21 @@ test("rehydrates championship occurrence results from stored imports", () => {
   ]);
   expect(dataset.imports[0].rows[0]).not.toHaveProperty("moneyWon");
   expect(event.results[0]).not.toHaveProperty("moneyWon");
+});
+
+test("groups championship teams by stable rider and horse numbers before names", () => {
+  const csv = [
+    "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+    "S1,AQR MAY SHOW,Open,1100,,5,5,1,1,GOOD HORSE,H-123,RIDER ALICE,M-456,101,1,72,50",
+    'S2,AQR JUNE SHOW,Open,1100,,5,5,1,1,Good Horse AQHA,H-123,"ALICE, RIDER",M-456,202,2,71,25',
+  ].join("\n");
+
+  const dataset = buildChampionshipDatasetFromCsv({ csvText: csv });
+  const openClass = dataset.classes.find((item) => item.id === "nrha-open");
+
+  expect(openClass.teams).toHaveLength(1);
+  expect(openClass.teams[0].teamKey).toBe("member:M456|horse-nrha:H123");
+  expect(openClass.teams[0].details).toHaveLength(2);
 });
 
 test("validates required championship verification request fields", () => {
@@ -783,12 +803,258 @@ test("maps the main AQR championship class codes from the import report", () => 
     "1850",
     "3100",
     "3200",
+    "3500",
     "5300",
     "5310",
     "5396",
     "5397",
   ].forEach((classCode) => {
     expect(getChampionshipClassByCode(classCode)).toBeTruthy();
+  });
+});
+
+test("maps AQR Funware draw codes to championship classes", () => {
+  const summary = buildAssociationChampionshipClassSummary({
+    association: { id: "aqr", shortName: "AQR" },
+    blockClasses: [
+      { code: "105", name: "ROOKIE NP 1 NRHA", entryCount: 12 },
+      { code: "107", name: "DÉBUTANT NP 1 AQR", entryCount: 8 },
+      { code: "5300", name: "ROOKIE", entryCount: 10 },
+      { code: "5500", name: "JAMBES COURTES", entryCount: 6 },
+      { code: "3500", name: "SHORT LEGS", entryCount: 5 },
+      { code: "5393", name: "NOVICE HORSE NP - AQR", entryCount: 4 },
+      { code: "9999", name: "MYSTERY CLASS", entryCount: 1 },
+    ],
+  });
+
+  expect(summary.available).toBe(true);
+  expect(summary.matchedCount).toBe(5);
+  expect(summary.excludedCount).toBe(1);
+  expect(summary.unknownCount).toBe(1);
+  expect(summary.rows[0]).toMatchObject({
+    code: "105",
+    championshipClassId: "nrha-rookie-level-1",
+    matchType: "funwareCode",
+    status: "matched",
+  });
+  expect(summary.rows[1]).toMatchObject({
+    code: "107",
+    championshipClassId: "aqr-beginner-non-pro-level-1",
+    matchType: "funwareCode",
+    status: "matched",
+  });
+  expect(summary.rows[2]).toMatchObject({
+    code: "5300",
+    championshipClassId: "nrha-rookie-level-1",
+    matchType: "championshipCode",
+    status: "matched",
+  });
+  expect(summary.rows[3]).toMatchObject({
+    code: "5500",
+    championshipClassId: "aqr-short-legs-10-under",
+    matchType: "funwareCode",
+    status: "matched",
+  });
+  expect(summary.rows[4]).toMatchObject({
+    code: "3500",
+    championshipClassId: "aqr-short-legs-10-under",
+    matchType: "championshipCode",
+    status: "matched",
+  });
+  expect(summary.rows[5]).toMatchObject({
+    code: "5393",
+    status: "excluded",
+  });
+  expect(summary.rows[6]).toMatchObject({
+    code: "9999",
+    status: "unknown",
+  });
+});
+
+test("keeps AQR class dictionary scoped to AQR associations", () => {
+  const summary = buildAssociationChampionshipClassSummary({
+    association: { id: "era", shortName: "ERA" },
+    blockClasses: [{ code: "105", name: "ROOKIE NP 1 NRHA", entryCount: 12 }],
+  });
+
+  expect(summary.available).toBe(false);
+  expect(summary.rows).toEqual([]);
+});
+
+test("builds a manual championship import from validated ShowScore results by code", () => {
+  const classDataItems = [
+    {
+      classItem: {
+        id: "class-1",
+        showId: "show-1",
+        dayId: "day-1",
+        name: "Rookie ShowScore custom label",
+      },
+      show: { id: "show-1", name: "AQR JULY SHOW" },
+      day: { id: "day-1", date: "2026-07-18" },
+      setup: {
+        pattern: "8",
+        blockClasses: [
+          { code: "105", name: "Rookie ShowScore custom label" },
+        ],
+        runs: [
+          {
+            id: "run-1",
+            draw: 1,
+            backNumber: "101",
+            rider: "Rider Alice",
+            horse: "Good Horse",
+            memberNrha: "M-100",
+            horseNrha: "H-100",
+            classCodes: ["105"],
+          },
+          {
+            id: "run-2",
+            draw: 2,
+            backNumber: "102",
+            rider: "Rider Bob",
+            horse: "Nice Horse",
+            memberNrha: "M-200",
+            horseNrha: "H-200",
+            classCodes: ["105"],
+          },
+          {
+            id: "run-3",
+            draw: 3,
+            backNumber: "103",
+            rider: "Rider Carol",
+            horse: "Scratch Horse",
+            classCodes: ["105"],
+          },
+        ],
+      },
+      official: {
+        isSecretariatValidated: true,
+        eventName: "AQR JULY SHOW",
+        eventDate: "2026-07-18",
+        pattern: "Pattern 8",
+        officialRuns: [
+          {
+            id: "run-1",
+            draw: 1,
+            backNumber: "101",
+            rider: "Rider Alice",
+            horse: "Good Horse",
+            scoreTotal: "72",
+          },
+          {
+            id: "run-2",
+            draw: 2,
+            backNumber: "102",
+            rider: "Rider Bob",
+            horse: "Nice Horse",
+            scoreTotal: "73",
+          },
+          {
+            id: "run-3",
+            draw: 3,
+            backNumber: "103",
+            rider: "Rider Carol",
+            horse: "Scratch Horse",
+            scoreTotal: "",
+          },
+        ],
+      },
+      scoringRuns: [],
+    },
+  ];
+
+  const preview = buildShowScoreChampionshipImportPreview({
+    association: { id: "aqr", shortName: "AQR" },
+    classDataItems,
+    generatedAt: "2026-07-18T18:00:00.000Z",
+  });
+  const classEntry = preview.classes[0];
+
+  expect(classEntry).toMatchObject({
+    importedClassCode: "105",
+    championshipClassCode: "5300",
+    championshipClassId: "nrha-rookie-level-1",
+    canInclude: true,
+    rowCount: 2,
+  });
+  expect(preview.rows).toHaveLength(2);
+  expect(preview.rows[0]).toMatchObject({
+    classCode: "5300",
+    importedClassCode: "105",
+    rider: "Rider Bob",
+    placeNum: 1,
+    entryCount: 3,
+    shownCount: 2,
+    memberNrha: "M-200",
+    horseNrha: "H-200",
+    riderKey: "member:M200",
+    horseKey: "horse-nrha:H200",
+    teamKey: "member:M200|horse-nrha:H200",
+  });
+
+  const batch = buildShowScoreChampionshipImportBatch({
+    preview,
+    excludedClassKeys: [classEntry.key],
+    importedAt: "2026-07-18T18:05:00.000Z",
+    id: "showscore-import-test",
+  });
+
+  expect(batch.sourceType).toBe("showscore");
+  expect(batch.ignoredRowCount).toBe(2);
+  expect(batch.rows.every((row) => row.ignoredForChampionship)).toBe(true);
+  expect(batch.rows[0].ignoredReason).toBe("manual_class_exclusion");
+});
+
+test("keeps unrecognized ShowScore classes ignored for championship imports", () => {
+  const preview = buildShowScoreChampionshipImportPreview({
+    association: { id: "aqr", shortName: "AQR" },
+    classDataItems: [
+      {
+        classItem: {
+          id: "class-unknown",
+          showId: "show-1",
+          dayId: "day-1",
+          name: "Mystery ShowScore class",
+        },
+        show: { id: "show-1", name: "AQR JULY SHOW" },
+        setup: {
+          blockClasses: [{ code: "9999", name: "Mystery ShowScore class" }],
+          runs: [
+            {
+              id: "run-1",
+              draw: 1,
+              rider: "Rider Alice",
+              horse: "Good Horse",
+              classCodes: ["9999"],
+            },
+          ],
+        },
+        official: {
+          isSecretariatValidated: true,
+          officialRuns: [
+            {
+              id: "run-1",
+              draw: 1,
+              rider: "Rider Alice",
+              horse: "Good Horse",
+              scoreTotal: "72",
+            },
+          ],
+        },
+      },
+    ],
+  });
+
+  expect(preview.classes[0]).toMatchObject({
+    importedClassCode: "9999",
+    canInclude: false,
+    matchStatus: "unknown",
+  });
+  expect(preview.defaultExcludedClassKeys).toContain(preview.classes[0].key);
+  expect(preview.rows[0]).toMatchObject({
+    ignoredForChampionship: true,
+    ignoredReason: "dictionary_unmapped_class",
   });
 });
 

@@ -14,6 +14,15 @@ function firstText(source, keys) {
   return "";
 }
 
+function firstTextFromSources(sources, keys) {
+  for (const source of sources) {
+    const value = firstText(source, keys);
+    if (value) return value;
+  }
+
+  return "";
+}
+
 function normalizeClassCode(value) {
   return cleanText(value).replace(/\s*-\s*/g, "-").toUpperCase();
 }
@@ -356,6 +365,24 @@ function toImportedRun(run, index, divisionById) {
       firstText(run, ["divisionId", "division_id"]) || divisionIds[0] || "",
     horseId: firstText(run, ["horseId", "horse_id"]),
     riderContactId: firstText(run, ["riderContactId", "rider_contact_id"]),
+    horseNrha: firstTextFromSources([run, ...entries], [
+      "horseNrha",
+      "horse_nrha",
+      "horseNumber",
+      "horse_number",
+      "horseRegistrationNumber",
+      "horse_registration_number",
+      "registrationNumber",
+      "registration_number",
+    ]),
+    memberNrha: firstTextFromSources([run, ...entries], [
+      "memberNrha",
+      "member_nrha",
+      "riderNrha",
+      "rider_nrha",
+      "memberNumber",
+      "member_number",
+    ]),
     ownerContactId: firstText(run, ["ownerContactId", "owner_contact_id"]),
     payerContactId: firstText(run, ["payerContactId", "payer_contact_id"]),
     ...(entryIds.length ? { entryIds } : {}),

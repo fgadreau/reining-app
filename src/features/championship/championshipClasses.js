@@ -191,7 +191,7 @@ export const CHAMPIONSHIP_CLASSES = [
     name: "Jambes Courtes 10 ans et moins AQR",
     englishName: "Short Legs 10 & under",
     order: 270,
-    classCodes: [],
+    classCodes: ["3500"],
   },
   {
     id: "aqr-young-rider-14-21",

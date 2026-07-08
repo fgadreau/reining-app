@@ -132,6 +132,32 @@ export function getRunIntegrationMetadata(run = {}) {
     ["entryIds", ["entryIds", "entry_ids"]],
     ["divisionIds", ["divisionIds", "division_ids"]],
   ];
+  const stringFields = [
+    [
+      "horseNrha",
+      [
+        "horseNrha",
+        "horse_nrha",
+        "horseNumber",
+        "horse_number",
+        "horseRegistrationNumber",
+        "horse_registration_number",
+        "registrationNumber",
+        "registration_number",
+      ],
+    ],
+    [
+      "memberNrha",
+      [
+        "memberNrha",
+        "member_nrha",
+        "riderNrha",
+        "rider_nrha",
+        "memberNumber",
+        "member_number",
+      ],
+    ],
+  ];
 
   idFields.forEach(([targetKey, sourceKeys]) => {
     const value = normalizeStringId(firstDefinedValue(run, sourceKeys));
@@ -144,6 +170,13 @@ export function getRunIntegrationMetadata(run = {}) {
     const values = normalizeStringIdArray(firstDefinedValue(run, sourceKeys));
     if (values.length) {
       metadata[targetKey] = values;
+    }
+  });
+
+  stringFields.forEach(([targetKey, sourceKeys]) => {
+    const value = normalizeStringId(firstDefinedValue(run, sourceKeys));
+    if (value) {
+      metadata[targetKey] = value;
     }
   });
 

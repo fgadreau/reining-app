@@ -200,6 +200,61 @@ export function normalizeHorseKey(value) {
   return normalizeSearchKey(value);
 }
 
+export function normalizeChampionshipIdentityId(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+export function buildChampionshipRiderKey({
+  rider = "",
+  memberNrha = "",
+  riderContactId = "",
+} = {}) {
+  const memberId = normalizeChampionshipIdentityId(memberNrha);
+  if (memberId) return `member:${memberId}`;
+
+  const contactId = normalizeChampionshipIdentityId(riderContactId);
+  if (contactId) return `rider-contact:${contactId}`;
+
+  const nameKey = normalizePersonKey(rider);
+  return nameKey ? `rider-name:${nameKey}` : "";
+}
+
+export function buildChampionshipHorseKey({
+  horse = "",
+  horseNrha = "",
+  horseId = "",
+} = {}) {
+  const nrhaId = normalizeChampionshipIdentityId(horseNrha);
+  if (nrhaId) return `horse-nrha:${nrhaId}`;
+
+  const stableHorseId = normalizeChampionshipIdentityId(horseId);
+  if (stableHorseId) return `horse-id:${stableHorseId}`;
+
+  const nameKey = normalizeHorseKey(horse);
+  return nameKey ? `horse-name:${nameKey}` : "";
+}
+
+export function buildChampionshipTeamKey({
+  rider = "",
+  horse = "",
+  memberNrha = "",
+  horseNrha = "",
+  riderContactId = "",
+  horseId = "",
+} = {}) {
+  const riderKey = buildChampionshipRiderKey({
+    rider,
+    memberNrha,
+    riderContactId,
+  });
+  const horseKey = buildChampionshipHorseKey({ horse, horseNrha, horseId });
+
+  return riderKey && horseKey ? `${riderKey}|${horseKey}` : "";
+}
+
 export function buildChampionshipEventKey(row) {
   return [row.showNum, row.classCode, row.goType, row.goNum]
     .map((value) => String(value || "").trim())
@@ -738,8 +793,10 @@ function normalizeCsvRows(rows, index, { fileName = "", importId = "" } = {}) {
   return rows.map((row, rowIndex) => {
     const rider = cell(row, index.Member);
     const horse = cell(row, index.Horse);
-    const riderKey = normalizePersonKey(rider);
-    const horseKey = normalizeHorseKey(horse);
+    const horseNrha = cell(row, index.HorseNrha);
+    const memberNrha = cell(row, index.MemberNrha);
+    const riderKey = buildChampionshipRiderKey({ rider, memberNrha });
+    const horseKey = buildChampionshipHorseKey({ horse, horseNrha });
     const classCode = normalizeClassCode(cell(row, index.ClassCode));
 
     return {
@@ -758,9 +815,9 @@ function normalizeCsvRows(rows, index, { fileName = "", importId = "" } = {}) {
       goType: cell(row, index.GoType),
       goNum: cell(row, index.GoNum),
       horse,
-      horseNrha: cell(row, index.HorseNrha),
+      horseNrha,
       rider,
-      memberNrha: cell(row, index.MemberNrha),
+      memberNrha,
       backNumber: cell(row, index.BackNum),
       placeNum: toNumber(cell(row, index.PlaceNum)),
       rawPlaceNum: cell(row, index.PlaceNum),
@@ -768,7 +825,12 @@ function normalizeCsvRows(rows, index, { fileName = "", importId = "" } = {}) {
       rawTotalScore: cell(row, index.TotalScore),
       riderKey,
       horseKey,
-      teamKey: riderKey && horseKey ? `${riderKey}|${horseKey}` : "",
+      teamKey: buildChampionshipTeamKey({
+        rider,
+        horse,
+        memberNrha,
+        horseNrha,
+      }),
     };
   });
 }
@@ -861,8 +923,10 @@ function normalizeImportBatches(imports) {
       return {
         id: importId,
         fileName,
+        sourceType: importBatch?.sourceType || "",
         importedAt: importBatch?.importedAt || "",
         rowCount: importBatch?.rowCount ?? rows.length,
+        ignoredRowCount: importBatch?.ignoredRowCount || 0,
         rows,
       };
     })
@@ -973,6 +1037,8 @@ function buildStandings(rows) {
       points: row.points,
       tieCount: row.tieCount,
       backNumber: row.backNumber,
+      horseNrha: row.horseNrha,
+      memberNrha: row.memberNrha,
       sourceImportedAt: row.sourceImportedAt,
       sourceImportOrder: row.sourceImportOrder,
       sourceFileName: row.sourceFileName,

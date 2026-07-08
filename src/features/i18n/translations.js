@@ -279,6 +279,30 @@ export const translations = {
         saved: "Championnat enregistré.",
         seasonSettings: "Saison",
         seasonTitle: "Titre",
+        showScoreImportAction: "Analyser les résultats ShowScore",
+        showScoreImportAdd: "Ajouter au championnat",
+        showScoreImportClassMeta:
+          "{{entries}} inscrits · {{scored}} résultats scorés",
+        showScoreImportEmpty:
+          "Aucun résultat ShowScore validé par le secrétariat n’a été trouvé.",
+        showScoreImportExcluded: "Exclue du championnat",
+        showScoreImportFailed:
+          "Impossible d’analyser les résultats ShowScore.",
+        showScoreImportHelp:
+          "Analyse les feuilles officielles validées, reconnaît les classes par code de draw, puis laisse choisir les classes à inclure avant de les ajouter.",
+        showScoreImportLoading: "Analyse en cours...",
+        showScoreImportMapping:
+          "Code import {{importedCode}} → championnat {{championshipCode}} · {{championshipClass}}",
+        showScoreImportMatched: "Prête à importer",
+        showScoreImportNoScores: "Aucun score à importer",
+        showScoreImportNoSelectedRows:
+          "Sélectionne au moins une classe reconnue avant d’ajouter l’import.",
+        showScoreImportSummary:
+          "{{classes}} classes sélectionnées · {{rows}} lignes actives · {{ignored}} lignes ignorées",
+        showScoreImportTitle: "Importer depuis ShowScore",
+        showScoreImportUnknown: "Classe non reconnue",
+        showScoreImportUnmapped:
+          "Code import {{importedCode}} · aucune correspondance championnat",
         showCount: "{{count}} shows",
         shows: "Shows",
         status: "Statut",
@@ -970,10 +994,19 @@ export const translations = {
           "{{count}} participant(s) importés. Drag détecté après chaque {{interval}} participant(s).",
         importNoParticipants: "Aucun participant détecté dans cet import.",
         importSummaryBlockClasses: "Classes du bloc",
+        importSummaryChampionshipMatches:
+          "Correspondance championnat {{association}}",
         importSummaryClasses: "Classes",
         importSummaryClose: "Fermer",
         importSummaryEntryCount: "{{count}} entrée(s)",
         importSummaryFile: "Fichier importé",
+        importSummaryMatchAlias: "Nom confirmé",
+        importSummaryMatchChampionshipCode: "Code championnat",
+        importSummaryMatchExcluded: "Exclu",
+        importSummaryMatchFunwareCode: "Code Funware",
+        importSummaryMatchManualReview: "À réviser",
+        importSummaryMatchMatched: "Reconnu",
+        importSummaryMatchUnknown: "À confirmer",
         importSummaryManualSource: "Copier-coller",
         importSummaryNoClasses: "Aucune classe détectée",
         importSummaryParticipants: "Participants",
@@ -1825,6 +1858,29 @@ export const translations = {
         saved: "Championship saved.",
         seasonSettings: "Season",
         seasonTitle: "Title",
+        showScoreImportAction: "Analyze ShowScore results",
+        showScoreImportAdd: "Add to championship",
+        showScoreImportClassMeta:
+          "{{entries}} entries · {{scored}} scored results",
+        showScoreImportEmpty:
+          "No ShowScore result validated by the show secretary was found.",
+        showScoreImportExcluded: "Excluded from championship",
+        showScoreImportFailed: "Unable to analyze ShowScore results.",
+        showScoreImportHelp:
+          "Analyzes validated official score sheets, recognizes classes by draw code, then lets you choose which classes to include before adding them.",
+        showScoreImportLoading: "Analyzing...",
+        showScoreImportMapping:
+          "Import code {{importedCode}} → championship {{championshipCode}} · {{championshipClass}}",
+        showScoreImportMatched: "Ready to import",
+        showScoreImportNoScores: "No score to import",
+        showScoreImportNoSelectedRows:
+          "Select at least one recognized class before adding the import.",
+        showScoreImportSummary:
+          "{{classes}} selected classes · {{rows}} active rows · {{ignored}} ignored rows",
+        showScoreImportTitle: "Import from ShowScore",
+        showScoreImportUnknown: "Unrecognized class",
+        showScoreImportUnmapped:
+          "Import code {{importedCode}} · no championship match",
         showCount: "{{count}} shows",
         shows: "Shows",
         status: "Status",
@@ -2514,10 +2570,19 @@ export const translations = {
           "{{count}} participant(s) imported. Drag detected after every {{interval}} participant(s).",
         importNoParticipants: "No participant detected in this import.",
         importSummaryBlockClasses: "Block classes",
+        importSummaryChampionshipMatches:
+          "{{association}} championship mapping",
         importSummaryClasses: "Classes",
         importSummaryClose: "Close",
         importSummaryEntryCount: "Entries: {{count}}",
         importSummaryFile: "Imported file",
+        importSummaryMatchAlias: "Confirmed name",
+        importSummaryMatchChampionshipCode: "Championship code",
+        importSummaryMatchExcluded: "Excluded",
+        importSummaryMatchFunwareCode: "Funware code",
+        importSummaryMatchManualReview: "Review",
+        importSummaryMatchMatched: "Matched",
+        importSummaryMatchUnknown: "Confirm",
         importSummaryManualSource: "Pasted text",
         importSummaryNoClasses: "No class detected",
         importSummaryParticipants: "Participants",

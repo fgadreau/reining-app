@@ -501,7 +501,7 @@ export function generateChampionshipPdf({
       .map(({ code, event }) => `${code}: ${event.label || event.showName || event.showNum || "Show"}`)
       .join("  |  ");
 
-    return splitText(`Points / score par show. ${legend}`, usableWidth, fontSize);
+    return splitText(`Points / score/back # par show. ${legend}`, usableWidth, fontSize);
   }
 
   function buildClassPrintLayout(classEntry, eventRefs) {
@@ -602,8 +602,15 @@ export function generateChampionshipPdf({
 
     return {
       points: formatChampionshipPoints(detail.points),
-      score: safeText(detail.totalScore || "-"),
+      score: formatEventScoreBackLabel(detail),
     };
+  }
+
+  function formatEventScoreBackLabel(detail) {
+    const score = safeText(detail?.totalScore || "-");
+    const backNumber = safeText(detail?.backNumber || "").trim();
+
+    return backNumber ? `${score} / #${backNumber}` : score;
   }
 
   function drawTeamRow(team, eventRefs, columns, index, classEntry, layout) {
@@ -662,13 +669,13 @@ export function generateChampionshipPdf({
       const detail = getEventDetail(team, event.eventKey);
 
       if (detail) {
-        drawFitted(detail.points, x + column.width / 2, y + rowH * 0.42, column.width - 1.5, {
+        drawFitted(detail.points, x + column.width / 2, y + rowH * 0.34, column.width - 1.5, {
           align: "center",
           fontStyle: "bold",
           fontSize: layout?.eventPointsFontSize || 6.3,
           minFontSize: 4.5,
         });
-        drawFitted(detail.score, x + column.width / 2, y + rowH * 0.78, column.width - 1.5, {
+        drawFitted(detail.score, x + column.width / 2, y + rowH * 0.62, column.width - 1.5, {
           align: "center",
           fontSize: layout?.eventScoreFontSize || 5.8,
           minFontSize: 4.2,

@@ -66,6 +66,9 @@ import {
   generateScorePdf,
 } from "../../utils/generateScorePdf";
 import { loadAssociations } from "../../features/associations/associationsData";
+import {
+  buildAssociationChampionshipClassSummary,
+} from "../../features/championship/associationClassDictionary";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { getDayById } from "../../features/days/daySelectors";
@@ -280,12 +283,16 @@ function getImportSourceLabel(file) {
   return "TXT";
 }
 
-function buildImportSummary(importedDraw, runs, source = {}) {
+function buildImportSummary(importedDraw, runs, source = {}, association = null) {
   const normalizedRuns = Array.isArray(runs) ? runs : [];
   const blockClassSummary = buildImportedBlockClassSummary(
     importedDraw?.blockClasses,
     normalizedRuns
   );
+  const championshipClassSummary = buildAssociationChampionshipClassSummary({
+    association,
+    blockClasses: blockClassSummary,
+  });
 
   return {
     sourceLabel: source.label || source.type || "",
@@ -293,6 +300,7 @@ function buildImportSummary(importedDraw, runs, source = {}) {
     classCount: blockClassSummary.length,
     scratchedCount: normalizedRuns.filter(isImportedRunScratched).length,
     blockClasses: blockClassSummary,
+    championshipClassSummary,
   };
 }
 
@@ -1042,7 +1050,9 @@ function ClassSetupPage() {
     setBlockClasses(importedBlockClasses);
     setRunCountInput(String(resequencedRuns.length));
     setIsDrawImported(true);
-    setImportSummary(buildImportSummary(importedDraw, resequencedRuns, source));
+    setImportSummary(
+      buildImportSummary(importedDraw, resequencedRuns, source, association)
+    );
 
     if (importedDraw.dragInterval) {
       setDragInterval(String(importedDraw.dragInterval));
@@ -2116,6 +2126,65 @@ function ClassSetupPage() {
                 </div>
               )}
             </div>
+
+            {importSummary.championshipClassSummary?.available && (
+              <div style={importSummaryChampionshipListStyle}>
+                <div style={classCodeSummaryLabelStyle}>
+                  {t(
+                    "management.classSetup.importSummaryChampionshipMatches",
+                    {
+                      association:
+                        importSummary.championshipClassSummary.associationKey,
+                    }
+                  )}
+                </div>
+
+                {importSummary.championshipClassSummary.rows.length > 0 ? (
+                  importSummary.championshipClassSummary.rows.map((row) => (
+                    <div
+                      key={`${row.code || row.importName}-${row.matchType || row.status}`}
+                      style={importSummaryChampionshipRowStyle}
+                    >
+                      <div style={importSummaryImportedClassStyle}>
+                        <strong>{row.code || "—"}</strong>
+                        {row.importName && <span>{row.importName}</span>}
+                        <span style={importSummaryClassCountStyle}>
+                          {t("management.classSetup.importSummaryEntryCount", {
+                            count: row.entryCount || 0,
+                          })}
+                        </span>
+                      </div>
+
+                      <div style={importSummaryChampionshipClassStyle}>
+                        <strong>
+                          {row.championshipClassName ||
+                            getImportSummaryMatchStatusLabel(row.status, t)}
+                        </strong>
+                        {row.reason && (
+                          <span style={importSummaryChampionshipReasonStyle}>
+                            {row.reason}
+                          </span>
+                        )}
+                      </div>
+
+                      <span
+                        style={getImportSummaryMatchBadgeStyle(row.status)}
+                      >
+                        {getImportSummaryMatchStatusLabel(row.status, t)}
+                      </span>
+
+                      <span style={importSummaryMatchTypeStyle}>
+                        {getImportSummaryMatchTypeLabel(row.matchType, t)}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div style={mutedTextStyle}>
+                    {t("management.classSetup.importSummaryNoClasses")}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -2130,6 +2199,42 @@ function ImportSummaryStat({ label, value }) {
       <div style={importSummaryStatLabelStyle}>{label}</div>
     </div>
   );
+}
+
+function getImportSummaryMatchStatusLabel(status, t) {
+  switch (status) {
+    case "matched":
+      return t("management.classSetup.importSummaryMatchMatched");
+    case "excluded":
+      return t("management.classSetup.importSummaryMatchExcluded");
+    default:
+      return t("management.classSetup.importSummaryMatchUnknown");
+  }
+}
+
+function getImportSummaryMatchTypeLabel(matchType, t) {
+  switch (matchType) {
+    case "funwareCode":
+      return t("management.classSetup.importSummaryMatchFunwareCode");
+    case "championshipCode":
+      return t("management.classSetup.importSummaryMatchChampionshipCode");
+    case "alias":
+      return t("management.classSetup.importSummaryMatchAlias");
+    default:
+      return t("management.classSetup.importSummaryMatchManualReview");
+  }
+}
+
+function getImportSummaryMatchBadgeStyle(status) {
+  if (status === "matched") {
+    return importSummaryMatchBadgeMatchedStyle;
+  }
+
+  if (status === "excluded") {
+    return importSummaryMatchBadgeExcludedStyle;
+  }
+
+  return importSummaryMatchBadgeUnknownStyle;
 }
 
 const headerRowStyle = {
@@ -2619,6 +2724,82 @@ const importSummaryClassCountStyle = {
   borderRadius: "999px",
   background: "#e0f2fe",
   color: "#075985",
+  fontSize: "12px",
+  fontWeight: 800,
+  whiteSpace: "nowrap",
+};
+
+const importSummaryChampionshipListStyle = {
+  display: "grid",
+  gap: "8px",
+  marginTop: "18px",
+};
+
+const importSummaryChampionshipRowStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+  gap: "10px",
+  alignItems: "center",
+  border: "1px solid #e2e8f0",
+  borderRadius: "8px",
+  padding: "10px 12px",
+};
+
+const importSummaryImportedClassStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "6px",
+  alignItems: "center",
+  color: "#334155",
+  fontSize: "13px",
+  minWidth: 0,
+};
+
+const importSummaryChampionshipClassStyle = {
+  display: "grid",
+  gap: "3px",
+  color: "#0f172a",
+  fontSize: "13px",
+  minWidth: 0,
+  overflowWrap: "anywhere",
+};
+
+const importSummaryChampionshipReasonStyle = {
+  color: "#64748b",
+  fontSize: "12px",
+  fontWeight: 600,
+};
+
+const importSummaryMatchBadgeBaseStyle = {
+  justifySelf: "start",
+  padding: "4px 8px",
+  borderRadius: "999px",
+  fontSize: "12px",
+  fontWeight: 800,
+  whiteSpace: "nowrap",
+};
+
+const importSummaryMatchBadgeMatchedStyle = {
+  ...importSummaryMatchBadgeBaseStyle,
+  background: "#dcfce7",
+  color: "#166534",
+};
+
+const importSummaryMatchBadgeExcludedStyle = {
+  ...importSummaryMatchBadgeBaseStyle,
+  background: "#fee2e2",
+  color: "#991b1b",
+};
+
+const importSummaryMatchBadgeUnknownStyle = {
+  ...importSummaryMatchBadgeBaseStyle,
+  background: "#fef3c7",
+  color: "#92400e",
+};
+
+const importSummaryMatchTypeStyle = {
+  justifySelf: "start",
+  color: "#475569",
   fontSize: "12px",
   fontWeight: 800,
   whiteSpace: "nowrap",

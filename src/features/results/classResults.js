@@ -223,6 +223,29 @@ function normalizeResultEntry(run, index = 0) {
     rider: run?.rider || "",
     horse: run?.horse || "",
     owner: run?.owner || "",
+    horseId: firstResultText(run, ["horseId", "horse_id"]),
+    riderContactId: firstResultText(run, [
+      "riderContactId",
+      "rider_contact_id",
+    ]),
+    horseNrha: firstResultText(run, [
+      "horseNrha",
+      "horse_nrha",
+      "horseNumber",
+      "horse_number",
+      "horseRegistrationNumber",
+      "horse_registration_number",
+      "registrationNumber",
+      "registration_number",
+    ]),
+    memberNrha: firstResultText(run, [
+      "memberNrha",
+      "member_nrha",
+      "riderNrha",
+      "rider_nrha",
+      "memberNumber",
+      "member_number",
+    ]),
     scoreTotal: formatTotalValue(run?.scoreTotal),
     penTotal: formatTotalValue(run?.penTotal),
     status: String(run?.status || "").trim(),
@@ -231,6 +254,15 @@ function normalizeResultEntry(run, index = 0) {
       ? run.classCodes.map(normalizeClassCode).filter(Boolean)
       : [],
   };
+}
+
+function firstResultText(source, keys) {
+  for (const key of keys) {
+    const value = String(source?.[key] || "").trim();
+    if (value) return value;
+  }
+
+  return "";
 }
 
 function rankResultEntries(entries) {

@@ -3,6 +3,10 @@ import { Link, useParams } from "react-router-dom";
 import { getAssociationRepository } from "../../features/associations/associationRepository";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import {
+  getClassFullDataRepository,
+  getClassesForDayRepository,
+} from "../../features/classes/classRepository";
+import {
   applyChampionshipEventLabels,
   buildChampionshipDatasetFromImports,
   buildChampionshipImportBatchFromCsv,
@@ -15,11 +19,18 @@ import {
   saveChampionshipSeasonRepository,
 } from "../../features/championship/championshipRepository";
 import {
+  buildShowScoreChampionshipImportBatch,
+  buildShowScoreChampionshipImportPreview,
+  getShowScoreChampionshipSelectionSummary,
+} from "../../features/championship/showScoreChampionshipImport";
+import {
   formatLocalFirstSyncNotice,
   getLocalFirstSyncNoticeTone,
 } from "../../features/cloud/localFirstSyncMessages";
+import { getDaysByShowRepository } from "../../features/days/dayRepository";
 import { formatChampionshipPoints } from "../../features/championship/championshipPoints";
 import { useTranslation } from "../../features/i18n/I18nProvider";
+import { getShowsByAssociationRepository } from "../../features/shows/showRepository";
 import { appStyles as styles } from "../../styles/appStyles";
 import {
   buildChampionshipPdfFileName,
@@ -42,6 +53,8 @@ function AssociationChampionshipPage() {
   const [resetFiles, setResetFiles] = useState([]);
   const [resetInputKey, setResetInputKey] = useState(0);
   const [preview, setPreview] = useState(null);
+  const [showScoreImportPreview, setShowScoreImportPreview] = useState(null);
+  const [showScoreExcludedClassKeys, setShowScoreExcludedClassKeys] = useState([]);
   const [eventLabels, setEventLabels] = useState({});
   const [eventOrder, setEventOrder] = useState({});
   const [pendingDuplicateImport, setPendingDuplicateImport] = useState(null);
@@ -49,6 +62,7 @@ function AssociationChampionshipPage() {
   const [saveMessage, setSaveMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isReadingReset, setIsReadingReset] = useState(false);
+  const [isLoadingShowScoreImport, setIsLoadingShowScoreImport] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -101,6 +115,14 @@ function AssociationChampionshipPage() {
   const technicalShows = useMemo(
     () => getChampionshipIncludedShows(preview),
     [preview]
+  );
+  const showScoreSelection = useMemo(
+    () =>
+      getShowScoreChampionshipSelectionSummary(
+        showScoreImportPreview,
+        showScoreExcludedClassKeys
+      ),
+    [showScoreImportPreview, showScoreExcludedClassKeys]
   );
 
   const updateSeasonTitle = (value) => {
@@ -189,6 +211,10 @@ function AssociationChampionshipPage() {
     setCsvText("");
     setFileName("");
     setFileInputKey((current) => current + 1);
+    if (importBatches.some((importBatch) => importBatch?.sourceType === "showscore")) {
+      setShowScoreImportPreview(null);
+      setShowScoreExcludedClassKeys([]);
+    }
     if (replace) {
       setResetFiles([]);
       setResetInputKey((current) => current + 1);
@@ -226,6 +252,85 @@ function AssociationChampionshipPage() {
     } catch (error) {
       setErrorMessage(error?.message || t("championship.admin.analysisFailed"));
     }
+  };
+
+  const analyzeShowScoreResults = async () => {
+    setIsLoadingShowScoreImport(true);
+    setErrorMessage("");
+    setSaveMessage("");
+
+    try {
+      const classDataItems = await loadAssociationShowScoreClassData(associationId);
+      const nextPreview = buildShowScoreChampionshipImportPreview({
+        association,
+        classDataItems,
+      });
+
+      setShowScoreImportPreview(nextPreview);
+      setShowScoreExcludedClassKeys(nextPreview.defaultExcludedClassKeys || []);
+
+      if (!nextPreview.rows.length) {
+        setSaveMessage(t("championship.admin.showScoreImportEmpty"));
+      }
+    } catch (error) {
+      setErrorMessage(
+        error?.message || t("championship.admin.showScoreImportFailed")
+      );
+    } finally {
+      setIsLoadingShowScoreImport(false);
+    }
+  };
+
+  const toggleShowScoreClassInclusion = (classKey, include) => {
+    setShowScoreExcludedClassKeys((current) => {
+      const keys = new Set(current);
+
+      if (include) {
+        keys.delete(classKey);
+      } else {
+        keys.add(classKey);
+      }
+
+      return Array.from(keys);
+    });
+    setSaveMessage("");
+  };
+
+  const addShowScoreResultsToSeason = () => {
+    if (!showScoreImportPreview) return;
+
+    setErrorMessage("");
+    setSaveMessage("");
+
+    const selection = getShowScoreChampionshipSelectionSummary(
+      showScoreImportPreview,
+      showScoreExcludedClassKeys
+    );
+
+    if (selection.selectedRowCount <= 0) {
+      setErrorMessage(t("championship.admin.showScoreImportNoSelectedRows"));
+      return;
+    }
+
+    const importBatch = buildShowScoreChampionshipImportBatch({
+      preview: showScoreImportPreview,
+      excludedClassKeys: showScoreExcludedClassKeys,
+    });
+    const duplicates = findDuplicateRowsForImports(
+      getPreviewImports(preview),
+      [importBatch]
+    );
+
+    if (duplicates.length > 0) {
+      setPendingDuplicateImport({
+        mode: "append",
+        importBatches: [importBatch],
+        duplicates,
+      });
+      return;
+    }
+
+    commitImportBatch(importBatch);
   };
 
   const reimportAllCsvFiles = async () => {
@@ -577,6 +682,104 @@ function AssociationChampionshipPage() {
           )}
         </div>
         {errorMessage && <div style={errorStyle}>{errorMessage}</div>}
+      </section>
+
+      <section style={panelStyle}>
+        <div style={sectionTitleStyle}>
+          {t("championship.admin.showScoreImportTitle")}
+        </div>
+        <div style={mutedTextStyle}>
+          {t("championship.admin.showScoreImportHelp")}
+        </div>
+        <div style={fileRowStyle}>
+          <button
+            type="button"
+            onClick={analyzeShowScoreResults}
+            style={secondaryButtonStyle}
+            disabled={isLoadingShowScoreImport}
+          >
+            {isLoadingShowScoreImport
+              ? t("championship.admin.showScoreImportLoading")
+              : t("championship.admin.showScoreImportAction")}
+          </button>
+          {showScoreImportPreview && (
+            <button
+              type="button"
+              onClick={addShowScoreResultsToSeason}
+              style={primaryButtonStyle}
+              disabled={showScoreSelection.selectedRowCount <= 0}
+            >
+              {t("championship.admin.showScoreImportAdd")}
+            </button>
+          )}
+        </div>
+
+        {showScoreImportPreview && (
+          <div style={showScoreImportPreviewStyle}>
+            <div style={showScoreImportSummaryStyle}>
+              {t("championship.admin.showScoreImportSummary", {
+                classes: showScoreSelection.selectedClassCount,
+                rows: showScoreSelection.selectedRowCount,
+                ignored: showScoreSelection.ignoredRowCount,
+              })}
+            </div>
+            {showScoreImportPreview.classes.length > 0 ? (
+              <div style={showScoreImportClassListStyle}>
+                {showScoreImportPreview.classes.map((classEntry) => {
+                  const isExcluded = showScoreExcludedClassKeys.includes(
+                    classEntry.key
+                  );
+                  const isSelected = classEntry.canInclude && !isExcluded;
+
+                  return (
+                    <label
+                      key={classEntry.key}
+                      style={{
+                        ...showScoreImportClassRowStyle,
+                        ...(classEntry.canInclude
+                          ? {}
+                          : showScoreImportClassRowDisabledStyle),
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        disabled={!classEntry.canInclude}
+                        onChange={(event) =>
+                          toggleShowScoreClassInclusion(
+                            classEntry.key,
+                            event.target.checked
+                          )
+                        }
+                      />
+                      <div style={showScoreImportClassContentStyle}>
+                        <div style={classTitleStyle}>
+                          {classEntry.importedClassName ||
+                            classEntry.importedClassCode}
+                        </div>
+                        <div style={mutedTextStyle}>
+                          {formatShowScoreClassMapping(classEntry, t)}
+                        </div>
+                        <div style={showScoreImportClassMetaStyle}>
+                          {t("championship.admin.showScoreImportClassMeta", {
+                            entries: classEntry.entryCount,
+                            scored: classEntry.scoredCount,
+                          })}
+                          {" · "}
+                          {getShowScoreClassStatusLabel(classEntry, t)}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={mutedTextStyle}>
+                {t("championship.admin.showScoreImportEmpty")}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {preview && (
@@ -1104,6 +1307,71 @@ function readFileText(file) {
   });
 }
 
+async function loadAssociationShowScoreClassData(associationId) {
+  const shows = await getShowsByAssociationRepository(associationId);
+  const dayGroups = await Promise.all(
+    shows.map(async (show) => {
+      const days = await getDaysByShowRepository(show.id);
+      return { show, days };
+    })
+  );
+  const classGroups = await Promise.all(
+    dayGroups.flatMap(({ show, days }) =>
+      days.map(async (day) => {
+        const classes = await getClassesForDayRepository(day.id);
+        return { show, day, classes };
+      })
+    )
+  );
+
+  return Promise.all(
+    classGroups.flatMap(({ show, day, classes }) =>
+      classes.map(async (classItem) => {
+        const classData = await getClassFullDataRepository(classItem.id);
+        return {
+          ...classData,
+          show,
+          day,
+          classItem: classData.classItem || classItem,
+        };
+      })
+    )
+  );
+}
+
+function formatShowScoreClassMapping(classEntry, t) {
+  const importedCode = classEntry.importedClassCode || "-";
+  const championshipCode = classEntry.championshipClassCode || "-";
+
+  if (classEntry.championshipClassName) {
+    return t("championship.admin.showScoreImportMapping", {
+      importedCode,
+      championshipCode,
+      championshipClass: classEntry.championshipClassName,
+    });
+  }
+
+  return t("championship.admin.showScoreImportUnmapped", {
+    importedCode,
+  });
+}
+
+function getShowScoreClassStatusLabel(classEntry, t) {
+  if (classEntry.canInclude) {
+    return t("championship.admin.showScoreImportMatched");
+  }
+
+  if (classEntry.reason === "no_scored_results") {
+    return t("championship.admin.showScoreImportNoScores");
+  }
+
+  if (classEntry.matchStatus === "excluded") {
+    return t("championship.admin.showScoreImportExcluded");
+  }
+
+  return t("championship.admin.showScoreImportUnknown");
+}
+
 const topLinksStyle = {
   display: "flex",
   gap: 12,
@@ -1231,6 +1499,53 @@ const resetImportStyle = {
   padding: 12,
   marginTop: 12,
   background: "#f8fafc",
+};
+
+const showScoreImportPreviewStyle = {
+  display: "grid",
+  gap: 12,
+  marginTop: 12,
+};
+
+const showScoreImportSummaryStyle = {
+  border: "1px solid #bbf7d0",
+  borderRadius: 8,
+  padding: 10,
+  background: "#f0fdf4",
+  color: "#166534",
+  fontWeight: 850,
+};
+
+const showScoreImportClassListStyle = {
+  display: "grid",
+  gap: 8,
+};
+
+const showScoreImportClassRowStyle = {
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  padding: 12,
+  display: "grid",
+  gridTemplateColumns: "auto minmax(0, 1fr)",
+  gap: 10,
+  alignItems: "flex-start",
+  background: "#ffffff",
+};
+
+const showScoreImportClassRowDisabledStyle = {
+  background: "#f8fafc",
+  color: "#64748b",
+};
+
+const showScoreImportClassContentStyle = {
+  display: "grid",
+  gap: 4,
+};
+
+const showScoreImportClassMetaStyle = {
+  color: "#475569",
+  fontSize: 13,
+  fontWeight: 800,
 };
 
 const textareaStyle = {
