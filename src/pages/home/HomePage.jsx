@@ -36,23 +36,49 @@ function HomePage() {
   const [managementAssociations, setManagementAssociations] = useState([]);
   const [memberships, setMemberships] = useState([]);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isPublicLoading, setIsPublicLoading] = useState(true);
+  const [isManagementLoading, setIsManagementLoading] = useState(false);
   const isLocalMode = !auth.isConfigured || auth.isLocalTestUser;
   const canLoadManagement = isLocalMode || auth.isAuthenticated;
 
   useEffect(() => {
     let isMounted = true;
 
-    async function load() {
-      setIsLoading(true);
+    async function loadPublicAssociations() {
+      setIsPublicLoading(true);
+      const nextPublicAssociations = await getPublicAssociationsRepository();
+
+      if (!isMounted) return;
+      setPublicAssociations(nextPublicAssociations);
+      setIsPublicLoading(false);
+    }
+
+    loadPublicAssociations();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadManagementAssociations() {
+      if (!canLoadManagement) {
+        setManagementAssociations([]);
+        setMemberships([]);
+        setIsPlatformAdmin(false);
+        setIsManagementLoading(false);
+        return;
+      }
+
+      setIsManagementLoading(true);
       const [
-        nextPublicAssociations,
         nextManagementAssociations,
         nextMemberships,
         nextIsPlatformAdmin,
       ] = await Promise.all([
-        getPublicAssociationsRepository(),
-        canLoadManagement ? loadAssociationsRepository() : Promise.resolve([]),
+        loadAssociationsRepository(),
         auth.isConfigured && !auth.isLocalTestUser && auth.user?.id
           ? loadUserMembershipsRepository(auth.user.id)
           : Promise.resolve([]),
@@ -62,14 +88,13 @@ function HomePage() {
       ]);
 
       if (!isMounted) return;
-      setPublicAssociations(nextPublicAssociations);
       setManagementAssociations(nextManagementAssociations);
       setMemberships(nextMemberships);
       setIsPlatformAdmin(nextIsPlatformAdmin);
-      setIsLoading(false);
+      setIsManagementLoading(false);
     }
 
-    load();
+    loadManagementAssociations();
 
     return () => {
       isMounted = false;
@@ -126,7 +151,7 @@ function HomePage() {
           </Link>
         </div>
 
-        {isLoading ? (
+        {isPublicLoading ? (
           <div style={emptyStateStyle}>{t("common.loading")}</div>
         ) : publicAssociations.length === 0 ? (
           <div style={emptyStateStyle}>{t("home.publicEmpty")}</div>
@@ -154,7 +179,7 @@ function HomePage() {
             </Link>
           </div>
 
-          {isLoading ? (
+          {isManagementLoading ? (
             <div style={emptyStateStyle}>{t("common.loading")}</div>
           ) : visibleManagementAssociations.length === 0 ? (
             <div style={emptyStateStyle}>{t("home.managementEmpty")}</div>
