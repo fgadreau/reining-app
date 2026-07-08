@@ -7,6 +7,7 @@ import AnalyticsRouteTracker from "../../features/analytics/AnalyticsRouteTracke
 import { dispatchAppRouteChanged } from "../../features/pwa/appUpdateSafety";
 import ShowScoreAssociationGate from "./ShowScoreAssociationGate";
 import PlatformAnalyticsPage from "../../pages/admin/PlatformAnalyticsPage";
+import PlatformAccessPage from "../../pages/admin/PlatformAccessPage";
 import AssociationsPage from "../../pages/association/AssociationsPage";
 import AssociationShowPage from "../../pages/association/AssociationShowPage";
 import AssociationAccessPage from "../../pages/association/AssociationAccessPage";
@@ -56,6 +57,7 @@ function AppRouter() {
         <Route path="/results-notice" element={<ResultsNoticePage />} />
         <Route path="/public" element={<PublicAssociationsPage />} />
         <Route path="/admin/analytics" element={<PlatformAnalyticsPage />} />
+        <Route path="/admin/access" element={<PlatformAccessPage />} />
         <Route
           path="/public/associations/:associationId"
           element={<PublicAssociationShowsPage />}

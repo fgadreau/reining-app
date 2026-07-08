@@ -53,10 +53,13 @@ function AppMenu() {
   const shouldShowAssociationMenu =
     associationId && !showId && !isPublicPath && canOpenManagement;
   const shouldShowShowMenu = associationId && showId && !isPublicPath;
+  const isAdminPath = location.pathname.startsWith("/admin");
   const canViewPlatformAnalytics =
     canOpenManagement &&
     !isPublicPath &&
     (access.isPlatformAdmin || auth.isLocalTestUser || !auth.isConfigured);
+  const canViewPlatformAdmin = canViewPlatformAnalytics;
+  const shouldShowAdminMenu = canViewPlatformAdmin && isAdminPath;
   const associationLabel =
     association?.shortName || association?.name || t("common.association");
 
@@ -159,13 +162,28 @@ function AppMenu() {
     });
   }
 
-  if (canViewPlatformAnalytics) {
+  if (canViewPlatformAdmin) {
     mainLinks.push({
-      to: "/admin/analytics",
-      label: t("nav.analytics"),
-      isActive: location.pathname.startsWith("/admin/analytics"),
+      to: "/admin/access",
+      label: t("nav.admin"),
+      isActive: isAdminPath,
     });
   }
+
+  const adminLinks = canViewPlatformAdmin
+    ? [
+        {
+          to: "/admin/access",
+          label: t("nav.accessManagement"),
+          isActive: location.pathname.startsWith("/admin/access"),
+        },
+        {
+          to: "/admin/analytics",
+          label: t("nav.analytics"),
+          isActive: location.pathname.startsWith("/admin/analytics"),
+        },
+      ]
+    : [];
 
   if (auth.isConfigured && !auth.isAuthenticated && isPublicPath) {
     mainLinks.push({
@@ -358,6 +376,15 @@ function AppMenu() {
                 </>
               )}
 
+              {adminLinks.length > 0 && (
+                <>
+                  <hr style={mobileDrawerDividerStyle} />
+                  <div style={mobileDrawerSectionStyle}>
+                    {renderMobileLinks(adminLinks)}
+                  </div>
+                </>
+              )}
+
               {showLinks.length > 0 && (
                 <>
                   <hr style={mobileDrawerDividerStyle} />
@@ -395,6 +422,16 @@ function AppMenu() {
       {shouldShowAssociationMenu && (
         <nav style={subNavStyle} aria-label={t("nav.associationMenu")}>
           {associationLinks.map((link) => (
+            <Link key={link.to} to={link.to} style={subLinkStyle(link.isActive)}>
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+      )}
+
+      {shouldShowAdminMenu && (
+        <nav style={subNavStyle} aria-label={t("nav.adminMenu")}>
+          {adminLinks.map((link) => (
             <Link key={link.to} to={link.to} style={subLinkStyle(link.isActive)}>
               {link.label}
             </Link>

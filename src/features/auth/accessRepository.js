@@ -200,6 +200,74 @@ export async function loadUserProfilesByIdsRepository(userIds) {
   }
 }
 
+function cleanProfileSearchQuery(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[%_,]/g, " ")
+    .replace(/\s+/g, " ")
+    .slice(0, 80);
+}
+
+export async function searchUserProfilesRepository(searchQuery, options = {}) {
+  const supabase = getSupabaseClient();
+  const limit = Math.min(Math.max(Number(options.limit) || 25, 1), 100);
+  const query = cleanProfileSearchQuery(searchQuery);
+
+  if (!supabase) {
+    return [];
+  }
+
+  try {
+    let request = supabase
+      .from("user_profiles")
+      .select("*")
+      .order("updated_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false, nullsFirst: false })
+      .limit(limit);
+
+    if (query) {
+      const pattern = `%${query}%`;
+      request = request.or(
+        `email.ilike.${pattern},display_name.ilike.${pattern}`
+      );
+    }
+
+    const { data, error } = await request;
+
+    if (error) throw error;
+
+    return Array.isArray(data) ? data.map(toUserProfile) : [];
+  } catch (error) {
+    console.error("Erreur recherche profils Supabase:", error);
+    return [];
+  }
+}
+
+export async function loadMembershipsByUserIdsRepository(userIds) {
+  const supabase = getSupabaseClient();
+  const uniqueIds = [...new Set((userIds || []).filter(Boolean))];
+
+  if (!supabase || uniqueIds.length === 0) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("association_memberships")
+      .select("*")
+      .in("user_id", uniqueIds)
+      .order("association_id", { ascending: true })
+      .order("role", { ascending: true });
+
+    if (error) throw error;
+
+    return Array.isArray(data) ? data.map(toMembership) : [];
+  } catch (error) {
+    console.error("Erreur chargement rôles utilisateurs Supabase:", error);
+    return [];
+  }
+}
+
 export async function loadAssociationMembershipsRepository(associationId) {
   const supabase = getSupabaseClient();
 
