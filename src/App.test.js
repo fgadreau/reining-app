@@ -167,6 +167,11 @@ import {
   CHAMPIONSHIP_VERIFICATION_SCOPES,
   validateChampionshipVerificationForm,
 } from "./features/championship/championshipVerificationRequestRepository";
+import {
+  buildDefaultChampionshipUpdateCampaignForm,
+  validateChampionshipUpdateCampaignForm,
+  validateChampionshipUpdateSubscriptionForm,
+} from "./features/championship/championshipUpdateSubscriptionRepository";
 import { getDefaultShowRouteForRoles } from "./features/auth/showRoleRouting";
 import { buildAnalyticsSummary } from "./features/analytics/analyticsRepository";
 import { getPageEventContext } from "./features/analytics/analyticsRouteContext";
@@ -489,6 +494,50 @@ test("validates required championship verification request fields", () => {
     rider: "required",
     horse: "required",
     explanation: "required",
+  });
+});
+
+test("validates championship update subscription consent and email", () => {
+  expect(
+    validateChampionshipUpdateSubscriptionForm({
+      email: "not-an-email",
+      consentAccepted: false,
+    })
+  ).toMatchObject({
+    email: "email",
+    consentAccepted: "required",
+  });
+
+  expect(
+    validateChampionshipUpdateSubscriptionForm({
+      email: "fan@example.com",
+      consentAccepted: true,
+    })
+  ).toEqual({});
+});
+
+test("builds and validates championship update campaign defaults", () => {
+  const t = (key, params = {}) =>
+    translate("fr", key, params);
+  const form = buildDefaultChampionshipUpdateCampaignForm({
+    seasonTitle: "Championnat AQR",
+    seasonYear: "2026",
+    t,
+    language: "fr",
+    date: new Date("2026-07-09T12:00:00.000Z"),
+  });
+
+  expect(form.subject).toBe("Ajout des classements du mois de juillet");
+  expect(form.message).toContain("Championnat AQR 2026");
+  expect(validateChampionshipUpdateCampaignForm(form)).toEqual({});
+  expect(
+    validateChampionshipUpdateCampaignForm({
+      ...form,
+      mode: "test",
+      testEmail: "bad-email",
+    })
+  ).toMatchObject({
+    testEmail: "email",
   });
 });
 

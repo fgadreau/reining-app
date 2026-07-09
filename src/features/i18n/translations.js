@@ -218,6 +218,64 @@ export const translations = {
           "L’envoi automatique n’est pas disponible pour le moment.",
         title: "Demande de vérification des points",
       },
+      updates: {
+        activeSubscribers: "Abonnés actifs",
+        adminHelp:
+          "Envoie manuellement une annonce aux personnes inscrites aux mises à jour du championnat de cette association.",
+        adminRequiredFields:
+          "Complète le sujet, le message et le courriel test si nécessaire.",
+        adminTitle: "Mises à jour par courriel",
+        campaignFailed:
+          "Impossible d’envoyer la mise à jour. Vérifie la configuration Supabase/Resend.",
+        campaignSending: "Envoi en cours...",
+        campaignSent: "Mise à jour envoyée à {{count}} destinataires.",
+        close: "Fermer",
+        confirmSend:
+          "Envoyer cette mise à jour à {{count}} abonnés actifs?",
+        consent:
+          "Oui, je veux recevoir les mises à jour du championnat par courriel. Je pourrai me désabonner en tout temps.",
+        defaultMessage:
+          "Les classements du mois de {{month}} ont été ajoutés au {{season}}.\n\nVous pouvez consulter la page publique du championnat pour voir les mises à jour.",
+        defaultSubject: "Ajout des classements du mois de {{month}}",
+        draftNotice:
+          "Le championnat est encore en brouillon. Publie-le avant d’envoyer une mise à jour aux abonnés.",
+        email: "Courriel",
+        message: "Message",
+        name: "Nom",
+        noSubscribers: "Aucun abonné actif pour l’instant.",
+        open: "M’abonner",
+        publicHelp:
+          "Soyez averti quand de nouveaux classements sont publiés.",
+        publicTitle: "Recevoir les mises à jour du championnat",
+        publishBeforeSend:
+          "Publie le championnat avant d’envoyer une mise à jour aux abonnés.",
+        refreshSubscribers: "Actualiser",
+        refreshing: "Actualisation...",
+        requiredFields: "Entre un courriel valide et confirme ton consentement.",
+        resetDefault: "Réinitialiser le message",
+        sendCampaign: "Envoyer aux abonnés",
+        sendTest: "Envoyer un test",
+        subject: "Sujet",
+        subscribe: "M’abonner",
+        subscribeFailed:
+          "Impossible de compléter l’abonnement. Réessaie plus tard.",
+        subscribeSending: "Inscription...",
+        subscribeSuccess:
+          "Abonnement confirmé. Les prochaines mises à jour seront envoyées à ce courriel.",
+        summaryUnavailable:
+          "La liste n’est pas encore disponible. Lance le SQL d’abonnement dans Supabase.",
+        supabaseUnavailable:
+          "Cette fonction n’est pas disponible en mode local sans Supabase.",
+        testEmail: "Courriel test",
+        testSending: "Envoi du test...",
+        testSent: "Courriel test envoyé.",
+        totalSubscribers: "Total historique",
+        unsubscribeFailed:
+          "Impossible de compléter le désabonnement. Le lien est peut-être expiré.",
+        unsubscribeSending: "Désabonnement en cours...",
+        unsubscribeSuccess:
+          "Désabonnement confirmé. Vous ne recevrez plus les mises à jour du championnat.",
+      },
       admin: {
         accessDenied: "Cette page est réservée aux gestionnaires de l’association.",
         addCsv: "Ajouter ce CSV",
@@ -1825,6 +1883,64 @@ export const translations = {
         supabaseUnavailable:
           "Automatic delivery is not available right now.",
         title: "Points verification request",
+      },
+      updates: {
+        activeSubscribers: "Active subscribers",
+        adminHelp:
+          "Manually send an announcement to people subscribed to this association championship updates.",
+        adminRequiredFields:
+          "Complete the subject, message, and test email when needed.",
+        adminTitle: "Email updates",
+        campaignFailed:
+          "Unable to send the update. Check the Supabase/Resend configuration.",
+        campaignSending: "Sending...",
+        campaignSent: "Update sent to {{count}} recipients.",
+        close: "Close",
+        confirmSend:
+          "Send this update to {{count}} active subscribers?",
+        consent:
+          "Yes, I want to receive championship updates by email. I can unsubscribe at any time.",
+        defaultMessage:
+          "The {{month}} standings have been added to {{season}}.\n\nYou can view the public championship page to see the updates.",
+        defaultSubject: "{{month}} standings added",
+        draftNotice:
+          "The championship is still a draft. Publish it before sending an update to subscribers.",
+        email: "Email",
+        message: "Message",
+        name: "Name",
+        noSubscribers: "There are no active subscribers yet.",
+        open: "Subscribe",
+        publicHelp:
+          "Get notified when new standings are published.",
+        publicTitle: "Receive championship updates",
+        publishBeforeSend:
+          "Publish the championship before sending an update to subscribers.",
+        refreshSubscribers: "Refresh",
+        refreshing: "Refreshing...",
+        requiredFields: "Enter a valid email and confirm consent.",
+        resetDefault: "Reset message",
+        sendCampaign: "Send to subscribers",
+        sendTest: "Send test",
+        subject: "Subject",
+        subscribe: "Subscribe",
+        subscribeFailed:
+          "Unable to complete the subscription. Try again later.",
+        subscribeSending: "Subscribing...",
+        subscribeSuccess:
+          "Subscription confirmed. Future updates will be sent to this email.",
+        summaryUnavailable:
+          "The list is not available yet. Run the subscription SQL in Supabase.",
+        supabaseUnavailable:
+          "This feature is unavailable in local mode without Supabase.",
+        testEmail: "Test email",
+        testSending: "Sending test...",
+        testSent: "Test email sent.",
+        totalSubscribers: "Historical total",
+        unsubscribeFailed:
+          "Unable to complete the unsubscribe request. The link may be expired.",
+        unsubscribeSending: "Unsubscribing...",
+        unsubscribeSuccess:
+          "Unsubscribe confirmed. You will no longer receive championship updates.",
       },
       admin: {
         accessDenied: "This page is reserved for association managers.",

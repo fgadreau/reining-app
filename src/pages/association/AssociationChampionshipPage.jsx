@@ -21,6 +21,12 @@ import {
   saveChampionshipSeasonRepository,
 } from "../../features/championship/championshipRepository";
 import {
+  buildDefaultChampionshipUpdateCampaignForm,
+  getChampionshipUpdateSubscriberSummaryRepository,
+  sendChampionshipUpdateCampaignRepository,
+  validateChampionshipUpdateCampaignForm,
+} from "../../features/championship/championshipUpdateSubscriptionRepository";
+import {
   buildShowScoreChampionshipImportBatch,
   buildShowScoreChampionshipImportPreview,
   getShowScoreChampionshipSelectionSummary,
@@ -41,7 +47,7 @@ import {
 
 function AssociationChampionshipPage() {
   const { associationId } = useParams();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const access = useAssociationAccess(associationId);
   const [association, setAssociation] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,6 +70,27 @@ function AssociationChampionshipPage() {
     reason: "",
   });
   const [dqErrorMessage, setDqErrorMessage] = useState("");
+  const [subscriberSummary, setSubscriberSummary] = useState({
+    ok: false,
+    activeCount: 0,
+    totalCount: 0,
+  });
+  const [isLoadingSubscriberSummary, setIsLoadingSubscriberSummary] =
+    useState(false);
+  const [campaignForm, setCampaignForm] = useState(() =>
+    buildDefaultChampionshipUpdateCampaignForm({
+      seasonTitle: "Championnat de saison",
+      seasonYear: String(new Date().getFullYear()),
+      t,
+      language,
+    })
+  );
+  const [campaignErrors, setCampaignErrors] = useState({});
+  const [campaignStatus, setCampaignStatus] = useState({
+    tone: "",
+    message: "",
+  });
+  const [isSendingCampaign, setIsSendingCampaign] = useState(false);
   const [eventLabels, setEventLabels] = useState({});
   const [eventOrder, setEventOrder] = useState({});
   const [pendingDuplicateImport, setPendingDuplicateImport] = useState(null);
@@ -78,14 +105,16 @@ function AssociationChampionshipPage() {
 
     async function load() {
       setIsLoading(true);
-      const [nextAssociation, nextSeason] = await Promise.all([
+      const [nextAssociation, nextSeason, nextSubscriberSummary] = await Promise.all([
         getAssociationRepository(associationId),
         Promise.resolve(getLatestChampionshipSeasonRepository(associationId)),
+        getChampionshipUpdateSubscriberSummaryRepository(associationId),
       ]);
 
       if (!isMounted) return;
       setAssociation(nextAssociation);
       setSeason(nextSeason);
+      setSubscriberSummary(nextSubscriberSummary);
       if (nextSeason) {
         const nextEventLabels = nextSeason.publicEventLabels || {};
         const nextEventOrder = buildEventOrderSettings(
@@ -104,6 +133,14 @@ function AssociationChampionshipPage() {
         setEventLabels(nextEventLabels);
         setEventOrder(nextEventOrder);
         setPreview(nextPreview);
+        setCampaignForm(
+          buildDefaultChampionshipUpdateCampaignForm({
+            seasonTitle: nextSeason.title || "Championnat de saison",
+            seasonYear: nextSeason.year || String(new Date().getFullYear()),
+            t,
+            language,
+          })
+        );
       }
       setIsLoading(false);
     }
@@ -676,6 +713,130 @@ function AssociationChampionshipPage() {
     await savePreviewSeason({ nextStatus });
   };
 
+  const refreshSubscriberSummary = async () => {
+    setIsLoadingSubscriberSummary(true);
+    const nextSummary =
+      await getChampionshipUpdateSubscriberSummaryRepository(associationId);
+    setSubscriberSummary(nextSummary);
+    setIsLoadingSubscriberSummary(false);
+  };
+
+  const updateCampaignField = (field, value) => {
+    setCampaignForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+    setCampaignErrors((current) => {
+      if (!current[field]) return current;
+      const nextErrors = { ...current };
+      delete nextErrors[field];
+      return nextErrors;
+    });
+    setCampaignStatus({ tone: "", message: "" });
+  };
+
+  const resetCampaignDefaults = () => {
+    setCampaignForm(
+      buildDefaultChampionshipUpdateCampaignForm({
+        seasonTitle,
+        seasonYear,
+        t,
+        language,
+      })
+    );
+    setCampaignErrors({});
+    setCampaignStatus({ tone: "", message: "" });
+  };
+
+  const sendChampionshipUpdate = async (mode) => {
+    const nextForm = {
+      ...campaignForm,
+      mode,
+    };
+    const errors = validateChampionshipUpdateCampaignForm(nextForm);
+
+    if (Object.keys(errors).length > 0) {
+      setCampaignErrors(errors);
+      setCampaignStatus({
+        tone: "error",
+        message: t("championship.updates.adminRequiredFields"),
+      });
+      return;
+    }
+
+    if (mode === "campaign") {
+      if (subscriberSummary.activeCount <= 0) {
+        setCampaignStatus({
+          tone: "error",
+          message: t("championship.updates.noSubscribers"),
+        });
+        return;
+      }
+
+      if (seasonStatus === "draft") {
+        setCampaignStatus({
+          tone: "error",
+          message: t("championship.updates.publishBeforeSend"),
+        });
+        return;
+      }
+
+      const confirmed = window.confirm(
+        t("championship.updates.confirmSend", {
+          count: subscriberSummary.activeCount,
+        })
+      );
+      if (!confirmed) return;
+    }
+
+    setIsSendingCampaign(true);
+    setCampaignStatus({
+      tone: "info",
+      message:
+        mode === "test"
+          ? t("championship.updates.testSending")
+          : t("championship.updates.campaignSending"),
+    });
+
+    const result = await sendChampionshipUpdateCampaignRepository({
+      associationId,
+      association,
+      season: {
+        ...(season || preview || {}),
+        title: seasonTitle,
+        year: seasonYear,
+        status: seasonStatus,
+      },
+      publicUrl: getPublicChampionshipUrl(associationId),
+      form: nextForm,
+      mode,
+    });
+
+    setIsSendingCampaign(false);
+
+    if (!result.ok) {
+      setCampaignStatus({
+        tone: "error",
+        message:
+          result.reason === "supabase_unavailable"
+            ? t("championship.updates.supabaseUnavailable")
+            : t("championship.updates.campaignFailed"),
+      });
+      return;
+    }
+
+    setCampaignStatus({
+      tone: "success",
+      message:
+        mode === "test"
+          ? t("championship.updates.testSent")
+          : t("championship.updates.campaignSent", {
+              count: result.data?.successCount ?? 0,
+            }),
+    });
+    await refreshSubscriberSummary();
+  };
+
   const exportChampionshipPdf = () => {
     if (!preview) return;
 
@@ -949,6 +1110,22 @@ function AssociationChampionshipPage() {
           </div>
         )}
       </section>
+
+      <ChampionshipUpdateCampaignPanel
+        subscriberSummary={subscriberSummary}
+        isLoadingSubscriberSummary={isLoadingSubscriberSummary}
+        form={campaignForm}
+        errors={campaignErrors}
+        status={campaignStatus}
+        isSending={isSendingCampaign}
+        seasonStatus={seasonStatus}
+        onChange={updateCampaignField}
+        onRefreshSubscribers={refreshSubscriberSummary}
+        onResetDefaults={resetCampaignDefaults}
+        onSendTest={() => sendChampionshipUpdate("test")}
+        onSendCampaign={() => sendChampionshipUpdate("campaign")}
+        t={t}
+      />
 
       {preview && (
         <>
@@ -1335,6 +1512,138 @@ function ChampionshipDisqualificationPanel({
   );
 }
 
+function ChampionshipUpdateCampaignPanel({
+  subscriberSummary,
+  isLoadingSubscriberSummary,
+  form,
+  errors,
+  status,
+  isSending,
+  seasonStatus,
+  onChange,
+  onRefreshSubscribers,
+  onResetDefaults,
+  onSendTest,
+  onSendCampaign,
+  t,
+}) {
+  const activeCount = subscriberSummary?.activeCount || 0;
+  const isDraft = seasonStatus === "draft";
+
+  return (
+    <section style={panelStyle}>
+      <div style={campaignHeaderStyle}>
+        <div>
+          <div style={sectionTitleStyle}>
+            {t("championship.updates.adminTitle")}
+          </div>
+          <div style={mutedTextStyle}>
+            {t("championship.updates.adminHelp")}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onRefreshSubscribers}
+          style={secondaryButtonStyle}
+          disabled={isLoadingSubscriberSummary || isSending}
+        >
+          {isLoadingSubscriberSummary
+            ? t("championship.updates.refreshing")
+            : t("championship.updates.refreshSubscribers")}
+        </button>
+      </div>
+
+      <div style={campaignSummaryStyle}>
+        <div>
+          <div style={summaryValueStyle}>{activeCount}</div>
+          <div style={mutedTextStyle}>
+            {t("championship.updates.activeSubscribers")}
+          </div>
+        </div>
+        <div>
+          <div style={summaryValueStyle}>{subscriberSummary?.totalCount || 0}</div>
+          <div style={mutedTextStyle}>
+            {t("championship.updates.totalSubscribers")}
+          </div>
+        </div>
+        {!subscriberSummary?.ok && (
+          <div style={campaignUnavailableStyle}>
+            {t("championship.updates.summaryUnavailable")}
+          </div>
+        )}
+      </div>
+
+      <div style={campaignFormStyle}>
+        <label style={campaignWideFieldStyle}>
+          <span style={labelStyle}>{t("championship.updates.subject")}</span>
+          <input
+            value={form.subject}
+            onChange={(event) => onChange("subject", event.target.value)}
+            style={errors.subject ? inputErrorStyle : inputStyle}
+          />
+        </label>
+        <label style={campaignWideFieldStyle}>
+          <span style={labelStyle}>{t("championship.updates.message")}</span>
+          <textarea
+            value={form.message}
+            onChange={(event) => onChange("message", event.target.value)}
+            style={errors.message ? campaignTextareaErrorStyle : campaignTextareaStyle}
+          />
+        </label>
+        <label style={fieldStyle}>
+          <span style={labelStyle}>{t("championship.updates.testEmail")}</span>
+          <input
+            type="email"
+            value={form.testEmail}
+            onChange={(event) => onChange("testEmail", event.target.value)}
+            style={errors.testEmail ? inputErrorStyle : inputStyle}
+            placeholder="admin@example.com"
+          />
+        </label>
+      </div>
+
+      {isDraft && (
+        <div style={campaignDraftNoticeStyle}>
+          {t("championship.updates.draftNotice")}
+        </div>
+      )}
+
+      {status.message && (
+        <div style={campaignStatusStyle(status.tone)}>{status.message}</div>
+      )}
+
+      <div style={actionRowStyle}>
+        <button
+          type="button"
+          onClick={onResetDefaults}
+          style={secondaryButtonStyle}
+          disabled={isSending}
+        >
+          {t("championship.updates.resetDefault")}
+        </button>
+        <button
+          type="button"
+          onClick={onSendTest}
+          style={secondaryButtonStyle}
+          disabled={isSending}
+        >
+          {t("championship.updates.sendTest")}
+        </button>
+        <button
+          type="button"
+          onClick={onSendCampaign}
+          style={primaryButtonStyle}
+          disabled={isSending || activeCount <= 0 || isDraft}
+        >
+          {isSending
+            ? t("championship.updates.campaignSending")
+            : t("championship.updates.sendCampaign")}
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function SummaryShowsCard({ label, shows, emptyText, t }) {
   return (
     <div style={summaryShowsCardStyle}>
@@ -1666,6 +1975,16 @@ function formatShortDateTime(value) {
   return String(value).slice(0, 16).replace("T", " ");
 }
 
+function getPublicChampionshipUrl(associationId) {
+  const path = `/public/associations/${associationId}/championnat`;
+
+  if (typeof window === "undefined" || !window.location?.origin) {
+    return path;
+  }
+
+  return `${window.location.origin}${path}`;
+}
+
 function readFileText(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1858,6 +2177,61 @@ const dqReasonStyle = {
   fontWeight: 850,
 };
 
+const campaignHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  alignItems: "flex-start",
+  flexWrap: "wrap",
+};
+
+const campaignSummaryStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+  gap: 10,
+  marginTop: 12,
+  marginBottom: 12,
+};
+
+const campaignUnavailableStyle = {
+  border: "1px solid #fed7aa",
+  borderRadius: 8,
+  padding: 10,
+  background: "#fff7ed",
+  color: "#9a3412",
+  fontWeight: 800,
+};
+
+const campaignFormStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
+  gap: 12,
+};
+
+const campaignDraftNoticeStyle = {
+  marginTop: 12,
+  border: "1px solid #fde68a",
+  borderRadius: 8,
+  padding: 10,
+  background: "#fffbeb",
+  color: "#92400e",
+  fontWeight: 800,
+};
+
+const campaignStatusStyle = (tone) => ({
+  marginTop: 12,
+  border: `1px solid ${
+    tone === "success" ? "#86efac" : tone === "error" ? "#fecaca" : "#bfdbfe"
+  }`,
+  borderRadius: 8,
+  padding: 10,
+  background:
+    tone === "success" ? "#f0fdf4" : tone === "error" ? "#fef2f2" : "#eff6ff",
+  color:
+    tone === "success" ? "#166534" : tone === "error" ? "#991b1b" : "#1d4ed8",
+  fontWeight: 800,
+});
+
 const fieldStyle = {
   display: "grid",
   gap: 6,
@@ -1884,6 +2258,28 @@ const inputStyle = {
   padding: "9px 10px",
   fontSize: 14,
   boxSizing: "border-box",
+};
+
+const inputErrorStyle = {
+  ...inputStyle,
+  borderColor: "#ef4444",
+};
+
+const campaignWideFieldStyle = {
+  ...fieldStyle,
+  gridColumn: "1 / -1",
+};
+
+const campaignTextareaStyle = {
+  ...inputStyle,
+  minHeight: 116,
+  resize: "vertical",
+  lineHeight: 1.4,
+};
+
+const campaignTextareaErrorStyle = {
+  ...campaignTextareaStyle,
+  borderColor: "#ef4444",
 };
 
 const orderInputStyle = {

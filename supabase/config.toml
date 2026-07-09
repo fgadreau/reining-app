@@ -1,2 +1,8 @@
 [functions.send-championship-verification-request]
 verify_jwt = false
+
+[functions.championship-update-subscription]
+verify_jwt = false
+
+[functions.send-championship-update-campaign]
+verify_jwt = true

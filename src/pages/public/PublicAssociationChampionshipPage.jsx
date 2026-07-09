@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import AssociationLogo from "../../components/AssociationLogo";
 import ChampionshipOccurrenceModal from "../../components/ChampionshipOccurrenceModal";
 import ChampionshipVerificationRequestPanel from "../../components/ChampionshipVerificationRequestPanel";
@@ -14,6 +14,15 @@ import {
 } from "../../features/championship/championshipStandings";
 import { buildChampionshipPublicSeo } from "../../features/seo/publicSeo";
 import { formatChampionshipPoints } from "../../features/championship/championshipPoints";
+import {
+  subscribeChampionshipUpdatesRepository,
+  unsubscribeChampionshipUpdatesRepository,
+  validateChampionshipUpdateSubscriptionForm,
+} from "../../features/championship/championshipUpdateSubscriptionRepository";
+import {
+  seedChampionshipDemo,
+  shouldSeedChampionshipDemo,
+} from "../../features/demo/championshipDemo";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import {
   buildChampionshipPdfFileName,
@@ -36,7 +45,8 @@ import {
 
 function PublicAssociationChampionshipPage() {
   const { associationId } = useParams();
-  const { t } = useTranslation();
+  const location = useLocation();
+  const { t, language } = useTranslation();
   const isMobileLayout = useChampionshipMobileLayout();
   const [association, setAssociation] = useState(null);
   const [season, setSeason] = useState(null);
@@ -48,6 +58,22 @@ function PublicAssociationChampionshipPage() {
   const [isFunFactsOpen, setIsFunFactsOpen] = useState(false);
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
   const [isMobileShowsOpen, setIsMobileShowsOpen] = useState(false);
+  const [isSubscriptionFormOpen, setIsSubscriptionFormOpen] = useState(false);
+  const [subscriptionForm, setSubscriptionForm] = useState({
+    name: "",
+    email: "",
+    consentAccepted: false,
+    website: "",
+  });
+  const [subscriptionErrors, setSubscriptionErrors] = useState({});
+  const [subscriptionState, setSubscriptionState] = useState({
+    status: "idle",
+    message: "",
+  });
+  const [unsubscribeState, setUnsubscribeState] = useState({
+    status: "idle",
+    message: "",
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClassId, setSelectedClassId] = useState("");
   const classes = Array.isArray(season?.classes) ? season.classes : [];
@@ -68,6 +94,17 @@ function PublicAssociationChampionshipPage() {
     () => buildChampionshipPublicSeo({ association, season, t }),
     [association, season, t]
   );
+  const unsubscribeToken = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("unsubscribe") || "";
+  }, [location.search]);
+
+  useEffect(() => {
+    if (!shouldSeedChampionshipDemo(location.search)) return;
+
+    const { publicUrl } = seedChampionshipDemo();
+    window.location.replace(publicUrl);
+  }, [location.search]);
 
   useEffect(() => {
     let isMounted = true;
@@ -89,6 +126,7 @@ function PublicAssociationChampionshipPage() {
       setIsFunFactsOpen(false);
       setIsMobileMoreOpen(false);
       setIsMobileShowsOpen(false);
+      setIsSubscriptionFormOpen(false);
       setSelectedClassId("");
       setIsLoading(false);
     }
@@ -99,6 +137,47 @@ function PublicAssociationChampionshipPage() {
       isMounted = false;
     };
   }, [associationId]);
+
+  useEffect(() => {
+    if (!unsubscribeToken) return undefined;
+
+    let isMounted = true;
+
+    async function unsubscribe() {
+      setUnsubscribeState({
+        status: "sending",
+        message: t("championship.updates.unsubscribeSending"),
+      });
+
+      const result = await unsubscribeChampionshipUpdatesRepository({
+        associationId,
+        token: unsubscribeToken,
+      });
+
+      if (!isMounted) return;
+
+      setUnsubscribeState(
+        result.ok
+          ? {
+              status: "success",
+              message: t("championship.updates.unsubscribeSuccess"),
+            }
+          : {
+              status: "error",
+              message:
+                result.reason === "supabase_unavailable"
+                  ? t("championship.updates.supabaseUnavailable")
+                  : t("championship.updates.unsubscribeFailed"),
+            }
+      );
+    }
+
+    unsubscribe();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [associationId, unsubscribeToken, t]);
 
   useEffect(() => {
     if (!normalizedSearchQuery) return;
@@ -154,6 +233,71 @@ function PublicAssociationChampionshipPage() {
       horse: result?.horse || "",
     });
     setSelectedOccurrence(null);
+  };
+
+  const updateSubscriptionField = (field, value) => {
+    setSubscriptionForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+    setSubscriptionErrors((current) => {
+      if (!current[field]) return current;
+      const nextErrors = { ...current };
+      delete nextErrors[field];
+      return nextErrors;
+    });
+    setSubscriptionState({ status: "idle", message: "" });
+  };
+
+  const submitSubscription = async (event) => {
+    event.preventDefault();
+
+    const errors = validateChampionshipUpdateSubscriptionForm(subscriptionForm);
+    if (Object.keys(errors).length > 0) {
+      setSubscriptionErrors(errors);
+      setSubscriptionState({
+        status: "error",
+        message: t("championship.updates.requiredFields"),
+      });
+      return;
+    }
+
+    setSubscriptionState({
+      status: "sending",
+      message: t("championship.updates.subscribeSending"),
+    });
+
+    const result = await subscribeChampionshipUpdatesRepository({
+      associationId,
+      association,
+      season,
+      form: subscriptionForm,
+      language,
+      sourceUrl: getCurrentPageUrl(),
+    });
+
+    if (result.ok) {
+      setSubscriptionForm((current) => ({
+        ...current,
+        name: "",
+        email: "",
+        consentAccepted: false,
+      }));
+      setSubscriptionErrors({});
+      setSubscriptionState({
+        status: "success",
+        message: t("championship.updates.subscribeSuccess"),
+      });
+      return;
+    }
+
+    setSubscriptionState({
+      status: "error",
+      message:
+        result.reason === "supabase_unavailable"
+          ? t("championship.updates.supabaseUnavailable")
+          : t("championship.updates.subscribeFailed"),
+    });
   };
 
   const downloadChampionshipPdf = () => {
@@ -344,12 +488,51 @@ function PublicAssociationChampionshipPage() {
         </div>
       </section>
 
+      {unsubscribeState.status !== "idle" && (
+        <div
+          style={
+            unsubscribeState.status === "success"
+              ? updateSuccessNoticeStyle
+              : unsubscribeState.status === "error"
+                ? updateErrorNoticeStyle
+                : updateInfoNoticeStyle
+          }
+        >
+          {unsubscribeState.message}
+        </div>
+      )}
+
       {isLoading ? (
         <div style={emptyStateStyle}>{t("championship.public.loading")}</div>
       ) : !season ? (
-        <div style={emptyStateStyle}>{t("championship.public.empty")}</div>
+        <>
+          <ChampionshipUpdateSubscribePanel
+            form={subscriptionForm}
+            errors={subscriptionErrors}
+            state={subscriptionState}
+            isMobileLayout={isMobileLayout}
+            isOpen={!isMobileLayout || isSubscriptionFormOpen}
+            onToggle={() => setIsSubscriptionFormOpen((value) => !value)}
+            onChange={updateSubscriptionField}
+            onSubmit={submitSubscription}
+            t={t}
+          />
+          <div style={emptyStateStyle}>{t("championship.public.empty")}</div>
+        </>
       ) : (
         <>
+          <ChampionshipUpdateSubscribePanel
+            form={subscriptionForm}
+            errors={subscriptionErrors}
+            state={subscriptionState}
+            isMobileLayout={isMobileLayout}
+            isOpen={!isMobileLayout || isSubscriptionFormOpen}
+            onToggle={() => setIsSubscriptionFormOpen((value) => !value)}
+            onChange={updateSubscriptionField}
+            onSubmit={submitSubscription}
+            t={t}
+          />
+
           {isMobileLayout ? (
             <MobileChampionshipSummary
               updatedAt={season.updatedAt || season.importedAt}
@@ -504,6 +687,127 @@ function PublicAssociationChampionshipPage() {
         t={t}
       />
     </div>
+  );
+}
+
+function ChampionshipUpdateSubscribePanel({
+  form,
+  errors,
+  state,
+  isMobileLayout,
+  isOpen,
+  onToggle,
+  onChange,
+  onSubmit,
+  t,
+}) {
+  return (
+    <section
+      style={isMobileLayout ? mobileSubscriptionPanelStyle : subscriptionPanelStyle}
+    >
+      <div style={subscriptionHeaderStyle}>
+        <div>
+          <div style={subscriptionTitleStyle}>
+            {t("championship.updates.publicTitle")}
+          </div>
+          <div style={subscriptionHelpStyle}>
+            {t("championship.updates.publicHelp")}
+          </div>
+        </div>
+        {isMobileLayout && (
+          <button
+            type="button"
+            onClick={onToggle}
+            style={subscriptionToggleButtonStyle}
+            aria-expanded={isOpen}
+          >
+            {isOpen
+              ? t("championship.updates.close")
+              : t("championship.updates.open")}
+          </button>
+        )}
+      </div>
+
+      {isOpen && (
+        <form
+          onSubmit={onSubmit}
+          style={isMobileLayout ? mobileSubscriptionFormStyle : subscriptionFormStyle}
+        >
+          <label style={subscriptionFieldStyle}>
+            <span style={subscriptionLabelStyle}>
+              {t("championship.updates.name")}
+            </span>
+            <input
+              value={form.name}
+              onChange={(event) => onChange("name", event.target.value)}
+              style={subscriptionInputStyle}
+              autoComplete="name"
+            />
+          </label>
+          <label style={subscriptionFieldStyle}>
+            <span style={subscriptionLabelStyle}>
+              {t("championship.updates.email")}
+            </span>
+            <input
+              type="email"
+              value={form.email}
+              onChange={(event) => onChange("email", event.target.value)}
+              style={
+                errors.email
+                  ? subscriptionInputErrorStyle
+                  : subscriptionInputStyle
+              }
+              autoComplete="email"
+              required
+            />
+          </label>
+          <label style={subscriptionHoneypotStyle} aria-hidden="true">
+            Website
+            <input
+              tabIndex={-1}
+              autoComplete="off"
+              value={form.website}
+              onChange={(event) => onChange("website", event.target.value)}
+            />
+          </label>
+          <label style={subscriptionConsentStyle}>
+            <input
+              type="checkbox"
+              checked={form.consentAccepted}
+              onChange={(event) =>
+                onChange("consentAccepted", event.target.checked)
+              }
+            />
+            <span>
+              {t("championship.updates.consent")}
+            </span>
+          </label>
+          <button
+            type="submit"
+            style={subscriptionSubmitButtonStyle}
+            disabled={state.status === "sending"}
+          >
+            {state.status === "sending"
+              ? t("championship.updates.subscribeSending")
+              : t("championship.updates.subscribe")}
+          </button>
+        </form>
+      )}
+
+      {state.message && (
+        <div
+          style={
+            state.status === "success"
+              ? updateSuccessNoticeStyle
+              : state.status === "error"
+                ? updateErrorNoticeStyle
+                : updateInfoNoticeStyle
+          }
+        >
+          {state.message}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -1189,6 +1493,146 @@ const emptyStateStyle = {
   ...publicEmptyStateStyle,
   borderStyle: "dashed",
   color: publicColors.muted,
+};
+
+const subscriptionPanelStyle = {
+  ...publicCardStyle,
+  marginBottom: 12,
+};
+
+const mobileSubscriptionPanelStyle = {
+  ...subscriptionPanelStyle,
+  padding: 10,
+  marginBottom: 10,
+};
+
+const subscriptionHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 10,
+};
+
+const subscriptionTitleStyle = {
+  color: publicColors.text,
+  fontSize: 16,
+  fontWeight: 950,
+  lineHeight: 1.18,
+};
+
+const subscriptionHelpStyle = {
+  marginTop: 2,
+  color: publicColors.muted,
+  fontSize: 13,
+  fontWeight: 700,
+  lineHeight: 1.3,
+};
+
+const subscriptionToggleButtonStyle = {
+  ...publicSecondaryActionStyle,
+  flex: "0 0 auto",
+  minHeight: 34,
+  padding: "7px 9px",
+  font: "inherit",
+  fontSize: 12,
+};
+
+const subscriptionFormStyle = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.2fr) auto",
+  gap: 8,
+  alignItems: "end",
+  marginTop: 10,
+};
+
+const mobileSubscriptionFormStyle = {
+  ...subscriptionFormStyle,
+  gridTemplateColumns: "1fr",
+};
+
+const subscriptionFieldStyle = {
+  display: "grid",
+  gap: 5,
+  minWidth: 0,
+};
+
+const subscriptionLabelStyle = {
+  color: publicColors.muted,
+  fontSize: 11,
+  fontWeight: 900,
+  textTransform: "uppercase",
+  letterSpacing: 0,
+};
+
+const subscriptionInputStyle = {
+  width: "100%",
+  minHeight: 38,
+  border: `1px solid ${publicColors.border}`,
+  borderRadius: 8,
+  padding: "8px 9px",
+  color: publicColors.text,
+  background: publicColors.surface,
+  font: "inherit",
+  fontSize: 14,
+  boxSizing: "border-box",
+};
+
+const subscriptionInputErrorStyle = {
+  ...subscriptionInputStyle,
+  borderColor: "#ef4444",
+};
+
+const subscriptionConsentStyle = {
+  gridColumn: "1 / -1",
+  display: "flex",
+  gap: 8,
+  alignItems: "flex-start",
+  color: publicColors.muted,
+  fontSize: 12,
+  fontWeight: 750,
+  lineHeight: 1.32,
+};
+
+const subscriptionSubmitButtonStyle = {
+  ...publicPrimaryActionStyle,
+  minHeight: 38,
+  padding: "8px 11px",
+  font: "inherit",
+  whiteSpace: "nowrap",
+};
+
+const subscriptionHoneypotStyle = {
+  position: "absolute",
+  left: "-10000px",
+  width: 1,
+  height: 1,
+  overflow: "hidden",
+};
+
+const updateInfoNoticeStyle = {
+  border: `1px solid ${publicColors.border}`,
+  borderRadius: 8,
+  background: "#f8fafc",
+  color: publicColors.text,
+  padding: "8px 10px",
+  marginTop: 8,
+  marginBottom: 10,
+  fontSize: 13,
+  fontWeight: 800,
+};
+
+const updateSuccessNoticeStyle = {
+  ...updateInfoNoticeStyle,
+  borderColor: "#86efac",
+  background: "#f0fdf4",
+  color: "#166534",
+};
+
+const updateErrorNoticeStyle = {
+  ...updateInfoNoticeStyle,
+  borderColor: "#fecaca",
+  background: "#fef2f2",
+  color: "#991b1b",
 };
 
 const summaryStyle = {
