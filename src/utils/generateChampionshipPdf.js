@@ -600,6 +600,13 @@ export function generateChampionshipPdf({
 
     if (!detail) return null;
 
+    if (detail.disqualified) {
+      return {
+        points: "DQ",
+        score: safeText(detail.dqReason || "Disqualification"),
+      };
+    }
+
     return {
       points: formatChampionshipPoints(detail.points),
       score: formatEventScoreBackLabel(detail),

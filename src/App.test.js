@@ -406,6 +406,65 @@ test("groups championship teams by stable rider and horse numbers before names",
   expect(openClass.teams[0].details).toHaveLength(2);
 });
 
+test("keeps disqualified championship teams visible while recalculating standings", () => {
+  const importBatch = buildChampionshipImportBatchFromCsv({
+    fileName: "may.csv",
+    csvText: [
+      "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+      'S1,AQR MAY SHOW 1,Open,1100,,3,3,1,1,HORSE A,,"RIDER, ALICE",,101,1,72,0',
+      'S1,AQR MAY SHOW 1,Open,1100,,3,3,1,1,HORSE B,,"RIDER, BEN",,102,2,71,0',
+      'S1,AQR MAY SHOW 1,Open,1100,,3,3,1,1,HORSE C,,"RIDER, CAROL",,103,3,70,0',
+    ].join("\n"),
+  });
+  const dataset = buildChampionshipDatasetFromImports({
+    imports: [importBatch],
+    corrections: {
+      disqualifications: [
+        {
+          id: "dq-ben",
+          sourceImportId: importBatch.id,
+          sourceRowNumber: 3,
+          reason: "Cheval non eligible a la classe.",
+        },
+      ],
+    },
+  });
+  const openClass = dataset.classes.find((item) => item.id === "nrha-open");
+  const event = openClass.events[0];
+
+  expect(event.results).toMatchObject([
+    {
+      rider: "RIDER, ALICE",
+      placeNum: 1,
+      points: 2,
+      entryCount: 2,
+    },
+    {
+      rider: "RIDER, CAROL",
+      placeNum: 2,
+      rawOriginalPlaceNum: "3",
+      points: 1,
+      entryCount: 2,
+    },
+    {
+      rider: "RIDER, BEN",
+      disqualified: true,
+      dqReason: "Cheval non eligible a la classe.",
+      placeNum: 0,
+      rawPlaceNum: "DQ",
+      rawOriginalPlaceNum: "2",
+      points: 0,
+    },
+  ]);
+  expect(event.totalPoints).toBe(3);
+  expect(openClass.teams.map((team) => team.rider)).toEqual([
+    "RIDER, ALICE",
+    "RIDER, CAROL",
+  ]);
+  expect(openClass.teams.map((team) => team.totalPoints)).toEqual([2, 1]);
+  expect(dataset.corrections.disqualifications).toHaveLength(1);
+});
+
 test("validates required championship verification request fields", () => {
   const classEntry = { id: "open", events: [{ eventKey: "S1|1100|1|1" }] };
 

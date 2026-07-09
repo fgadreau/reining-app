@@ -579,7 +579,9 @@ function ChampionshipClassTable({
                         {detail ? (
                           <>
                           <div style={eventCellPointsStyle}>
-                            {formatChampionshipPoints(detail.points)}
+                            {detail.disqualified
+                              ? t("championship.occurrence.disqualifiedShort")
+                              : formatChampionshipPoints(detail.points)}
                           </div>
                           <div style={eventCellMetaStyle}>
                             {formatChampionshipDetailMeta(detail, t)}
@@ -666,7 +668,9 @@ function ChampionshipClassMobileStandings({ classEntry, onSelectOccurrence, t })
                         {detailLabel}
                       </span>
                       <span style={mobileOccurrenceValueStyle}>
-                        {formatChampionshipPoints(detail.points)} pts
+                        {detail.disqualified
+                          ? t("championship.occurrence.disqualifiedShort")
+                          : `${formatChampionshipPoints(detail.points)} pts`}
                       </span>
                       <span style={mobileOccurrenceMetaStyle}>
                         {formatChampionshipDetailMeta(detail, t)}
@@ -956,6 +960,14 @@ function formatIncludedShowLabel(show) {
 }
 
 function formatChampionshipDetailMeta(detail, t) {
+  if (detail.disqualified) {
+    return detail.dqReason
+      ? t("championship.occurrence.disqualificationReason", {
+          reason: detail.dqReason,
+        })
+      : t("championship.occurrence.disqualifiedShort");
+  }
+
   const placeScore = t("championship.public.placeScore", {
     place: detail.placeNum || "-",
     score: detail.totalScore || "-",

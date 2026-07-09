@@ -160,11 +160,18 @@ function OccurrenceResultTable({ results, teamKey, t }) {
             results.map((result, index) => (
               <tr
                 key={buildResultKey(result, index)}
-                style={result.teamKey && result.teamKey === teamKey ? selectedRowStyle : null}
+                style={getResultRowStyle(result, teamKey)}
               >
-                <td style={tdStyle}>{formatValue(result.rawPlaceNum, result.placeNum)}</td>
+                <td style={tdStyle}>{formatOccurrencePlace(result, t)}</td>
                 <td style={tdStyle}>{result.backNumber || "-"}</td>
-                <td style={nameTdStyle}>{result.rider || "-"}</td>
+                <td style={nameTdStyle}>
+                  {result.rider || "-"}
+                  {result.disqualified && (
+                    <span style={dqBadgeStyle}>
+                      {t("championship.occurrence.disqualifiedShort")}
+                    </span>
+                  )}
+                </td>
                 <td style={nameTdStyle}>{result.horse || "-"}</td>
                 <td style={tdStyle}>
                   {formatValue(result.rawTotalScore, result.totalScore)}
@@ -175,7 +182,16 @@ function OccurrenceResultTable({ results, teamKey, t }) {
                 <td style={sourceClassTdStyle}>
                   {formatClassLabel(result.classCode, result.className)}
                 </td>
-                <td style={sourceTdStyle}>{formatSourceRow(result, t)}</td>
+                <td style={sourceTdStyle}>
+                  <div>{formatSourceRow(result, t)}</div>
+                  {result.disqualified && (
+                    <div style={dqReasonInlineStyle}>
+                      {t("championship.occurrence.disqualificationReason", {
+                        reason: result.dqReason || "-",
+                      })}
+                    </div>
+                  )}
+                </td>
               </tr>
             ))
           ) : (
@@ -218,11 +234,18 @@ function OccurrenceResultCards({ results, teamKey, t }) {
                   {t("championship.occurrence.rank")}
                 </div>
                 <div style={mobileResultRankValueStyle}>
-                  {formatValue(result.rawPlaceNum, result.placeNum)}
+                  {formatOccurrencePlace(result, t)}
                 </div>
               </div>
               <div style={mobileResultIdentityStyle}>
-                <div style={mobileResultNameStyle}>{result.rider || "-"}</div>
+                <div style={mobileResultNameStyle}>
+                  {result.rider || "-"}
+                  {result.disqualified && (
+                    <span style={dqBadgeStyle}>
+                      {t("championship.occurrence.disqualifiedShort")}
+                    </span>
+                  )}
+                </div>
                 <div style={mobileResultHorseStyle}>{result.horse || "-"}</div>
                 {result.backNumber && (
                   <div style={mobileResultBackNumberStyle}>
@@ -254,6 +277,14 @@ function OccurrenceResultCards({ results, teamKey, t }) {
                 value={formatSourceRow(result, t)}
                 wide
               />
+              {result.disqualified && (
+                <MobileResultDetail
+                  label={t("championship.occurrence.disqualified")}
+                  value={result.dqReason || "-"}
+                  wide
+                  tone="danger"
+                />
+              )}
             </div>
           </article>
         );
@@ -262,9 +293,17 @@ function OccurrenceResultCards({ results, teamKey, t }) {
   );
 }
 
-function MobileResultDetail({ label, value, wide = false }) {
+function MobileResultDetail({ label, value, wide = false, tone = "default" }) {
   return (
-    <div style={wide ? mobileResultDetailWideStyle : mobileResultDetailStyle}>
+    <div
+      style={
+        tone === "danger"
+          ? mobileResultDetailDangerStyle
+          : wide
+            ? mobileResultDetailWideStyle
+            : mobileResultDetailStyle
+      }
+    >
       <div style={mobileResultDetailLabelStyle}>{label}</div>
       <div style={mobileResultDetailValueStyle}>{value || "-"}</div>
     </div>
@@ -304,6 +343,10 @@ function getOccurrenceResults(classEntry, event) {
 }
 
 function compareOccurrenceResults(a, b) {
+  if (Boolean(a.disqualified) !== Boolean(b.disqualified)) {
+    return a.disqualified ? 1 : -1;
+  }
+
   const aPlace = toNumber(a.placeNum);
   const bPlace = toNumber(b.placeNum);
   const aHasPlace = aPlace > 0;
@@ -319,6 +362,30 @@ function compareOccurrenceResults(a, b) {
     toNumber(a.sourceRowNumber) - toNumber(b.sourceRowNumber) ||
     `${a.rider} ${a.horse}`.localeCompare(`${b.rider} ${b.horse}`)
   );
+}
+
+function getResultRowStyle(result, teamKey) {
+  const isSelected = result.teamKey && result.teamKey === teamKey;
+
+  if (result.disqualified && isSelected) {
+    return {
+      ...selectedRowStyle,
+      ...disqualifiedRowStyle,
+    };
+  }
+
+  if (result.disqualified) return disqualifiedRowStyle;
+  if (isSelected) return selectedRowStyle;
+
+  return null;
+}
+
+function formatOccurrencePlace(result, t) {
+  if (result?.disqualified) {
+    return t("championship.occurrence.disqualifiedShort");
+  }
+
+  return formatValue(result?.rawPlaceNum, result?.placeNum);
 }
 
 function formatClassLabel(code, name) {
@@ -717,6 +784,12 @@ const mobileResultDetailWideStyle = {
   gridColumn: "1 / -1",
 };
 
+const mobileResultDetailDangerStyle = {
+  ...mobileResultDetailWideStyle,
+  borderColor: "#fecaca",
+  background: "#fff7ed",
+};
+
 const mobileResultDetailLabelStyle = {
   color: "#64748b",
   fontSize: 10,
@@ -814,6 +887,32 @@ const sourceTdStyle = {
 
 const selectedRowStyle = {
   background: "#ecfeff",
+};
+
+const disqualifiedRowStyle = {
+  background: "#fff7ed",
+};
+
+const dqBadgeStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  marginLeft: 6,
+  border: "1px solid #fb923c",
+  borderRadius: 999,
+  background: "#ffedd5",
+  color: "#9a3412",
+  padding: "2px 6px",
+  fontSize: 10,
+  fontWeight: 950,
+  lineHeight: 1,
+  verticalAlign: "middle",
+};
+
+const dqReasonInlineStyle = {
+  marginTop: 4,
+  color: "#9a3412",
+  fontWeight: 850,
+  lineHeight: 1.25,
 };
 
 const emptyTdStyle = {

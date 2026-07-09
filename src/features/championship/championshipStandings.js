@@ -91,10 +91,12 @@ export function buildChampionshipImportBatchFromCsv({
 
 export function buildChampionshipDatasetFromImports({
   imports = [],
+  corrections = {},
   seasonTitle = "",
   year = "",
   status = "draft",
 } = {}) {
+  const normalizedCorrections = normalizeChampionshipCorrections(corrections);
   const normalizedImports = normalizeImportBatches(imports);
   const importedRows = normalizedImports.flatMap((importBatch, importIndex) =>
     importBatch.rows.map((row) => ({
@@ -110,13 +112,18 @@ export function buildChampionshipDatasetFromImports({
   );
   const deduped = dedupeImportedRows(activeImportedRows);
   const analysis = analyzeRows(deduped.rows);
-  const standings = buildStandings(analysis.includedRows);
+  const correctedRows = applyChampionshipDisqualifications(
+    analysis.includedRows,
+    normalizedCorrections.disqualifications
+  );
+  const standings = buildStandings(correctedRows);
 
   return {
     id: "",
     title: seasonTitle || "Championnat de saison",
     year: year || "",
     status,
+    corrections: normalizedCorrections,
     imports: normalizedImports,
     importCount: normalizedImports.length,
     importedAt: getLatestImportedAt(normalizedImports),
@@ -131,6 +138,7 @@ export function buildChampionshipDatasetFromImports({
       ignoredRows: importedRows.length - activeImportedRows.length,
       uniqueRows: deduped.rows.length,
       duplicateRows: deduped.duplicateRows,
+      disqualificationCount: normalizedCorrections.disqualifications.length,
     },
   };
 }
@@ -167,11 +175,13 @@ export function stripChampionshipMoneyData(dataset) {
           : [],
       }))
     : dataset.imports;
+  const corrections = normalizeChampionshipCorrections(dataset.corrections);
 
   return {
     ...dataset,
     classes,
     imports,
+    corrections,
   };
 }
 
@@ -266,6 +276,40 @@ export function buildChampionshipResultDuplicateKey(row) {
   if (!eventKey || !row?.teamKey) return "";
 
   return `${eventKey}|${row.teamKey}`;
+}
+
+export function buildChampionshipDisqualificationKey(row) {
+  if (!row || typeof row !== "object") return "";
+
+  const sourceImportId = String(row.sourceImportId || "").trim();
+  const sourceRowNumber = String(row.sourceRowNumber || "").trim();
+
+  if (sourceImportId && sourceRowNumber) {
+    return `source:${sourceImportId}:${sourceRowNumber}`;
+  }
+
+  const eventKey = row.eventKey || buildChampionshipEventKey(row);
+  const championshipClassId = String(row.championshipClassId || "").trim();
+  const teamKey = String(row.teamKey || "").trim();
+
+  if (eventKey && championshipClassId && teamKey) {
+    return `team:${championshipClassId}:${eventKey}:${teamKey}`;
+  }
+
+  return "";
+}
+
+export function normalizeChampionshipCorrections(corrections = {}) {
+  const disqualifications = Array.isArray(corrections?.disqualifications)
+    ? corrections.disqualifications
+        .map(normalizeChampionshipDisqualification)
+        .filter(Boolean)
+    : [];
+
+  return {
+    ...corrections,
+    disqualifications,
+  };
 }
 
 export function isChampionshipRowIgnored(row) {
@@ -367,6 +411,7 @@ export function ensureChampionshipOccurrenceResults(dataset) {
 
   const rebuilt = buildChampionshipDatasetFromImports({
     imports: dataset.imports,
+    corrections: dataset.corrections || {},
     seasonTitle: dataset.title,
     year: dataset.year,
     status: dataset.status,
@@ -387,6 +432,7 @@ export function ensureChampionshipOccurrenceResults(dataset) {
     ...dataset,
     ...labeled,
     imports: dataset.imports,
+    corrections: normalizeChampionshipCorrections(dataset.corrections),
     publicEventLabels: dataset.publicEventLabels || {},
     publicEventOrder: dataset.publicEventOrder || {},
   };
@@ -991,6 +1037,205 @@ function addClassSummary(map, row, reason) {
   map.get(key).rows += 1;
 }
 
+function normalizeChampionshipDisqualification(disqualification) {
+  if (!disqualification || typeof disqualification !== "object") return null;
+
+  const reason = String(disqualification.reason || "").trim();
+  if (!reason) return null;
+
+  const championshipClassId = String(
+    disqualification.championshipClassId || disqualification.classId || ""
+  ).trim();
+  const eventKey = String(disqualification.eventKey || "").trim();
+  const teamKey = String(disqualification.teamKey || "").trim();
+  const sourceImportId = String(disqualification.sourceImportId || "").trim();
+  const sourceRowNumber = String(disqualification.sourceRowNumber || "").trim();
+  const key =
+    String(disqualification.key || "").trim() ||
+    buildChampionshipDisqualificationKey({
+      championshipClassId,
+      eventKey,
+      teamKey,
+      sourceImportId,
+      sourceRowNumber,
+    });
+
+  if (!key || disqualification.active === false) return null;
+
+  return {
+    ...disqualification,
+    id: String(disqualification.id || key).trim(),
+    key,
+    championshipClassId,
+    eventKey,
+    teamKey,
+    sourceImportId,
+    sourceRowNumber,
+    rider: String(disqualification.rider || "").trim(),
+    horse: String(disqualification.horse || "").trim(),
+    backNumber: String(disqualification.backNumber || "").trim(),
+    reason,
+    active: true,
+    createdAt: disqualification.createdAt || "",
+  };
+}
+
+function applyChampionshipDisqualifications(rows, disqualifications) {
+  if (!Array.isArray(rows) || rows.length === 0) return [];
+  if (!Array.isArray(disqualifications) || disqualifications.length === 0) {
+    return rows;
+  }
+
+  const disqualificationsByKey = new Map(
+    disqualifications.map((disqualification) => [
+      disqualification.key,
+      disqualification,
+    ])
+  );
+  const rowsByEvent = new Map();
+  const correctedRows = rows.map((row) => {
+    const disqualification = findDisqualificationForRow(
+      row,
+      disqualificationsByKey,
+      disqualifications
+    );
+    const nextRow = disqualification
+      ? {
+          ...row,
+          disqualified: true,
+          dqReason: disqualification.reason,
+          disqualificationId: disqualification.id,
+          disqualificationKey: disqualification.key,
+          originalPlaceNum: row.placeNum,
+          rawOriginalPlaceNum: row.rawPlaceNum,
+          originalEntryCount: row.entryCount,
+          rawOriginalEntryCount: row.rawEntryCount,
+          originalShownCount: row.shownCount,
+          rawOriginalShownCount: row.rawShownCount,
+          placeNum: 0,
+          rawPlaceNum: "DQ",
+          points: 0,
+          tieCount: 0,
+        }
+      : row;
+    const eventKey = buildChampionshipEventKey(row);
+
+    if (!rowsByEvent.has(eventKey)) {
+      rowsByEvent.set(eventKey, []);
+    }
+    rowsByEvent.get(eventKey).push(nextRow);
+
+    return nextRow;
+  });
+
+  rowsByEvent.forEach((eventRows, eventKey) => {
+    if (!eventRows.some((row) => row.disqualified)) return;
+
+    const disqualifiedPlacedCount = eventRows.filter(
+      (row) => row.disqualified && toNumber(row.originalPlaceNum) > 0
+    ).length;
+    const adjustedEntryCount = Math.max(
+      0,
+      Math.max(...eventRows.map((row) => toNumber(row.originalEntryCount || row.entryCount))) -
+        disqualifiedPlacedCount
+    );
+    const adjustedShownCount = Math.max(
+      0,
+      Math.max(...eventRows.map((row) => toNumber(row.originalShownCount || row.shownCount))) -
+        disqualifiedPlacedCount
+    );
+    const validRows = eventRows
+      .filter((row) => !row.disqualified)
+      .slice()
+      .sort(compareRowsForDisqualificationRecalculation);
+    let nextPlace = 1;
+    let index = 0;
+
+    while (index < validRows.length) {
+      const originalPlace = toNumber(validRows[index].placeNum);
+      const tiedRows = [validRows[index]];
+      let nextIndex = index + 1;
+
+      while (
+        nextIndex < validRows.length &&
+        originalPlace > 0 &&
+        toNumber(validRows[nextIndex].placeNum) === originalPlace
+      ) {
+        tiedRows.push(validRows[nextIndex]);
+        nextIndex += 1;
+      }
+
+      tiedRows.forEach((row) => {
+        if (originalPlace <= 0) return;
+
+        row.originalPlaceNum = row.originalPlaceNum ?? row.placeNum;
+        row.rawOriginalPlaceNum = row.rawOriginalPlaceNum ?? row.rawPlaceNum;
+        row.originalEntryCount = row.originalEntryCount ?? row.entryCount;
+        row.rawOriginalEntryCount = row.rawOriginalEntryCount ?? row.rawEntryCount;
+        row.originalShownCount = row.originalShownCount ?? row.shownCount;
+        row.rawOriginalShownCount = row.rawOriginalShownCount ?? row.rawShownCount;
+        row.placeNum = nextPlace;
+        row.rawPlaceNum = String(nextPlace);
+        if (adjustedEntryCount > 0) {
+          row.entryCount = adjustedEntryCount;
+          row.rawEntryCount = String(adjustedEntryCount);
+        }
+        if (adjustedShownCount > 0) {
+          row.shownCount = adjustedShownCount;
+          row.rawShownCount = String(adjustedShownCount);
+        }
+        row.recalculatedAfterDisqualification = true;
+      });
+
+      if (originalPlace > 0) {
+        nextPlace += tiedRows.length;
+      }
+      index = nextIndex;
+    }
+  });
+
+  return correctedRows;
+}
+
+function findDisqualificationForRow(
+  row,
+  disqualificationsByKey,
+  disqualifications
+) {
+  const directKey = buildChampionshipDisqualificationKey(row);
+  if (directKey && disqualificationsByKey.has(directKey)) {
+    return disqualificationsByKey.get(directKey);
+  }
+
+  const eventKey = buildChampionshipEventKey(row);
+  return disqualifications.find((disqualification) => {
+    if (disqualification.sourceImportId && disqualification.sourceRowNumber) {
+      const sourceMatches =
+        disqualification.sourceImportId === String(row.sourceImportId || "").trim() &&
+        disqualification.sourceRowNumber === String(row.sourceRowNumber || "").trim();
+
+      if (sourceMatches) return true;
+    }
+
+    return (
+      disqualification.championshipClassId ===
+        String(row.championshipClassId || "").trim() &&
+      disqualification.eventKey === eventKey &&
+      disqualification.teamKey === String(row.teamKey || "").trim()
+    );
+  });
+}
+
+function compareRowsForDisqualificationRecalculation(a, b) {
+  const placeDiff = toNumber(a.placeNum) - toNumber(b.placeNum);
+  if (Math.abs(placeDiff) > 1e-9) return placeDiff;
+
+  const scoreDiff = toNumber(b.totalScore) - toNumber(a.totalScore);
+  if (Math.abs(scoreDiff) > 1e-9) return scoreDiff;
+
+  return toNumber(a.sourceRowNumber) - toNumber(b.sourceRowNumber);
+}
+
 function buildStandings(rows) {
   const rowsWithPoints = applyTiePoints(rows);
   const classesById = new Map();
@@ -1036,6 +1281,17 @@ function buildStandings(rows) {
       rawTotalScore: row.rawTotalScore,
       points: row.points,
       tieCount: row.tieCount,
+      disqualified: row.disqualified,
+      dqReason: row.dqReason,
+      disqualificationId: row.disqualificationId,
+      disqualificationKey: row.disqualificationKey,
+      originalPlaceNum: row.originalPlaceNum,
+      rawOriginalPlaceNum: row.rawOriginalPlaceNum,
+      originalEntryCount: row.originalEntryCount,
+      rawOriginalEntryCount: row.rawOriginalEntryCount,
+      originalShownCount: row.originalShownCount,
+      rawOriginalShownCount: row.rawOriginalShownCount,
+      recalculatedAfterDisqualification: row.recalculatedAfterDisqualification,
       backNumber: row.backNumber,
       horseNrha: row.horseNrha,
       memberNrha: row.memberNrha,
@@ -1097,6 +1353,8 @@ function applyTiePoints(rows) {
   const tieCounts = new Map();
 
   rows.forEach((row) => {
+    if (row.disqualified) return;
+
     const maxPoints = Math.min(Math.max(row.entryCount, 0), 10);
     if (row.placeNum <= 0 || row.placeNum > maxPoints) return;
 
@@ -1105,6 +1363,14 @@ function applyTiePoints(rows) {
   });
 
   return rows.map((row) => {
+    if (row.disqualified) {
+      return {
+        ...row,
+        points: 0,
+        tieCount: 0,
+      };
+    }
+
     const tieKey = `${buildChampionshipEventKey(row)}|${row.placeNum}`;
     const tieCount = tieCounts.get(tieKey) || 1;
 
@@ -1193,6 +1459,7 @@ function getOrCreateTeamEntry(teamByClassAndKey, classEntry, row) {
 
 function buildOccurrenceResult(row) {
   return {
+    eventKey: buildChampionshipEventKey(row),
     teamKey: row.teamKey,
     rider: row.rider,
     horse: row.horse,
@@ -1205,6 +1472,17 @@ function buildOccurrenceResult(row) {
     rawTotalScore: row.rawTotalScore,
     points: row.points,
     tieCount: row.tieCount,
+    disqualified: row.disqualified,
+    dqReason: row.dqReason,
+    disqualificationId: row.disqualificationId,
+    disqualificationKey: row.disqualificationKey,
+    originalPlaceNum: row.originalPlaceNum,
+    rawOriginalPlaceNum: row.rawOriginalPlaceNum,
+    originalEntryCount: row.originalEntryCount,
+    rawOriginalEntryCount: row.rawOriginalEntryCount,
+    originalShownCount: row.originalShownCount,
+    rawOriginalShownCount: row.rawOriginalShownCount,
+    recalculatedAfterDisqualification: row.recalculatedAfterDisqualification,
     entryCount: row.entryCount,
     rawEntryCount: row.rawEntryCount,
     shownCount: row.shownCount,

@@ -8,11 +8,13 @@ import {
 } from "../../features/classes/classRepository";
 import {
   applyChampionshipEventLabels,
+  buildChampionshipDisqualificationKey,
   buildChampionshipDatasetFromImports,
   buildChampionshipImportBatchFromCsv,
   getChampionshipIncludedShows,
   buildChampionshipResultDuplicateKey,
   isChampionshipRowIgnored,
+  normalizeChampionshipCorrections,
 } from "../../features/championship/championshipStandings";
 import {
   getLatestChampionshipSeasonRepository,
@@ -55,6 +57,13 @@ function AssociationChampionshipPage() {
   const [preview, setPreview] = useState(null);
   const [showScoreImportPreview, setShowScoreImportPreview] = useState(null);
   const [showScoreExcludedClassKeys, setShowScoreExcludedClassKeys] = useState([]);
+  const [dqForm, setDqForm] = useState({
+    classId: "",
+    eventKey: "",
+    resultKey: "",
+    reason: "",
+  });
+  const [dqErrorMessage, setDqErrorMessage] = useState("");
   const [eventLabels, setEventLabels] = useState({});
   const [eventOrder, setEventOrder] = useState({});
   const [pendingDuplicateImport, setPendingDuplicateImport] = useState(null);
@@ -124,6 +133,10 @@ function AssociationChampionshipPage() {
       ),
     [showScoreImportPreview, showScoreExcludedClassKeys]
   );
+  const championshipCorrections = useMemo(
+    () => normalizeChampionshipCorrections(preview?.corrections || {}),
+    [preview]
+  );
 
   const updateSeasonTitle = (value) => {
     setSeasonTitle(value);
@@ -144,11 +157,13 @@ function AssociationChampionshipPage() {
     imports,
     labels = eventLabels,
     order = eventOrder,
-    nextStatus = seasonStatus
+    nextStatus = seasonStatus,
+    corrections = preview?.corrections || season?.corrections || {}
   ) => {
     const nextEventLabels = sanitizeEventLabels(labels);
     const dataset = buildChampionshipDatasetFromImports({
       imports,
+      corrections,
       seasonTitle,
       year: seasonYear,
       status: nextStatus,
@@ -433,6 +448,144 @@ function AssociationChampionshipPage() {
     setSaveMessage("");
   };
 
+  const updateDqForm = (field, value) => {
+    setDqForm((current) => {
+      if (field === "classId") {
+        return {
+          classId: value,
+          eventKey: "",
+          resultKey: "",
+          reason: current.reason,
+        };
+      }
+
+      if (field === "eventKey") {
+        return {
+          ...current,
+          eventKey: value,
+          resultKey: "",
+        };
+      }
+
+      return {
+        ...current,
+        [field]: value,
+      };
+    });
+    setDqErrorMessage("");
+    setSaveMessage("");
+  };
+
+  const addDisqualificationCorrection = async () => {
+    if (!preview) return;
+
+    const reason = String(dqForm.reason || "").trim();
+    const classEntry = classSummaries.find((item) => item.id === dqForm.classId);
+    const event = classEntry?.events.find((item) => item.eventKey === dqForm.eventKey);
+    const result = event?.results.find(
+      (item) =>
+        buildChampionshipDisqualificationKey({
+          ...item,
+          eventKey: event.eventKey,
+          championshipClassId: classEntry.id,
+        }) === dqForm.resultKey
+    );
+
+    if (!classEntry || !event || !result) {
+      setDqErrorMessage(t("championship.admin.dqSelectResultRequired"));
+      return;
+    }
+
+    if (!reason) {
+      setDqErrorMessage(t("championship.admin.dqReasonRequired"));
+      return;
+    }
+
+    const key = buildChampionshipDisqualificationKey({
+      ...result,
+      eventKey: event.eventKey,
+      championshipClassId: classEntry.id,
+    });
+    const nextCorrection = {
+      id: `dq-${Date.now()}`,
+      key,
+      championshipClassId: classEntry.id,
+      championshipClassName: classEntry.name,
+      eventKey: event.eventKey,
+      eventLabel: event.label,
+      showNum: event.showNum,
+      showName: event.showName,
+      teamKey: result.teamKey,
+      sourceImportId: result.sourceImportId,
+      sourceFileName: result.sourceFileName,
+      sourceRowNumber: result.sourceRowNumber,
+      rider: result.rider,
+      horse: result.horse,
+      backNumber: result.backNumber,
+      horseNrha: result.horseNrha,
+      memberNrha: result.memberNrha,
+      reason,
+      createdAt: new Date().toISOString(),
+      active: true,
+    };
+    const nextCorrections = upsertDisqualificationCorrection(
+      championshipCorrections,
+      nextCorrection
+    );
+    const nextPreview = rebuildPreviewFromImports(
+      getPreviewImports(preview),
+      eventLabels,
+      eventOrder,
+      seasonStatus,
+      nextCorrections
+    );
+
+    setPreview(nextPreview);
+    setEventOrder(nextPreview.publicEventOrder || {});
+    setDqForm({
+      classId: classEntry.id,
+      eventKey: event.eventKey,
+      resultKey: "",
+      reason: "",
+    });
+    setDqErrorMessage("");
+    await savePreviewSeason({
+      previewToSave: nextPreview,
+      nextStatus: seasonStatus,
+      order: nextPreview.publicEventOrder || eventOrder,
+      successMessage: t("championship.admin.dqSaved"),
+      errorSetter: setDqErrorMessage,
+    });
+  };
+
+  const removeDisqualificationCorrection = async (disqualificationId) => {
+    if (!preview) return;
+
+    const nextCorrections = {
+      ...championshipCorrections,
+      disqualifications: championshipCorrections.disqualifications.filter(
+        (disqualification) => disqualification.id !== disqualificationId
+      ),
+    };
+    const nextPreview = rebuildPreviewFromImports(
+      getPreviewImports(preview),
+      eventLabels,
+      eventOrder,
+      seasonStatus,
+      nextCorrections
+    );
+
+    setPreview(nextPreview);
+    setEventOrder(nextPreview.publicEventOrder || {});
+    await savePreviewSeason({
+      previewToSave: nextPreview,
+      nextStatus: seasonStatus,
+      order: nextPreview.publicEventOrder || eventOrder,
+      successMessage: t("championship.admin.dqRemoved"),
+      errorSetter: setDqErrorMessage,
+    });
+  };
+
   const handleEventLabelChange = (eventKey, value) => {
     const nextLabels = {
       ...eventLabels,
@@ -465,25 +618,34 @@ function AssociationChampionshipPage() {
     );
   };
 
-  const saveSeason = async (nextStatus = seasonStatus) => {
-    if (!preview) return;
+  const savePreviewSeason = async ({
+    previewToSave = preview,
+    nextStatus = seasonStatus,
+    labels = eventLabels,
+    order = eventOrder,
+    successMessage = t("championship.admin.saved"),
+    errorSetter = setErrorMessage,
+  } = {}) => {
+    if (!previewToSave) return null;
 
     setIsSaving(true);
     setErrorMessage("");
+    setDqErrorMessage("");
     setSaveMessage("");
 
     try {
-      const allowedKeys = new Set(technicalShows.map((event) => event.key));
-      const nextEventLabels = sanitizeEventLabels(eventLabels, allowedKeys);
-      const nextEventOrder = buildEventOrderSettings(technicalShows, eventOrder);
+      const saveTechnicalShows = getChampionshipIncludedShows(previewToSave);
+      const allowedKeys = new Set(saveTechnicalShows.map((event) => event.key));
+      const nextEventLabels = sanitizeEventLabels(labels, allowedKeys);
+      const nextEventOrder = buildEventOrderSettings(saveTechnicalShows, order);
       const labeledPreview = applyChampionshipEventLabels(
-        preview,
+        previewToSave,
         nextEventLabels,
         nextEventOrder
       );
       const saved = await saveChampionshipSeasonRepository({
         ...labeledPreview,
-        id: season?.id || preview.id,
+        id: season?.id || previewToSave.id,
         associationId,
         title: seasonTitle,
         year: seasonYear,
@@ -498,14 +660,20 @@ function AssociationChampionshipPage() {
       setSeasonStatus(saved.status || nextStatus);
       setSaveMessage(
         getLocalFirstSyncNoticeTone(saved) === "synced"
-          ? t("championship.admin.saved")
+          ? successMessage
           : formatLocalFirstSyncNotice(saved, t)
       );
+      return saved;
     } catch (error) {
-      setErrorMessage(error?.message || t("common.saveFailed", { message: "" }));
+      errorSetter(error?.message || t("common.saveFailed", { message: "" }));
+      return null;
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const saveSeason = async (nextStatus = seasonStatus) => {
+    await savePreviewSeason({ nextStatus });
   };
 
   const exportChampionshipPdf = () => {
@@ -851,6 +1019,18 @@ function AssociationChampionshipPage() {
             </section>
           )}
 
+          <ChampionshipDisqualificationPanel
+            classes={classSummaries}
+            corrections={championshipCorrections}
+            form={dqForm}
+            errorMessage={dqErrorMessage}
+            isSaving={isSaving}
+            onChange={updateDqForm}
+            onAdd={addDisqualificationCorrection}
+            onRemove={removeDisqualificationCorrection}
+            t={t}
+          />
+
           {technicalShows.length > 0 && (
             <section style={panelStyle}>
               <div style={sectionTitleStyle}>{t("championship.admin.publicLabels")}</div>
@@ -987,6 +1167,171 @@ function SummaryCard({ label, value }) {
       <div style={summaryValueStyle}>{value}</div>
       <div style={mutedTextStyle}>{label}</div>
     </div>
+  );
+}
+
+function ChampionshipDisqualificationPanel({
+  classes,
+  corrections,
+  form,
+  errorMessage,
+  isSaving,
+  onChange,
+  onAdd,
+  onRemove,
+  t,
+}) {
+  const classOptions = Array.isArray(classes) ? classes : [];
+  const selectedClass =
+    classOptions.find((classEntry) => classEntry.id === form.classId) || null;
+  const eventOptions = Array.isArray(selectedClass?.events)
+    ? selectedClass.events
+    : [];
+  const selectedEvent =
+    eventOptions.find((event) => event.eventKey === form.eventKey) || null;
+  const resultOptions = Array.isArray(selectedEvent?.results)
+    ? selectedEvent.results.map((result) => {
+        const key = buildChampionshipDisqualificationKey({
+          ...result,
+          eventKey: selectedEvent.eventKey,
+          championshipClassId: selectedClass.id,
+        });
+
+        return {
+          key,
+          result,
+        };
+      })
+    : [];
+  const activeKeys = new Set(
+    (corrections.disqualifications || []).map((disqualification) => disqualification.key)
+  );
+  const activeDisqualifications = corrections.disqualifications || [];
+
+  return (
+    <section style={panelStyle}>
+      <div style={sectionTitleStyle}>{t("championship.admin.dqTitle")}</div>
+      <div style={mutedTextStyle}>{t("championship.admin.dqHelp")}</div>
+
+      <div style={dqFormGridStyle}>
+        <label style={fieldStyle}>
+          <span style={labelStyle}>{t("championship.admin.dqClass")}</span>
+          <select
+            value={form.classId}
+            onChange={(event) => onChange("classId", event.target.value)}
+            style={inputStyle}
+          >
+            <option value="">{t("championship.admin.dqChooseClass")}</option>
+            {classOptions.map((classEntry) => (
+              <option key={classEntry.id} value={classEntry.id}>
+                {classEntry.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label style={fieldStyle}>
+          <span style={labelStyle}>{t("championship.admin.dqOccurrence")}</span>
+          <select
+            value={form.eventKey}
+            onChange={(event) => onChange("eventKey", event.target.value)}
+            style={inputStyle}
+            disabled={!selectedClass}
+          >
+            <option value="">{t("championship.admin.dqChooseOccurrence")}</option>
+            {eventOptions.map((event) => (
+              <option key={event.eventKey} value={event.eventKey}>
+                {event.label || event.showName || event.showNum || event.eventKey}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label style={dqWideFieldStyle}>
+          <span style={labelStyle}>{t("championship.admin.dqTeam")}</span>
+          <select
+            value={form.resultKey}
+            onChange={(event) => onChange("resultKey", event.target.value)}
+            style={inputStyle}
+            disabled={!selectedEvent}
+          >
+            <option value="">{t("championship.admin.dqChooseTeam")}</option>
+            {resultOptions.map(({ key, result }) => (
+              <option
+                key={key}
+                value={key}
+                disabled={result.disqualified || activeKeys.has(key)}
+              >
+                {formatDisqualificationResultOption(result, t)}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label style={dqWideFieldStyle}>
+          <span style={labelStyle}>{t("championship.admin.dqReason")}</span>
+          <input
+            value={form.reason}
+            onChange={(event) => onChange("reason", event.target.value)}
+            style={inputStyle}
+            placeholder={t("championship.admin.dqReasonPlaceholder")}
+          />
+        </label>
+      </div>
+
+      {errorMessage && <div style={errorStyle}>{errorMessage}</div>}
+
+      <div style={actionRowStyle}>
+        <button
+          type="button"
+          onClick={onAdd}
+          style={primaryButtonStyle}
+          disabled={isSaving}
+        >
+          {isSaving
+            ? t("championship.admin.dqSaving")
+            : t("championship.admin.dqAdd")}
+        </button>
+      </div>
+
+      {activeDisqualifications.length > 0 ? (
+        <div style={dqListStyle}>
+          {activeDisqualifications.map((disqualification) => (
+            <div key={disqualification.id} style={dqRowStyle}>
+              <div>
+                <div style={classTitleStyle}>
+                  {disqualification.rider || "-"} · {disqualification.horse || "-"}
+                </div>
+                <div style={mutedTextStyle}>
+                  {[
+                    disqualification.championshipClassName,
+                    disqualification.eventLabel ||
+                      disqualification.showName ||
+                      disqualification.showNum,
+                    disqualification.backNumber
+                      ? `${t("public.results.backNumber")} ${disqualification.backNumber}`
+                      : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </div>
+                <div style={dqReasonStyle}>{disqualification.reason}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onRemove(disqualification.id)}
+                style={dangerButtonStyle}
+                disabled={isSaving}
+              >
+                {t("championship.admin.dqRemove")}
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={mutedTextStyle}>{t("championship.admin.dqEmpty")}</div>
+      )}
+    </section>
   );
 }
 
@@ -1226,6 +1571,29 @@ function getPreviewImports(preview) {
   return Array.isArray(preview?.imports) ? preview.imports : [];
 }
 
+function upsertDisqualificationCorrection(corrections, disqualification) {
+  const normalized = normalizeChampionshipCorrections(corrections);
+  const nextDisqualifications = normalized.disqualifications.filter(
+    (item) => item.key !== disqualification.key && item.id !== disqualification.id
+  );
+
+  return normalizeChampionshipCorrections({
+    ...normalized,
+    disqualifications: [...nextDisqualifications, disqualification],
+  });
+}
+
+function formatDisqualificationResultOption(result, t) {
+  const parts = [
+    result.backNumber ? `${t("public.results.backNumber")} ${result.backNumber}` : "",
+    result.rider || "-",
+    result.horse || "-",
+    result.disqualified ? "DQ" : "",
+  ].filter(Boolean);
+
+  return parts.join(" · ");
+}
+
 function sanitizeEventLabels(labelsByShow, allowedKeys = null) {
   return Object.fromEntries(
     Object.entries(labelsByShow || {})
@@ -1460,9 +1828,45 @@ const showSettingsFieldsStyle = {
   alignItems: "end",
 };
 
+const dqFormGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
+  gap: 12,
+  marginTop: 12,
+};
+
+const dqListStyle = {
+  display: "grid",
+  gap: 10,
+  marginTop: 12,
+};
+
+const dqRowStyle = {
+  border: "1px solid #fecaca",
+  borderRadius: 8,
+  padding: 12,
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  flexWrap: "wrap",
+  background: "#fff7ed",
+};
+
+const dqReasonStyle = {
+  marginTop: 6,
+  color: "#9a3412",
+  fontWeight: 850,
+};
+
 const fieldStyle = {
   display: "grid",
   gap: 6,
+  minWidth: 0,
+};
+
+const dqWideFieldStyle = {
+  ...fieldStyle,
+  gridColumn: "1 / -1",
 };
 
 const labelStyle = {
@@ -1472,6 +1876,8 @@ const labelStyle = {
 };
 
 const inputStyle = {
+  width: "100%",
+  minWidth: 0,
   minHeight: 42,
   border: "1px solid #cbd5e1",
   borderRadius: 8,
