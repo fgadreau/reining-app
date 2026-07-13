@@ -30,6 +30,7 @@ import {
 } from "../../features/classes/classFinalizationService";
 import {
   getClassStatus,
+  isClassScoringFinalized,
 } from "../../features/classes/classStatusSelectors";
 import { resolveClassScoringId } from "../../features/classes/classScoringGroups";
 import { loadAssociations } from "../../features/associations/associationsData";
@@ -426,12 +427,7 @@ function ClassScoringPage() {
     return allAssociations.find((item) => item.id === associationId) || null;
   }, [associationId]);
 
-  const isClassCompleted = Boolean(
-    classSetup?.finalized ||
-      classSetup?.judgeSignedAt ||
-      classItem?.finalized ||
-      classItem?.judgeSignedAt
-  );
+  const isClassCompleted = isClassScoringFinalized(classData);
   const [activeJudgeSession, setActiveJudgeSession] = useState(null);
   const [judgeClaimState, setJudgeClaimState] = useState({
     status: "idle",
@@ -568,12 +564,7 @@ function ClassScoringPage() {
         nextRuns
       );
       const nextActiveManoeuvre = loadActiveManoeuvre(classId);
-      const nextIsCompleted = Boolean(
-        nextSetup?.finalized ||
-          nextSetup?.judgeSignedAt ||
-          nextClassItem?.finalized ||
-          nextClassItem?.judgeSignedAt
-      );
+      const nextIsCompleted = isClassScoringFinalized(nextData);
 
       setClassData(nextData);
       setActiveJudgeId((currentJudgeId) => {

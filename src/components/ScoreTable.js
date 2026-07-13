@@ -1,6 +1,68 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import RunRows from "./RunRows";
 import { useTranslation } from "../features/i18n/I18nProvider";
+import { shouldFitScoringTableToViewport } from "../features/scoring/scoringTableViewport";
+
+function getShouldFitTable() {
+  if (typeof window === "undefined") return false;
+
+  return shouldFitScoringTableToViewport({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
+}
+
+function buildTableStyles(styles, shouldFitTable) {
+  if (!shouldFitTable) return styles;
+
+  return {
+    ...styles,
+    tableWrap: {
+      ...styles.tableWrap,
+      width: "100%",
+      maxWidth: "100%",
+      padding: "6px",
+      boxSizing: "border-box",
+    },
+    table: {
+      ...styles.table,
+      minWidth: "100%",
+      tableLayout: "fixed",
+    },
+    th: {
+      ...styles.th,
+      minWidth: 0,
+      padding: "10px 2px",
+      fontSize: "11px",
+      lineHeight: 1.15,
+      overflowWrap: "anywhere",
+    },
+    td: {
+      ...styles.td,
+      minWidth: 0,
+      padding: "10px 2px",
+      fontSize: "13px",
+    },
+    typeCell: {
+      ...styles.typeCell,
+      minWidth: 0,
+      padding: "10px 2px",
+      fontSize: "12px",
+    },
+    mergedMainCell: {
+      ...styles.mergedMainCell,
+      minWidth: 0,
+    },
+    mergedCell: {
+      ...styles.mergedCell,
+      minWidth: 0,
+    },
+    backNumberInput: {
+      ...styles.backNumberInput,
+      fontSize: "13px",
+    },
+  };
+}
 
 function ScoreTable({
   headers,
@@ -31,10 +93,30 @@ function ScoreTable({
   styles,
 }) {
   const { t } = useTranslation();
+  const [shouldFitTable, setShouldFitTable] = useState(getShouldFitTable);
+  const tableStyles = useMemo(
+    () => buildTableStyles(styles, shouldFitTable),
+    [shouldFitTable, styles]
+  );
   const normalizedDragInterval = Number.parseInt(dragInterval, 10);
   const hasDragRows =
     Number.isFinite(normalizedDragInterval) && normalizedDragInterval > 0;
   const colSpan = 3 + headers.length + 2;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const updateLayout = () => setShouldFitTable(getShouldFitTable());
+
+    updateLayout();
+    window.addEventListener("resize", updateLayout);
+    window.addEventListener("orientationchange", updateLayout);
+
+    return () => {
+      window.removeEventListener("resize", updateLayout);
+      window.removeEventListener("orientationchange", updateLayout);
+    };
+  }, []);
 
   const shouldShowDragAfterRun = (index) => {
     const completedCount = index + 1;
@@ -65,22 +147,22 @@ function ScoreTable({
   };
 
   return (
-    <div style={styles.tableWrap}>
-      <table style={styles.table}>
+    <div style={tableStyles.tableWrap}>
+      <table style={tableStyles.table}>
         <thead>
           <tr>
-            <th style={styles.th}>{t("management.announcer.draw")}</th>
-            <th style={styles.th}>{t("public.results.backNumber")}</th>
-            <th style={styles.th}>PEN</th>
+            <th style={tableStyles.th}>{t("management.announcer.draw")}</th>
+            <th style={tableStyles.th}>{t("public.results.backNumber")}</th>
+            <th style={tableStyles.th}>PEN</th>
 
             {headers.map((header) => (
-              <th key={header} style={styles.th}>
+              <th key={header} style={tableStyles.th}>
                 {header}
               </th>
             ))}
 
-            <th style={styles.th}>{t("public.results.totalPenalties")}</th>
-            <th style={styles.th}>{t("public.results.score")}</th>
+            <th style={tableStyles.th}>{t("public.results.totalPenalties")}</th>
+            <th style={tableStyles.th}>{t("public.results.score")}</th>
           </tr>
         </thead>
 
@@ -107,19 +189,19 @@ function ScoreTable({
                 updateRunNote={updateRunNote}
                 isLocked={isLocked}
                 isBackNumberLocked={isBackNumberLocked}
-                styles={styles}
+                styles={tableStyles}
               />
 
               {shouldShowDragAfterRun(index) && (
                 <tr>
-                  <td colSpan={colSpan} style={styles.dragBreakRow}>
-                    <div style={styles.dragBreakRowContent}>
+                  <td colSpan={colSpan} style={tableStyles.dragBreakRow}>
+                    <div style={tableStyles.dragBreakRowContent}>
                       <span>{getDragLabel(index)}</span>
                       {!isLocked && (
                         activeDrag?.afterIndex === index ? (
                           <button
                             type="button"
-                            style={styles.dragBreakButton}
+                            style={tableStyles.dragBreakButton}
                             onClick={() => onStopDrag?.(index)}
                           >
                             {t("management.scoring.stopDrag")}
@@ -133,11 +215,11 @@ function ScoreTable({
                                 : false
                             }
                             style={{
-                              ...styles.dragBreakButton,
+                              ...tableStyles.dragBreakButton,
                               ...((canStartDragAfterRun &&
                                 !canStartDragAfterRun(index)) ||
                               false
-                                ? styles.disabledButton || {}
+                                ? tableStyles.disabledButton || {}
                                 : {}),
                             }}
                             onClick={() => onStartDrag?.(index)}

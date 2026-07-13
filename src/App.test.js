@@ -53,6 +53,8 @@ import {
 import { buildClassWithSetupScheduleStart } from "./features/classes/classRepository";
 import { normalizeClassSetup } from "./features/classes/classSetupStorage";
 import { mergeImportedRunsWithExistingIds } from "./features/classes/runIdentity";
+import { isClassScoringFinalized } from "./features/classes/classStatusSelectors";
+import { shouldFitScoringTableToViewport } from "./features/scoring/scoringTableViewport";
 import {
   getUniqueScoringClasses,
   resolveClassScoringId,
@@ -245,6 +247,42 @@ function saveActiveTestShow(showId, associationId = "association-test") {
     },
   ]);
 }
+
+test("keeps scoring locked when finalized state comes from official data", () => {
+  expect(
+    isClassScoringFinalized({
+      classItem: { id: "class-locked" },
+      setup: { finalized: false, judgeSignedAt: null },
+      official: {
+        isFinalized: true,
+        judgeSignedAt: "2026-07-13T16:00:00.000Z",
+      },
+    })
+  ).toBe(true);
+
+  expect(
+    isClassScoringFinalized({
+      classItem: { id: "class-open" },
+      setup: {},
+      official: {},
+    })
+  ).toBe(false);
+});
+
+test("fits the scoring table to common iPad landscape viewports", () => {
+  expect(
+    shouldFitScoringTableToViewport({ width: 1024, height: 768 })
+  ).toBe(true);
+  expect(
+    shouldFitScoringTableToViewport({ width: 1180, height: 820 })
+  ).toBe(true);
+  expect(
+    shouldFitScoringTableToViewport({ width: 820, height: 1180 })
+  ).toBe(false);
+  expect(
+    shouldFitScoringTableToViewport({ width: 1440, height: 900 })
+  ).toBe(false);
+});
 
 test("calculates a scored run total", () => {
   const run = recalculateRun({

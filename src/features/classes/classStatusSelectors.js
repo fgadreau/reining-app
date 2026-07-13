@@ -32,6 +32,16 @@ function isFinalizedFromSetup(setup) {
   return Boolean(setup?.finalized || setup?.judgeSignedAt);
 }
 
+export function isClassScoringFinalized(classData) {
+  return Boolean(
+    classData?.official?.isFinalized ||
+      classData?.official?.finalized ||
+      classData?.official?.judgeSignedAt ||
+      isFinalizedFromSetup(classData?.setup) ||
+      isFinalizedFromClass(classData?.classItem)
+  );
+}
+
 export function getClassStatus(classItem) {
   if (!classItem?.id) return "draft";
 
