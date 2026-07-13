@@ -176,6 +176,37 @@ export async function signUpWithEmail({
   return data;
 }
 
+export async function requestPasswordReset({ email, redirectTo }) {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    throw new Error("Supabase n'est pas configuré.");
+  }
+
+  const options = redirectTo ? { redirectTo } : undefined;
+  const { error } = await supabase.auth.resetPasswordForEmail(email, options);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function updatePassword(password) {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    throw new Error("Supabase n'est pas configuré.");
+  }
+
+  const { data, error } = await supabase.auth.updateUser({ password });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
 export async function signOut() {
   clearLocalTestSession();
 
@@ -217,7 +248,7 @@ export function onAuthStateChange(callback) {
     };
   }
 
-  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+  const { data } = supabase.auth.onAuthStateChange((event, session) => {
     const localSession = loadLocalTestSession();
 
     if (localSession?.user) {
@@ -229,7 +260,7 @@ export function onAuthStateChange(callback) {
       saveUserProfile(session.user);
     }
 
-    callback(session?.user || null);
+    callback(session?.user || null, event);
   });
 
   return () => {

@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   isAuthAvailable,
+  requestPasswordReset,
   signInWithLocalTestUser,
   signInWithEmail,
   signUpWithEmail,
+  updatePassword,
 } from "../../features/auth/authRepository";
 import {
   LOCAL_TEST_EMAIL,
@@ -44,9 +46,14 @@ function LoginPage() {
   const inviteEmail = searchParams.get("email") || "";
   const nextPath = sanitizeNextPath(searchParams.get("next"));
   const hasLockedInviteEmail = Boolean(inviteToken && inviteEmail);
-  const [mode, setMode] = useState("signin");
+  const [mode, setMode] = useState(() =>
+    searchParams.get("mode") === "reset" ? "reset" : "signin"
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isPasswordResetComplete, setIsPasswordResetComplete] = useState(false);
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAutoAcceptingInvitation, setIsAutoAcceptingInvitation] =
@@ -78,6 +85,26 @@ function LoginPage() {
       setMode("signup");
     }
   }, [inviteEmail, inviteToken]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const hashParams = new URLSearchParams(
+      window.location.hash.replace(/^#/, "")
+    );
+
+    if (hashParams.get("type") === "recovery") {
+      setMode("reset");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (auth.authEvent === "PASSWORD_RECOVERY") {
+      setMode("reset");
+    }
+  }, [auth.authEvent]);
 
   const redeemInvitations = useCallback(async (user) => {
     if (!user) {
@@ -211,12 +238,31 @@ function LoginPage() {
     setAutoAcceptAttempt((attempt) => attempt + 1);
   }
 
+  function changeMode(nextMode) {
+    setMode(nextMode);
+    setPassword("");
+    setPasswordConfirmation("");
+    setShowPassword(false);
+    setIsPasswordResetComplete(false);
+    setMessage("");
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setMessage("");
 
     if (!email.trim() || !password) {
       setMessage(t("login.missingCredentials"));
+      return;
+    }
+
+    if (mode === "signup" && !passwordConfirmation) {
+      setMessage(t("login.passwordConfirmationRequired"));
+      return;
+    }
+
+    if (mode === "signup" && password !== passwordConfirmation) {
+      setMessage(t("login.passwordsDoNotMatch"));
       return;
     }
 
@@ -330,6 +376,62 @@ function LoginPage() {
     }
   }
 
+  async function handlePasswordResetRequest(event) {
+    event.preventDefault();
+    setMessage("");
+
+    if (!email.trim()) {
+      setMessage(t("login.resetEmailRequired"));
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await requestPasswordReset({
+        email: email.trim(),
+        redirectTo:
+          typeof window === "undefined"
+            ? undefined
+            : `${window.location.origin}/login`,
+      });
+      setMessage(t("login.resetEmailSent"));
+    } catch (error) {
+      setMessage(error.message || t("login.resetRequestFailed"));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handlePasswordUpdate(event) {
+    event.preventDefault();
+    setMessage("");
+
+    if (!password || !passwordConfirmation) {
+      setMessage(t("login.newPasswordRequired"));
+      return;
+    }
+
+    if (password !== passwordConfirmation) {
+      setMessage(t("login.passwordsDoNotMatch"));
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await updatePassword(password);
+      setPassword("");
+      setPasswordConfirmation("");
+      setIsPasswordResetComplete(true);
+      setMessage(t("login.passwordUpdated"));
+    } catch (error) {
+      setMessage(error.message || t("login.passwordUpdateFailed"));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   async function handleLocalTestLogin() {
     setMessage("");
     setIsSubmitting(true);
@@ -364,6 +466,10 @@ function LoginPage() {
         <h1 style={titleStyle}>
           {isAcceptingAuthenticatedInvite
             ? t("login.finalizeInviteTitle")
+            : mode === "forgot"
+              ? t("login.forgotPasswordTitle")
+              : mode === "reset"
+                ? t("login.resetPasswordTitle")
             : mode === "signup"
               ? t("login.titleSignUp")
               : t("login.titleSignIn")}
@@ -371,6 +477,10 @@ function LoginPage() {
         <p style={subtitleStyle}>
           {isAcceptingAuthenticatedInvite
             ? t("login.finalizeInviteSubtitle")
+            : mode === "forgot"
+              ? t("login.forgotPasswordSubtitle")
+              : mode === "reset"
+                ? t("login.resetPasswordSubtitle")
             : inviteToken
               ? t("login.inviteSubtitle")
               : t("login.defaultSubtitle")}
@@ -382,7 +492,7 @@ function LoginPage() {
           </div>
         )}
 
-        {canUseLocalTestLogin && (
+        {canUseLocalTestLogin && (mode === "signin" || mode === "signup") && (
           <div style={localTestBoxStyle}>
             <div style={localTestTitleStyle}>{t("login.localTestTitle")}</div>
             <div style={helperTextStyle}>
@@ -432,6 +542,102 @@ function LoginPage() {
               </button>
             )}
           </div>
+        ) : mode === "forgot" ? (
+          <form onSubmit={handlePasswordResetRequest} style={formStyle}>
+            <label style={labelStyle}>
+              <span>{t("login.emailLabel")}</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => {
+                  if (!hasLockedInviteEmail) {
+                    setEmail(event.target.value);
+                  }
+                }}
+                placeholder="secretariat@example.com"
+                style={{
+                  ...inputStyle,
+                  background: hasLockedInviteEmail ? "#f8fafc" : "#fff",
+                }}
+                autoComplete="email"
+                readOnly={hasLockedInviteEmail}
+              />
+            </label>
+
+            {message && <div style={messageStyle}>{message}</div>}
+
+            <div style={buttonRowStyle}>
+              <button
+                type="submit"
+                style={primaryButtonStyle}
+                disabled={isSubmitting}
+              >
+                {t("login.sendResetLinkButton")}
+              </button>
+              <button
+                type="button"
+                onClick={() => changeMode("signin")}
+                style={secondaryButtonStyle}
+                disabled={isSubmitting}
+              >
+                {t("login.backToSignInButton")}
+              </button>
+            </div>
+          </form>
+        ) : mode === "reset" ? (
+          <form onSubmit={handlePasswordUpdate} style={formStyle}>
+            {!isPasswordResetComplete && (
+              <>
+                <label style={labelStyle}>
+                  <span>{t("login.newPasswordLabel")}</span>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder={t("login.newPasswordPlaceholder")}
+                    style={inputStyle}
+                    autoComplete="new-password"
+                  />
+                </label>
+
+                <label style={labelStyle}>
+                  <span>{t("login.confirmPasswordLabel")}</span>
+                  <input
+                    type="password"
+                    value={passwordConfirmation}
+                    onChange={(event) =>
+                      setPasswordConfirmation(event.target.value)
+                    }
+                    placeholder={t("login.confirmPasswordPlaceholder")}
+                    style={inputStyle}
+                    autoComplete="new-password"
+                  />
+                </label>
+              </>
+            )}
+
+            {message && <div style={messageStyle}>{message}</div>}
+
+            <div style={buttonRowStyle}>
+              {isPasswordResetComplete ? (
+                <button
+                  type="button"
+                  onClick={() => navigate(nextPath || "/associations")}
+                  style={primaryButtonStyle}
+                >
+                  {t("login.continueButton")}
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  style={primaryButtonStyle}
+                  disabled={isSubmitting}
+                >
+                  {t("login.updatePasswordButton")}
+                </button>
+              )}
+            </div>
+          </form>
         ) : (
           <form onSubmit={handleSubmit} style={formStyle}>
             <label style={labelStyle}>
@@ -459,10 +665,13 @@ function LoginPage() {
               )}
             </label>
 
-            <label style={labelStyle}>
-              <span>{t("login.passwordLabel")}</span>
+            <div style={labelStyle}>
+              <label htmlFor="auth-password">
+                {t("login.passwordLabel")}
+              </label>
               <input
-                type="password"
+                id="auth-password"
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder={t("login.passwordPlaceholder")}
@@ -471,7 +680,44 @@ function LoginPage() {
                   mode === "signup" ? "new-password" : "current-password"
                 }
               />
-            </label>
+              {mode === "signin" && (
+                <label style={showPasswordLabelStyle}>
+                  <input
+                    type="checkbox"
+                    checked={showPassword}
+                    onChange={(event) => setShowPassword(event.target.checked)}
+                  />
+                  <span>{t("login.showPasswordLabel")}</span>
+                </label>
+              )}
+            </div>
+
+            {mode === "signup" && (
+              <label style={labelStyle}>
+                <span>{t("login.confirmPasswordLabel")}</span>
+                <input
+                  type="password"
+                  value={passwordConfirmation}
+                  onChange={(event) =>
+                    setPasswordConfirmation(event.target.value)
+                  }
+                  placeholder={t("login.confirmPasswordPlaceholder")}
+                  style={inputStyle}
+                  autoComplete="new-password"
+                />
+              </label>
+            )}
+
+            {mode === "signin" && (
+              <button
+                type="button"
+                onClick={() => changeMode("forgot")}
+                style={forgotPasswordButtonStyle}
+                disabled={isSubmitting}
+              >
+                {t("login.forgotPasswordButton")}
+              </button>
+            )}
 
             {mode === "signup" && (
               <label style={checkboxLabelStyle}>
@@ -516,9 +762,7 @@ function LoginPage() {
               <button
                 type="button"
                 onClick={() =>
-                  setMode((current) =>
-                    current === "signup" ? "signin" : "signup"
-                  )
+                  changeMode(mode === "signup" ? "signin" : "signup")
                 }
                 style={secondaryButtonStyle}
                 disabled={isSubmitting}
@@ -616,6 +860,27 @@ const checkboxLabelStyle = {
   fontSize: 14,
   fontWeight: 500,
   lineHeight: 1.4,
+};
+
+const showPasswordLabelStyle = {
+  display: "inline-flex",
+  gap: 7,
+  alignItems: "center",
+  width: "fit-content",
+  color: "#475569",
+  fontSize: 13,
+  fontWeight: 500,
+};
+
+const forgotPasswordButtonStyle = {
+  padding: 0,
+  border: 0,
+  background: "transparent",
+  color: "#1d4ed8",
+  cursor: "pointer",
+  fontWeight: 700,
+  textAlign: "left",
+  width: "fit-content",
 };
 
 const inlineLinkStyle = {

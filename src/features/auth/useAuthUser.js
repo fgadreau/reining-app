@@ -8,6 +8,7 @@ import { isLocalTestUser } from "./localTestAuth";
 
 export function useAuthUser() {
   const [user, setUser] = useState(null);
+  const [authEvent, setAuthEvent] = useState(null);
   const [isLoading, setIsLoading] = useState(isAuthAvailable());
 
   useEffect(() => {
@@ -28,8 +29,9 @@ export function useAuthUser() {
       setIsLoading(false);
     }
 
-    const unsubscribe = onAuthStateChange((nextUser) => {
+    const unsubscribe = onAuthStateChange((nextUser, nextAuthEvent) => {
       setUser(nextUser);
+      setAuthEvent(nextAuthEvent || null);
       setIsLoading(false);
     });
 
@@ -43,6 +45,7 @@ export function useAuthUser() {
 
   return {
     user,
+    authEvent,
     isLoading,
     isConfigured: isAuthAvailable(),
     isAuthenticated: Boolean(user),

@@ -563,9 +563,17 @@ export const translations = {
       backHome: "← Accueil",
       createAccountButton: "Créer le compte",
       createAccountModeButton: "Créer un compte",
+      backToSignInButton: "Retour à la connexion",
+      confirmPasswordLabel: "Répéter le mot de passe",
+      confirmPasswordPlaceholder: "Répète le mot de passe",
+      continueButton: "Continuer",
       defaultSubtitle:
         "Connecte le poste du secrétariat ou du scribe pour écrire dans le cloud.",
       emailLabel: "Courriel",
+      forgotPasswordButton: "Mot de passe oublié?",
+      forgotPasswordSubtitle:
+        "Entre ton courriel pour recevoir un lien de réinitialisation.",
+      forgotPasswordTitle: "Mot de passe oublié",
       finalizeInviteSubtitle:
         "Ton compte est connecté. ShowScore finalise maintenant ton accès à l'association.",
       finalizeInviteTitle: "Finalisation de l'accès",
@@ -593,11 +601,25 @@ export const translations = {
       localTestTitle: "Accès de test local",
       missingCredentials: "Entre ton courriel et ton mot de passe.",
       passwordLabel: "Mot de passe",
+      passwordConfirmationRequired:
+        "Répète le mot de passe pour créer ton compte.",
       passwordPlaceholder: "Mot de passe",
+      passwordsDoNotMatch: "Les mots de passe ne correspondent pas.",
+      passwordUpdated: "Ton mot de passe a été mis à jour.",
+      passwordUpdateFailed: "Impossible de mettre à jour le mot de passe.",
       pendingInvitesTimeout:
         "La vérification des invitations prend trop de temps. Réessaie dans quelques secondes.",
       privacyPolicyLink: "politique de confidentialité",
       resultsNoticeLink: "avis sur les résultats",
+      resetEmailRequired: "Entre ton courriel.",
+      resetEmailSent:
+        "Si un compte existe pour ce courriel, un lien de réinitialisation a été envoyé.",
+      resetPasswordSubtitle:
+        "Choisis un nouveau mot de passe et répète-le pour le confirmer.",
+      resetPasswordTitle: "Nouveau mot de passe",
+      resetRequestFailed: "Impossible d'envoyer le lien de réinitialisation.",
+      sendResetLinkButton: "Envoyer le lien",
+      showPasswordLabel: "Afficher le mot de passe",
       signInButton: "Se connecter",
       signInFailed: "Connexion impossible.",
       supabaseMissing:
@@ -605,6 +627,10 @@ export const translations = {
       termsLink: "conditions d'utilisation",
       titleSignIn: "Connexion",
       titleSignUp: "Créer un accès",
+      newPasswordLabel: "Nouveau mot de passe",
+      newPasswordPlaceholder: "Nouveau mot de passe",
+      newPasswordRequired: "Entre et répète ton nouveau mot de passe.",
+      updatePasswordButton: "Mettre à jour le mot de passe",
     },
     management: {
       announcer: {
@@ -2227,9 +2253,17 @@ export const translations = {
       backHome: "← Home",
       createAccountButton: "Create account",
       createAccountModeButton: "Create an account",
+      backToSignInButton: "Back to sign in",
+      confirmPasswordLabel: "Repeat password",
+      confirmPasswordPlaceholder: "Repeat your password",
+      continueButton: "Continue",
       defaultSubtitle:
         "Connect the secretariat or scribe station so it can write to the cloud.",
       emailLabel: "Email",
+      forgotPasswordButton: "Forgot password?",
+      forgotPasswordSubtitle:
+        "Enter your email to receive a password reset link.",
+      forgotPasswordTitle: "Forgot password",
       finalizeInviteSubtitle:
         "Your account is connected. ShowScore is finalizing your association access.",
       finalizeInviteTitle: "Finalizing access",
@@ -2257,11 +2291,25 @@ export const translations = {
       localTestTitle: "Local test access",
       missingCredentials: "Enter your email and password.",
       passwordLabel: "Password",
+      passwordConfirmationRequired:
+        "Repeat your password to create your account.",
       passwordPlaceholder: "Password",
+      passwordsDoNotMatch: "The passwords do not match.",
+      passwordUpdated: "Your password has been updated.",
+      passwordUpdateFailed: "Unable to update the password.",
       pendingInvitesTimeout:
         "Checking invitations is taking too long. Try again in a few seconds.",
       privacyPolicyLink: "privacy policy",
       resultsNoticeLink: "results notice",
+      resetEmailRequired: "Enter your email.",
+      resetEmailSent:
+        "If an account exists for this email, a password reset link has been sent.",
+      resetPasswordSubtitle:
+        "Choose a new password and repeat it to confirm.",
+      resetPasswordTitle: "New password",
+      resetRequestFailed: "Unable to send the password reset link.",
+      sendResetLinkButton: "Send reset link",
+      showPasswordLabel: "Show password",
       signInButton: "Sign in",
       signInFailed: "Unable to sign in.",
       supabaseMissing:
@@ -2269,6 +2317,10 @@ export const translations = {
       termsLink: "terms of use",
       titleSignIn: "Sign in",
       titleSignUp: "Create access",
+      newPasswordLabel: "New password",
+      newPasswordPlaceholder: "New password",
+      newPasswordRequired: "Enter and repeat your new password.",
+      updatePasswordButton: "Update password",
     },
     management: {
       announcer: {
