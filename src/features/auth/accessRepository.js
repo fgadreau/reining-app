@@ -45,20 +45,6 @@ function toUserProfile(row) {
   };
 }
 
-function toMembershipRow(membership) {
-  const row = {
-    user_id: membership.userId,
-    association_id: membership.associationId,
-    role: membership.role,
-  };
-
-  if (membership.id) {
-    row.id = membership.id;
-  }
-
-  return row;
-}
-
 export async function loadUserMembershipsRepository(userId) {
   const supabase = getSupabaseClient();
 
@@ -96,11 +82,11 @@ export async function saveAssociationMembershipRepository(
 
   try {
     const { data, error } = await supabase
-      .from("association_memberships")
-      .upsert(toMembershipRow(membership), {
-        onConflict: "user_id,association_id,role",
+      .rpc("grant_association_membership", {
+        target_user_id: membership.userId,
+        target_association_id: membership.associationId,
+        target_role: membership.role,
       })
-      .select("*")
       .maybeSingle();
 
     if (error) throw error;
