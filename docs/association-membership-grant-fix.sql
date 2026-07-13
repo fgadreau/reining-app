@@ -11,6 +11,12 @@
 -- via a dedicated RPC (accept_association_invitation); this adds the
 -- equivalent RPC for direct admin-initiated grants.
 --
+-- v2: RETURNS TABLE with an out-parameter named user_id collided with
+-- the user_id column referenced in the INSERT/ON CONFLICT below,
+-- causing "42702 column reference user_id is ambiguous". Switched to
+-- RETURNS json (same pattern as accept_association_invitation) to
+-- sidestep the PL/pgSQL out-parameter shadowing pitfall entirely.
+--
 -- Run this in Supabase before deploying the matching JS change.
 
 drop function if exists public.grant_association_membership(uuid, text, text);
@@ -20,14 +26,7 @@ create function public.grant_association_membership(
   target_association_id text,
   target_role text
 )
-returns table (
-  id uuid,
-  user_id uuid,
-  association_id uuid,
-  role text,
-  created_at timestamptz,
-  updated_at timestamptz
-)
+returns json
 language plpgsql
 security definer
 set search_path = public
@@ -37,6 +36,7 @@ declare
   v_is_platform_admin boolean;
   v_is_association_admin boolean;
   v_membership_id uuid;
+  v_result json;
 begin
   select public.current_user_is_platform_admin() into v_is_platform_admin;
 
@@ -63,12 +63,20 @@ begin
   insert into public.organization_members (user_id, organization_id, role)
   values (v_profile_id, target_association_id::uuid, target_role)
   on conflict (organization_id, user_id) do update set role = excluded.role
-  returning organization_members.id into v_membership_id;
+  returning id into v_membership_id;
 
-  return query
-  select m.id, target_user_id, m.association_id, m.role, m.created_at, m.updated_at
+  select json_build_object(
+    'id', m.id,
+    'user_id', target_user_id,
+    'association_id', m.association_id,
+    'role', m.role,
+    'created_at', m.created_at,
+    'updated_at', m.updated_at
+  ) into v_result
   from public.association_memberships m
   where m.id = v_membership_id;
+
+  return v_result;
 end;
 $function$;
 
