@@ -1581,6 +1581,53 @@ function ClassScoringPage() {
     pdf.save(fileName);
   };
 
+  const handleExportProvisionalPdf = () => {
+    const exportedAt = new Date().toISOString();
+    const currentSetup = {
+      ...(classSetup || {}),
+      ...getClassSetup(classId),
+    };
+    const currentJudgeName =
+      assignedJudgeName || currentSetup?.judgeName || classItem?.judgeName || "";
+
+    const pdf = generateScorePdf({
+      associationName: association?.name || "Association",
+      associationLogoDataUrl: association?.logoDataUrl || null,
+      eventName: show?.name || "",
+      eventDate: day?.date || "",
+      classItem,
+      classSetup: {
+        ...currentSetup,
+        judgeName: currentJudgeName,
+        judgeSignature: null,
+        finalizedAt: null,
+        judgeSignedAt: null,
+      },
+      runs,
+      headers,
+      titleSuffix: t("management.scoring.provisionalPdfTitle"),
+    });
+
+    const provisionalClassName = `${classItem?.name || "bloc"}-provisoire`;
+    const fileName =
+      isMultiJudgeMode && currentJudgeName
+        ? buildJudgeScorePdfFileName({
+            associationAbbreviation: association?.shortName || "ASSOC",
+            showName: show?.name || "show",
+            className: provisionalClassName,
+            judgeName: currentJudgeName,
+            finalizedAt: exportedAt,
+          })
+        : buildScorePdfFileName({
+            associationAbbreviation: association?.shortName || "ASSOC",
+            showName: show?.name || "show",
+            className: provisionalClassName,
+            finalizedAt: exportedAt,
+          });
+
+    pdf.save(fileName);
+  };
+
   const handleRetryScoringSync = () => {
     updateScoringSyncStatus(SCORING_SYNC_STATUS.SYNCING);
 
@@ -1913,6 +1960,14 @@ function ClassScoringPage() {
             style={secondaryButtonStyle}
           >
             {t("management.scoring.exportBackup")}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleExportProvisionalPdf}
+            style={secondaryButtonStyle}
+          >
+            {t("management.scoring.exportProvisionalPdf")}
           </button>
 
           {canShowProvisionalRanking && (

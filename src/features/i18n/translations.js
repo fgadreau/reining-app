@@ -959,6 +959,7 @@ export const translations = {
         dragBreakLabel: "Drag de surface après {{count}} participant(s)",
         estimatedMinutes: "{{minutes}} min estimées",
         exportBackup: "Exporter sauvegarde",
+        exportProvisionalPdf: "Exporter PDF provisoire",
         finalizeFailed: "Impossible de finaliser ce bloc.",
         finalizeIncomplete:
           "Impossible de finaliser : certains runs ne sont pas complets.",
@@ -1003,6 +1004,7 @@ export const translations = {
         specialPenaltyReasonSearch: "Rechercher une raison...",
         specialPenaltyReasonEmpty: "Aucune raison trouvée.",
         penalties: "Pénalités",
+        provisionalPdfTitle: "PROVISOIRE / DRAFT",
         provisionalRanking: "Classement provisoire",
         provisionalRankingNote:
           "Classement provisoire selon les scores individuels. Compléter le classement avec le travail en piste, en dehors de l’app.",
@@ -2648,6 +2650,7 @@ export const translations = {
         dragBreakLabel: "Ground drag after {{count}} participant(s)",
         estimatedMinutes: "{{minutes}} estimated min",
         exportBackup: "Export backup",
+        exportProvisionalPdf: "Export draft PDF",
         finalizeFailed: "Unable to finalize this block.",
         finalizeIncomplete:
           "Unable to finalize: some runs are not complete.",
@@ -2692,6 +2695,7 @@ export const translations = {
         specialPenaltyReasonSearch: "Search for a reason...",
         specialPenaltyReasonEmpty: "No reason found.",
         penalties: "Penalties",
+        provisionalPdfTitle: "DRAFT / PROVISOIRE",
         provisionalRanking: "Provisional ranking",
         provisionalRankingNote:
           "Provisional ranking based on individual scores. Complete the ranking with the in-pen work outside the app.",

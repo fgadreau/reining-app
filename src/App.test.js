@@ -30,6 +30,10 @@ import {
   translate,
 } from "./features/i18n/i18n";
 import {
+  buildScorePdfFileName,
+  generateScorePdf,
+} from "./utils/generateScorePdf";
+import {
   buildAssociationPublicSeo,
   buildChampionshipPublicSeo,
   buildShowPublicSeo,
@@ -1866,6 +1870,54 @@ test("PDF score rules follow the class scoring scale", () => {
       expect.stringContaining("F&E / Overall form and effectiveness"),
     ])
   );
+});
+
+test("generates a provisional PDF while scoring is incomplete", () => {
+  const pdf = generateScorePdf({
+    associationName: "Association test",
+    eventName: "Show test",
+    eventDate: "2026-07-17",
+    classItem: {
+      id: "class-live",
+      name: "Open en cours",
+      pattern: "1",
+    },
+    classSetup: {
+      pattern: "1",
+      judgeName: "Juge test",
+    },
+    runs: [
+      {
+        id: "run-1",
+        draw: 1,
+        backNumber: "101",
+        rider: "Cavalier 1",
+        scores: ["+0.5", "0"],
+        penalties: ["", ""],
+        scoreTotal: "",
+      },
+      {
+        id: "run-2",
+        draw: 2,
+        backNumber: "102",
+        rider: "Cavalier 2",
+        scores: [],
+        penalties: [],
+        scoreTotal: "",
+      },
+    ],
+    headers: ["M1", "M2"],
+    titleSuffix: "PROVISOIRE / DRAFT",
+  });
+  const fileName = buildScorePdfFileName({
+    associationAbbreviation: "TEST",
+    showName: "Show test",
+    className: "Open en cours-provisoire",
+    finalizedAt: "2026-07-17T17:30:00.000Z",
+  });
+
+  expect(pdf.getNumberOfPages()).toBe(1);
+  expect(fileName).toContain("provisoire");
 });
 
 test("builds provisional rankings for rail adjustment classes", () => {
