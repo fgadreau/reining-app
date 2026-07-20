@@ -540,7 +540,14 @@ test("runs the announcer fallback without overwriting the scribe snapshot", () =
     afterDraw: 1,
     durationMinutes: 8,
   });
-  expect(stopAnnouncerDrag(dragging).activeManoeuvre).toBeNull();
+  const dragStopped = stopAnnouncerDrag(
+    dragging,
+    new Date("2026-07-20T12:07:00.000Z")
+  );
+  expect(dragStopped.activeManoeuvre).toBeNull();
+  expect(dragStopped.runs[0].dragCompletedAt).toBe(
+    "2026-07-20T12:07:00.000Z"
+  );
 
   const underReview = saveAnnouncerRunResult(
     started,
@@ -6612,6 +6619,78 @@ test("announcer live view exposes rider pace with planned drags", () => {
     averageSecondsPerRiderWithDrags: 340,
   });
   expect(classView.pace.ridersPerHour).toBeCloseTo(10.59);
+});
+
+test("announcer pace follows global results and completed drags", () => {
+  const setupRuns = Array.from({ length: 4 }, (_, index) => ({
+    id: `announcer-pace-${index + 1}`,
+    draw: index + 1,
+    rider: `Rider ${index + 1}`,
+  }));
+  const announcerSession = {
+    classId: "class-announcer-pace",
+    startedAt: "2026-07-20T12:00:00.000Z",
+    activeManoeuvre: {
+      type: "run",
+      runId: "announcer-pace-3",
+      draw: 3,
+      startedAt: "2026-07-20T12:13:00.000Z",
+    },
+    runs: [
+      {
+        ...setupRuns[0],
+        status: ANNOUNCER_RUN_STATUSES.SCORED,
+        scoreTotal: "70",
+        startedAt: "2026-07-20T12:00:00.000Z",
+        completedAt: "2026-07-20T12:02:00.000Z",
+      },
+      {
+        ...setupRuns[1],
+        status: ANNOUNCER_RUN_STATUSES.SCORED,
+        scoreTotal: "71",
+        startedAt: "2026-07-20T12:03:00.000Z",
+        completedAt: "2026-07-20T12:05:00.000Z",
+        dragCompletedAt: "2026-07-20T12:13:00.000Z",
+      },
+      {
+        ...setupRuns[2],
+        status: ANNOUNCER_RUN_STATUSES.ON_COURSE,
+        startedAt: "2026-07-20T12:13:00.000Z",
+      },
+      setupRuns[3],
+    ],
+  };
+  const classView = buildAnnouncerClassView({
+    classItem: {
+      id: "class-announcer-pace",
+      name: "Announcer Pace",
+      pattern: "5",
+    },
+    setup: {
+      pattern: "5",
+      liveDataSource: LIVE_DATA_SOURCES.ANNOUNCER,
+      dragInterval: 2,
+      dragDurationMinutes: 8,
+      runs: setupRuns,
+    },
+    announcerSession,
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE,
+    },
+  });
+
+  expect(classView.pace).toMatchObject({
+    runCount: 4,
+    completedRuns: 2,
+    remainingRuns: 2,
+    completedDragBreaks: 1,
+    remainingDragBreaks: 0,
+  });
+  expect(classView.activeRun.draw).toBe(3);
+  expect(classView.nextLiveItem.draw).toBe(4);
+  expect(
+    classView.orderRuns.find((item) => item.type === "drag")?.liveOrderStatus
+  ).toBe("passed");
 });
 
 test("announcer live view reads multi-judge sessions", () => {

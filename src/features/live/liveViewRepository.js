@@ -303,6 +303,13 @@ export function buildAnnouncerClassView(classData) {
         : runs.find((run) => run.draw === activeManoeuvre?.draw) ||
           runs.find((run) => run.isActive) ||
           null;
+  const completedDragIds =
+    resolvedLiveSession.source === LIVE_DATA_SOURCES.ANNOUNCER
+      ? getCompletedAnnouncerDragIds({
+          runs,
+          dragInterval: classData.setup?.dragInterval,
+        })
+      : [];
 
   const publicationStatus = classData.publication?.status || "hidden";
   const plannedLiveStatus =
@@ -364,6 +371,7 @@ export function buildAnnouncerClassView(classData) {
         itemType: LIVE_QUEUE_ITEM_TYPES.RUN,
         isAvailable: (run) => !runIsPassed(run) && !run.isReview,
         isPassed: (run) => runIsPassed(run) || run.isReview,
+        completedDragIds,
       });
   const nextRun = upcomingRuns[0] || null;
   const secondNextRun = upcomingRuns[1] || null;
@@ -394,6 +402,14 @@ export function buildAnnouncerClassView(classData) {
     blockClasses: classData.setup?.blockClasses,
     classItem,
   });
+  const paceCompletedRuns =
+    resolvedLiveSession.source === LIVE_DATA_SOURCES.ANNOUNCER
+      ? runs.filter((run) => runIsPassed(run) || run.isReview).length
+      : timingSummary.completedRuns;
+  const paceCompletedDragBreaks =
+    resolvedLiveSession.source === LIVE_DATA_SOURCES.ANNOUNCER
+      ? Math.min(completedDragIds.length, timingSummary.totalDragBreaks)
+      : timingSummary.completedDragBreaks;
 
   return {
     classId,
@@ -428,8 +444,8 @@ export function buildAnnouncerClassView(classData) {
     isComplete,
     pace: {
       runCount: runs.length,
-      completedRuns: timingSummary.completedRuns,
-      remainingRuns: timingSummary.remainingRuns,
+      completedRuns: paceCompletedRuns,
+      remainingRuns: Math.max(runs.length - paceCompletedRuns, 0),
       averageRunSeconds: timingSummary.averageRunSeconds,
       averageSecondsPerRiderWithDrags:
         timingSummary.averageSecondsPerRiderWithDrags,
@@ -437,8 +453,11 @@ export function buildAnnouncerClassView(classData) {
       dragInterval: timingSummary.dragInterval,
       dragDurationMinutes: timingSummary.dragDurationMinutes,
       totalDragBreaks: timingSummary.totalDragBreaks,
-      completedDragBreaks: timingSummary.completedDragBreaks,
-      remainingDragBreaks: timingSummary.remainingDragBreaks,
+      completedDragBreaks: paceCompletedDragBreaks,
+      remainingDragBreaks: Math.max(
+        timingSummary.totalDragBreaks - paceCompletedDragBreaks,
+        0
+      ),
     },
     hasRailAdjustment,
     provisionalRanking,
@@ -626,6 +645,32 @@ function runIsPassed(run) {
       run?.completedAt ||
       ["done", "completed", "passed"].includes(status)
   );
+}
+
+function getCompletedAnnouncerDragIds({ runs, dragInterval }) {
+  const sourceRuns = Array.isArray(runs) ? runs : [];
+  const interval = Number.parseInt(dragInterval, 10);
+  if (!Number.isFinite(interval) || interval <= 0) return [];
+
+  return sourceRuns.reduce((completedIds, run, index) => {
+    const hasScheduledDrag =
+      (index + 1) % interval === 0 && index < sourceRuns.length - 1;
+    if (!hasScheduledDrag) return completedIds;
+
+    const laterRunHasStarted = sourceRuns
+      .slice(index + 1)
+      .some(
+        (laterRun) =>
+          laterRun.isActive ||
+          laterRun.isReview ||
+          laterRun.startedAt ||
+          runIsPassed(laterRun)
+      );
+    if (!run.dragCompletedAt && !laterRunHasStarted) return completedIds;
+
+    completedIds.push(getLiveDragItemId(run, index));
+    return completedIds;
+  }, []);
 }
 
 function buildActiveClassDragItem({

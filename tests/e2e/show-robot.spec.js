@@ -256,6 +256,7 @@ test.describe("robot de show local", () => {
     await expect(
       page.getByRole("button", { name: "Entrer le résultat" })
     ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Scratch" })).toBeVisible();
     await expect(page.locator("body")).toContainText("Propriétaire: Proprio 3");
     await expectNoHorizontalOverflow(page);
 

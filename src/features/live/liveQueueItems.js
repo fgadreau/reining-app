@@ -18,11 +18,15 @@ export function buildLiveQueueItems({
   isAvailable,
   isPassed,
   getItemId = defaultGetItemId,
+  completedDragIds = [],
 }) {
   const normalizedItems = Array.isArray(items) ? items : [];
   const normalizedDragInterval = normalizeDragInterval(dragInterval);
   const normalizedDragDurationMinutes =
     normalizeDragDurationMinutes(dragDurationMinutes);
+  const completedDragIdSet = new Set(
+    (Array.isArray(completedDragIds) ? completedDragIds : []).map(String)
+  );
   const activeIndex = findItemIndex(normalizedItems, activeItem, getItemId);
   const activeDragIndex = Number.isInteger(activeDragItem?.afterIndex)
     ? activeDragItem.afterIndex
@@ -48,13 +52,14 @@ export function buildLiveQueueItems({
       isAvailable,
     })
   ) {
-    upcomingItems.push(
-      buildDragItem({
-        afterItem: normalizedItems[activeIndex],
-        afterIndex: activeIndex,
-        durationMinutes: normalizedDragDurationMinutes,
-      })
-    );
+    const dragItem = buildDragItem({
+      afterItem: normalizedItems[activeIndex],
+      afterIndex: activeIndex,
+      durationMinutes: normalizedDragDurationMinutes,
+    });
+    if (!completedDragIdSet.has(String(dragItem.id))) {
+      upcomingItems.push(dragItem);
+    }
   } else if (
     !activeDragItem &&
     activeIndex < 0 &&
@@ -63,13 +68,14 @@ export function buildLiveQueueItems({
     completedCount % normalizedDragInterval === 0 &&
     hasAvailableAfter(normalizedItems, lastPassedIndex, isAvailable)
   ) {
-    upcomingItems.push(
-      buildDragItem({
-        afterItem: normalizedItems[lastPassedIndex],
-        afterIndex: lastPassedIndex,
-        durationMinutes: normalizedDragDurationMinutes,
-      })
-    );
+    const dragItem = buildDragItem({
+      afterItem: normalizedItems[lastPassedIndex],
+      afterIndex: lastPassedIndex,
+      durationMinutes: normalizedDragDurationMinutes,
+    });
+    if (!completedDragIdSet.has(String(dragItem.id))) {
+      upcomingItems.push(dragItem);
+    }
   }
 
   for (let index = startIndex; index < normalizedItems.length; index += 1) {
@@ -87,13 +93,14 @@ export function buildLiveQueueItems({
         isAvailable,
       })
     ) {
-      upcomingItems.push(
-        buildDragItem({
-          afterItem: item,
-          afterIndex: index,
-          durationMinutes: normalizedDragDurationMinutes,
-        })
-      );
+      const dragItem = buildDragItem({
+        afterItem: item,
+        afterIndex: index,
+        durationMinutes: normalizedDragDurationMinutes,
+      });
+      if (!completedDragIdSet.has(String(dragItem.id))) {
+        upcomingItems.push(dragItem);
+      }
     }
   }
 
@@ -113,6 +120,7 @@ export function buildLiveQueueItems({
     isAvailable,
     isPassed,
     getItemId,
+    completedDragIdSet,
   });
 
   return {
@@ -134,6 +142,7 @@ function buildLiveOrderItems({
   isAvailable,
   isPassed,
   getItemId,
+  completedDragIdSet,
 }) {
   const activeIndex = findItemIndex(items, activeItem, getItemId);
   const orderItems = [];
@@ -174,6 +183,7 @@ function buildLiveOrderItems({
           afterIndex: index,
           items,
           isPassed,
+          completedDragIdSet,
         }),
       });
     }
@@ -210,8 +220,10 @@ function getDragOrderStatus({
   afterIndex,
   items,
   isPassed,
+  completedDragIdSet,
 }) {
   if (activeDragItem?.id === dragItem.id) return "active";
+  if (completedDragIdSet?.has(String(dragItem.id))) return "passed";
 
   const liveItem = nextLiveItems.find((candidate) => candidate.id === dragItem.id);
 

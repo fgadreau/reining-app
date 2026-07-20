@@ -1561,16 +1561,6 @@ function ClassLiveCard({
                 </button>
               </div>
 
-              {isAnnouncerSource && (
-                <AnnouncerManualLiveControls
-                  classView={classView}
-                  syncStatus={announcerSyncStatus}
-                  updatedBy={updatedBy}
-                  onSaveSession={(nextSession) =>
-                    onSaveAnnouncerSession(classView, nextSession)
-                  }
-                />
-              )}
               <div style={runGridStyle}>
                 <QueueItemBlock
                   label={t("management.announcer.active")}
@@ -1597,6 +1587,17 @@ function ClassLiveCard({
                 />
               </div>
               <ClassPaceSummary pace={classView.pace} />
+
+              {isAnnouncerSource && (
+                <AnnouncerManualLiveControls
+                  classView={classView}
+                  syncStatus={announcerSyncStatus}
+                  updatedBy={updatedBy}
+                  onSaveSession={(nextSession) =>
+                    onSaveAnnouncerSession(classView, nextSession)
+                  }
+                />
+              )}
 
               {hasClassStandings && (
                 <AnnouncerClassStandings
@@ -1735,7 +1736,7 @@ function AnnouncerManualLiveControls({
     <div style={manualLivePanelStyle}>
       <div style={manualLiveHeaderStyle}>
         <div>
-          <div style={runLabelStyle}>
+          <div style={manualLiveTitleStyle}>
             {t("management.announcer.manualLiveTitle")}
           </div>
           <div style={mutedTextStyle}>
@@ -1747,89 +1748,143 @@ function AnnouncerManualLiveControls({
         </Badge>
       </div>
 
-      <div style={actionRowStyle}>
-        {plannedDrag && (
-          <button
-            type="button"
-            onClick={() => save(startAnnouncerDrag(session, plannedDrag))}
-            style={secondaryButtonStyle}
-          >
-            {t("management.announcer.startDrag")}
-          </button>
-        )}
-        {classView.activeDragItem && (
-          <button
-            type="button"
-            onClick={() => save(stopAnnouncerDrag(session))}
-            style={secondaryButtonStyle}
-          >
-            {t("management.announcer.stopDrag")}
-          </button>
-        )}
-        {!session.completedAt &&
-          !classView.activeDragItem &&
-          !activeRun &&
-          classView.nextRun && (
-            <button
-              type="button"
-              onClick={handleStartNext}
-              style={primaryButtonStyle}
-            >
-              {t("management.announcer.startNext")}
-            </button>
-          )}
-        {activeRun && (
-          <button
-            type="button"
-            onClick={() => setEditingRun(activeRun)}
-            style={primaryButtonStyle}
-          >
-            {t("management.announcer.enterResult")}
-          </button>
+      <div style={manualControlBodyStyle}>
+        <div style={manualPrimaryActionStyle}>
+          <div style={manualPrimaryActionContentStyle}>
+            <div style={runLabelStyle}>
+              {classView.activeDragItem
+                ? t("public.results.drag")
+                : activeRun
+                  ? t("management.announcer.onCourse")
+                  : plannedDrag || classView.nextRun
+                    ? t("management.announcer.next")
+                    : t("management.announcer.manualBlockCompleted")}
+            </div>
+            {classView.activeDragItem ? (
+              <DragIdentity item={classView.activeDragItem} />
+            ) : activeRun ? (
+              <RunIdentity run={activeRun} />
+            ) : plannedDrag ? (
+              <DragIdentity item={plannedDrag} />
+            ) : classView.nextRun ? (
+              <RunIdentity run={classView.nextRun} />
+            ) : (
+              <div style={mutedTextStyle}>
+                {t("management.announcer.noNextRun")}
+              </div>
+            )}
+          </div>
+
+          <div style={manualPrimaryButtonWrapStyle}>
+            {classView.activeDragItem ? (
+              <button
+                type="button"
+                onClick={() => save(stopAnnouncerDrag(session))}
+                style={manualDragButtonStyle}
+              >
+                {t("management.announcer.stopDrag")}
+              </button>
+            ) : activeRun ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setEditingRun(activeRun)}
+                  style={manualPrimaryButtonStyle}
+                >
+                  {t("management.announcer.enterResult")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        t("management.announcer.scratchConfirm", {
+                          draw: activeRun.draw || "—",
+                        })
+                      )
+                    ) {
+                      return;
+                    }
+                    save(
+                      saveAnnouncerRunResult(
+                        session,
+                        activeRun.id,
+                        { status: ANNOUNCER_RUN_STATUSES.SCRATCH },
+                        { updatedBy }
+                      )
+                    );
+                  }}
+                  style={manualDangerButtonStyle}
+                >
+                  {t("management.announcer.scratch")}
+                </button>
+              </>
+            ) : plannedDrag ? (
+              <button
+                type="button"
+                onClick={() => save(startAnnouncerDrag(session, plannedDrag))}
+                style={manualDragButtonStyle}
+              >
+                {t("management.announcer.startDrag")}
+              </button>
+            ) : !session.completedAt && classView.nextRun ? (
+              <button
+                type="button"
+                onClick={handleStartNext}
+                style={manualPrimaryButtonStyle}
+              >
+                {t("management.announcer.startNext")}
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        {(pendingReviews.length > 0 || editableResults.length > 0) && (
+          <div style={manualSupportPanelStyle}>
+            {pendingReviews.length > 0 && (
+              <div style={reviewNoticeStyle}>
+                <strong>
+                  {t("management.announcer.pendingReviews", {
+                    count: pendingReviews.length,
+                  })}
+                </strong>
+                <div style={compactButtonListStyle}>
+                  {pendingReviews.map((run) => (
+                    <button
+                      key={run.id}
+                      type="button"
+                      onClick={() => setEditingRun(run)}
+                      style={smallButtonStyle}
+                    >
+                      {t("management.announcer.draw")} {run.draw}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {editableResults.length > 0 && (
+              <div style={manualCorrectionWrapStyle}>
+                <div style={runLabelStyle}>
+                  {t("management.announcer.correctResult")}
+                </div>
+                <div style={compactButtonListStyle}>
+                  {editableResults.map((run) => (
+                    <button
+                      key={run.id}
+                      type="button"
+                      onClick={() => setEditingRun(run)}
+                      style={smallButtonStyle}
+                    >
+                      #{run.draw} · {run.scoreTotal || "—"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
-
-      {pendingReviews.length > 0 && (
-        <div style={reviewNoticeStyle}>
-          <strong>
-            {t("management.announcer.pendingReviews", {
-              count: pendingReviews.length,
-            })}
-          </strong>
-          <div style={compactButtonListStyle}>
-            {pendingReviews.map((run) => (
-              <button
-                key={run.id}
-                type="button"
-                onClick={() => setEditingRun(run)}
-                style={smallButtonStyle}
-              >
-                {t("management.announcer.draw")} {run.draw}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {editableResults.length > 0 && (
-        <div style={manualCorrectionWrapStyle}>
-          <div style={mutedTextStyle}>
-            {t("management.announcer.correctResult")}
-          </div>
-          <div style={compactButtonListStyle}>
-            {editableResults.map((run) => (
-              <button
-                key={run.id}
-                type="button"
-                onClick={() => setEditingRun(run)}
-                style={smallButtonStyle}
-              >
-                #{run.draw} · {run.scoreTotal || "—"}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {completionError && (
         <div style={errorNoticeStyle}>
@@ -1840,12 +1895,12 @@ function AnnouncerManualLiveControls({
         </div>
       )}
 
-      <div style={actionRowStyle}>
+      <div style={manualCompletionRowStyle}>
         {!session.completedAt ? (
           <button
             type="button"
             onClick={handleComplete}
-            style={secondaryButtonStyle}
+            style={manualCompleteButtonStyle}
           >
             {t("management.announcer.markClassComplete")}
           </button>
@@ -2838,6 +2893,7 @@ const manualLivePanelStyle = {
   display: "grid",
   gap: 14,
   padding: 18,
+  marginTop: 16,
   marginBottom: 16,
   border: "1px solid #fed7aa",
   borderRadius: 18,
@@ -2851,6 +2907,107 @@ const manualLiveHeaderStyle = {
   alignItems: "flex-start",
   gap: 12,
   flexWrap: "wrap",
+};
+
+const manualLiveTitleStyle = {
+  color: "#0f172a",
+  fontSize: 18,
+  fontWeight: 900,
+  marginBottom: 4,
+};
+
+const manualControlBodyStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))",
+  gap: 12,
+  alignItems: "stretch",
+};
+
+const manualPrimaryActionStyle = {
+  minWidth: 0,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 18,
+  flexWrap: "wrap",
+  padding: 16,
+  border: "1px solid rgba(15, 118, 110, 0.28)",
+  borderRadius: 16,
+  background: "linear-gradient(135deg, #ecfdf5 0%, #ffffff 78%)",
+  boxShadow: "inset 4px 0 0 #0f766e",
+};
+
+const manualPrimaryActionContentStyle = {
+  minWidth: 0,
+  flex: "1 1 240px",
+};
+
+const manualPrimaryButtonWrapStyle = {
+  flex: "0 0 auto",
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
+const manualPrimaryButtonStyle = {
+  borderRadius: 12,
+  border: "1px solid #0f766e",
+  background: "#0f766e",
+  color: "#fff",
+  cursor: "pointer",
+  fontWeight: 850,
+  boxShadow: "0 6px 16px rgba(15, 118, 110, 0.18)",
+  minHeight: 46,
+  padding: "12px 18px",
+  fontSize: 15,
+};
+
+const manualDragButtonStyle = {
+  ...manualPrimaryButtonStyle,
+  border: "1px solid #c2410c",
+  background: "#c2410c",
+  boxShadow: "0 6px 16px rgba(154, 52, 18, 0.2)",
+};
+
+const manualDangerButtonStyle = {
+  ...manualPrimaryButtonStyle,
+  border: "1px solid #dc2626",
+  background: "#fff5f5",
+  color: "#991b1b",
+  boxShadow: "none",
+};
+
+const manualSupportPanelStyle = {
+  minWidth: 0,
+  display: "grid",
+  alignContent: "start",
+  gap: 12,
+  padding: 16,
+  border: "1px solid #e2e8f0",
+  borderRadius: 16,
+  background: "rgba(255, 255, 255, 0.82)",
+};
+
+const manualCompletionRowStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  gap: 10,
+  flexWrap: "wrap",
+  paddingTop: 12,
+  borderTop: "1px solid #e7e5e4",
+};
+
+const manualCompleteButtonStyle = {
+  padding: "10px 15px",
+  borderRadius: 12,
+  border: "1px solid #cbd5e1",
+  background: "#fff",
+  color: "#475569",
+  cursor: "pointer",
+  fontWeight: 800,
+  boxShadow: "none",
 };
 
 const minimalDisplayPanelStyle = {

@@ -209,6 +209,7 @@ export function normalizeAnnouncerLiveRun(run = {}, index = 0) {
       status === ANNOUNCER_RUN_STATUSES.REVIEW
         ? null
         : run?.completedAt || null,
+    dragCompletedAt: run?.dragCompletedAt || null,
     resultSource: run?.resultSource || "announcer",
     history: Array.isArray(run?.history) ? run.history : [],
   };
@@ -379,9 +380,29 @@ export function stopAnnouncerDrag(session, now = new Date()) {
   if (normalized.activeManoeuvre?.type !== "drag") return normalized;
 
   const timestamp = nowIso(now);
+  const completedAfterIndex = Number.isInteger(
+    normalized.activeManoeuvre.afterIndex
+  )
+    ? normalized.activeManoeuvre.afterIndex
+    : normalized.runs.findIndex(
+        (run) =>
+          String(run.draw ?? "") ===
+          String(normalized.activeManoeuvre.afterDraw ?? "")
+      );
 
   return {
     ...normalized,
+    runs: normalized.runs.map((run, index) =>
+      index === completedAfterIndex
+        ? normalizeAnnouncerLiveRun(
+            {
+              ...run,
+              dragCompletedAt: timestamp,
+            },
+            index
+          )
+        : run
+    ),
     activeManoeuvre: null,
     revision: normalized.revision + 1,
     updatedAt: timestamp,
