@@ -82,6 +82,7 @@ import {
   buildScoringDataLossWarning,
   countRunsWithScoringData,
 } from "./features/scoring/scoringDataIntegrity";
+import { canOpenClassForScribe } from "./pages/association/ShowScribePage";
 import { buildHspScoredRunRows } from "./features/integrations/hspScoredRunRepository";
 import {
   buildPublicClassView,
@@ -1475,6 +1476,21 @@ test("builds bilingual judge notes for required NRHA special penalty reasons", (
     "Score 0 - Raison: Pattern non complété\n" +
       "Score 0 - Raison: Chute au sol"
   );
+});
+
+test("shows a ready setup to the scribe before scoring starts", () => {
+  expect(
+    canOpenClassForScribe({
+      classItem: { pattern: "NRHA 1" },
+      setup: {
+        pattern: "NRHA 1",
+        runs: [{ draw: 1 }],
+        startedAt: null,
+      },
+      publication: { status: "hidden" },
+      status: "ready",
+    })
+  ).toBe(true);
 });
 
 test("carries imported scratched runs into scoring", () => {

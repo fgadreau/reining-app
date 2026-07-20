@@ -30,6 +30,22 @@ function ShowScribePage() {
   useEffect(() => {
     let isMounted = true;
 
+    if (access.isLoadingAccess) {
+      setIsLoading(true);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    if (!access.canScoreAssociation) {
+      setShow(null);
+      setSections([]);
+      setIsLoading(false);
+      return () => {
+        isMounted = false;
+      };
+    }
+
     async function loadScribeView() {
       setIsLoading(true);
       const [nextShow, days] = await Promise.all([
@@ -67,7 +83,12 @@ function ShowScribePage() {
     return () => {
       isMounted = false;
     };
-  }, [showId]);
+  }, [
+    access.canScoreAssociation,
+    access.isLoadingAccess,
+    access.user?.id,
+    showId,
+  ]);
 
   if (!access.isLoadingAccess && !access.canScoreAssociation) {
     return (
@@ -206,7 +227,7 @@ function Metric({ label, value }) {
   );
 }
 
-function canOpenClassForScribe(classData) {
+export function canOpenClassForScribe(classData) {
   if (classData?.publication?.status === PUBLICATION_STATUSES.PUBLISHED) {
     return false;
   }
