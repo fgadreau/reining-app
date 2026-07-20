@@ -89,6 +89,7 @@ function ScoreTable({
   onStopDrag,
   canStartDragAfterRun,
   isLocked,
+  isRunLocked,
   isBackNumberLocked,
   styles,
 }) {
@@ -187,7 +188,7 @@ function ScoreTable({
                 clearPenaltyCell={clearPenaltyCell}
                 updateBackNumber={updateBackNumber}
                 updateRunNote={updateRunNote}
-                isLocked={isLocked}
+                isLocked={isLocked || Boolean(isRunLocked?.(run, index))}
                 isBackNumberLocked={isBackNumberLocked}
                 styles={tableStyles}
               />

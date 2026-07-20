@@ -7,6 +7,10 @@ import {
 import { getPrimaryJudgeName, normalizeClassJudges } from "./classJudges";
 import { normalizeClassScheduleDetails } from "./classSchedule";
 import { normalizeCustomPattern } from "../patterns/patternDefinitions";
+import {
+  normalizeSetApprovalMode,
+  normalizeSetApprovals,
+} from "../scoring/setApprovals";
 
 const STORAGE_KEY = "reining_class_setup_v1";
 
@@ -255,6 +259,8 @@ function normalizeSetup(setup = {}) {
     dragDurationMinutes: normalizeDragDurationMinutes(
       setup.dragDurationMinutes ?? DEFAULT_DRAG_DURATION_MINUTES
     ),
+    setApprovalMode: normalizeSetApprovalMode(setup.setApprovalMode),
+    setApprovals: normalizeSetApprovals(setup.setApprovals),
     finalized: Boolean(setup.finalized),
     finalizedAt: setup.finalizedAt ?? null,
     judgeName,

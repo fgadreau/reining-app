@@ -50,6 +50,10 @@ import {
 import { loadScoringRunsRepository } from "../../features/scoring/scoringRepository";
 import { countRunsWithScoringData } from "../../features/scoring/scoringDataIntegrity";
 import {
+  SET_APPROVAL_MODES,
+  normalizeSetApprovalMode,
+} from "../../features/scoring/setApprovals";
+import {
   DEFAULT_DRAG_DURATION_MINUTES,
   DRAG_INTERVAL_OPTIONS,
 } from "../../features/classes/classTiming";
@@ -377,6 +381,9 @@ function ClassSetupPage() {
   const [dragDurationMinutes, setDragDurationMinutes] = useState(
     String(classSetup?.dragDurationMinutes || DEFAULT_DRAG_DURATION_MINUTES)
   );
+  const [setApprovalMode, setSetApprovalMode] = useState(
+    normalizeSetApprovalMode(classSetup?.setApprovalMode)
+  );
   const [plannedLiveStatus, setPlannedLiveStatus] = useState(
     normalizePlannedLiveStatusForSetup(classData?.publication, classSetup?.judges)
   );
@@ -500,6 +507,7 @@ function ClassSetupPage() {
       setDragDurationMinutes(
         String(nextSetup.dragDurationMinutes || DEFAULT_DRAG_DURATION_MINUTES)
       );
+      setSetApprovalMode(normalizeSetApprovalMode(nextSetup.setApprovalMode));
       setPlannedLiveStatus(
         normalizePlannedLiveStatusForSetup(resolvedData.publication, nextJudges)
       );
@@ -551,6 +559,7 @@ function ClassSetupPage() {
         isDrawImported,
         dragInterval: dragInterval || null,
         dragDurationMinutes,
+        setApprovalMode,
       });
 
       const classCustomPattern = nextCustomPattern || null;
@@ -613,6 +622,7 @@ function ClassSetupPage() {
     isDrawImported,
     dragInterval,
     dragDurationMinutes,
+    setApprovalMode,
     hasLoadedSetup,
     canManageSetup,
     classItem,
@@ -1544,6 +1554,32 @@ function ClassSetupPage() {
               </div>
               <div style={helperTextStyle}>
                 {t("management.classSetup.dragDurationHelper")}
+              </div>
+            </div>
+          )}
+
+          {canManageSetup && !isScheduleOnly && (
+            <div>
+              <label style={labelStyle}>
+                {t("management.classSetup.judgeApprovalMode")}
+              </label>
+              <select
+                value={setApprovalMode}
+                onChange={(event) => setSetApprovalMode(event.target.value)}
+                style={inputStyle}
+                disabled={isFullyLocked}
+              >
+                <option value={SET_APPROVAL_MODES.PER_SET}>
+                  {t("management.classSetup.judgeApprovalPerSet")}
+                </option>
+                <option value={SET_APPROVAL_MODES.CLASS_END}>
+                  {t("management.classSetup.judgeApprovalClassEnd")}
+                </option>
+              </select>
+              <div style={helperTextStyle}>
+                {setApprovalMode === SET_APPROVAL_MODES.PER_SET
+                  ? t("management.classSetup.judgeApprovalPerSetHelp")
+                  : t("management.classSetup.judgeApprovalClassEndHelp")}
               </div>
             </div>
           )}

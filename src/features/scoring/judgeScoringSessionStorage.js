@@ -1,4 +1,5 @@
 import { getJudgeDisplayName } from "../classes/classJudges";
+import { normalizeSetApprovals } from "./setApprovals";
 
 const STORAGE_KEY = "showscore_judge_scoring_sessions_v1";
 
@@ -48,6 +49,7 @@ export function normalizeJudgeScoringSession(session = {}, options = {}) {
       session.activeManoeuvre && typeof session.activeManoeuvre === "object"
         ? session.activeManoeuvre
         : null,
+    setApprovals: normalizeSetApprovals(session.setApprovals),
     judgeSignature: session.judgeSignature || null,
     finalized: Boolean(session.finalized),
     finalizedAt: session.finalizedAt || null,

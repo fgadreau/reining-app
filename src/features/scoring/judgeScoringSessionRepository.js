@@ -33,6 +33,7 @@ function toJudgeScoringSession(row, options = {}) {
         row.active_manoeuvre && typeof row.active_manoeuvre === "object"
           ? row.active_manoeuvre
           : null,
+      setApprovals: Array.isArray(row.set_approvals) ? row.set_approvals : [],
       judgeSignature: row.judge_signature || null,
       finalized: Boolean(row.finalized),
       finalizedAt: row.finalized_at || null,
@@ -55,6 +56,7 @@ function toJudgeScoringSessionRow(session) {
     claimed_at: normalized.claimedAt || null,
     runs: Array.isArray(normalized.runs) ? normalized.runs : [],
     active_manoeuvre: normalized.activeManoeuvre || null,
+    set_approvals: normalized.setApprovals,
     judge_signature: normalized.judgeSignature || null,
     finalized: Boolean(normalized.finalized),
     finalized_at: normalized.finalizedAt || null,

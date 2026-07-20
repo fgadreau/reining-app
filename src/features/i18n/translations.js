@@ -951,6 +951,9 @@ export const translations = {
         deleteLastDigit: "Reculer",
         changeJudge: "Changer de juge",
         chooseJudge: "Choisis volontairement la feuille de juge à ouvrir.",
+        approveFinalSet: "Approuver le dernier set",
+        approveSet: "Signer, envoyer et verrouiller",
+        approvingSet: "Signature et envoi...",
         confirmFinalize: "Confirmer la signature et finaliser",
         confirmJudgeChange:
           "Changer vers la feuille de {{judgeName}} ? Vérifie bien avant de continuer.",
@@ -969,6 +972,8 @@ export const translations = {
           "Impossible de finaliser : une révision vidéo est encore en attente.",
         finalizedSuccess:
           "Bloc finalisé avec signature. Le PDF a été généré.",
+        finalSetApproved:
+          "Dernier set signé et envoyé au secrétariat. Le bloc est maintenant verrouillé.",
         incompleteBanner:
           "Le bloc ne peut pas être finalisé tant que tous les runs ne sont pas complets.",
         judgeAssignedNotice:
@@ -1020,6 +1025,18 @@ export const translations = {
         selectJudge: "Choisir un juge",
         selectJudgeBeforeClaim:
           "Choisis la feuille du juge avant de la réserver à ton login.",
+        setApprovalFailed:
+          "Impossible de signer et d’envoyer ce set.",
+        setApprovalHelp:
+          "La signature crée la feuille PDF de ce set, l’envoie au secrétariat et verrouille définitivement les runs incluses.",
+        setApprovalPending: "Signature requise",
+        setApprovalSummary:
+          "Draws {{start}} à {{end}} · {{count}} participant(s)",
+        setApprovalTitle: "Approbation du set {{set}}",
+        setApprovedAndSent:
+          "Set {{set}} signé, envoyé au secrétariat et verrouillé.",
+        setVideoReviewRequired:
+          "La run #{{draw}} a une révision vidéo en attente. Règle-la avant de faire signer le set.",
         signClass: "Signer le bloc",
         noPatternMessage:
           "Ce bloc est sans patron. Il est utilisé pour le suivi de l’horaire et le live, sans feuille de scoring.",
@@ -1082,6 +1099,13 @@ export const translations = {
         completedSectionCount: "Sections terminées",
         dragDurationAria: "Durée du drag en minutes",
         dragDurationHelper: "Durée estimée d’un drag en minutes.",
+        judgeApprovalMode: "Signature du juge",
+        judgeApprovalPerSet: "Signature à chaque set",
+        judgeApprovalPerSetHelp:
+          "Avant chaque drag, les révisions vidéo sont réglées, puis le set est signé, exporté en PDF et verrouillé.",
+        judgeApprovalClassEnd: "Signature à la fin du bloc",
+        judgeApprovalClassEndHelp:
+          "Le juge signe une seule fois lorsque toutes les runs du bloc sont terminées.",
         drawLockedMessage:
           "L’ordre de passage est verrouillé parce qu’il provient d’un draw importé.",
         downloadOfficialPdf: "Télécharger le PDF officiel",
@@ -1227,6 +1251,7 @@ export const translations = {
         published: "Publiés",
         publishedAt: "Publié {{date}}",
         ready: "Prêts",
+        refresh: "Rafraîchir les feuilles",
         regenerate: "Régénérer",
         releaseJudge: "Libérer",
         releaseJudgeConfirm:
@@ -1243,6 +1268,11 @@ export const translations = {
         scoringCompleted: "Terminé",
         scoringInProgress: "En cours",
         scoringNotStarted: "Pas commencé",
+        setPdf: "PDF du set",
+        setPdfFailed: "Impossible de générer le PDF de ce set.",
+        setReceived: "Reçu",
+        setSheetLabel: "Set {{set}} · draws {{start}} à {{end}}",
+        setSheets: "Feuilles signées par set",
         setup: "Setup",
         setupIncomplete: "À compléter",
         setupRunCount: "Runs: {{count}}",
@@ -2647,6 +2677,9 @@ export const translations = {
         deleteLastDigit: "Backspace",
         changeJudge: "Change judge",
         chooseJudge: "Deliberately choose the judge sheet to open.",
+        approveFinalSet: "Approve final set",
+        approveSet: "Sign, send, and lock",
+        approvingSet: "Signing and sending...",
         confirmFinalize: "Confirm signature and finalize",
         confirmJudgeChange:
           "Change to {{judgeName}}’s sheet? Double-check before continuing.",
@@ -2665,6 +2698,8 @@ export const translations = {
           "Unable to finalize: a video review is still pending.",
         finalizedSuccess:
           "Block finalized with signature. The PDF has been generated.",
+        finalSetApproved:
+          "Final set signed and sent to the secretariat. The block is now locked.",
         incompleteBanner:
           "The block cannot be finalized until every run is complete.",
         judgeAssignedNotice:
@@ -2716,6 +2751,18 @@ export const translations = {
         selectJudge: "Select judge",
         selectJudgeBeforeClaim:
           "Choose the judge sheet before reserving it to your login.",
+        setApprovalFailed:
+          "Unable to sign and send this set.",
+        setApprovalHelp:
+          "The signature creates this set's PDF sheet, sends it to the secretariat, and permanently locks the included runs.",
+        setApprovalPending: "Signature required",
+        setApprovalSummary:
+          "Draws {{start}} to {{end}} · {{count}} participant(s)",
+        setApprovalTitle: "Set {{set}} approval",
+        setApprovedAndSent:
+          "Set {{set}} signed, sent to the secretariat, and locked.",
+        setVideoReviewRequired:
+          "Run #{{draw}} has a pending video review. Resolve it before the set is signed.",
         signClass: "Sign block",
         noPatternMessage:
           "This block has no pattern. It is used for schedule tracking and live display, without a scoring sheet.",
@@ -2778,6 +2825,13 @@ export const translations = {
         completedSectionCount: "Completed sections",
         dragDurationAria: "Drag duration in minutes",
         dragDurationHelper: "Estimated drag duration in minutes.",
+        judgeApprovalMode: "Judge signature",
+        judgeApprovalPerSet: "Signature after every set",
+        judgeApprovalPerSetHelp:
+          "Before each drag, video reviews are resolved, then the set is signed, exported to PDF, and locked.",
+        judgeApprovalClassEnd: "Signature at the end of the block",
+        judgeApprovalClassEndHelp:
+          "The judge signs once after every run in the block is completed.",
         drawLockedMessage:
           "The order of go is locked because it comes from an imported draw.",
         downloadOfficialPdf: "Download official PDF",
@@ -2923,6 +2977,7 @@ export const translations = {
         published: "Published",
         publishedAt: "Published {{date}}",
         ready: "Ready",
+        refresh: "Refresh sheets",
         regenerate: "Regenerate",
         releaseJudge: "Release",
         releaseJudgeConfirm:
@@ -2939,6 +2994,11 @@ export const translations = {
         scoringCompleted: "Completed",
         scoringInProgress: "In progress",
         scoringNotStarted: "Not started",
+        setPdf: "Set PDF",
+        setPdfFailed: "Unable to generate this set PDF.",
+        setReceived: "Received",
+        setSheetLabel: "Set {{set}} · draws {{start}} to {{end}}",
+        setSheets: "Signed set sheets",
         setup: "Setup",
         setupIncomplete: "To complete",
         setupRunCount: "Runs: {{count}}",

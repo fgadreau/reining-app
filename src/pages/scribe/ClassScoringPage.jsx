@@ -54,6 +54,17 @@ import {
   buildScoringDataLossWarning,
 } from "../../features/scoring/scoringDataIntegrity";
 import {
+  SET_APPROVAL_MODES,
+  areAllRunsApproved,
+  buildSetApproval,
+  getLockedRunKeys,
+  getNextSetRange,
+  getPendingVideoReviewRunsForSet,
+  getRunApprovalKey,
+  normalizeSetApprovalMode,
+  normalizeSetApprovals,
+} from "../../features/scoring/setApprovals";
+import {
   appendPenaltyToken,
   isScoredRunComplete,
   recalculateRun,
@@ -108,6 +119,7 @@ import {
   buildScorePdfFileName,
   generateScorePdf,
 } from "../../utils/generateScorePdf";
+import { buildSetApprovalPdf } from "../../features/classes/officialPdfService";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
 
@@ -496,6 +508,40 @@ function ClassScoringPage() {
   const [runs, setRuns] = useState(() =>
     loadRunsForClass(classId, maneuverCount, scoringCalculationOptions)
   );
+  const setApprovalMode = normalizeSetApprovalMode(
+    classSetup?.setApprovalMode
+  );
+  const activeSetApprovals = useMemo(
+    () =>
+      normalizeSetApprovals(
+        isMultiJudgeMode
+          ? activeJudgeSession?.setApprovals
+          : classSetup?.setApprovals
+      ),
+    [
+      activeJudgeSession?.setApprovals,
+      classSetup?.setApprovals,
+      isMultiJudgeMode,
+    ]
+  );
+  const lockedRunKeys = useMemo(
+    () => getLockedRunKeys(activeSetApprovals),
+    [activeSetApprovals]
+  );
+  const isRunLockedByApproval = useCallback(
+    (run, index) => lockedRunKeys.has(getRunApprovalKey(run, index)),
+    [lockedRunKeys]
+  );
+  const isDrawLockedByApproval = useCallback(
+    (draw) => {
+      const runIndex = runs.findIndex((run) => run.draw === draw);
+      return (
+        runIndex >= 0 &&
+        isRunLockedByApproval(runs[runIndex], runIndex)
+      );
+    },
+    [isRunLockedByApproval, runs]
+  );
   const lastPersistedRunsRef = useRef(JSON.stringify(runs));
   const lastLoadedScoringRunsRef = useRef([]);
   const [activeManoeuvre, setActiveManoeuvre] = useState(() =>
@@ -516,6 +562,9 @@ function ClassScoringPage() {
   }, []);
 
   const [showFinalizeBox, setShowFinalizeBox] = useState(false);
+  const [pendingSetApproval, setPendingSetApproval] = useState(null);
+  const [setApprovalSignature, setSetApprovalSignature] = useState(null);
+  const [isSavingSetApproval, setIsSavingSetApproval] = useState(false);
   const [showProvisionalRanking, setShowProvisionalRanking] = useState(false);
   const [judgeName, setJudgeName] = useState(assignedJudgeName);
   const [judgeSignature, setJudgeSignature] = useState(
@@ -1199,7 +1248,7 @@ function ClassScoringPage() {
   ]);
 
   const updateBackNumber = (draw, newValue) => {
-    if (!canEditBackNumbers) return;
+    if (!canEditBackNumbers || isDrawLockedByApproval(draw)) return;
 
     setRuns((prevRuns) =>
       prevRuns.map((run) =>
@@ -1214,7 +1263,7 @@ function ClassScoringPage() {
   };
 
   const updateRunNote = (draw, newValue) => {
-    if (!canEditScores) return;
+    if (!canEditScores || isDrawLockedByApproval(draw)) return;
 
     setRuns((prevRuns) =>
       prevRuns.map((run) =>
@@ -1238,7 +1287,7 @@ function ClassScoringPage() {
   };
 
   const updateScoreCell = (draw, manoeuvreIndex, newValue) => {
-    if (!canEditScores) return;
+    if (!canEditScores || isDrawLockedByApproval(draw)) return;
 
     const changedAt = new Date().toISOString();
     if (String(newValue || "").trim()) {
@@ -1283,12 +1332,12 @@ function ClassScoringPage() {
   };
 
   const clearScoreCell = (draw, manoeuvreIndex) => {
-    if (!canEditScores) return;
+    if (!canEditScores || isDrawLockedByApproval(draw)) return;
     updateScoreCell(draw, manoeuvreIndex, "");
   };
 
   const addPenaltyToken = (draw, manoeuvreIndex, token) => {
-    if (!canEditScores) return;
+    if (!canEditScores || isDrawLockedByApproval(draw)) return;
     if (penaltyDisabledIndexSet.has(manoeuvreIndex)) return;
     if (isSpecialPenaltyReasonRequired(token)) return;
 
@@ -1344,7 +1393,7 @@ function ClassScoringPage() {
     reasonId = "",
     manualComment = ""
   ) => {
-    if (!canEditScores) return;
+    if (!canEditScores || isDrawLockedByApproval(draw)) return;
     if (penaltyDisabledIndexSet.has(manoeuvreIndex)) return;
 
     const changedAt = new Date().toISOString();
@@ -1420,7 +1469,7 @@ function ClassScoringPage() {
   };
 
   const clearPenaltyCell = (draw, manoeuvreIndex) => {
-    if (!canEditScores) return;
+    if (!canEditScores || isDrawLockedByApproval(draw)) return;
     if (penaltyDisabledIndexSet.has(manoeuvreIndex)) return;
 
     const changedAt = new Date().toISOString();
@@ -1489,9 +1538,7 @@ function ClassScoringPage() {
     [canEditScores, maneuverCount, runs]
   );
 
-  const startDragBreak = (afterIndex) => {
-    if (!canStartDragAfterRun(afterIndex)) return;
-
+  const activateDragBreak = (afterIndex) => {
     const changedAt = new Date().toISOString();
     ensureClassStartedAt(changedAt);
     const afterRun = runs[afterIndex] || null;
@@ -1512,6 +1559,73 @@ function ClassScoringPage() {
     });
   };
 
+  const focusFirstPendingVideoReview = (setRange) => {
+    const [reviewRun] = getPendingVideoReviewRunsForSet(setRange);
+
+    if (!reviewRun) return false;
+
+    const manoeuvreIndex = (reviewRun.penalties || []).findIndex((penalty) =>
+      splitPenaltyTokens(penalty, specialPenaltyTokens).includes(
+        "Révision vidéo"
+      )
+    );
+
+    setActiveManoeuvre({
+      draw: reviewRun.draw,
+      manoeuvreIndex: Math.max(manoeuvreIndex, 0),
+    });
+    alert(
+      t("management.scoring.setVideoReviewRequired", {
+        draw: reviewRun.draw,
+      })
+    );
+    return true;
+  };
+
+  const requestSetApproval = (
+    endIndex,
+    { startDragAfterApproval = false } = {}
+  ) => {
+    const setRange = getNextSetRange({
+      runs,
+      approvals: activeSetApprovals,
+      endIndex,
+    });
+
+    if (!setRange) {
+      if (startDragAfterApproval) {
+        activateDragBreak(endIndex);
+      }
+      return;
+    }
+
+    if (focusFirstPendingVideoReview(setRange)) {
+      return;
+    }
+
+    setPendingSetApproval({
+      ...setRange,
+      startDragAfterApproval,
+    });
+    setSetApprovalSignature(null);
+    setShowFinalizeBox(false);
+
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const startDragBreak = (afterIndex) => {
+    if (!canStartDragAfterRun(afterIndex)) return;
+
+    if (setApprovalMode === SET_APPROVAL_MODES.PER_SET) {
+      requestSetApproval(afterIndex, { startDragAfterApproval: true });
+      return;
+    }
+
+    activateDragBreak(afterIndex);
+  };
+
   const stopDragBreak = (afterIndex) => {
     if (!canEditScores) return;
     if (activeDrag?.afterIndex !== afterIndex) return;
@@ -1521,6 +1635,7 @@ function ClassScoringPage() {
 
   const setActiveManoeuvreWithRun = (value) => {
     if (!canEditScores) return;
+    if (value?.draw && isDrawLockedByApproval(value.draw)) return;
 
     setActiveManoeuvre(value);
 
@@ -1738,6 +1853,167 @@ function ClassScoringPage() {
     }
 
     return true;
+  };
+
+  const handleApproveSet = async () => {
+    if (
+      !pendingSetApproval ||
+      !setApprovalSignature ||
+      isSavingSetApproval
+    ) {
+      return;
+    }
+
+    if (focusFirstPendingVideoReview(pendingSetApproval)) {
+      setPendingSetApproval(null);
+      setSetApprovalSignature(null);
+      return;
+    }
+
+    const signingJudgeName = assignedJudgeName || judgeName.trim();
+
+    if (!signingJudgeName) {
+      alert(t("management.scoring.judgeNameRequired"));
+      return;
+    }
+
+    const isScoringSynced = await ensureScoringSyncedBeforeFinalize();
+
+    if (!isScoringSynced) return;
+
+    setIsSavingSetApproval(true);
+
+    try {
+      const signedAt = new Date().toISOString();
+      const draftApproval = buildSetApproval({
+        setRange: pendingSetApproval,
+        judgeId: isMultiJudgeMode ? activeJudge?.id : "",
+        judgeName: signingJudgeName,
+        judgeSignature: setApprovalSignature,
+        signedAt,
+      });
+      const pdfClassData = {
+        ...classData,
+        official: {
+          ...(classData?.official || {}),
+          eventName: show?.name || classData?.official?.eventName || "",
+          eventDate: day?.date || classData?.official?.eventDate || "",
+        },
+      };
+      const { pdf, fileName } = buildSetApprovalPdf({
+        association,
+        classData: pdfClassData,
+        approval: draftApproval,
+      });
+      const approval = buildSetApproval({
+        setRange: pendingSetApproval,
+        judgeId: isMultiJudgeMode ? activeJudge?.id : "",
+        judgeName: signingJudgeName,
+        judgeSignature: setApprovalSignature,
+        signedAt,
+        pdfFileName: fileName,
+      });
+      const nextApprovals = [...activeSetApprovals, approval];
+      const isFinalSet =
+        pendingSetApproval.endIndex === runs.length - 1 &&
+        areAllRunsApproved(runs, nextApprovals);
+
+      if (isMultiJudgeMode) {
+        const session = await saveJudgeScoringSessionRepository({
+          classId,
+          judge: activeJudge,
+          updates: {
+            ...activeJudgeSession,
+            runs,
+            activeManoeuvre: null,
+            setApprovals: nextApprovals,
+            judgeName: signingJudgeName,
+            judgeSignature: isFinalSet ? setApprovalSignature : null,
+            finalized: isFinalSet,
+            finalizedAt: isFinalSet ? signedAt : null,
+            judgeSignedAt: isFinalSet ? signedAt : null,
+          },
+        });
+
+        setActiveJudgeSession(session);
+        setJudgeClaimState((current) => ({
+          ...current,
+          session,
+        }));
+      } else {
+        const currentSetup = {
+          ...getClassSetup(classId),
+          ...(classSetup || {}),
+          setApprovalMode,
+          setApprovals: nextApprovals,
+        };
+        const savedSetup = await saveSetupForClassRepository(
+          classId,
+          currentSetup
+        );
+
+        setClassData((currentData) =>
+          currentData
+            ? {
+                ...currentData,
+                setup: savedSetup,
+              }
+            : currentData
+        );
+
+        if (isFinalSet) {
+          await finalizeClassWithJudge({
+            classId,
+            judgeName: signingJudgeName,
+            judgeSignature: setApprovalSignature,
+            finalizedAt: signedAt,
+          });
+        }
+      }
+
+      pdf.save(fileName);
+      setPendingSetApproval(null);
+      setSetApprovalSignature(null);
+      setActiveManoeuvre(null);
+
+      if (isFinalSet) {
+        if (!isMultiJudgeMode) {
+          await advanceArenaLiveClassAfterCompletionRepository({
+            showId: classItem?.showId,
+            arena: classItem?.arena,
+            classId,
+          });
+          const nextData = await getClassFullDataRepository(classId);
+          setClassData(nextData);
+        }
+
+        alert(t("management.scoring.finalSetApproved"));
+        return;
+      }
+
+      if (pendingSetApproval.startDragAfterApproval) {
+        activateDragBreak(pendingSetApproval.endIndex);
+      }
+
+      alert(
+        t("management.scoring.setApprovedAndSent", {
+          set: approval.setNumber,
+        })
+      );
+    } catch (error) {
+      alert(error.message || t("management.scoring.setApprovalFailed"));
+    } finally {
+      setIsSavingSetApproval(false);
+    }
+  };
+
+  const handleRequestClassSignature = () => {
+    if (setApprovalMode === SET_APPROVAL_MODES.PER_SET) {
+      requestSetApproval(runs.length - 1);
+      return;
+    }
+
+    setShowFinalizeBox(true);
   };
 
   const handleFinalizeScoring = async () => {
@@ -2001,11 +2277,13 @@ function ClassScoringPage() {
           {!isCompleted && (
             <button
               type="button"
-              onClick={() => setShowFinalizeBox(true)}
+              onClick={handleRequestClassSignature}
               style={primaryButtonStyle}
               disabled={!canSignClass}
             >
-              {t("management.scoring.signClass")}
+              {setApprovalMode === SET_APPROVAL_MODES.PER_SET
+                ? t("management.scoring.approveFinalSet")
+                : t("management.scoring.signClass")}
             </button>
           )}
 
@@ -2141,6 +2419,89 @@ function ClassScoringPage() {
               </div>
             </div>
           )}
+        </section>
+      )}
+
+      {pendingSetApproval && !isCompleted && (
+        <section style={finalizeCardStyle}>
+          <div style={sectionHeaderStyle}>
+            <div>
+              <h2 style={sectionTitleStyle}>
+                {t("management.scoring.setApprovalTitle", {
+                  set: pendingSetApproval.setNumber,
+                })}
+                {assignedJudgeName ? ` · ${assignedJudgeName}` : ""}
+              </h2>
+              <div style={helperTextStyle}>
+                {t("management.scoring.setApprovalSummary", {
+                  start: pendingSetApproval.startDraw,
+                  end: pendingSetApproval.endDraw,
+                  count: pendingSetApproval.runs.length,
+                })}
+              </div>
+            </div>
+            <div style={statusBadgeStyle("in_progress")}>
+              {t("management.scoring.setApprovalPending")}
+            </div>
+          </div>
+
+          <div style={judgeNoticeStyle}>
+            {t("management.scoring.setApprovalHelp")}
+          </div>
+
+          {!assignedJudgeName && (
+            <div style={fieldGridStyle}>
+              <div>
+                <label style={labelStyle}>
+                  {t("management.scoring.judgeNameLabel")}
+                </label>
+                <input
+                  type="text"
+                  value={judgeName}
+                  onChange={(event) => setJudgeName(event.target.value)}
+                  placeholder={t("management.scoring.judgeNameLabel")}
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+          )}
+
+          <div style={{ marginTop: 16 }}>
+            <label style={labelStyle}>
+              {t("management.scoring.judgeSignatureTitle")}
+            </label>
+            <SignaturePad
+              value={setApprovalSignature}
+              onChange={setSetApprovalSignature}
+              width={560}
+              height={180}
+            />
+          </div>
+
+          <div style={buttonRowStyle}>
+            <button
+              type="button"
+              onClick={handleApproveSet}
+              style={primaryButtonStyle}
+              disabled={!setApprovalSignature || isSavingSetApproval}
+            >
+              {isSavingSetApproval
+                ? t("management.scoring.approvingSet")
+                : t("management.scoring.approveSet")}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setPendingSetApproval(null);
+                setSetApprovalSignature(null);
+              }}
+              style={secondaryButtonStyle}
+              disabled={isSavingSetApproval}
+            >
+              {t("management.access.cancel")}
+            </button>
+          </div>
         </section>
       )}
 
@@ -2294,6 +2655,7 @@ function ClassScoringPage() {
         onStopDrag={stopDragBreak}
         canStartDragAfterRun={canStartDragAfterRun}
         isLocked={!canEditScores}
+        isRunLocked={isRunLockedByApproval}
         isBackNumberLocked={!canEditBackNumbers}
         styles={styles}
       />

@@ -20,6 +20,7 @@ import {
 import {
   downloadJudgeScorePdf,
   downloadOfficialScorePdf,
+  downloadSetApprovalPdf,
   getOfficialPdfFileName,
 } from "../../features/classes/officialPdfService";
 import {
@@ -238,6 +239,26 @@ function SecretariatDashboardPage() {
     }
   };
 
+  const handleDownloadSetPdf = (classData, approval) => {
+    try {
+      downloadSetApprovalPdf({
+        association,
+        classData: {
+          ...classData,
+          official: {
+            ...(classData?.official || {}),
+            eventName: show?.name || classData?.official?.eventName || "",
+            eventDate:
+              classData?.official?.eventDate || show?.startDate || "",
+          },
+        },
+        approval,
+      });
+    } catch (error) {
+      alert(error.message || t("management.secretariat.setPdfFailed"));
+    }
+  };
+
   const handleValidateOfficial = async (classData) => {
     try {
       await validateOfficialResultRepository({
@@ -312,6 +333,9 @@ function SecretariatDashboardPage() {
           </div>
         </div>
         <div style={heroActionsStyle}>
+          <button type="button" onClick={refresh} style={linkButtonStyle}>
+            {t("management.secretariat.refresh")}
+          </button>
           <Link
             to={`/associations/${associationId}/shows/${showId}/time`}
             style={linkButtonStyle}
@@ -401,6 +425,7 @@ function SecretariatDashboardPage() {
                           classData={classData}
                           onDownloadOfficialPdf={handleDownloadOfficialPdf}
                           onDownloadJudgePdf={handleDownloadJudgePdf}
+                          onDownloadSetPdf={handleDownloadSetPdf}
                           onValidateOfficial={handleValidateOfficial}
                           onReleaseJudgeSession={handleReleaseJudgeSession}
                           onPublish={handlePublish}
@@ -499,6 +524,7 @@ function ClassRow({
   classData,
   onDownloadOfficialPdf,
   onDownloadJudgePdf,
+  onDownloadSetPdf,
   onValidateOfficial,
   onReleaseJudgeSession,
   onPublish,
@@ -544,6 +570,7 @@ function ClassRow({
     : scoringStarted
       ? { label: t("management.secretariat.scoringInProgress"), tone: "warn" }
       : { label: t("management.secretariat.scoringNotStarted"), tone: "muted" };
+  const setApprovalRows = getSetApprovalRows(classData, judgeSummary);
 
   return (
     <tr>
@@ -616,6 +643,44 @@ function ClassRow({
                         {t("management.secretariat.releaseJudge")}
                       </button>
                     )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {setApprovalRows.length > 0 && (
+          <div style={judgeStatusListStyle}>
+            <div style={judgeStatusTitleStyle}>
+              {t("management.secretariat.setSheets")}
+            </div>
+            {setApprovalRows.map(({ approval, judgeName }) => (
+              <div key={approval.id} style={judgeStatusRowStyle}>
+                <div style={judgeStatusTextStyle}>
+                  <span style={judgeStatusNameStyle}>
+                    {t("management.secretariat.setSheetLabel", {
+                      set: approval.setNumber,
+                      start: approval.startDraw,
+                      end: approval.endDraw,
+                    })}
+                  </span>
+                  <span style={judgeStatusMetaStyle}>
+                    {judgeName} ·{" "}
+                    {formatDateTime(approval.sentAt, language)}
+                  </span>
+                </div>
+                <div style={judgeStatusActionsStyle}>
+                  <Badge tone="success">
+                    {t("management.secretariat.setReceived")}
+                  </Badge>
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={() => onDownloadSetPdf(classData, approval)}
+                      style={tinyButtonStyle}
+                    >
+                      {t("management.secretariat.setPdf")}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -805,6 +870,22 @@ function SummaryTile({ label, value, tone = "default" }) {
       <div style={summaryLabelStyle}>{label}</div>
     </div>
   );
+}
+
+function getSetApprovalRows(classData, judgeSummary) {
+  if (judgeSummary.isMultiJudge) {
+    return judgeSummary.rows.flatMap((row) =>
+      (row.session?.setApprovals || []).map((approval) => ({
+        approval,
+        judgeName: approval.judgeName || row.displayName,
+      }))
+    );
+  }
+
+  return (classData?.setup?.setApprovals || []).map((approval) => ({
+    approval,
+    judgeName: approval.judgeName || classData?.setup?.judgeName || "—",
+  }));
 }
 
 function Badge({ children, tone = "default" }) {

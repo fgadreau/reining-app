@@ -144,6 +144,76 @@ export function buildJudgeScorePdf({
   };
 }
 
+export function buildSetApprovalPdf({
+  association,
+  classData,
+  approval,
+}) {
+  const classItem = classData?.classItem || {};
+  const official = classData?.official || {};
+  const setup = classData?.setup || {};
+  const patternValue = setup.pattern || classItem.pattern || "";
+  const customPattern = setup.customPattern || classItem.customPattern || null;
+  const headers = getPatternHeaders(patternValue, customPattern);
+  const signedAt = approval?.signedAt || new Date().toISOString();
+  const setNumber = Math.max(Number.parseInt(approval?.setNumber, 10) || 1, 1);
+  const drawLabel =
+    approval?.startDraw === approval?.endDraw
+      ? `${approval?.startDraw ?? ""}`
+      : `${approval?.startDraw ?? ""}-${approval?.endDraw ?? ""}`;
+  const titleSuffix = `Set ${setNumber} • Draws ${drawLabel}`;
+  const pdf = generateScorePdf({
+    associationName: association?.name || "Association",
+    associationLogoDataUrl: association?.logoDataUrl || null,
+    eventName: official.eventName || "",
+    eventDate: official.eventDate || "",
+    classItem,
+    classSetup: {
+      ...setup,
+      judgeName: approval?.judgeName || "",
+      judgeSignature: approval?.judgeSignature || null,
+      finalizedAt: signedAt,
+      judgeSignedAt: signedAt,
+    },
+    runs: Array.isArray(approval?.runs) ? approval.runs : [],
+    headers,
+    titleSuffix,
+  });
+  const fileName =
+    approval?.pdfFileName ||
+    buildJudgeScorePdfFileName({
+      associationAbbreviation: association?.shortName || "ASSOC",
+      showName: official.eventName || "show",
+      className: `${classItem?.name || "bloc"}-set-${setNumber}-draws-${drawLabel}`,
+      judgeName: approval?.judgeName || "judge",
+      finalizedAt: signedAt,
+    });
+
+  return {
+    pdf,
+    fileName,
+  };
+}
+
+export function downloadSetApprovalPdf({
+  association,
+  classData,
+  approval,
+}) {
+  if (!approval?.judgeSignature || !approval?.signedAt) {
+    throw new Error("Le set doit être signé avant de générer son PDF.");
+  }
+
+  const { pdf, fileName } = buildSetApprovalPdf({
+    association,
+    classData,
+    approval,
+  });
+
+  pdf.save(fileName);
+  return fileName;
+}
+
 export function downloadJudgeScorePdf({
   association,
   classData,

@@ -82,6 +82,15 @@ import {
   buildScoringDataLossWarning,
   countRunsWithScoringData,
 } from "./features/scoring/scoringDataIntegrity";
+import {
+  SET_APPROVAL_MODES,
+  areAllRunsApproved,
+  buildSetApproval,
+  getLockedRunKeys,
+  getNextSetRange,
+  getPendingVideoReviewRunsForSet,
+  normalizeSetApprovalMode,
+} from "./features/scoring/setApprovals";
 import { canOpenClassForScribe } from "./pages/association/ShowScribePage";
 import { buildHspScoredRunRows } from "./features/integrations/hspScoredRunRepository";
 import {
@@ -6849,4 +6858,86 @@ test("calculates remaining paid warmup schedule time", () => {
     remainingDragBreaks: 1,
     remainingSeconds: 18 * 60,
   });
+});
+
+test("normalizes the judge set approval mode without changing the legacy default", () => {
+  expect(normalizeSetApprovalMode(SET_APPROVAL_MODES.PER_SET)).toBe(
+    SET_APPROVAL_MODES.PER_SET
+  );
+  expect(normalizeSetApprovalMode("unexpected")).toBe(
+    SET_APPROVAL_MODES.CLASS_END
+  );
+  expect(normalizeClassSetup({}).setApprovalMode).toBe(
+    SET_APPROVAL_MODES.CLASS_END
+  );
+});
+
+test("builds consecutive signed set snapshots and locks their runs", () => {
+  const runs = Array.from({ length: 6 }, (_, index) => ({
+    id: `run-${index + 1}`,
+    draw: index + 1,
+    backNumber: String(100 + index),
+    scores: ["0"],
+    penalties: [""],
+    isActive: index === 2,
+  }));
+  const firstRange = getNextSetRange({
+    runs,
+    approvals: [],
+    endIndex: 2,
+  });
+  const firstApproval = buildSetApproval({
+    setRange: firstRange,
+    judgeName: "Judge One",
+    judgeSignature: "data:image/png;base64,signature",
+    signedAt: "2026-07-20T12:00:00.000Z",
+  });
+  const secondRange = getNextSetRange({
+    runs,
+    approvals: [firstApproval],
+    endIndex: 5,
+  });
+  const secondApproval = buildSetApproval({
+    setRange: secondRange,
+    judgeName: "Judge One",
+    judgeSignature: "data:image/png;base64,signature-2",
+    signedAt: "2026-07-20T13:00:00.000Z",
+  });
+
+  expect(firstRange).toMatchObject({
+    setNumber: 1,
+    startIndex: 0,
+    endIndex: 2,
+    startDraw: 1,
+    endDraw: 3,
+  });
+  expect(secondRange).toMatchObject({
+    setNumber: 2,
+    startIndex: 3,
+    endIndex: 5,
+    startDraw: 4,
+    endDraw: 6,
+  });
+  expect(firstApproval.runs.every((run) => run.isActive === false)).toBe(true);
+  expect(getLockedRunKeys([firstApproval]).has("id:run-3")).toBe(true);
+  expect(
+    areAllRunsApproved(runs, [firstApproval, secondApproval])
+  ).toBe(true);
+});
+
+test("blocks a set approval while one of its runs is under video review", () => {
+  const setRange = {
+    runs: [
+      { id: "run-1", penalties: [""], scores: ["0"] },
+      {
+        id: "run-2",
+        penalties: ["Révision vidéo"],
+        scores: [""],
+      },
+    ],
+  };
+
+  expect(getPendingVideoReviewRunsForSet(setRange)).toEqual([
+    setRange.runs[1],
+  ]);
 });
