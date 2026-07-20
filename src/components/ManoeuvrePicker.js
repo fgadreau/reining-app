@@ -4,6 +4,8 @@ import { useTranslation } from "../features/i18n/I18nProvider";
 import {
   getSpecialPenaltyReasons,
   isSpecialPenaltyReasonRequired,
+  SPECIAL_PENALTY_REASON_MANUAL_ID,
+  SPECIAL_PENALTY_REASON_NONE_ID,
 } from "../features/scoring/specialPenaltyReasons";
 import { formatScoreValue, parseScoreValue } from "../utils/scoring";
 
@@ -45,6 +47,8 @@ function ManoeuvrePicker({
   const [manualPenaltyValue, setManualPenaltyValue] = useState("");
   const [reasonRequest, setReasonRequest] = useState(null);
   const [reasonSearch, setReasonSearch] = useState("");
+  const [isManualReasonOpen, setIsManualReasonOpen] = useState(false);
+  const [manualReasonComment, setManualReasonComment] = useState("");
   const manoeuvreIndex = activeManoeuvre?.manoeuvreIndex;
 
   useEffect(() => {
@@ -52,6 +56,8 @@ function ManoeuvrePicker({
     setManualPenaltyValue("");
     setReasonRequest(null);
     setReasonSearch("");
+    setIsManualReasonOpen(false);
+    setManualReasonComment("");
   }, [run.draw, manoeuvreIndex]);
 
   useEffect(() => {
@@ -162,10 +168,14 @@ function ManoeuvrePicker({
   const closeReasonModal = () => {
     setReasonRequest(null);
     setReasonSearch("");
+    setIsManualReasonOpen(false);
+    setManualReasonComment("");
   };
   const openReasonModal = (token) => {
     setReasonRequest({ token });
     setReasonSearch("");
+    setIsManualReasonOpen(false);
+    setManualReasonComment("");
   };
   const selectSpecialPenaltyReason = (reasonId) => {
     if (!reasonRequest) return;
@@ -175,6 +185,29 @@ function ManoeuvrePicker({
       manoeuvreIndex,
       reasonRequest.token,
       reasonId
+    );
+    closeReasonModal();
+  };
+  const selectSpecialPenaltyWithoutComment = () => {
+    if (!reasonRequest) return;
+
+    toggleSpecialPenalty(
+      run.draw,
+      manoeuvreIndex,
+      reasonRequest.token,
+      SPECIAL_PENALTY_REASON_NONE_ID
+    );
+    closeReasonModal();
+  };
+  const selectSpecialPenaltyManualComment = () => {
+    if (!reasonRequest || !manualReasonComment.trim()) return;
+
+    toggleSpecialPenalty(
+      run.draw,
+      manoeuvreIndex,
+      reasonRequest.token,
+      SPECIAL_PENALTY_REASON_MANUAL_ID,
+      manualReasonComment
     );
     closeReasonModal();
   };
@@ -338,8 +371,52 @@ function ManoeuvrePicker({
                 <div style={styles.specialPenaltyReasonHelp}>
                   {t("management.scoring.specialPenaltyReasonHelp")}
                 </div>
+                <div style={styles.specialPenaltyReasonActions}>
+                  <button
+                    type="button"
+                    style={styles.closeButton}
+                    onClick={selectSpecialPenaltyWithoutComment}
+                  >
+                    {t("management.scoring.specialPenaltyReasonNoComment")}
+                  </button>
+                  <button
+                    type="button"
+                    style={{
+                      ...styles.optionButton,
+                      ...(isManualReasonOpen
+                        ? styles.optionButtonSelected
+                        : {}),
+                    }}
+                    onClick={() =>
+                      setIsManualReasonOpen((current) => !current)
+                    }
+                  >
+                    {t("management.scoring.specialPenaltyReasonManual")}
+                  </button>
+                </div>
+                {isManualReasonOpen && (
+                  <div style={styles.specialPenaltyReasonManualPanel}>
+                    <textarea
+                      value={manualReasonComment}
+                      onChange={(event) =>
+                        setManualReasonComment(event.target.value)
+                      }
+                      placeholder={t(
+                        "management.scoring.specialPenaltyReasonManualPlaceholder"
+                      )}
+                      style={styles.specialPenaltyReasonCommentInput}
+                    />
+                    <button
+                      type="button"
+                      style={styles.optionButton}
+                      onClick={selectSpecialPenaltyManualComment}
+                      disabled={!manualReasonComment.trim()}
+                    >
+                      {t("management.scoring.specialPenaltyReasonManualApply")}
+                    </button>
+                  </div>
+                )}
                 <input
-                  autoFocus
                   value={reasonSearch}
                   onChange={(event) => setReasonSearch(event.target.value)}
                   placeholder={t("management.scoring.specialPenaltyReasonSearch")}

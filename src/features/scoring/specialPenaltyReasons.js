@@ -1,4 +1,6 @@
 export const SPECIAL_PENALTY_REASON_TOKENS = ["No score", "Score 0"];
+export const SPECIAL_PENALTY_REASON_MANUAL_ID = "manual_comment";
+export const SPECIAL_PENALTY_REASON_NONE_ID = "no_comment";
 
 export const SPECIAL_PENALTY_REASONS = {
   "No score": [
@@ -171,20 +173,71 @@ export function findSpecialPenaltyReason(token, reasonId) {
   );
 }
 
-export function isValidSpecialPenaltyReason(token, reasonId) {
+export function isValidSpecialPenaltyReason(
+  token,
+  reasonId,
+  manualComment = ""
+) {
+  if (!isSpecialPenaltyReasonRequired(token)) return false;
+  if (reasonId === SPECIAL_PENALTY_REASON_NONE_ID) return true;
+  if (reasonId === SPECIAL_PENALTY_REASON_MANUAL_ID) {
+    return Boolean(String(manualComment || "").trim());
+  }
+
   return Boolean(findSpecialPenaltyReason(token, reasonId));
 }
 
-export function buildSpecialPenaltyReasonNote(token, reasonId) {
+export function buildSpecialPenaltyReasonNote(
+  token,
+  reasonId,
+  manualComment = "",
+  context = null
+) {
   const reason = findSpecialPenaltyReason(token, reasonId);
   const status = String(token || "").trim();
+  const cleanManualComment = String(manualComment || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const prefix = buildSpecialPenaltyReasonPrefix(status, context);
 
-  if (!status || !reason) return "";
+  if (!status || reasonId === SPECIAL_PENALTY_REASON_NONE_ID) return "";
 
-  return `${status} - Raison: ${reason.fr} / Reason: ${reason.en}`;
+  if (
+    reasonId === SPECIAL_PENALTY_REASON_MANUAL_ID &&
+    cleanManualComment
+  ) {
+    return `${prefix} - Commentaire / Comment: ${cleanManualComment}`;
+  }
+
+  if (!reason) return "";
+
+  return `${prefix} - Raison: ${reason.fr} / Reason: ${reason.en}`;
 }
 
-function isSpecialPenaltyReasonLine(line, token) {
+function normalizeSpecialPenaltyReasonContext(context) {
+  const index = Number(context?.index);
+
+  if (!Number.isInteger(index) || index < 0) return null;
+
+  return {
+    index,
+    label: String(context?.label || "").trim(),
+  };
+}
+
+function buildSpecialPenaltyReasonPrefix(status, context) {
+  const normalizedContext = normalizeSpecialPenaltyReasonContext(context);
+
+  if (!normalizedContext) return status;
+
+  const label = normalizedContext.label
+    ? `: ${normalizedContext.label}`
+    : "";
+
+  return `${status} [M${normalizedContext.index + 1}${label}]`;
+}
+
+function isLegacySpecialPenaltyReasonLine(line, token) {
   const status = String(token || "").trim();
   const text = String(line || "").trim();
 
@@ -192,21 +245,66 @@ function isSpecialPenaltyReasonLine(line, token) {
 
   return (
     text.startsWith(`${status} - Raison:`) ||
-    text.startsWith(`${status} - Reason:`)
+    text.startsWith(`${status} - Reason:`) ||
+    text.startsWith(`${status} - Commentaire`) ||
+    text.startsWith(`${status} - Comment:`)
   );
 }
 
-export function removeSpecialPenaltyReasonNote(note, token) {
+function isSpecialPenaltyReasonLine(line, token, context = null) {
+  const status = String(token || "").trim();
+  const text = String(line || "").trim();
+  const normalizedContext = normalizeSpecialPenaltyReasonContext(context);
+
+  if (!status) return false;
+
+  if (!normalizedContext) {
+    return (
+      isLegacySpecialPenaltyReasonLine(text, status) ||
+      text.startsWith(`${status} [M`)
+    );
+  }
+
+  const prefix = buildSpecialPenaltyReasonPrefix(status, normalizedContext);
+
+  return (
+    text.startsWith(`${prefix} - Raison:`) ||
+    text.startsWith(`${prefix} - Reason:`) ||
+    text.startsWith(`${prefix} - Commentaire`) ||
+    text.startsWith(`${prefix} - Comment:`)
+  );
+}
+
+export function removeSpecialPenaltyReasonNote(note, token, context = null) {
   return String(note || "")
     .split(/\r?\n/)
-    .filter((line) => !isSpecialPenaltyReasonLine(line, token))
+    .filter((line) => !isSpecialPenaltyReasonLine(line, token, context))
     .join("\n")
     .trim();
 }
 
-export function upsertSpecialPenaltyReasonNote(note, token, reasonId) {
-  const nextLine = buildSpecialPenaltyReasonNote(token, reasonId);
-  const cleanedNote = removeSpecialPenaltyReasonNote(note, token);
+export function upsertSpecialPenaltyReasonNote(
+  note,
+  token,
+  reasonId,
+  manualComment = "",
+  context = null
+) {
+  const nextLine = buildSpecialPenaltyReasonNote(
+    token,
+    reasonId,
+    manualComment,
+    context
+  );
+  let cleanedNote = removeSpecialPenaltyReasonNote(note, token, context);
+
+  if (normalizeSpecialPenaltyReasonContext(context)) {
+    cleanedNote = cleanedNote
+      .split(/\r?\n/)
+      .filter((line) => !isLegacySpecialPenaltyReasonLine(line, token))
+      .join("\n")
+      .trim();
+  }
 
   if (!nextLine) return cleanedNote;
 

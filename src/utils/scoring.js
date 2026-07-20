@@ -180,7 +180,9 @@ export function togglePenaltySpecialToken(value, token, specialTokens = []) {
 export function parsePenaltyValue(value) {
   if (!value) return 0;
 
-  const text = String(value).replace(/½|1\/2/g, "0.5");
+  const text = String(value)
+    .replace(/\bP(2|5)\b/gi, "$1")
+    .replace(/½|1\/2/g, "0.5");
   let total = 0;
   const numberRegex =
     /(^|[^A-Za-z0-9/.])([+-]?(?:\d+(?:[.,]\d+)?|\.\d+))(?=$|[^A-Za-z0-9/.])/g;

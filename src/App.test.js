@@ -1311,6 +1311,7 @@ test("formats penalties with commas and clears the latest penalty token", () => 
   const specialTokens = ["Score 0", "No score", "Scratch", "Révision vidéo"];
 
   expect(appendPenaltyToken("1", "5", specialTokens)).toBe("1, 5");
+  expect(appendPenaltyToken("2", "P2", specialTokens)).toBe("2, P2");
   expect(appendPenaltyToken("1, 5", "12", specialTokens)).toBe("1, 5, 12");
   expect(formatPenaltyValue("1 5 Score 0", specialTokens)).toBe(
     "1, 5, Score 0"
@@ -1328,6 +1329,14 @@ test("formats penalties with commas and clears the latest penalty token", () => 
 
   expect(run.penTotal).toBe("18");
   expect(run.scoreTotal).toBe("52");
+
+  const codedPenaltyRun = recalculateRun({
+    scores: ["0"],
+    penalties: ["2, P2, 5, P5"],
+  });
+
+  expect(codedPenaltyRun.penTotal).toBe("14");
+  expect(codedPenaltyRun.scoreTotal).toBe("56");
 });
 
 test("treats special run statuses as complete scores", () => {
@@ -1414,6 +1423,55 @@ test("builds bilingual judge notes for required NRHA special penalty reasons", (
   expect(removeSpecialPenaltyReasonNote(noteWithScoreZero, "No score")).not.toContain(
     "Animal abuse"
   );
+
+  const noteWithManualComment = upsertSpecialPenaltyReasonNote(
+    noteWithScoreZero,
+    "No score",
+    "manual_comment",
+    "Décision confirmée par les juges."
+  );
+
+  expect(noteWithManualComment).toContain(
+    "No score - Commentaire / Comment: Décision confirmée par les juges."
+  );
+  expect(noteWithManualComment).not.toContain("Animal abuse");
+
+  expect(
+    upsertSpecialPenaltyReasonNote(
+      noteWithManualComment,
+      "No score",
+      "no_comment"
+    )
+  ).not.toContain("No score - Commentaire");
+
+  const firstScoreZeroReason = upsertSpecialPenaltyReasonNote(
+    "",
+    "Score 0",
+    "pattern_not_completed",
+    "",
+    { index: 0, label: "RUN IN" }
+  );
+  const multipleScoreZeroReasons = upsertSpecialPenaltyReasonNote(
+    firstScoreZeroReason,
+    "Score 0",
+    "fall",
+    "",
+    { index: 2, label: "STOP" }
+  );
+
+  expect(multipleScoreZeroReasons).toContain(
+    "Score 0 [M1: RUN IN] - Raison: Pattern non complété"
+  );
+  expect(multipleScoreZeroReasons).toContain(
+    "Score 0 [M3: STOP] - Raison: Chute au sol"
+  );
+  expect(
+    removeSpecialPenaltyReasonNote(
+      multipleScoreZeroReasons,
+      "Score 0",
+      { index: 0, label: "RUN IN" }
+    )
+  ).toContain("Score 0 [M3: STOP]");
 });
 
 test("carries imported scratched runs into scoring", () => {
@@ -1644,7 +1702,7 @@ test("uses sliding contest as a reining scoring pattern", () => {
       "+2½",
       "+3",
     ],
-    penaltyOptions: ["½", "1", "2", "5", "Score 0"],
+    penaltyOptions: ["½", "1", "2", "P2", "5", "P5", "Score 0"],
   });
 
   const run = recalculateRun(

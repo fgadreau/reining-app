@@ -998,9 +998,14 @@ export const translations = {
         addJudgeNote: "+ Note",
         hideJudgeNote: "Masquer",
         participantNotePlaceholder: "Note pour ce participant",
-        specialPenaltyReasonTitle: "Raison requise - {{status}}",
+        specialPenaltyReasonTitle: "Raison ou commentaire - {{status}}",
         specialPenaltyReasonHelp:
-          "Choisis la raison dictée par le juge. Les choix sont en anglais pour faciliter la recherche en piste.",
+          "Choisis une raison, ajoute un commentaire manuel ou continue sans commentaire.",
+        specialPenaltyReasonManual: "Commentaire manuel",
+        specialPenaltyReasonManualApply: "Appliquer le commentaire",
+        specialPenaltyReasonManualPlaceholder:
+          "Écrire le commentaire du juge...",
+        specialPenaltyReasonNoComment: "Sans commentaire",
         specialPenaltyReasonSearch: "Rechercher une raison...",
         specialPenaltyReasonEmpty: "Aucune raison trouvée.",
         penalties: "Pénalités",
@@ -2689,9 +2694,14 @@ export const translations = {
         addJudgeNote: "+ Note",
         hideJudgeNote: "Hide",
         participantNotePlaceholder: "Note for this participant",
-        specialPenaltyReasonTitle: "Reason required - {{status}}",
+        specialPenaltyReasonTitle: "Reason or comment - {{status}}",
         specialPenaltyReasonHelp:
-          "Choose the reason called by the judge. Choices are shown in English for faster lookup in the pen.",
+          "Choose a reason, add a manual comment, or continue without a comment.",
+        specialPenaltyReasonManual: "Manual comment",
+        specialPenaltyReasonManualApply: "Apply comment",
+        specialPenaltyReasonManualPlaceholder:
+          "Enter the judge's comment...",
+        specialPenaltyReasonNoComment: "No comment",
         specialPenaltyReasonSearch: "Search for a reason...",
         specialPenaltyReasonEmpty: "No reason found.",
         penalties: "Penalties",

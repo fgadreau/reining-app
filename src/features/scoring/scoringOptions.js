@@ -40,7 +40,7 @@ export const OVERALL_FORM_EFFECTIVENESS_OPTIONS = [
 
 const REINING_OPTIONS = {
   scoreOptions: SCORE_OPTIONS,
-  penaltyOptions: ["½", "1", "2", "5", "Score 0"],
+  penaltyOptions: ["½", "1", "2", "P2", "5", "P5", "Score 0"],
   specialPenaltyTokens: ["Score 0", "No score", "Scratch", "Révision vidéo"],
   statusPenaltyOptions: ["No score", "Scratch", "Révision vidéo"],
 };

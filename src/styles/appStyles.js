@@ -487,6 +487,34 @@ export const appStyles = {
     lineHeight: 1.35,
   },
 
+  specialPenaltyReasonActions: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+  },
+
+  specialPenaltyReasonManualPanel: {
+    padding: "10px",
+    borderRadius: "10px",
+    border: "1px solid #cbd5e1",
+    backgroundColor: "#f8fafc",
+    display: "grid",
+    gap: "8px",
+  },
+
+  specialPenaltyReasonCommentInput: {
+    width: "100%",
+    minHeight: "88px",
+    border: "1px solid #94a3b8",
+    borderRadius: "10px",
+    padding: "10px 12px",
+    boxSizing: "border-box",
+    fontSize: "16px",
+    fontWeight: "700",
+    lineHeight: 1.35,
+    resize: "vertical",
+  },
+
   specialPenaltyReasonSearchInput: {
     width: "100%",
     minHeight: "44px",

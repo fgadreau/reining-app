@@ -162,13 +162,29 @@ function syncSpecialPenaltyReasonNotes(
   penalties,
   specialPenaltyTokens,
   selectedToken,
-  reasonId
+  reasonId,
+  manualComment = "",
+  reasonContext = null
 ) {
   let nextNote = String(note || "");
+  const reasonContextIndex = Number(reasonContext?.index);
+  const currentPenalty =
+    Number.isInteger(reasonContextIndex) && reasonContextIndex >= 0
+      ? penalties?.[reasonContextIndex]
+      : "";
 
   SPECIAL_PENALTY_REASON_TOKENS.forEach((token) => {
     if (!penaltiesContainToken(penalties, token, specialPenaltyTokens)) {
       nextNote = removeSpecialPenaltyReasonNote(nextNote, token);
+    } else if (
+      reasonContext &&
+      !splitPenaltyTokens(currentPenalty, specialPenaltyTokens).includes(token)
+    ) {
+      nextNote = removeSpecialPenaltyReasonNote(
+        nextNote,
+        token,
+        reasonContext
+      );
     }
   });
 
@@ -176,9 +192,15 @@ function syncSpecialPenaltyReasonNotes(
     selectedToken &&
     isSpecialPenaltyReasonRequired(selectedToken) &&
     penaltiesContainToken(penalties, selectedToken, specialPenaltyTokens) &&
-    isValidSpecialPenaltyReason(selectedToken, reasonId)
+    isValidSpecialPenaltyReason(selectedToken, reasonId, manualComment)
   ) {
-    nextNote = upsertSpecialPenaltyReasonNote(nextNote, selectedToken, reasonId);
+    nextNote = upsertSpecialPenaltyReasonNote(
+      nextNote,
+      selectedToken,
+      reasonId,
+      manualComment,
+      reasonContext
+    );
   }
 
   return nextNote;
@@ -1329,7 +1351,13 @@ function ClassScoringPage() {
     });
   };
 
-  const toggleSpecialPenalty = (draw, manoeuvreIndex, token, reasonId = "") => {
+  const toggleSpecialPenalty = (
+    draw,
+    manoeuvreIndex,
+    token,
+    reasonId = "",
+    manualComment = ""
+  ) => {
     if (!canEditScores) return;
     if (penaltyDisabledIndexSet.has(manoeuvreIndex)) return;
 
@@ -1346,7 +1374,7 @@ function ClassScoringPage() {
     if (
       !wasSelectedBefore &&
       isSpecialPenaltyReasonRequired(token) &&
-      !isValidSpecialPenaltyReason(token, reasonId)
+      !isValidSpecialPenaltyReason(token, reasonId, manualComment)
     ) {
       return;
     }
@@ -1379,7 +1407,12 @@ function ClassScoringPage() {
           nextPenalties,
           specialPenaltyTokens,
           token,
-          reasonId
+          reasonId,
+          manualComment,
+          {
+            index: manoeuvreIndex,
+            label: headers[manoeuvreIndex],
+          }
         );
 
         return stampRunTiming(
@@ -1432,7 +1465,14 @@ function ClassScoringPage() {
         const nextNote = syncSpecialPenaltyReasonNotes(
           run.note,
           nextPenalties,
-          specialPenaltyTokens
+          specialPenaltyTokens,
+          "",
+          "",
+          "",
+          {
+            index: manoeuvreIndex,
+            label: headers[manoeuvreIndex],
+          }
         );
 
         return stampRunTiming(
