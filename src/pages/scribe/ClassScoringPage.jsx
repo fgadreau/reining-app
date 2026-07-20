@@ -66,6 +66,7 @@ import {
   SPECIAL_PENALTY_REASON_TOKENS,
   isSpecialPenaltyReasonRequired,
   isValidSpecialPenaltyReason,
+  normalizeSpecialPenaltyReasonNote,
   removeSpecialPenaltyReasonNote,
   upsertSpecialPenaltyReasonNote,
 } from "../../features/scoring/specialPenaltyReasons";
@@ -119,6 +120,7 @@ function normalizeRunArrays(run, targetLength) {
 
   return {
     ...run,
+    note: normalizeSpecialPenaltyReasonNote(run.note),
     scores: nextScores.slice(0, targetLength),
     penalties: nextPenalties.slice(0, targetLength),
   };
@@ -163,28 +165,13 @@ function syncSpecialPenaltyReasonNotes(
   specialPenaltyTokens,
   selectedToken,
   reasonId,
-  manualComment = "",
-  reasonContext = null
+  manualComment = ""
 ) {
   let nextNote = String(note || "");
-  const reasonContextIndex = Number(reasonContext?.index);
-  const currentPenalty =
-    Number.isInteger(reasonContextIndex) && reasonContextIndex >= 0
-      ? penalties?.[reasonContextIndex]
-      : "";
 
   SPECIAL_PENALTY_REASON_TOKENS.forEach((token) => {
     if (!penaltiesContainToken(penalties, token, specialPenaltyTokens)) {
       nextNote = removeSpecialPenaltyReasonNote(nextNote, token);
-    } else if (
-      reasonContext &&
-      !splitPenaltyTokens(currentPenalty, specialPenaltyTokens).includes(token)
-    ) {
-      nextNote = removeSpecialPenaltyReasonNote(
-        nextNote,
-        token,
-        reasonContext
-      );
     }
   });
 
@@ -198,8 +185,7 @@ function syncSpecialPenaltyReasonNotes(
       nextNote,
       selectedToken,
       reasonId,
-      manualComment,
-      reasonContext
+      manualComment
     );
   }
 
@@ -1408,11 +1394,7 @@ function ClassScoringPage() {
           specialPenaltyTokens,
           token,
           reasonId,
-          manualComment,
-          {
-            index: manoeuvreIndex,
-            label: headers[manoeuvreIndex],
-          }
+          manualComment
         );
 
         return stampRunTiming(
@@ -1468,11 +1450,7 @@ function ClassScoringPage() {
           specialPenaltyTokens,
           "",
           "",
-          "",
-          {
-            index: manoeuvreIndex,
-            label: headers[manoeuvreIndex],
-          }
+          ""
         );
 
         return stampRunTiming(

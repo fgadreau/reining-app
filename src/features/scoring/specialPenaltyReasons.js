@@ -190,15 +190,13 @@ export function isValidSpecialPenaltyReason(
 export function buildSpecialPenaltyReasonNote(
   token,
   reasonId,
-  manualComment = "",
-  context = null
+  manualComment = ""
 ) {
   const reason = findSpecialPenaltyReason(token, reasonId);
   const status = String(token || "").trim();
   const cleanManualComment = String(manualComment || "")
     .replace(/\s+/g, " ")
     .trim();
-  const prefix = buildSpecialPenaltyReasonPrefix(status, context);
 
   if (!status || reasonId === SPECIAL_PENALTY_REASON_NONE_ID) return "";
 
@@ -206,38 +204,15 @@ export function buildSpecialPenaltyReasonNote(
     reasonId === SPECIAL_PENALTY_REASON_MANUAL_ID &&
     cleanManualComment
   ) {
-    return `${prefix} - Commentaire / Comment: ${cleanManualComment}`;
+    return `${status} - Commentaire / Comment: ${cleanManualComment}`;
   }
 
   if (!reason) return "";
 
-  return `${prefix} - Raison: ${reason.fr} / Reason: ${reason.en}`;
+  return `${status} - Raison: ${reason.fr} / Reason: ${reason.en}`;
 }
 
-function normalizeSpecialPenaltyReasonContext(context) {
-  const index = Number(context?.index);
-
-  if (!Number.isInteger(index) || index < 0) return null;
-
-  return {
-    index,
-    label: String(context?.label || "").trim(),
-  };
-}
-
-function buildSpecialPenaltyReasonPrefix(status, context) {
-  const normalizedContext = normalizeSpecialPenaltyReasonContext(context);
-
-  if (!normalizedContext) return status;
-
-  const label = normalizedContext.label
-    ? `: ${normalizedContext.label}`
-    : "";
-
-  return `${status} [M${normalizedContext.index + 1}${label}]`;
-}
-
-function isLegacySpecialPenaltyReasonLine(line, token) {
+function isSpecialPenaltyReasonLine(line, token) {
   const status = String(token || "").trim();
   const text = String(line || "").trim();
 
@@ -251,34 +226,23 @@ function isLegacySpecialPenaltyReasonLine(line, token) {
   );
 }
 
-function isSpecialPenaltyReasonLine(line, token, context = null) {
-  const status = String(token || "").trim();
-  const text = String(line || "").trim();
-  const normalizedContext = normalizeSpecialPenaltyReasonContext(context);
-
-  if (!status) return false;
-
-  if (!normalizedContext) {
-    return (
-      isLegacySpecialPenaltyReasonLine(text, status) ||
-      text.startsWith(`${status} [M`)
-    );
-  }
-
-  const prefix = buildSpecialPenaltyReasonPrefix(status, normalizedContext);
-
-  return (
-    text.startsWith(`${prefix} - Raison:`) ||
-    text.startsWith(`${prefix} - Reason:`) ||
-    text.startsWith(`${prefix} - Commentaire`) ||
-    text.startsWith(`${prefix} - Comment:`)
-  );
-}
-
-export function removeSpecialPenaltyReasonNote(note, token, context = null) {
+export function normalizeSpecialPenaltyReasonNote(note) {
   return String(note || "")
     .split(/\r?\n/)
-    .filter((line) => !isSpecialPenaltyReasonLine(line, token, context))
+    .map((line) =>
+      line.replace(
+        /^(No score|Score 0) \[M\d+(?:: [^\]]*)?\]( - (?:Raison|Reason|Commentaire|Comment):)/,
+        "$1$2"
+      )
+    )
+    .join("\n")
+    .trim();
+}
+
+export function removeSpecialPenaltyReasonNote(note, token) {
+  return normalizeSpecialPenaltyReasonNote(note)
+    .split(/\r?\n/)
+    .filter((line) => !isSpecialPenaltyReasonLine(line, token))
     .join("\n")
     .trim();
 }
@@ -287,26 +251,12 @@ export function upsertSpecialPenaltyReasonNote(
   note,
   token,
   reasonId,
-  manualComment = "",
-  context = null
+  manualComment = ""
 ) {
-  const nextLine = buildSpecialPenaltyReasonNote(
-    token,
-    reasonId,
-    manualComment,
-    context
-  );
-  let cleanedNote = removeSpecialPenaltyReasonNote(note, token, context);
+  const nextLine = buildSpecialPenaltyReasonNote(token, reasonId, manualComment);
+  const currentNote = normalizeSpecialPenaltyReasonNote(note);
 
-  if (normalizeSpecialPenaltyReasonContext(context)) {
-    cleanedNote = cleanedNote
-      .split(/\r?\n/)
-      .filter((line) => !isLegacySpecialPenaltyReasonLine(line, token))
-      .join("\n")
-      .trim();
-  }
+  if (!nextLine) return currentNote;
 
-  if (!nextLine) return cleanedNote;
-
-  return [cleanedNote, nextLine].filter(Boolean).join("\n");
+  return [currentNote, nextLine].filter(Boolean).join("\n");
 }

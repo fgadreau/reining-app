@@ -74,6 +74,7 @@ import {
 import {
   getSpecialPenaltyReasons,
   isSpecialPenaltyReasonRequired,
+  normalizeSpecialPenaltyReasonNote,
   removeSpecialPenaltyReasonNote,
   upsertSpecialPenaltyReasonNote,
 } from "./features/scoring/specialPenaltyReasons";
@@ -1393,19 +1394,21 @@ test("builds bilingual judge notes for required NRHA special penalty reasons", (
   expect(noteWithNoScore).toContain("No score - Raison: Équipement illégal");
   expect(noteWithNoScore).toContain("Reason: Illegal equipment");
 
-  const replacedNote = upsertSpecialPenaltyReasonNote(
+  const noteWithSecondNoScoreReason = upsertSpecialPenaltyReasonNote(
     noteWithNoScore,
     "No score",
     "animal_abuse"
   );
 
-  expect(replacedNote).toContain("Manual judge note.");
-  expect(replacedNote).toContain("Abus animal");
-  expect(replacedNote).toContain("Animal abuse or evidence of abuse");
-  expect(replacedNote).not.toContain("Équipement illégal");
+  expect(noteWithSecondNoScoreReason).toContain("Manual judge note.");
+  expect(noteWithSecondNoScoreReason).toContain("Équipement illégal");
+  expect(noteWithSecondNoScoreReason).toContain("Abus animal");
+  expect(noteWithSecondNoScoreReason).toContain(
+    "Animal abuse or evidence of abuse"
+  );
 
   const noteWithScoreZero = upsertSpecialPenaltyReasonNote(
-    replacedNote,
+    noteWithSecondNoScoreReason,
     "Score 0",
     "pattern_not_completed"
   );
@@ -1434,7 +1437,7 @@ test("builds bilingual judge notes for required NRHA special penalty reasons", (
   expect(noteWithManualComment).toContain(
     "No score - Commentaire / Comment: Décision confirmée par les juges."
   );
-  expect(noteWithManualComment).not.toContain("Animal abuse");
+  expect(noteWithManualComment).toContain("Animal abuse");
 
   expect(
     upsertSpecialPenaltyReasonNote(
@@ -1442,36 +1445,36 @@ test("builds bilingual judge notes for required NRHA special penalty reasons", (
       "No score",
       "no_comment"
     )
-  ).not.toContain("No score - Commentaire");
+  ).toBe(noteWithManualComment);
 
   const firstScoreZeroReason = upsertSpecialPenaltyReasonNote(
     "",
     "Score 0",
-    "pattern_not_completed",
-    "",
-    { index: 0, label: "RUN IN" }
+    "pattern_not_completed"
   );
   const multipleScoreZeroReasons = upsertSpecialPenaltyReasonNote(
     firstScoreZeroReason,
     "Score 0",
-    "fall",
-    "",
-    { index: 2, label: "STOP" }
+    "fall"
   );
 
   expect(multipleScoreZeroReasons).toContain(
-    "Score 0 [M1: RUN IN] - Raison: Pattern non complété"
+    "Score 0 - Raison: Pattern non complété"
   );
   expect(multipleScoreZeroReasons).toContain(
-    "Score 0 [M3: STOP] - Raison: Chute au sol"
+    "Score 0 - Raison: Chute au sol"
   );
+  expect(multipleScoreZeroReasons).not.toContain("[M1");
+  expect(multipleScoreZeroReasons).not.toContain("[M3");
   expect(
-    removeSpecialPenaltyReasonNote(
-      multipleScoreZeroReasons,
-      "Score 0",
-      { index: 0, label: "RUN IN" }
+    normalizeSpecialPenaltyReasonNote(
+      "Score 0 [M1: RUN IN] - Raison: Pattern non complété\n" +
+        "Score 0 [M3: STOP] - Raison: Chute au sol"
     )
-  ).toContain("Score 0 [M3: STOP]");
+  ).toBe(
+    "Score 0 - Raison: Pattern non complété\n" +
+      "Score 0 - Raison: Chute au sol"
+  );
 });
 
 test("carries imported scratched runs into scoring", () => {
