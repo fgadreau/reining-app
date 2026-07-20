@@ -674,16 +674,16 @@ const liveGridStyle = {
   zIndex: 1,
   minHeight: 0,
   display: "grid",
-  gridTemplateColumns: "minmax(0, 1.55fr) minmax(340px, 0.72fr)",
-  gap: 14,
+  gridTemplateColumns: "minmax(0, 1.12fr) minmax(440px, 0.88fr)",
+  gap: 16,
 };
 
 const liveHeroStyle = {
   minWidth: 0,
-  borderRadius: 8,
+  borderRadius: 16,
   border: "1px solid rgba(244, 217, 140, 0.34)",
   background: "rgba(15, 23, 42, 0.68)",
-  padding: 18,
+  padding: 20,
   display: "grid",
   gridTemplateRows: "auto auto auto minmax(0, 1fr)",
   gap: 8,
@@ -716,15 +716,15 @@ const sideStackStyle = {
   minHeight: 0,
   display: "grid",
   gridTemplateRows: "minmax(0, 1fr) minmax(0, 0.96fr)",
-  gap: 14,
+  gap: 16,
 };
 
 const panelStyle = {
   minHeight: 0,
-  borderRadius: 8,
+  borderRadius: 16,
   border: "1px solid rgba(148, 163, 184, 0.34)",
   background: "rgba(15, 23, 42, 0.54)",
-  padding: 12,
+  padding: 14,
   display: "grid",
   gridTemplateRows: "auto minmax(0, 1fr) minmax(0, 1fr)",
   gap: 8,
@@ -738,7 +738,7 @@ const lastPanelStyle = {
 
 const panelTitleStyle = {
   color: "#f4d98c",
-  fontSize: "clamp(15px, 1.05vw, 18px)",
+  fontSize: "clamp(17px, 1.2vw, 22px)",
   fontWeight: 950,
   textTransform: "uppercase",
   whiteSpace: "nowrap",
@@ -766,16 +766,16 @@ const participantCardStyle = (variant, compact, isDrag) => {
   return {
     minWidth: 0,
     minHeight: 0,
-    borderRadius: 8,
+    borderRadius: 14,
     border: `1px solid ${accent}`,
     background: isDrag
       ? "rgba(67, 56, 202, 0.42)"
       : "rgba(255, 255, 255, 0.08)",
     padding: compact ? 12 : isPrimaryVariant(variant) ? 18 : 14,
     display: "grid",
-    alignContent: "start",
+    alignContent: variant === "active" ? "center" : "start",
     gap: compact ? 4 : isPrimaryVariant(variant) ? 10 : 6,
-    boxShadow: `inset 4px 0 0 ${accent}`,
+    boxShadow: `inset 5px 0 0 ${accent}, 0 10px 24px rgba(0, 0, 0, 0.12)`,
     overflow: "hidden",
   };
 };

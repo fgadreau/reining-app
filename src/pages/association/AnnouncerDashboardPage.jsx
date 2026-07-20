@@ -498,8 +498,8 @@ function AnnouncerDashboardPage() {
   }
 
   return (
-    <div style={styles.app}>
-      <div style={{ marginBottom: 16 }}>
+    <div style={announcerPageStyle}>
+      <div style={announcerBackRowStyle}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
           {t("public.results.back")}
         </button>
@@ -1575,21 +1575,25 @@ function ClassLiveCard({
                 <QueueItemBlock
                   label={t("management.announcer.active")}
                   item={activeLiveItem}
+                  variant="active"
                 />
                 <QueueItemBlock
                   item={nextLiveItem}
                   statusLabel={t("public.results.statusPreparation")}
                   status="preparation"
+                  variant="next"
                 />
                 <QueueItemBlock
                   item={secondNextLiveItem}
                   statusLabel={t("public.results.statusWaiting")}
                   status="waiting"
+                  variant="waiting"
                 />
                 <RunBlock
                   label={t("management.announcer.latestScore")}
                   run={classView.latestScore}
                   showScore
+                  variant="score"
                 />
               </div>
               <ClassPaceSummary pace={classView.pace} />
@@ -2500,9 +2504,10 @@ function RunBlock({
   showScore = false,
   statusLabel = null,
   status = "waiting",
+  variant = "default",
 }) {
   return (
-    <div style={runBlockStyle}>
+    <div style={getRunBlockStyle(variant)}>
       {(label || (run && statusLabel)) && (
         <div style={liveBlockHeaderStyle}>
           {label && <div style={runLabelStyle}>{label}</div>}
@@ -2530,12 +2535,13 @@ function QueueItemBlock({
   showScore = false,
   statusLabel = null,
   status = "waiting",
+  variant = "default",
 }) {
   const isDrag = isLiveDragItem(item);
   const run = isDrag ? null : item;
 
   return (
-    <div style={runBlockStyle}>
+    <div style={getRunBlockStyle(variant)}>
       {(label || (item && statusLabel)) && (
         <div style={liveBlockHeaderStyle}>
           {label && <div style={runLabelStyle}>{label}</div>}
@@ -2810,9 +2816,9 @@ const modalStyle = {
   maxHeight: "85vh",
   overflow: "auto",
   background: "#fff",
-  borderRadius: 10,
-  padding: 18,
-  boxShadow: "0 20px 50px rgba(15, 23, 42, 0.25)",
+  borderRadius: 20,
+  padding: 22,
+  boxShadow: "0 24px 70px rgba(15, 23, 42, 0.28)",
 };
 
 const compactModalStyle = {
@@ -2830,12 +2836,13 @@ const modalHeaderStyle = {
 
 const manualLivePanelStyle = {
   display: "grid",
-  gap: 12,
-  padding: 12,
-  marginBottom: 12,
-  border: "1px solid #fdba74",
-  borderRadius: 10,
-  background: "#fffaf0",
+  gap: 14,
+  padding: 18,
+  marginBottom: 16,
+  border: "1px solid #fed7aa",
+  borderRadius: 18,
+  background: "linear-gradient(135deg, #fffaf0 0%, #ffffff 72%)",
+  boxShadow: "0 10px 28px rgba(154, 52, 18, 0.08)",
 };
 
 const manualLiveHeaderStyle = {
@@ -2852,11 +2859,11 @@ const minimalDisplayPanelStyle = {
   alignItems: "center",
   gap: 12,
   flexWrap: "wrap",
-  padding: 10,
-  marginBottom: 12,
-  border: "1px solid #cbd5e1",
-  borderRadius: 8,
-  background: "#f8fafc",
+  padding: "12px 14px",
+  marginBottom: 16,
+  border: "1px solid #dbe4ea",
+  borderRadius: 14,
+  background: "rgba(248, 250, 252, 0.8)",
 };
 
 const minimalDisplayActiveStyle = {
@@ -2896,13 +2903,13 @@ const compactButtonListStyle = {
 };
 
 const smallButtonStyle = {
-  padding: "6px 9px",
-  borderRadius: 7,
-  border: "1px solid #cbd5e1",
+  padding: "7px 11px",
+  borderRadius: 999,
+  border: "1px solid #d4dee7",
   background: "#fff",
   color: "#111827",
   cursor: "pointer",
-  fontWeight: 700,
+  fontWeight: 800,
 };
 
 const fieldLabelStyle = {
@@ -2996,12 +3003,27 @@ const rankingScoreStyle = {
   color: "#111827",
 };
 
+const announcerPageStyle = {
+  ...styles.app,
+  fontFamily:
+    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+  background:
+    "linear-gradient(180deg, #e8f1f2 0%, #f8fafc 38%, #f1f5f9 100%)",
+  padding: "clamp(14px, 2vw, 28px)",
+  color: "#0f172a",
+};
+
+const announcerBackRowStyle = {
+  marginBottom: 14,
+};
+
 const heroStyle = {
-  background: "#fff",
-  borderRadius: 12,
-  padding: 16,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  marginBottom: 16,
+  background: "linear-gradient(135deg, #0f172a 0%, #164e63 100%)",
+  color: "#fff",
+  borderRadius: 22,
+  padding: "22px 24px",
+  boxShadow: "0 18px 42px rgba(15, 23, 42, 0.2)",
+  marginBottom: 24,
   display: "flex",
   justifyContent: "space-between",
   gap: 16,
@@ -3017,20 +3039,22 @@ const heroActionRowStyle = {
 };
 
 const eyebrowStyle = {
-  color: "#64748b",
-  fontWeight: 700,
+  color: "#a5f3fc",
+  fontWeight: 900,
   textTransform: "uppercase",
   fontSize: 12,
-  letterSpacing: 0,
+  letterSpacing: "0.08em",
 };
 
 const titleStyle = {
-  margin: "4px 0",
-  fontSize: 28,
+  margin: "5px 0 6px",
+  fontSize: "clamp(28px, 3vw, 42px)",
+  lineHeight: 1.05,
 };
 
 const subtitleStyle = {
-  color: "#64748b",
+  color: "#cbd5e1",
+  fontSize: 16,
 };
 
 const timerInlineStyle = {
@@ -3138,9 +3162,10 @@ const recentHeaderStyle = {
 
 const cardStyle = {
   background: "#fff",
-  borderRadius: 12,
-  padding: 16,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+  borderRadius: 18,
+  padding: 18,
+  border: "1px solid rgba(203, 213, 225, 0.72)",
+  boxShadow: "0 12px 32px rgba(15, 23, 42, 0.08)",
 };
 
 const sectionHeaderStyle = {
@@ -3159,8 +3184,8 @@ const sectionTitleStyle = {
 
 const prioritySectionStyle = {
   display: "grid",
-  gap: 12,
-  marginBottom: 18,
+  gap: 14,
+  marginBottom: 24,
 };
 
 const priorityHeaderStyle = {
@@ -3173,8 +3198,9 @@ const priorityHeaderStyle = {
 
 const priorityTitleStyle = {
   margin: 0,
-  fontSize: 24,
+  fontSize: "clamp(24px, 2vw, 32px)",
   color: "#0f172a",
+  letterSpacing: "-0.02em",
 };
 
 const priorityListStyle = {
@@ -3194,17 +3220,21 @@ const classListStyle = {
 };
 
 const classCardStyle = {
-  border: "1px solid #e2e8f0",
-  borderRadius: 8,
-  padding: 12,
+  border: "1px solid #dbe4ea",
+  borderRadius: 16,
+  padding: 16,
   background: "#fff",
+  boxShadow: "0 8px 22px rgba(15, 23, 42, 0.06)",
 };
 
 const priorityClassCardStyle = {
   ...classCardStyle,
-  border: "2px solid #0f766e",
-  background: "#f8fffd",
-  boxShadow: "0 10px 26px rgba(15, 118, 110, 0.14)",
+  border: "1px solid rgba(15, 118, 110, 0.34)",
+  borderRadius: 22,
+  padding: "18px clamp(16px, 1.5vw, 24px) 22px",
+  background: "linear-gradient(135deg, #f7fffd 0%, #ffffff 56%)",
+  boxShadow:
+    "inset 0 5px 0 #0f766e, 0 18px 45px rgba(15, 118, 110, 0.14)",
 };
 
 const classCardHeaderStyle = {
@@ -3231,15 +3261,16 @@ const badgeStackStyle = {
 };
 
 const classNameStyle = {
-  fontWeight: 800,
+  fontWeight: 900,
   color: "#0f172a",
+  fontSize: 18,
 };
 
 const runGridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-  gap: 10,
-  marginTop: 12,
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: 12,
+  marginTop: 16,
 };
 
 const actionRowStyle = {
@@ -3250,12 +3281,47 @@ const actionRowStyle = {
 };
 
 const runBlockStyle = {
-  background: "#f8fafc",
-  border: "1px solid #e2e8f0",
-  borderRadius: 8,
-  padding: 10,
-  minHeight: 92,
+  background: "#fff",
+  border: "1px solid #dbe4ea",
+  borderRadius: 15,
+  padding: 14,
+  minHeight: 112,
+  boxShadow: "0 7px 18px rgba(15, 23, 42, 0.06)",
 };
+
+function getRunBlockStyle(variant = "default") {
+  const variants = {
+    active: {
+      border: "1px solid rgba(13, 148, 136, 0.46)",
+      background: "linear-gradient(135deg, #ecfdf5 0%, #ffffff 75%)",
+      boxShadow:
+        "inset 0 4px 0 #0f766e, 0 10px 24px rgba(15, 118, 110, 0.12)",
+    },
+    next: {
+      border: "1px solid rgba(249, 115, 22, 0.38)",
+      background: "linear-gradient(135deg, #fff7ed 0%, #ffffff 75%)",
+      boxShadow:
+        "inset 0 4px 0 #f97316, 0 10px 24px rgba(154, 52, 18, 0.08)",
+    },
+    waiting: {
+      border: "1px solid rgba(59, 130, 246, 0.3)",
+      background: "linear-gradient(135deg, #eff6ff 0%, #ffffff 75%)",
+      boxShadow:
+        "inset 0 4px 0 #3b82f6, 0 10px 24px rgba(30, 64, 175, 0.08)",
+    },
+    score: {
+      border: "1px solid rgba(71, 85, 105, 0.26)",
+      background: "linear-gradient(135deg, #f8fafc 0%, #ffffff 75%)",
+      boxShadow:
+        "inset 0 4px 0 #64748b, 0 10px 24px rgba(15, 23, 42, 0.08)",
+    },
+  };
+
+  return {
+    ...runBlockStyle,
+    ...(variants[variant] || null),
+  };
+}
 
 const scheduleOnlyPanelStyle = {
   background: "#f8fafc",
@@ -3355,14 +3421,18 @@ const dragNoticeStyle = {
 
 const completedWrapStyle = {
   marginTop: 12,
-  borderTop: "1px solid #e2e8f0",
-  paddingTop: 12,
+  border: "1px solid #dbe4ea",
+  borderRadius: 14,
+  padding: 13,
+  background: "rgba(255, 255, 255, 0.72)",
 };
 
 const announcerStandingsWrapStyle = {
   marginTop: 12,
-  borderTop: "1px solid #e2e8f0",
-  paddingTop: 12,
+  border: "1px solid #dbe4ea",
+  borderRadius: 14,
+  padding: 13,
+  background: "rgba(255, 255, 255, 0.72)",
 };
 
 const announcerAccordionHeaderStyle = (isOpen) => ({
@@ -3431,8 +3501,10 @@ const announcerStandingScoreStyle = {
 
 const announcerOrderWrapStyle = {
   marginTop: 12,
-  borderTop: "1px solid #e2e8f0",
-  paddingTop: 12,
+  border: "1px solid #dbe4ea",
+  borderRadius: 14,
+  padding: 13,
+  background: "rgba(255, 255, 255, 0.72)",
 };
 
 const announcerOrderListStyle = {
@@ -3446,9 +3518,9 @@ const announcerOrderRowStyle = {
   gap: 10,
   flexWrap: "wrap",
   border: "1px solid #e2e8f0",
-  borderRadius: 8,
-  padding: 10,
-  background: "#f8fafc",
+  borderRadius: 12,
+  padding: 12,
+  background: "#fff",
 };
 
 const announcerOrderDrawStyle = {
@@ -3464,21 +3536,24 @@ const announcerOrderIdentityStyle = {
 };
 
 const runLabelStyle = {
-  color: "#64748b",
-  fontWeight: 700,
-  fontSize: 12,
+  color: "#526579",
+  fontWeight: 900,
+  fontSize: 11,
   textTransform: "uppercase",
+  letterSpacing: "0.05em",
   marginBottom: 8,
 };
 
 const runTitleStyle = {
-  fontWeight: 800,
+  fontWeight: 900,
   color: "#0f172a",
+  fontSize: 17,
 };
 
 const runNameStyle = {
-  fontWeight: 700,
+  fontWeight: 800,
   marginTop: 4,
+  fontSize: 16,
 };
 
 const mutedTextStyle = {
@@ -3584,29 +3659,35 @@ const linkButtonStyle = {
   alignItems: "center",
   justifyContent: "center",
   padding: "10px 14px",
-  borderRadius: 8,
-  border: "1px solid #cbd5e1",
+  borderRadius: 12,
+  border: "1px solid rgba(203, 213, 225, 0.9)",
   background: "#fff",
-  color: "#111827",
+  color: "#0f172a",
   textDecoration: "none",
+  fontWeight: 800,
+  boxShadow: "0 4px 12px rgba(15, 23, 42, 0.08)",
 };
 
 const primaryButtonStyle = {
-  padding: "10px 14px",
-  borderRadius: 8,
-  border: "1px solid #111827",
-  background: "#111827",
+  padding: "10px 15px",
+  borderRadius: 12,
+  border: "1px solid #0f766e",
+  background: "#0f766e",
   color: "#fff",
   cursor: "pointer",
+  fontWeight: 850,
+  boxShadow: "0 6px 16px rgba(15, 118, 110, 0.18)",
 };
 
 const secondaryButtonStyle = {
-  padding: "10px 14px",
-  borderRadius: 8,
+  padding: "10px 15px",
+  borderRadius: 12,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "#0f172a",
   cursor: "pointer",
+  fontWeight: 800,
+  boxShadow: "0 4px 12px rgba(15, 23, 42, 0.06)",
 };
 
 const dangerButtonStyle = {
