@@ -44,6 +44,10 @@ import {
   buildChampionshipPdfFileName,
   generateChampionshipPdf,
 } from "../../utils/generateChampionshipPdf";
+import {
+  CHAMPIONSHIP_RULE_TEXT_MAX_LENGTH,
+  normalizeChampionshipRules,
+} from "../../features/championship/championshipRules";
 
 function AssociationChampionshipPage() {
   const { associationId } = useParams();
@@ -55,6 +59,8 @@ function AssociationChampionshipPage() {
   const [seasonTitle, setSeasonTitle] = useState("Championnat de saison");
   const [seasonYear, setSeasonYear] = useState(String(new Date().getFullYear()));
   const [seasonStatus, setSeasonStatus] = useState("draft");
+  const [rulesStatement, setRulesStatement] = useState("");
+  const [pointsExplanation, setPointsExplanation] = useState("");
   const [csvText, setCsvText] = useState("");
   const [fileName, setFileName] = useState("");
   const [fileInputKey, setFileInputKey] = useState(0);
@@ -130,6 +136,9 @@ function AssociationChampionshipPage() {
         setSeasonTitle(nextSeason.title || "Championnat de saison");
         setSeasonYear(nextSeason.year || String(new Date().getFullYear()));
         setSeasonStatus(nextSeason.status || "draft");
+        const nextRules = normalizeChampionshipRules(nextSeason);
+        setRulesStatement(nextRules.rulesStatement);
+        setPointsExplanation(nextRules.pointsExplanation);
         setEventLabels(nextEventLabels);
         setEventOrder(nextEventOrder);
         setPreview(nextPreview);
@@ -187,6 +196,16 @@ function AssociationChampionshipPage() {
 
   const updateSeasonStatus = (value) => {
     setSeasonStatus(value);
+    setSaveMessage("");
+  };
+
+  const updateRulesStatement = (value) => {
+    setRulesStatement(value);
+    setSaveMessage("");
+  };
+
+  const updatePointsExplanation = (value) => {
+    setPointsExplanation(value);
     setSaveMessage("");
   };
 
@@ -689,6 +708,10 @@ function AssociationChampionshipPage() {
         status: nextStatus,
         publicEventLabels: nextEventLabels,
         publicEventOrder: nextEventOrder,
+        ...normalizeChampionshipRules({
+          rulesStatement,
+          pointsExplanation,
+        }),
       });
       setSeason(saved);
       setPreview(saved);
@@ -945,6 +968,40 @@ function AssociationChampionshipPage() {
               <option value="published">{t("championship.status.published")}</option>
               <option value="final">{t("championship.status.final")}</option>
             </select>
+          </label>
+        </div>
+        <div style={championshipRulesGridStyle}>
+          <label style={fieldStyle}>
+            <span style={labelStyle}>
+              {t("championship.admin.rulesStatement")}
+            </span>
+            <textarea
+              value={rulesStatement}
+              onChange={(event) => updateRulesStatement(event.target.value)}
+              maxLength={CHAMPIONSHIP_RULE_TEXT_MAX_LENGTH}
+              placeholder={t("championship.admin.rulesStatementPlaceholder")}
+              style={championshipRuleTextareaStyle}
+            />
+            <span style={fieldHelpStyle}>
+              {t("championship.admin.rulesStatementHelp")}
+            </span>
+          </label>
+          <label style={fieldStyle}>
+            <span style={labelStyle}>
+              {t("championship.admin.pointsExplanation")}
+            </span>
+            <textarea
+              value={pointsExplanation}
+              onChange={(event) => updatePointsExplanation(event.target.value)}
+              maxLength={CHAMPIONSHIP_RULE_TEXT_MAX_LENGTH}
+              placeholder={t(
+                "championship.admin.pointsExplanationPlaceholder"
+              )}
+              style={championshipRuleTextareaStyle}
+            />
+            <span style={fieldHelpStyle}>
+              {t("championship.admin.pointsExplanationHelp")}
+            </span>
           </label>
         </div>
       </section>
@@ -2359,6 +2416,26 @@ const textareaStyle = {
   fontFamily: "monospace",
   fontSize: 13,
   boxSizing: "border-box",
+};
+
+const championshipRulesGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+  gap: 12,
+  marginTop: 14,
+};
+
+const championshipRuleTextareaStyle = {
+  ...textareaStyle,
+  minHeight: 130,
+  fontFamily: "inherit",
+  lineHeight: 1.45,
+};
+
+const fieldHelpStyle = {
+  color: "#64748b",
+  fontSize: 12,
+  lineHeight: 1.35,
 };
 
 const errorStyle = {

@@ -169,6 +169,11 @@ import { calculateChampionshipPoints } from "./features/championship/championshi
 import { getChampionshipClassByCode } from "./features/championship/championshipClasses";
 import { buildAssociationChampionshipClassSummary } from "./features/championship/associationClassDictionary";
 import {
+  CHAMPIONSHIP_RULE_TEXT_MAX_LENGTH,
+  hasChampionshipRules,
+  normalizeChampionshipRules,
+} from "./features/championship/championshipRules";
+import {
   buildShowScoreChampionshipImportBatch,
   buildShowScoreChampionshipImportPreview,
 } from "./features/championship/showScoreChampionshipImport";
@@ -332,6 +337,25 @@ test("calculates and formats fractional maneuver scores", () => {
 
 test("calculates championship tie points without rounding to half points", () => {
   expect(calculateChampionshipPoints(10, 10, 3)).toBeCloseTo(1 / 3, 8);
+});
+
+test("normalizes optional championship rules for the public modal", () => {
+  const rules = normalizeChampionshipRules({
+    rulesStatement: "  Participation à trois shows minimum.  ",
+    pointsExplanation: "10 points au premier rang.\n8 points au deuxième.",
+  });
+
+  expect(rules).toEqual({
+    rulesStatement: "Participation à trois shows minimum.",
+    pointsExplanation: "10 points au premier rang.\n8 points au deuxième.",
+  });
+  expect(hasChampionshipRules(rules)).toBe(true);
+  expect(hasChampionshipRules({})).toBe(false);
+  expect(
+    normalizeChampionshipRules({
+      rulesStatement: "x".repeat(CHAMPIONSHIP_RULE_TEXT_MAX_LENGTH + 10),
+    }).rulesStatement
+  ).toHaveLength(CHAMPIONSHIP_RULE_TEXT_MAX_LENGTH);
 });
 
 test("builds championship standings by technical show occurrence and team", () => {

@@ -12,6 +12,10 @@ import {
   buildChampionshipFunFacts,
   getChampionshipIncludedShows,
 } from "../../features/championship/championshipStandings";
+import {
+  hasChampionshipRules,
+  normalizeChampionshipRules,
+} from "../../features/championship/championshipRules";
 import { buildChampionshipPublicSeo } from "../../features/seo/publicSeo";
 import { formatChampionshipPoints } from "../../features/championship/championshipPoints";
 import {
@@ -56,6 +60,7 @@ function PublicAssociationChampionshipPage() {
   const [isVerificationPanelOpen, setIsVerificationPanelOpen] = useState(false);
   const [verificationPrefill, setVerificationPrefill] = useState(null);
   const [isFunFactsOpen, setIsFunFactsOpen] = useState(false);
+  const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
   const [isMobileShowsOpen, setIsMobileShowsOpen] = useState(false);
   const [isSubscriptionFormOpen, setIsSubscriptionFormOpen] = useState(false);
@@ -85,6 +90,11 @@ function PublicAssociationChampionshipPage() {
   );
   const funFacts = useMemo(() => buildChampionshipFunFacts(season), [season]);
   const hasFunFacts = hasChampionshipFunFacts(funFacts);
+  const championshipRules = useMemo(
+    () => normalizeChampionshipRules(season),
+    [season]
+  );
+  const hasRules = hasChampionshipRules(championshipRules);
   const filteredClasses = useMemo(
     () =>
       filterChampionshipClasses(classes, normalizedSearchQuery, selectedClassId),
@@ -383,7 +393,7 @@ function PublicAssociationChampionshipPage() {
                 title={seo.title}
                 text={seo.description}
               />
-              {(classes.length > 0 || associationWebsiteHref) && (
+              {(classes.length > 0 || associationWebsiteHref || hasRules) && (
                 <div style={mobileMoreActionsWrapStyle}>
                   <button
                     type="button"
@@ -409,6 +419,18 @@ function PublicAssociationChampionshipPage() {
                           style={mobileMoreActionButtonStyle}
                         >
                           {t("championship.public.funFactsOpen")}
+                        </button>
+                      )}
+                      {hasRules && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsRulesOpen(true);
+                            setIsMobileMoreOpen(false);
+                          }}
+                          style={mobileMoreActionButtonStyle}
+                        >
+                          {t("championship.public.rulesOpen")}
                         </button>
                       )}
                       {classes.length > 0 && (
@@ -441,6 +463,15 @@ function PublicAssociationChampionshipPage() {
             </>
           ) : (
             <>
+              {hasRules && (
+                <button
+                  type="button"
+                  onClick={() => setIsRulesOpen(true)}
+                  style={quietActionButtonStyle}
+                >
+                  {t("championship.public.rulesOpen")}
+                </button>
+              )}
               {classes.length > 0 && (
                 <>
                   {hasFunFacts && (
@@ -673,6 +704,12 @@ function PublicAssociationChampionshipPage() {
         isOpen={isFunFactsOpen}
         onClose={() => setIsFunFactsOpen(false)}
         funFacts={funFacts}
+        t={t}
+      />
+      <ChampionshipRulesModal
+        isOpen={isRulesOpen}
+        onClose={() => setIsRulesOpen(false)}
+        rules={championshipRules}
         t={t}
       />
       <ChampionshipVerificationRequestPanel
@@ -1124,6 +1161,59 @@ function ChampionshipFunFactsModal({ isOpen, onClose, funFacts, t }) {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ChampionshipRulesModal({ isOpen, onClose, rules, t }) {
+  if (!isOpen) return null;
+
+  return (
+    <div style={funFactsBackdropStyle} role="presentation" onClick={onClose}>
+      <section
+        style={championshipRulesModalStyle}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="championship-rules-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div style={funFactsHeaderStyle}>
+          <div>
+            <div style={eyebrowStyle}>
+              {t("championship.public.rulesEyebrow")}
+            </div>
+            <h2 id="championship-rules-title" style={funFactsTitleStyle}>
+              {t("championship.public.rulesTitle")}
+            </h2>
+          </div>
+          <button type="button" onClick={onClose} style={funFactsCloseButtonStyle}>
+            {t("championship.public.rulesClose")}
+          </button>
+        </div>
+
+        <div style={championshipRulesContentStyle}>
+          {rules.rulesStatement && (
+            <section style={championshipRuleSectionStyle}>
+              <h3 style={championshipRuleTitleStyle}>
+                {t("championship.public.rulesStatementTitle")}
+              </h3>
+              <div style={championshipRuleTextStyle}>
+                {rules.rulesStatement}
+              </div>
+            </section>
+          )}
+          {rules.pointsExplanation && (
+            <section style={championshipRuleSectionStyle}>
+              <h3 style={championshipRuleTitleStyle}>
+                {t("championship.public.pointsExplanationTitle")}
+              </h3>
+              <div style={championshipRuleTextStyle}>
+                {rules.pointsExplanation}
+              </div>
+            </section>
+          )}
         </div>
       </section>
     </div>
@@ -1845,6 +1935,35 @@ const funFactsModalStyle = {
   borderRadius: 8,
   boxShadow: "0 22px 70px rgba(15, 23, 42, 0.25)",
   padding: 16,
+};
+
+const championshipRulesModalStyle = {
+  ...funFactsModalStyle,
+  width: "min(680px, 100%)",
+};
+
+const championshipRulesContentStyle = {
+  display: "grid",
+  gap: 14,
+};
+
+const championshipRuleSectionStyle = {
+  borderTop: `1px solid ${publicColors.border}`,
+  paddingTop: 13,
+};
+
+const championshipRuleTitleStyle = {
+  margin: "0 0 7px",
+  color: publicColors.text,
+  fontSize: 16,
+  lineHeight: 1.25,
+};
+
+const championshipRuleTextStyle = {
+  color: publicColors.text,
+  fontSize: 14,
+  lineHeight: 1.55,
+  whiteSpace: "pre-wrap",
 };
 
 const funFactsHeaderStyle = {
