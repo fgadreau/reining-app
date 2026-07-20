@@ -80,7 +80,7 @@ end;
 $$;
 
 revoke all on function public.set_show_score_live_display_mode(uuid, text)
-  from public;
+  from public, anon;
 grant execute on function public.set_show_score_live_display_mode(uuid, text)
   to authenticated;
 
@@ -131,7 +131,7 @@ end;
 $$;
 
 revoke all on function public.set_show_score_live_data_source(uuid, text)
-  from public;
+  from public, anon;
 grant execute on function public.set_show_score_live_data_source(uuid, text)
   to authenticated;
 
@@ -266,7 +266,7 @@ revoke all on function public.save_show_score_announcer_live_session(
   timestamptz,
   uuid,
   bigint
-) from public;
+) from public, anon;
 grant execute on function public.save_show_score_announcer_live_session(
   uuid,
   jsonb,
@@ -405,7 +405,7 @@ end;
 $$;
 
 revoke all on function public.activate_show_score_announcer_live(uuid)
-  from public;
+  from public, anon;
 grant execute on function public.activate_show_score_announcer_live(uuid)
   to authenticated;
 
