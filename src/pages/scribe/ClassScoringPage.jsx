@@ -65,6 +65,11 @@ import {
   normalizeSetApprovals,
 } from "../../features/scoring/setApprovals";
 import {
+  buildCompletedScoringTestRun,
+  getScoringTestFillRange,
+  isScoringTestAssociation,
+} from "../../features/scoring/scoringTestMode";
+import {
   appendPenaltyToken,
   isScoredRunComplete,
   recalculateRun,
@@ -446,6 +451,7 @@ function ClassScoringPage() {
     const allAssociations = loadAssociations();
     return allAssociations.find((item) => item.id === associationId) || null;
   }, [associationId]);
+  const isTestAssociation = isScoringTestAssociation(association);
 
   const isClassCompleted = isClassScoringFinalized(classData);
   const [activeJudgeSession, setActiveJudgeSession] = useState(null);
@@ -1820,6 +1826,43 @@ function ClassScoringPage() {
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
+  const fillScoringTestData = (fillOne = false) => {
+    if (!isTestAssociation || !canEditScores) return;
+
+    const fillRange = getScoringTestFillRange({
+      runs,
+      maneuverCount,
+      dragInterval: classSetup?.dragInterval,
+      isRunLocked: isRunLockedByApproval,
+      fillOne,
+    });
+
+    if (!fillRange) {
+      alert(t("management.scoring.testDataComplete"));
+      return;
+    }
+
+    const completedAt = new Date().toISOString();
+    ensureClassStartedAt(completedAt);
+    setActiveManoeuvre(null);
+    setRuns((currentRuns) =>
+      currentRuns.map((run, runIndex) =>
+        runIndex >= fillRange.startIndex &&
+        runIndex <= fillRange.endIndex &&
+        !isRunLockedByApproval(run, runIndex)
+          ? buildCompletedScoringTestRun({
+              run,
+              runIndex,
+              maneuverCount,
+              scoreOptionsByIndex,
+              scoringCalculationOptions,
+              completedAt,
+            })
+          : run
+      )
+    );
+  };
+
   const ensureScoringSyncedBeforeFinalize = async () => {
     const getStatus = isMultiJudgeMode
       ? getJudgeScoringSessionSyncStatus
@@ -2419,6 +2462,40 @@ function ClassScoringPage() {
               </div>
             </div>
           )}
+        </section>
+      )}
+
+      {isTestAssociation && !isCompleted && (
+        <section style={judgeSessionCardStyle}>
+          <div>
+            <div style={judgeSessionLabelStyle}>
+              {t("management.scoring.testMode")}
+            </div>
+            <h2 style={judgeSessionTitleStyle}>
+              {t("management.scoring.testDataTitle")}
+            </h2>
+            <div style={helperTextStyle}>
+              {t("management.scoring.testDataHelp")}
+            </div>
+          </div>
+          <div style={judgeSessionActionsStyle}>
+            <button
+              type="button"
+              onClick={() => fillScoringTestData(true)}
+              style={secondaryButtonStyle}
+              disabled={!canEditScores}
+            >
+              {t("management.scoring.fillNextTestRun")}
+            </button>
+            <button
+              type="button"
+              onClick={() => fillScoringTestData(false)}
+              style={primaryButtonStyle}
+              disabled={!canEditScores}
+            >
+              {t("management.scoring.fillNextTestSet")}
+            </button>
+          </div>
         </section>
       )}
 

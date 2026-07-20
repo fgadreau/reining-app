@@ -816,6 +816,9 @@ export const translations = {
         sponsorLogosTitle: "Commanditaires overlay",
         sponsorName: "Nom du commanditaire",
         subtitle: "Infos publiques et préférences de l’association",
+        testModeHelp:
+          "Affiche les outils de génération de draw et de scores fictifs uniquement dans cette association.",
+        testModeLabel: "Association de test ShowScore",
         title: "Réglages de l’association",
       },
       days: {
@@ -970,6 +973,8 @@ export const translations = {
           "Impossible de finaliser : les scores sont sauvegardés localement, mais pas encore synchronisés. Réessaie la sync ou exporte une sauvegarde locale avant de continuer.",
         finalizeVideoReview:
           "Impossible de finaliser : une révision vidéo est encore en attente.",
+        fillNextTestRun: "Compléter la prochaine run",
+        fillNextTestSet: "Compléter le prochain set",
         finalizedSuccess:
           "Bloc finalisé avec signature. Le PDF a été généré.",
         finalSetApproved:
@@ -1041,6 +1046,11 @@ export const translations = {
         noPatternMessage:
           "Ce bloc est sans patron. Il est utilisé pour le suivi de l’horaire et le live, sans feuille de scoring.",
         statusPrefix: "Statut",
+        testDataComplete: "Toutes les runs modifiables sont déjà complétées.",
+        testDataHelp:
+          "Préremplit des scores réalistes sans toucher aux sets déjà signés. Utilise « prochain set » pour arriver rapidement au prochain drag.",
+        testDataTitle: "Saisie rapide des scores",
+        testMode: "Mode test",
         syncLocal: "Sauvé localement",
         syncNoticeLocal:
           "Les scores sont sauvegardés localement sur cet appareil, mais Supabase n’est pas disponible pour cette session. Garde cette page ouverte, vérifie la connexion ou le login, puis réessaie la sync.",
@@ -1106,6 +1116,7 @@ export const translations = {
         judgeApprovalClassEnd: "Signature à la fin du bloc",
         judgeApprovalClassEndHelp:
           "Le juge signe une seule fois lorsque toutes les runs du bloc sont terminées.",
+        generateTestDraw: "Générer un draw test",
         drawLockedMessage:
           "L’ordre de passage est verrouillé parce qu’il provient d’un draw importé.",
         downloadOfficialPdf: "Télécharger le PDF officiel",
@@ -1211,6 +1222,10 @@ export const translations = {
         subtitle:
           "Prépare l’ordre de passage et les participants avant le scoring.",
         title: "Setup de bloc",
+        testDrawHelp:
+          "Association de test : le bouton crée {{count}} participants fictifs, un drag après {{interval}} runs et active la signature à chaque set.",
+        testDrawReplaceConfirm:
+          "Remplacer le draw actuel par le draw test de 8 participants ?",
       },
       secretariat: {
         accessDenied: "Ce rôle n’a pas accès au tableau secrétariat.",
@@ -2542,6 +2557,9 @@ export const translations = {
         sponsorLogosTitle: "Overlay sponsors",
         sponsorName: "Sponsor name",
         subtitle: "Public details and association preferences",
+        testModeHelp:
+          "Shows fictional draw and score generation tools only inside this association.",
+        testModeLabel: "ShowScore test association",
         title: "Association settings",
       },
       days: {
@@ -2696,6 +2714,8 @@ export const translations = {
           "Unable to finalize: scores are saved locally but not synced yet. Retry sync or export a local backup before continuing.",
         finalizeVideoReview:
           "Unable to finalize: a video review is still pending.",
+        fillNextTestRun: "Complete next run",
+        fillNextTestSet: "Complete next set",
         finalizedSuccess:
           "Block finalized with signature. The PDF has been generated.",
         finalSetApproved:
@@ -2767,6 +2787,11 @@ export const translations = {
         noPatternMessage:
           "This block has no pattern. It is used for schedule tracking and live display, without a scoring sheet.",
         statusPrefix: "Status",
+        testDataComplete: "All editable runs are already completed.",
+        testDataHelp:
+          "Prefills realistic scores without changing signed sets. Use “next set” to quickly reach the next drag.",
+        testDataTitle: "Quick score entry",
+        testMode: "Test mode",
         syncLocal: "Saved locally",
         syncNoticeLocal:
           "Scores are saved locally on this device, but Supabase is not available for this session. Keep this page open, check the connection or login, then retry sync.",
@@ -2832,6 +2857,7 @@ export const translations = {
         judgeApprovalClassEnd: "Signature at the end of the block",
         judgeApprovalClassEndHelp:
           "The judge signs once after every run in the block is completed.",
+        generateTestDraw: "Generate test draw",
         drawLockedMessage:
           "The order of go is locked because it comes from an imported draw.",
         downloadOfficialPdf: "Download official PDF",
@@ -2937,6 +2963,10 @@ export const translations = {
         subtitle:
           "Prepare the order of go and participants before scoring.",
         title: "Block setup",
+        testDrawHelp:
+          "Test association: the button creates {{count}} fictional participants, a drag after {{interval}} runs, and enables signature after every set.",
+        testDrawReplaceConfirm:
+          "Replace the current draw with the 8-participant test draw?",
       },
       secretariat: {
         accessDenied: "This role does not have access to the secretariat dashboard.",

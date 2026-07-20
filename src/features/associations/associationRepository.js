@@ -24,6 +24,7 @@ function toAssociation(row) {
     logoDataUrl: row.logo_url || null,
     websiteUrl: row.website_url || "",
     sponsorLogos: normalizeSponsorLogos(row.sponsor_logos),
+    isTestMode: Boolean(row.is_test_mode),
     subscriptionPlan: plan,
     modulesEnabled,
     isShowScoreEnabled: plan !== "community" && modulesEnabled.show_score !== false,
@@ -39,6 +40,7 @@ function toSharedOrganizationRow(association) {
     logo_url: association.logoDataUrl || null,
     website_url: association.websiteUrl || null,
     sponsor_logos: normalizeSponsorLogos(association.sponsorLogos),
+    is_test_mode: Boolean(association.isTestMode),
   };
 }
 

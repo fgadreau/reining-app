@@ -54,6 +54,12 @@ import {
   normalizeSetApprovalMode,
 } from "../../features/scoring/setApprovals";
 import {
+  TEST_DRAG_INTERVAL,
+  TEST_DRAW_RUN_COUNT,
+  buildScoringTestDraw,
+  isScoringTestAssociation,
+} from "../../features/scoring/scoringTestMode";
+import {
   DEFAULT_DRAG_DURATION_MINUTES,
   DRAG_INTERVAL_OPTIONS,
 } from "../../features/classes/classTiming";
@@ -345,6 +351,7 @@ function ClassSetupPage() {
     const allAssociations = loadAssociations();
     return allAssociations.find((item) => item.id === associationId) || null;
   }, [associationId]);
+  const isTestAssociation = isScoringTestAssociation(association);
 
   const [pattern, setPattern] = useState(
     classSetup?.pattern || classItem?.pattern || ""
@@ -931,6 +938,24 @@ function ClassSetupPage() {
 
       return resequenceRuns(next);
     });
+  };
+
+  const generateTestDraw = () => {
+    if (!canManageSetup || isFullyLocked) return;
+
+    if (
+      runs.length > 0 &&
+      !window.confirm(t("management.classSetup.testDrawReplaceConfirm"))
+    ) {
+      return;
+    }
+
+    const nextRuns = buildScoringTestDraw();
+    setRuns(nextRuns);
+    setRunCountInput(String(TEST_DRAW_RUN_COUNT));
+    setDragInterval(String(TEST_DRAG_INTERVAL));
+    setSetApprovalMode(SET_APPROVAL_MODES.PER_SET);
+    setIsDrawImported(false);
   };
 
   const updateCustomManeuverCount = (value) => {
@@ -1836,9 +1861,29 @@ function ClassSetupPage() {
               >
                 {t("management.classSetup.importDraw")}
               </button>
+
+              {isTestAssociation && (
+                <button
+                  type="button"
+                  onClick={generateTestDraw}
+                  style={buttonStyle}
+                  disabled={isFullyLocked}
+                >
+                  {t("management.classSetup.generateTestDraw")}
+                </button>
+              )}
             </div>
           )}
         </div>
+
+        {isTestAssociation && (
+          <div style={drawLockBannerStyle}>
+            {t("management.classSetup.testDrawHelp", {
+              count: TEST_DRAW_RUN_COUNT,
+              interval: TEST_DRAG_INTERVAL,
+            })}
+          </div>
+        )}
 
         {showImportBox && (
           <div style={importBoxStyle}>

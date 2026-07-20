@@ -112,6 +112,7 @@ function AssociationSettingsPage() {
         logoDataUrl,
         websiteUrl,
         sponsorLogos: association.sponsorLogos || [],
+        isTestMode: Boolean(form.isTestMode),
       });
 
       setAssociation(savedAssociation);
@@ -255,6 +256,23 @@ function AssociationSettingsPage() {
               style={fileInputStyle}
             />
           </label>
+
+          <label style={testModeFieldStyle}>
+            <input
+              type="checkbox"
+              checked={form.isTestMode}
+              onChange={(event) =>
+                handleChange("isTestMode", event.target.checked)
+              }
+              disabled={isSaving}
+            />
+            <span>
+              {t("management.associationSettings.testModeLabel")}
+              <span style={{ ...helperTextStyle, display: "block" }}>
+                {t("management.associationSettings.testModeHelp")}
+              </span>
+            </span>
+          </label>
         </div>
 
         {form.logoDataUrl ? (
@@ -303,6 +321,7 @@ function createForm(detectedTimezone, association = null) {
     timezone: association?.timezone || detectedTimezone,
     logoDataUrl: association?.logoDataUrl || "",
     websiteUrl: association?.websiteUrl || "",
+    isTestMode: Boolean(association?.isTestMode),
   };
 }
 
@@ -346,6 +365,17 @@ const formGridStyle = {
 const fieldStyle = {
   display: "grid",
   gap: 6,
+  fontWeight: 700,
+};
+
+const testModeFieldStyle = {
+  display: "flex",
+  alignItems: "flex-start",
+  gap: 10,
+  padding: 12,
+  borderRadius: 8,
+  border: "1px solid #f59e0b",
+  background: "#fffbeb",
   fontWeight: 700,
 };
 

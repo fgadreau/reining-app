@@ -26,6 +26,7 @@ const defaultAssociations = [
 function normalizeAssociation(association) {
   return {
     ...association,
+    isTestMode: Boolean(association?.isTestMode),
     sponsorLogos: Array.isArray(association?.sponsorLogos)
       ? association.sponsorLogos
       : [],

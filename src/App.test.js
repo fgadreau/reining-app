@@ -91,6 +91,14 @@ import {
   getPendingVideoReviewRunsForSet,
   normalizeSetApprovalMode,
 } from "./features/scoring/setApprovals";
+import {
+  TEST_DRAG_INTERVAL,
+  TEST_DRAW_RUN_COUNT,
+  buildCompletedScoringTestRun,
+  buildScoringTestDraw,
+  getScoringTestFillRange,
+  isScoringTestAssociation,
+} from "./features/scoring/scoringTestMode";
 import { canOpenClassForScribe } from "./pages/association/ShowScribePage";
 import { buildHspScoredRunRows } from "./features/integrations/hspScoredRunRepository";
 import {
@@ -6940,4 +6948,50 @@ test("blocks a set approval while one of its runs is under video review", () => 
   expect(getPendingVideoReviewRunsForSet(setRange)).toEqual([
     setRange.runs[1],
   ]);
+});
+
+test("creates a two-set draw only for a designated test association", () => {
+  const draw = buildScoringTestDraw();
+
+  expect(isScoringTestAssociation({ isTestMode: true })).toBe(true);
+  expect(isScoringTestAssociation({ name: "Test by name only" })).toBe(false);
+  expect(draw).toHaveLength(TEST_DRAW_RUN_COUNT);
+  expect(TEST_DRAW_RUN_COUNT / TEST_DRAG_INTERVAL).toBe(2);
+  expect(draw[0]).toMatchObject({
+    draw: 1,
+    backNumber: "101",
+    rider: "Amélie Tremblay",
+  });
+});
+
+test("fills test scoring only through the next drag", () => {
+  const runs = buildScoringTestDraw().map((run) => ({
+    ...run,
+    scores: Array(7).fill(""),
+    penalties: Array(7).fill(""),
+  }));
+  const firstRange = getScoringTestFillRange({
+    runs,
+    maneuverCount: 7,
+    dragInterval: TEST_DRAG_INTERVAL,
+  });
+  const completedRun = buildCompletedScoringTestRun({
+    run: runs[0],
+    runIndex: 0,
+    maneuverCount: 7,
+    scoreOptionsByIndex: Array(7).fill([
+      "-1",
+      "-½",
+      "0",
+      "+½",
+      "+1",
+    ]),
+    scoringCalculationOptions: { baseScore: 70 },
+    completedAt: "2026-07-20T15:00:00.000Z",
+  });
+
+  expect(firstRange).toEqual({ startIndex: 0, endIndex: 3 });
+  expect(completedRun.scores.every(Boolean)).toBe(true);
+  expect(completedRun.scoreTotal).not.toBe("");
+  expect(completedRun.completedAt).toBe("2026-07-20T15:00:00.000Z");
 });
