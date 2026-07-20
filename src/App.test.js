@@ -6950,13 +6950,14 @@ test("blocks a set approval while one of its runs is under video review", () => 
   ]);
 });
 
-test("creates a two-set draw only for a designated test association", () => {
-  const draw = buildScoringTestDraw();
+test("creates an adjustable multi-set draw only for a test association", () => {
+  const draw = buildScoringTestDraw(16);
 
   expect(isScoringTestAssociation({ isTestMode: true })).toBe(true);
   expect(isScoringTestAssociation({ name: "Test by name only" })).toBe(false);
-  expect(draw).toHaveLength(TEST_DRAW_RUN_COUNT);
-  expect(TEST_DRAW_RUN_COUNT / TEST_DRAG_INTERVAL).toBe(2);
+  expect(draw).toHaveLength(16);
+  expect(TEST_DRAW_RUN_COUNT).toBeGreaterThan(8);
+  expect(draw.length / TEST_DRAG_INTERVAL).toBe(4);
   expect(draw[0]).toMatchObject({
     draw: 1,
     backNumber: "101",
@@ -6986,6 +6987,7 @@ test("fills test scoring only through the next drag", () => {
       "+½",
       "+1",
     ]),
+    penaltyOptions: ["½", "1", "2", "P2", "5", "P5", "Score 0"],
     scoringCalculationOptions: { baseScore: 70 },
     completedAt: "2026-07-20T15:00:00.000Z",
   });
@@ -6994,4 +6996,38 @@ test("fills test scoring only through the next drag", () => {
   expect(completedRun.scores.every(Boolean)).toBe(true);
   expect(completedRun.scoreTotal).not.toBe("");
   expect(completedRun.completedAt).toBe("2026-07-20T15:00:00.000Z");
+});
+
+test("test scoring generates varied penalties and notes", () => {
+  const runs = buildScoringTestDraw(6).map((run) => ({
+    ...run,
+    scores: Array(7).fill(""),
+    penalties: Array(7).fill(""),
+    note: "",
+  }));
+  const completedRuns = runs.map((run, runIndex) =>
+    buildCompletedScoringTestRun({
+      run,
+      runIndex,
+      maneuverCount: 7,
+      scoreOptionsByIndex: Array(7).fill([
+        "-1",
+        "-½",
+        "0",
+        "+½",
+        "+1",
+      ]),
+      penaltyOptions: ["½", "1", "2", "P2", "5", "P5", "Score 0"],
+      scoringCalculationOptions: { baseScore: 70 },
+      completedAt: "2026-07-20T15:00:00.000Z",
+    })
+  );
+
+  expect(
+    completedRuns.flatMap((run) => run.penalties).filter(Boolean).length
+  ).toBeGreaterThan(0);
+  expect(completedRuns.filter((run) => run.note).length).toBeGreaterThan(0);
+  expect(new Set(completedRuns.map((run) => run.scoreTotal)).size).toBeGreaterThan(
+    1
+  );
 });

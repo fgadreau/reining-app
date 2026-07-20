@@ -1855,6 +1855,7 @@ function ClassScoringPage() {
               runIndex,
               maneuverCount,
               scoreOptionsByIndex,
+              penaltyOptions,
               scoringCalculationOptions,
               completedAt,
             })

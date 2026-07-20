@@ -55,6 +55,7 @@ import {
 } from "../../features/scoring/setApprovals";
 import {
   TEST_DRAG_INTERVAL,
+  TEST_DRAW_MAX_RUN_COUNT,
   TEST_DRAW_RUN_COUNT,
   buildScoringTestDraw,
   isScoringTestAssociation,
@@ -399,6 +400,9 @@ function ClassSetupPage() {
   );
   const [runCountInput, setRunCountInput] = useState(
     String((classSetup?.runs || []).length)
+  );
+  const [testDrawCountInput, setTestDrawCountInput] = useState(
+    String(TEST_DRAW_RUN_COUNT)
   );
   const [importText, setImportText] = useState("");
   const [importMessage, setImportMessage] = useState("");
@@ -942,17 +946,26 @@ function ClassSetupPage() {
 
   const generateTestDraw = () => {
     if (!canManageSetup || isFullyLocked) return;
+    const requestedCount = Math.min(
+      Math.max(Number.parseInt(testDrawCountInput, 10) || TEST_DRAW_RUN_COUNT, 1),
+      TEST_DRAW_MAX_RUN_COUNT
+    );
 
     if (
       runs.length > 0 &&
-      !window.confirm(t("management.classSetup.testDrawReplaceConfirm"))
+      !window.confirm(
+        t("management.classSetup.testDrawReplaceConfirm", {
+          count: requestedCount,
+        })
+      )
     ) {
       return;
     }
 
-    const nextRuns = buildScoringTestDraw();
+    const nextRuns = buildScoringTestDraw(requestedCount);
     setRuns(nextRuns);
-    setRunCountInput(String(TEST_DRAW_RUN_COUNT));
+    setRunCountInput(String(requestedCount));
+    setTestDrawCountInput(String(requestedCount));
     setDragInterval(String(TEST_DRAG_INTERVAL));
     setSetApprovalMode(SET_APPROVAL_MODES.PER_SET);
     setIsDrawImported(false);
@@ -1863,14 +1876,30 @@ function ClassSetupPage() {
               </button>
 
               {isTestAssociation && (
-                <button
-                  type="button"
-                  onClick={generateTestDraw}
-                  style={buttonStyle}
-                  disabled={isFullyLocked}
-                >
-                  {t("management.classSetup.generateTestDraw")}
-                </button>
+                <>
+                  <input
+                    type="number"
+                    min="1"
+                    max={TEST_DRAW_MAX_RUN_COUNT}
+                    value={testDrawCountInput}
+                    onChange={(event) =>
+                      setTestDrawCountInput(event.target.value)
+                    }
+                    style={smallNumberInputStyle}
+                    disabled={isFullyLocked}
+                    aria-label={t(
+                      "management.classSetup.testParticipantCount"
+                    )}
+                  />
+                  <button
+                    type="button"
+                    onClick={generateTestDraw}
+                    style={buttonStyle}
+                    disabled={isFullyLocked}
+                  >
+                    {t("management.classSetup.generateTestDraw")}
+                  </button>
+                </>
               )}
             </div>
           )}
@@ -1879,7 +1908,8 @@ function ClassSetupPage() {
         {isTestAssociation && (
           <div style={drawLockBannerStyle}>
             {t("management.classSetup.testDrawHelp", {
-              count: TEST_DRAW_RUN_COUNT,
+              count:
+                Number.parseInt(testDrawCountInput, 10) || TEST_DRAW_RUN_COUNT,
               interval: TEST_DRAG_INTERVAL,
             })}
           </div>

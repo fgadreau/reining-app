@@ -12,26 +12,46 @@ const TEST_DRAW_PARTICIPANTS = [
   ["108", "Samuel Bergeron", "Spooks Golden Boy", "Ranch Bergeron"],
 ];
 
-export const TEST_DRAW_RUN_COUNT = TEST_DRAW_PARTICIPANTS.length;
+const TEST_RUN_NOTES = [
+  "Run propre et régulière.",
+  "Léger manque de contrôle au rollback.",
+  "",
+  "Bonne cadence et bons arrêts.",
+  "À revoir : entrée du deuxième spin.",
+  "",
+];
+
+export const TEST_DRAW_RUN_COUNT = 12;
+export const TEST_DRAW_MAX_RUN_COUNT = 100;
 export const TEST_DRAG_INTERVAL = 4;
 
 export function isScoringTestAssociation(association) {
   return Boolean(association?.isTestMode);
 }
 
-export function buildScoringTestDraw() {
-  return TEST_DRAW_PARTICIPANTS.map(
-    ([backNumber, rider, horse, owner], index) => ({
+export function buildScoringTestDraw(runCount = TEST_DRAW_RUN_COUNT) {
+  const normalizedCount = Math.min(
+    Math.max(Number.parseInt(runCount, 10) || TEST_DRAW_RUN_COUNT, 1),
+    TEST_DRAW_MAX_RUN_COUNT
+  );
+
+  return Array.from({ length: normalizedCount }, (_, index) => {
+    const [, rider, horse, owner] =
+      TEST_DRAW_PARTICIPANTS[index % TEST_DRAW_PARTICIPANTS.length];
+    const cycle = Math.floor(index / TEST_DRAW_PARTICIPANTS.length) + 1;
+    const cycleSuffix = cycle > 1 ? ` ${cycle}` : "";
+
+    return {
       id: createId("run"),
       order: index + 1,
       draw: index + 1,
-      backNumber,
-      rider,
-      horse,
-      owner,
+      backNumber: String(101 + index),
+      rider: `${rider}${cycleSuffix}`,
+      horse: `${horse}${cycleSuffix}`,
+      owner: `${owner}${cycleSuffix}`,
       classCodes: [],
-    })
-  );
+    };
+  });
 }
 
 function getTestScoreValue(options, seed) {
@@ -51,11 +71,27 @@ function getTestScoreValue(options, seed) {
   return normalizedOptions[nextIndex];
 }
 
+function getTestPenaltyValue(penaltyOptions, runIndex) {
+  const usableOptions = (Array.isArray(penaltyOptions) ? penaltyOptions : [])
+    .map((option) => String(option || "").trim())
+    .filter(
+      (option) =>
+        option &&
+        !/score|scratch|révision|revision|disqualification|no score|op/i.test(
+          option
+        )
+    );
+
+  if (runIndex % 3 === 0 || usableOptions.length === 0) return "";
+  return usableOptions[(runIndex - 1) % usableOptions.length];
+}
+
 export function buildCompletedScoringTestRun({
   run,
   runIndex,
   maneuverCount,
   scoreOptionsByIndex,
+  penaltyOptions,
   scoringCalculationOptions,
   completedAt = new Date().toISOString(),
 }) {
@@ -70,16 +106,23 @@ export function buildCompletedScoringTestRun({
       runIndex + maneuverIndex
     );
   });
-  const penalties = Array.from(
-    { length: maneuverCount },
-    (_, maneuverIndex) => run.penalties?.[maneuverIndex] || ""
-  );
+  const testPenalty = getTestPenaltyValue(penaltyOptions, runIndex);
+  const testPenaltyIndex =
+    maneuverCount > 0 ? (runIndex * 2 + 1) % maneuverCount : -1;
+  const penalties = Array.from({ length: maneuverCount }, (_, maneuverIndex) => {
+    const existingPenalty = run.penalties?.[maneuverIndex];
+    if (String(existingPenalty ?? "").trim()) return existingPenalty;
+    return maneuverIndex === testPenaltyIndex ? testPenalty : "";
+  });
 
   return recalculateRun(
     {
       ...run,
       scores,
       penalties,
+      note: String(run.note || "").trim()
+        ? run.note
+        : TEST_RUN_NOTES[runIndex % TEST_RUN_NOTES.length],
       startedAt: run.startedAt || completedAt,
       completedAt,
       durationSeconds:

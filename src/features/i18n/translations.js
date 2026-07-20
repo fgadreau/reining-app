@@ -1048,7 +1048,7 @@ export const translations = {
         statusPrefix: "Statut",
         testDataComplete: "Toutes les runs modifiables sont déjà complétées.",
         testDataHelp:
-          "Préremplit des scores réalistes sans toucher aux sets déjà signés. Utilise « prochain set » pour arriver rapidement au prochain drag.",
+          "Préremplit des scores variés, des pénalités et quelques notes sans toucher aux sets déjà signés. Utilise « prochain set » pour arriver rapidement au prochain drag.",
         testDataTitle: "Saisie rapide des scores",
         testMode: "Mode test",
         syncLocal: "Sauvé localement",
@@ -1223,9 +1223,10 @@ export const translations = {
           "Prépare l’ordre de passage et les participants avant le scoring.",
         title: "Setup de bloc",
         testDrawHelp:
-          "Association de test : le bouton crée {{count}} participants fictifs, un drag après {{interval}} runs et active la signature à chaque set.",
+          "Association de test : choisis le nombre de participants. Le bouton crée {{count}} participants fictifs, un drag après {{interval}} runs et active la signature à chaque set.",
+        testParticipantCount: "Nombre de participants du draw test",
         testDrawReplaceConfirm:
-          "Remplacer le draw actuel par le draw test de 8 participants ?",
+          "Remplacer le draw actuel par le draw test de {{count}} participants ?",
       },
       secretariat: {
         accessDenied: "Ce rôle n’a pas accès au tableau secrétariat.",
@@ -2789,7 +2790,7 @@ export const translations = {
         statusPrefix: "Status",
         testDataComplete: "All editable runs are already completed.",
         testDataHelp:
-          "Prefills realistic scores without changing signed sets. Use “next set” to quickly reach the next drag.",
+          "Prefills varied scores, penalties, and notes without changing signed sets. Use “next set” to quickly reach the next drag.",
         testDataTitle: "Quick score entry",
         testMode: "Test mode",
         syncLocal: "Saved locally",
@@ -2964,9 +2965,10 @@ export const translations = {
           "Prepare the order of go and participants before scoring.",
         title: "Block setup",
         testDrawHelp:
-          "Test association: the button creates {{count}} fictional participants, a drag after {{interval}} runs, and enables signature after every set.",
+          "Test association: choose the participant count. The button creates {{count}} fictional participants, a drag after {{interval}} runs, and enables signature after every set.",
+        testParticipantCount: "Test draw participant count",
         testDrawReplaceConfirm:
-          "Replace the current draw with the 8-participant test draw?",
+          "Replace the current draw with the {{count}}-participant test draw?",
       },
       secretariat: {
         accessDenied: "This role does not have access to the secretariat dashboard.",
