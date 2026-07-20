@@ -1035,6 +1035,10 @@ export const translations = {
         setApprovalHelp:
           "La signature crée la feuille PDF de ce set, l’envoie au secrétariat et verrouille définitivement les runs incluses.",
         setApprovalPending: "Signature requise",
+        setApprovalNote: "Note",
+        setApprovalReviewHelp:
+          "Vérifiez les scores de manoeuvres, les pénalités, les totaux et les notes avant de signer.",
+        setApprovalReviewTitle: "Résultats à valider",
         setApprovalSummary:
           "Draws {{start}} à {{end}} · {{count}} participant(s)",
         setApprovalTitle: "Approbation du set {{set}}",
@@ -2777,6 +2781,10 @@ export const translations = {
         setApprovalHelp:
           "The signature creates this set's PDF sheet, sends it to the secretariat, and permanently locks the included runs.",
         setApprovalPending: "Signature required",
+        setApprovalNote: "Note",
+        setApprovalReviewHelp:
+          "Review maneuver scores, penalties, totals, and notes before signing.",
+        setApprovalReviewTitle: "Results to validate",
         setApprovalSummary:
           "Draws {{start}} to {{end}} · {{count}} participant(s)",
         setApprovalTitle: "Set {{set}} approval",

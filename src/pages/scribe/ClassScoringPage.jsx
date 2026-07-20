@@ -71,6 +71,9 @@ import {
 } from "../../features/scoring/scoringTestMode";
 import {
   appendPenaltyToken,
+  formatPenaltyValue,
+  formatScoreValue,
+  formatTotalValue,
   isScoredRunComplete,
   recalculateRun,
   removeLastPenaltyToken,
@@ -2501,86 +2504,22 @@ function ClassScoringPage() {
       )}
 
       {pendingSetApproval && !isCompleted && (
-        <section style={finalizeCardStyle}>
-          <div style={sectionHeaderStyle}>
-            <div>
-              <h2 style={sectionTitleStyle}>
-                {t("management.scoring.setApprovalTitle", {
-                  set: pendingSetApproval.setNumber,
-                })}
-                {assignedJudgeName ? ` · ${assignedJudgeName}` : ""}
-              </h2>
-              <div style={helperTextStyle}>
-                {t("management.scoring.setApprovalSummary", {
-                  start: pendingSetApproval.startDraw,
-                  end: pendingSetApproval.endDraw,
-                  count: pendingSetApproval.runs.length,
-                })}
-              </div>
-            </div>
-            <div style={statusBadgeStyle("in_progress")}>
-              {t("management.scoring.setApprovalPending")}
-            </div>
-          </div>
-
-          <div style={judgeNoticeStyle}>
-            {t("management.scoring.setApprovalHelp")}
-          </div>
-
-          {!assignedJudgeName && (
-            <div style={fieldGridStyle}>
-              <div>
-                <label style={labelStyle}>
-                  {t("management.scoring.judgeNameLabel")}
-                </label>
-                <input
-                  type="text"
-                  value={judgeName}
-                  onChange={(event) => setJudgeName(event.target.value)}
-                  placeholder={t("management.scoring.judgeNameLabel")}
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-          )}
-
-          <div style={{ marginTop: 16 }}>
-            <label style={labelStyle}>
-              {t("management.scoring.judgeSignatureTitle")}
-            </label>
-            <SignaturePad
-              value={setApprovalSignature}
-              onChange={setSetApprovalSignature}
-              width={560}
-              height={180}
-            />
-          </div>
-
-          <div style={buttonRowStyle}>
-            <button
-              type="button"
-              onClick={handleApproveSet}
-              style={primaryButtonStyle}
-              disabled={!setApprovalSignature || isSavingSetApproval}
-            >
-              {isSavingSetApproval
-                ? t("management.scoring.approvingSet")
-                : t("management.scoring.approveSet")}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setPendingSetApproval(null);
-                setSetApprovalSignature(null);
-              }}
-              style={secondaryButtonStyle}
-              disabled={isSavingSetApproval}
-            >
-              {t("management.access.cancel")}
-            </button>
-          </div>
-        </section>
+        <SetApprovalModal
+          setRange={pendingSetApproval}
+          headers={headers}
+          specialPenaltyTokens={specialPenaltyTokens}
+          assignedJudgeName={assignedJudgeName}
+          judgeName={judgeName}
+          onJudgeNameChange={setJudgeName}
+          signature={setApprovalSignature}
+          onSignatureChange={setSetApprovalSignature}
+          onApprove={handleApproveSet}
+          onCancel={() => {
+            setPendingSetApproval(null);
+            setSetApprovalSignature(null);
+          }}
+          isSaving={isSavingSetApproval}
+        />
       )}
 
       {showFinalizeBox && !isCompleted && (
@@ -2778,6 +2717,187 @@ function ProvisionalRankingModal({ ranking, onClose }) {
               <div style={rankingScoreStyle}>{run.scoreTotal || "—"}</div>
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SetApprovalModal({
+  setRange,
+  headers,
+  specialPenaltyTokens,
+  assignedJudgeName,
+  judgeName,
+  onJudgeNameChange,
+  signature,
+  onSignatureChange,
+  onApprove,
+  onCancel,
+  isSaving,
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div style={modalBackdropStyle} role="dialog" aria-modal="true">
+      <div style={setApprovalModalStyle}>
+        <div style={modalHeaderStyle}>
+          <div>
+            <h2 style={sectionTitleStyle}>
+              {t("management.scoring.setApprovalTitle", {
+                set: setRange.setNumber,
+              })}
+              {assignedJudgeName ? ` · ${assignedJudgeName}` : ""}
+            </h2>
+            <div style={helperTextStyle}>
+              {t("management.scoring.setApprovalSummary", {
+                start: setRange.startDraw,
+                end: setRange.endDraw,
+                count: setRange.runs.length,
+              })}
+            </div>
+          </div>
+          <div style={statusBadgeStyle("in_progress")}>
+            {t("management.scoring.setApprovalPending")}
+          </div>
+        </div>
+
+        <div style={setReviewHeadingStyle}>
+          <strong>{t("management.scoring.setApprovalReviewTitle")}</strong>
+          <span style={helperTextStyle}>
+            {t("management.scoring.setApprovalReviewHelp")}
+          </span>
+        </div>
+
+        <div style={setReviewTableWrapStyle}>
+          <table style={setReviewTableStyle}>
+            <thead>
+              <tr>
+                <th style={setReviewHeaderStyle}>
+                  {t("management.announcer.draw")}
+                </th>
+                <th style={setReviewHeaderStyle}>
+                  {t("public.results.backNumber")}
+                </th>
+                <th style={setReviewHeaderStyle}>
+                  {t("public.results.rider")}
+                </th>
+                <th style={setReviewHeaderStyle}>
+                  {t("public.results.horse")}
+                </th>
+                {headers.map((header) => (
+                  <th key={header} style={setReviewHeaderStyle}>
+                    {header}
+                  </th>
+                ))}
+                <th style={setReviewHeaderStyle}>
+                  {t("public.results.totalPenalties")}
+                </th>
+                <th style={setReviewHeaderStyle}>
+                  {t("public.results.score")}
+                </th>
+                <th style={setReviewHeaderStyle}>
+                  {t("management.scoring.setApprovalNote")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {setRange.runs.map((run) => (
+                <tr key={run.id || run.draw}>
+                  <td style={setReviewCellStyle}>{run.draw || "—"}</td>
+                  <td style={setReviewCellStyle}>{run.backNumber || "—"}</td>
+                  <td style={setReviewParticipantCellStyle}>
+                    {run.rider || "—"}
+                  </td>
+                  <td style={setReviewParticipantCellStyle}>
+                    {run.horse || "—"}
+                  </td>
+                  {headers.map((header, maneuverIndex) => {
+                    const score = formatScoreValue(
+                      run.scores?.[maneuverIndex]
+                    );
+                    const penalty = formatPenaltyValue(
+                      run.penalties?.[maneuverIndex],
+                      specialPenaltyTokens
+                    );
+
+                    return (
+                      <td
+                        key={`${run.id || run.draw}-${header}-${maneuverIndex}`}
+                        style={setReviewManeuverCellStyle}
+                      >
+                        <strong>{score || "—"}</strong>
+                        {penalty && (
+                          <span style={setReviewPenaltyStyle}>
+                            P: {penalty}
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
+                  <td style={setReviewCellStyle}>{run.penTotal || "—"}</td>
+                  <td style={setReviewScoreCellStyle}>
+                    {formatTotalValue(run.scoreTotal) || "—"}
+                  </td>
+                  <td style={setReviewNoteCellStyle}>{run.note || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={judgeNoticeStyle}>
+          {t("management.scoring.setApprovalHelp")}
+        </div>
+
+        {!assignedJudgeName && (
+          <div style={fieldGridStyle}>
+            <div>
+              <label style={labelStyle}>
+                {t("management.scoring.judgeNameLabel")}
+              </label>
+              <input
+                type="text"
+                value={judgeName}
+                onChange={(event) => onJudgeNameChange(event.target.value)}
+                placeholder={t("management.scoring.judgeNameLabel")}
+                style={inputStyle}
+              />
+            </div>
+          </div>
+        )}
+
+        <div style={{ marginTop: 16 }}>
+          <label style={labelStyle}>
+            {t("management.scoring.judgeSignatureTitle")}
+          </label>
+          <SignaturePad
+            value={signature}
+            onChange={onSignatureChange}
+            width={720}
+            height={180}
+          />
+        </div>
+
+        <div style={setApprovalModalActionsStyle}>
+          <button
+            type="button"
+            onClick={onApprove}
+            style={primaryButtonStyle}
+            disabled={!signature || isSaving}
+          >
+            {isSaving
+              ? t("management.scoring.approvingSet")
+              : t("management.scoring.approveSet")}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            style={secondaryButtonStyle}
+            disabled={isSaving}
+          >
+            {t("management.access.cancel")}
+          </button>
         </div>
       </div>
     </div>
@@ -3064,6 +3184,86 @@ const modalStyle = {
   borderRadius: "10px",
   padding: "18px",
   boxShadow: "0 20px 50px rgba(15, 23, 42, 0.25)",
+};
+
+const setApprovalModalStyle = {
+  ...modalStyle,
+  width: "min(1180px, 100%)",
+  maxHeight: "92vh",
+};
+
+const setReviewHeadingStyle = {
+  display: "grid",
+  gap: 3,
+  marginBottom: 10,
+};
+
+const setReviewTableWrapStyle = {
+  overflowX: "auto",
+  border: "1px solid #cbd5e1",
+  borderRadius: 8,
+  marginBottom: 14,
+};
+
+const setReviewTableStyle = {
+  width: "100%",
+  borderCollapse: "collapse",
+  fontSize: 13,
+};
+
+const setReviewHeaderStyle = {
+  padding: "8px 9px",
+  borderBottom: "1px solid #cbd5e1",
+  background: "#f1f5f9",
+  textAlign: "left",
+  whiteSpace: "nowrap",
+};
+
+const setReviewCellStyle = {
+  padding: "8px 9px",
+  borderBottom: "1px solid #e2e8f0",
+  whiteSpace: "nowrap",
+  verticalAlign: "top",
+};
+
+const setReviewParticipantCellStyle = {
+  ...setReviewCellStyle,
+  minWidth: 140,
+};
+
+const setReviewManeuverCellStyle = {
+  ...setReviewCellStyle,
+  minWidth: 64,
+  textAlign: "center",
+};
+
+const setReviewPenaltyStyle = {
+  display: "block",
+  marginTop: 2,
+  color: "#b45309",
+  fontSize: 11,
+  fontWeight: 800,
+};
+
+const setReviewScoreCellStyle = {
+  ...setReviewCellStyle,
+  fontSize: 16,
+  fontWeight: 900,
+};
+
+const setReviewNoteCellStyle = {
+  ...setReviewCellStyle,
+  minWidth: 180,
+  whiteSpace: "normal",
+  color: "#475569",
+};
+
+const setApprovalModalActionsStyle = {
+  display: "flex",
+  gap: 10,
+  justifyContent: "flex-end",
+  flexWrap: "wrap",
+  marginTop: 16,
 };
 
 const modalHeaderStyle = {
