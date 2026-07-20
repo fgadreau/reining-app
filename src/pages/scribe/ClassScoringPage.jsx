@@ -2747,6 +2747,7 @@ function SetApprovalModal({
               {t("management.scoring.setApprovalTitle", {
                 set: setRange.setNumber,
               })}
+              {assignedJudgeName ? ` · ${assignedJudgeName}` : ""}
             </h2>
             <div style={helperTextStyle}>
               {t("management.scoring.setApprovalSummary", {
