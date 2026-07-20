@@ -100,6 +100,7 @@ export function generateClassResultsPdf({
   pattern,
   publishedAt,
   resultGroups,
+  documentTitle = "Resultats officiels",
 }) {
   const doc = new jsPDF({
     orientation: "portrait",
@@ -144,7 +145,7 @@ export function generateClassResultsPdf({
     const titleX = associationLogoDataUrl ? margin + 23 : margin;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
-    doc.text("Resultats officiels", titleX, y + 5);
+    doc.text(safeText(documentTitle), titleX, y + 5);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);

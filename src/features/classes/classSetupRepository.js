@@ -14,6 +14,82 @@ import {
 } from "./classSetupStorage";
 import { updateClass } from "./classStorage";
 import { NO_PATTERN_ID, isNoPatternValue } from "../patterns/patternDefinitions";
+import { normalizeLiveDisplayMode } from "../live/liveDataSource";
+
+const LIVE_DISPLAY_PENDING_STORAGE_KEY =
+  "showscore_live_display_mode_pending_v1";
+const LIVE_SOURCE_PENDING_STORAGE_KEY =
+  "showscore_live_data_source_pending_v1";
+
+function loadPendingValues(storageKey) {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function savePendingValues(storageKey, pending) {
+  localStorage.setItem(storageKey, JSON.stringify(pending || {}));
+}
+
+function getPendingLiveDisplayMode(classId) {
+  return loadPendingValues(LIVE_DISPLAY_PENDING_STORAGE_KEY)[classId] || null;
+}
+
+function setPendingLiveDisplayMode(classId, mode) {
+  const pending = loadPendingValues(LIVE_DISPLAY_PENDING_STORAGE_KEY);
+  pending[classId] = normalizeLiveDisplayMode(mode);
+  savePendingValues(LIVE_DISPLAY_PENDING_STORAGE_KEY, pending);
+}
+
+function clearPendingLiveDisplayMode(classId) {
+  const pending = loadPendingValues(LIVE_DISPLAY_PENDING_STORAGE_KEY);
+  delete pending[classId];
+  savePendingValues(LIVE_DISPLAY_PENDING_STORAGE_KEY, pending);
+}
+
+function getPendingLiveDataSource(classId) {
+  return loadPendingValues(LIVE_SOURCE_PENDING_STORAGE_KEY)[classId] || null;
+}
+
+function setPendingLiveDataSource(classId, source) {
+  const pending = loadPendingValues(LIVE_SOURCE_PENDING_STORAGE_KEY);
+  pending[classId] = source;
+  savePendingValues(LIVE_SOURCE_PENDING_STORAGE_KEY, pending);
+}
+
+function clearPendingLiveDataSource(classId) {
+  const pending = loadPendingValues(LIVE_SOURCE_PENDING_STORAGE_KEY);
+  delete pending[classId];
+  savePendingValues(LIVE_SOURCE_PENDING_STORAGE_KEY, pending);
+}
+
+async function pushLiveDisplayMode(classId, liveDisplayMode) {
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+
+  const { error } = await supabase.rpc("set_show_score_live_display_mode", {
+    target_class_id: classId,
+    target_mode: liveDisplayMode,
+  });
+  if (error) throw error;
+  return true;
+}
+
+async function pushLiveDataSource(classId, liveDataSource) {
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+
+  const { error } = await supabase.rpc("set_show_score_live_data_source", {
+    target_class_id: classId,
+    target_source: liveDataSource,
+  });
+  if (error) throw error;
+  return true;
+}
 
 function toSetup(row) {
   const remoteScheduleDetails = normalizeClassScheduleDetails(
@@ -38,6 +114,11 @@ function toSetup(row) {
     dragDurationMinutes: row.drag_duration_minutes,
     setApprovalMode: row.set_approval_mode,
     setApprovals: Array.isArray(row.set_approvals) ? row.set_approvals : [],
+    liveDataSource: row.live_data_source,
+    liveDisplayMode: row.live_display_mode,
+    qualifiedRiderCount: row.qualified_rider_count,
+    liveSourceChangedAt: row.live_source_changed_at || null,
+    liveSourceChangedBy: row.live_source_changed_by || null,
     lockedAt: row.locked_at || null,
     lockedBy: row.locked_by_label || null,
     finalized: Boolean(row.finalized),
@@ -62,6 +143,9 @@ function toSetupRow(classId, setup) {
     drag_duration_minutes: normalized.dragDurationMinutes,
     set_approval_mode: normalized.setApprovalMode,
     set_approvals: normalized.setApprovals,
+    live_data_source: normalized.liveDataSource,
+    live_display_mode: normalized.liveDisplayMode,
+    qualified_rider_count: normalized.qualifiedRiderCount,
     custom_pattern: normalized.customPattern || null,
     judges: normalized.judges || [],
     schedule_details: normalizeClassScheduleDetails(normalized.scheduleDetails),
@@ -88,6 +172,31 @@ export async function getClassSetupRepository(classId) {
     return localSetup;
   }
 
+  const pendingLiveDataSource = getPendingLiveDataSource(classId);
+  if (pendingLiveDataSource) {
+    try {
+      await pushLiveDataSource(classId, pendingLiveDataSource);
+      clearPendingLiveDataSource(classId);
+    } catch (error) {
+      console.error("Erreur synchronisation source live Supabase:", error);
+      return localSetup;
+    }
+  }
+
+  const pendingLiveDisplayMode = getPendingLiveDisplayMode(classId);
+  if (pendingLiveDisplayMode) {
+    try {
+      await pushLiveDisplayMode(classId, pendingLiveDisplayMode);
+      clearPendingLiveDisplayMode(classId);
+    } catch (error) {
+      console.error(
+        "Erreur synchronisation affichage live minimal Supabase:",
+        error
+      );
+      return localSetup;
+    }
+  }
+
   try {
     const { data, error } = await supabase
       .from("show_score_class_setups")
@@ -107,12 +216,41 @@ export async function getClassSetupRepository(classId) {
   }
 }
 
+export async function saveClassLiveDisplayModeRepository(classId, mode) {
+  const liveDisplayMode = normalizeLiveDisplayMode(mode);
+  const currentSetup = getClassSetup(classId);
+  saveClassSetup(classId, {
+    ...currentSetup,
+    liveDisplayMode,
+  });
+  setPendingLiveDisplayMode(classId, liveDisplayMode);
+
+  const supabase = getSupabaseClient();
+  if (!supabase) return liveDisplayMode;
+
+  try {
+    await pushLiveDisplayMode(classId, liveDisplayMode);
+    clearPendingLiveDisplayMode(classId);
+  } catch (error) {
+    console.error("Erreur sauvegarde affichage live minimal Supabase:", error);
+  }
+
+  return liveDisplayMode;
+}
+
 export async function saveClassSetupRepository(classId, setup) {
   const previousSetup = getClassSetup(classId);
-  const normalized = normalizeClassSetup(setup);
+  const normalized = normalizeClassSetup({
+    ...setup,
+    liveDisplayMode:
+      previousSetup?.liveDisplayMode ?? setup?.liveDisplayMode,
+  });
   const supabase = getSupabaseClient();
 
   saveClassSetup(classId, normalized);
+  if (previousSetup?.liveDataSource !== normalized.liveDataSource) {
+    setPendingLiveDataSource(classId, normalized.liveDataSource);
+  }
 
   if (supabase) {
     try {
@@ -121,6 +259,8 @@ export async function saveClassSetupRepository(classId, setup) {
         .upsert(toSetupRow(classId, normalized));
 
       if (error) throw error;
+      clearPendingLiveDataSource(classId);
+      clearPendingLiveDisplayMode(classId);
     } catch (error) {
       console.error("Erreur sauvegarde setup Supabase:", error);
     }

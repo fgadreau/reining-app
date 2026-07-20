@@ -2007,6 +2007,16 @@ function PublicPaidWarmupOrderTable({ entries, warmup, panelId }) {
 function LiveRunCard({ run, showScore = true, showDetails = true }) {
   const { t } = useTranslation();
 
+  if (run.identityHidden) {
+    return (
+      <div>
+        <div style={runTitleStyle}>
+          {t("public.results.order")} #{run.draw || "—"}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div style={runTitleStyle}>

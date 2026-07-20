@@ -51,6 +51,10 @@ import {
   normalizeClassScheduleStart,
 } from "./classSchedule";
 import { getPatternDisplayName } from "../patterns/patternDefinitions";
+import {
+  getAnnouncerLiveSession,
+  getAnnouncerLiveSessionRepository,
+} from "../live/announcerLiveRepository";
 
 function toClass(row) {
   const scheduleStart = normalizeClassScheduleStart({
@@ -305,6 +309,7 @@ export function getClassFullData(classId) {
     updatedAt: getLatestRunActivityAt(scoringRuns),
   };
   const publication = getPublicationState(classId);
+  const announcerSession = getAnnouncerLiveSession(classId, setup?.runs);
   const judges = normalizeClassJudges({
     judges: setup?.judges,
     judgeName: setup?.judgeName || classItem?.judgeName,
@@ -321,6 +326,7 @@ export function getClassFullData(classId) {
     official,
     publication,
     scoringSession,
+    announcerSession,
     judges,
     judgeSessions,
     scoringRuns,
@@ -463,7 +469,10 @@ export async function getClassFullDataRepository(classId) {
   const record = getClassRecord(classId);
   const officialResult = await getOfficialResultRepository(classId);
   const official = getClassOfficialData(classId, classItem, officialResult);
-  const scoringSession = await loadScoringSessionRepository(classId);
+  const [scoringSession, announcerSession] = await Promise.all([
+    loadScoringSessionRepository(classId),
+    getAnnouncerLiveSessionRepository(classId, setup?.runs),
+  ]);
   const judges = normalizeClassJudges({
     judges: setup?.judges,
     judgeName: setup?.judgeName || classItem?.judgeName,
@@ -480,6 +489,7 @@ export async function getClassFullDataRepository(classId) {
     official,
     publication,
     scoringSession,
+    announcerSession,
     judges,
     judgeSessions,
     scoringRuns: scoringSession.runs,
