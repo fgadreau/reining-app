@@ -351,6 +351,10 @@ test("normalizes optional championship rules for the public modal", () => {
   });
   expect(hasChampionshipRules(rules)).toBe(true);
   expect(hasChampionshipRules({})).toBe(false);
+  expect(normalizeChampionshipRules(null)).toEqual({
+    rulesStatement: "",
+    pointsExplanation: "",
+  });
   expect(
     normalizeChampionshipRules({
       rulesStatement: "x".repeat(CHAMPIONSHIP_RULE_TEXT_MAX_LENGTH + 10),

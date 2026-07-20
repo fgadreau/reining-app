@@ -7,9 +7,11 @@ function normalizeRuleText(value) {
 }
 
 export function normalizeChampionshipRules(source = {}) {
+  const normalizedSource = source || {};
+
   return {
-    rulesStatement: normalizeRuleText(source.rulesStatement),
-    pointsExplanation: normalizeRuleText(source.pointsExplanation),
+    rulesStatement: normalizeRuleText(normalizedSource.rulesStatement),
+    pointsExplanation: normalizeRuleText(normalizedSource.pointsExplanation),
   };
 }
 
