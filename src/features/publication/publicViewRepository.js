@@ -4,7 +4,10 @@ import {
   getClassesForDay,
 } from "../classes/classRepository";
 import { loadAssociations } from "../associations/associationsData";
-import { normalizeSponsorLogos } from "../associations/sponsorLogos";
+import {
+  flattenSponsorGroups,
+  normalizeSponsorGroups,
+} from "../associations/sponsorLogos";
 import { getPublicChampionshipSeasonRepository } from "../championship/championshipRepository";
 import { getShowsByAssociationId, getShowById } from "../shows/showSelectors";
 import { getSupabaseClient } from "../cloud/supabaseClient";
@@ -84,6 +87,8 @@ import {
 } from "./publicationRepository";
 
 function toAssociation(row) {
+  const sponsorGroups = normalizeSponsorGroups(row.sponsor_logos);
+
   return {
     id: row.id,
     name: row.name || "",
@@ -91,7 +96,8 @@ function toAssociation(row) {
     timezone: row.timezone || "",
     logoDataUrl: row.logo_url || null,
     websiteUrl: row.website_url || "",
-    sponsorLogos: normalizeSponsorLogos(row.sponsor_logos),
+    sponsorGroups,
+    sponsorLogos: flattenSponsorGroups(sponsorGroups),
   };
 }
 
@@ -1028,11 +1034,12 @@ export async function getPublicAssociationRepository(associationId) {
 
     if (
       association &&
-      !association.sponsorLogos.length &&
-      localAssociation?.sponsorLogos?.length
+      !association.sponsorGroups.length &&
+      localAssociation?.sponsorGroups?.length
     ) {
       return {
         ...association,
+        sponsorGroups: localAssociation.sponsorGroups,
         sponsorLogos: localAssociation.sponsorLogos,
       };
     }

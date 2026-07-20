@@ -1716,6 +1716,28 @@ function AnnouncerManualLiveControls({
     save(startAnnouncerRun(session, nextRun.id));
   }
 
+  function handleScratch(run) {
+    if (
+      !run?.id ||
+      !window.confirm(
+        t("management.announcer.scratchConfirm", {
+          draw: run.draw || "—",
+        })
+      )
+    ) {
+      return;
+    }
+
+    save(
+      saveAnnouncerRunResult(
+        session,
+        run.id,
+        { status: ANNOUNCER_RUN_STATUSES.SCRATCH },
+        { updatedBy }
+      )
+    );
+  }
+
   function handleComplete() {
     const result = completeAnnouncerLiveSession(session, {
       completedBy: updatedBy,
@@ -1795,25 +1817,7 @@ function AnnouncerManualLiveControls({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (
-                      !window.confirm(
-                        t("management.announcer.scratchConfirm", {
-                          draw: activeRun.draw || "—",
-                        })
-                      )
-                    ) {
-                      return;
-                    }
-                    save(
-                      saveAnnouncerRunResult(
-                        session,
-                        activeRun.id,
-                        { status: ANNOUNCER_RUN_STATUSES.SCRATCH },
-                        { updatedBy }
-                      )
-                    );
-                  }}
+                  onClick={() => handleScratch(activeRun)}
                   style={manualDangerButtonStyle}
                 >
                   {t("management.announcer.scratch")}
@@ -1828,13 +1832,22 @@ function AnnouncerManualLiveControls({
                 {t("management.announcer.startDrag")}
               </button>
             ) : !session.completedAt && classView.nextRun ? (
-              <button
-                type="button"
-                onClick={handleStartNext}
-                style={manualPrimaryButtonStyle}
-              >
-                {t("management.announcer.startNext")}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handleStartNext}
+                  style={manualPrimaryButtonStyle}
+                >
+                  {t("management.announcer.startNext")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleScratch(classView.nextRun)}
+                  style={manualDangerButtonStyle}
+                >
+                  {t("management.announcer.scratch")}
+                </button>
+              </>
             ) : null}
           </div>
         </div>

@@ -3,7 +3,11 @@ import {
   loadAssociations,
   saveAssociations,
 } from "./associationsData";
-import { normalizeSponsorLogos } from "./sponsorLogos";
+import {
+  flattenSponsorGroups,
+  normalizeSponsorGroups,
+  serializeSponsorGroups,
+} from "./sponsorLogos";
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 
@@ -16,6 +20,8 @@ function toAssociation(row) {
   const plan =
     row.subscription_plan ||
     (modulesEnabled.show_score === false ? "community" : "premium");
+  const sponsorGroups = normalizeSponsorGroups(row.sponsor_logos);
+
   return {
     id: row.id,
     name: row.name || "",
@@ -23,7 +29,8 @@ function toAssociation(row) {
     timezone: row.timezone || "",
     logoDataUrl: row.logo_url || null,
     websiteUrl: row.website_url || "",
-    sponsorLogos: normalizeSponsorLogos(row.sponsor_logos),
+    sponsorGroups,
+    sponsorLogos: flattenSponsorGroups(sponsorGroups),
     isTestMode: Boolean(row.is_test_mode),
     subscriptionPlan: plan,
     modulesEnabled,
@@ -39,7 +46,9 @@ function toSharedOrganizationRow(association) {
     timezone: association.timezone || "",
     logo_url: association.logoDataUrl || null,
     website_url: association.websiteUrl || null,
-    sponsor_logos: normalizeSponsorLogos(association.sponsorLogos),
+    sponsor_logos: serializeSponsorGroups(
+      association.sponsorGroups || association.sponsorLogos
+    ),
     is_test_mode: Boolean(association.isTestMode),
   };
 }

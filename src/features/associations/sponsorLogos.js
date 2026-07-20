@@ -4,6 +4,75 @@ const SPONSOR_LOGO_TARGET_BYTES = 250 * 1024;
 const SPONSOR_LOGO_QUALITY_STEPS = [0.85, 0.8, 0.75, 0.7, 0.65];
 
 export function normalizeSponsorLogos(value) {
+  if (!Array.isArray(value)) {
+    return flattenSponsorGroups(value);
+  }
+
+  const isGroupList = value.some((item) => Array.isArray(item?.logos));
+  if (isGroupList) return flattenSponsorGroups(value);
+
+  return normalizeSponsorLogoList(value);
+}
+
+export function normalizeSponsorGroups(value) {
+  const sourceGroups = Array.isArray(value?.groups)
+    ? value.groups
+    : Array.isArray(value) && value.some((item) => Array.isArray(item?.logos))
+      ? value
+      : Array.isArray(value) && value.length
+        ? [
+            {
+              id: "legacy-sponsors",
+              name: "",
+              logos: value,
+            },
+          ]
+        : [];
+
+  return sourceGroups.map((group, index) => ({
+    id: String(group?.id || `sponsor-level-${index + 1}`),
+    name: String(group?.name || "").trim(),
+    sortOrder: index + 1,
+    logos: normalizeSponsorLogoList(group?.logos),
+  }));
+}
+
+export function serializeSponsorGroups(value) {
+  return {
+    version: 2,
+    groups: normalizeSponsorGroups(value),
+  };
+}
+
+export function flattenSponsorGroups(value) {
+  return normalizeSponsorGroups(value).flatMap((group) =>
+    group.logos.map((logo) => ({
+      ...logo,
+      sponsorLevelId: group.id,
+      sponsorLevelName: group.name,
+      sponsorLevelOrder: group.sortOrder,
+    }))
+  );
+}
+
+export function buildSponsorLevelSlides(value, logosPerSlide) {
+  const pageSize = Math.max(1, Number.parseInt(logosPerSlide, 10) || 1);
+
+  return normalizeSponsorGroups(value).flatMap((group) => {
+    const slides = [];
+    for (let index = 0; index < group.logos.length; index += pageSize) {
+      slides.push({
+        id: `${group.id}-slide-${Math.floor(index / pageSize) + 1}`,
+        groupId: group.id,
+        groupName: group.name,
+        sponsors: group.logos.slice(index, index + pageSize),
+      });
+    }
+    return slides;
+  });
+}
+
+function normalizeSponsorLogoList(value) {
   return (Array.isArray(value) ? value : [])
     .map((logo, index) => {
       const normalized = {

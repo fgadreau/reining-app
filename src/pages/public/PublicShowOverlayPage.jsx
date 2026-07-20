@@ -10,6 +10,7 @@ import {
 } from "../../features/publication/publicViewRepository";
 import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
 import { useTranslation } from "../../features/i18n/I18nProvider";
+import { buildSponsorLevelSlides } from "../../features/associations/sponsorLogos";
 
 const SPONSOR_LOGOS_PER_SLIDE = 4;
 const SPONSOR_SLIDE_INTERVAL_MS = 8000;
@@ -46,13 +47,16 @@ function PublicShowOverlayPage() {
     [overlayPublicView.liveClasses, selectedArena]
   );
   const liveSummary = buildOverlayLiveSummary(liveClass, t);
-  const sponsorLogos = Array.isArray(overlayAssociation?.sponsorLogos)
-    ? overlayAssociation.sponsorLogos
-    : [];
-  const hasSponsorRail = sponsorLogos.length > 0;
-  const sponsorSlides = buildSponsorSlides(sponsorLogos);
-  const visibleSponsorLogos =
-    sponsorSlides[sponsorSlideIndex % sponsorSlides.length] || [];
+  const sponsorGroups =
+    overlayAssociation?.sponsorGroups || overlayAssociation?.sponsorLogos;
+  const sponsorSlides = buildSponsorLevelSlides(
+    sponsorGroups,
+    SPONSOR_LOGOS_PER_SLIDE
+  );
+  const hasSponsorRail = sponsorSlides.length > 0;
+  const visibleSponsorSlide =
+    sponsorSlides[sponsorSlideIndex % sponsorSlides.length] || null;
+  const visibleSponsorLogos = visibleSponsorSlide?.sponsors || [];
   const overlayViewport = useOverlayViewport();
   const isCompactOverlay = isCompactOverlayViewport(overlayViewport);
 
@@ -129,7 +133,7 @@ function PublicShowOverlayPage() {
 
   useEffect(() => {
     setSponsorSlideIndex(0);
-  }, [sponsorLogos.length]);
+  }, [sponsorSlides.length]);
 
   useEffect(() => {
     if (sponsorSlides.length <= 1) {
@@ -159,6 +163,9 @@ function PublicShowOverlayPage() {
         <aside style={sponsorRailStyle(isCompactOverlay)}>
           <div style={sponsorRailTitleStyle(isCompactOverlay)}>
             {t("public.overlay.sponsorRailTitle")}
+            {visibleSponsorSlide?.groupName
+              ? ` · ${visibleSponsorSlide.groupName}`
+              : ""}
           </div>
           <div key={sponsorSlideIndex} style={sponsorListStyle(isCompactOverlay)}>
             {visibleSponsorLogos.map((sponsor) => (
@@ -259,22 +266,6 @@ function useOverlayViewport() {
 
 function isCompactOverlayViewport(viewport) {
   return viewport.width < 760;
-}
-
-function buildSponsorSlides(sponsorLogos) {
-  const logos = Array.isArray(sponsorLogos) ? sponsorLogos.filter(Boolean) : [];
-
-  if (!logos.length) {
-    return [[]];
-  }
-
-  const slides = [];
-
-  for (let index = 0; index < logos.length; index += SPONSOR_LOGOS_PER_SLIDE) {
-    slides.push(logos.slice(index, index + SPONSOR_LOGOS_PER_SLIDE));
-  }
-
-  return slides;
 }
 
 function OverlayMetric({ label, value, accent, isCompact = false }) {

@@ -24,6 +24,11 @@ import {
 } from "./features/associations/associationsData";
 import { normalizeAssociationWebsiteUrl } from "./features/associations/associationProfile";
 import {
+  buildSponsorLevelSlides,
+  normalizeSponsorGroups,
+  serializeSponsorGroups,
+} from "./features/associations/sponsorLogos";
+import {
   detectBrowserLanguage,
   getInitialLanguage,
   normalizeLanguage,
@@ -119,6 +124,7 @@ import {
   isScoringTestAssociation,
 } from "./features/scoring/scoringTestMode";
 import { canOpenClassForScribe } from "./pages/association/ShowScribePage";
+import { buildTvUpcomingCards } from "./pages/public/PublicShowTvPage";
 import { buildHspScoredRunRows } from "./features/integrations/hspScoredRunRepository";
 import {
   buildPublicClassView,
@@ -335,6 +341,80 @@ test("fits the scoring table to common iPad landscape viewports", () => {
   ).toBe(false);
 });
 
+test("groups sponsor slides by named level without mixing categories", () => {
+  const groups = normalizeSponsorGroups([
+    {
+      id: "silver",
+      name: "Argent",
+      logos: [1, 2, 3].map((number) => ({
+        id: `silver-${number}`,
+        name: `Silver ${number}`,
+        logoDataUrl: `data:image/png;base64,silver${number}`,
+      })),
+    },
+    {
+      id: "bronze",
+      name: "Bronze",
+      logos: [
+        {
+          id: "bronze-1",
+          name: "Bronze 1",
+          logoDataUrl: "data:image/png;base64,bronze1",
+        },
+      ],
+    },
+  ]);
+  const stored = serializeSponsorGroups(groups);
+  const slides = buildSponsorLevelSlides(stored, 2);
+
+  expect(stored.version).toBe(2);
+  expect(slides.map((slide) => slide.groupName)).toEqual([
+    "Argent",
+    "Argent",
+    "Bronze",
+  ]);
+  expect(slides.map((slide) => slide.sponsors.map((logo) => logo.id))).toEqual([
+    ["silver-1", "silver-2"],
+    ["silver-3"],
+    ["bronze-1"],
+  ]);
+});
+
+test("TV upcoming cards replace empty participant slots with the next class", () => {
+  const pendingRun = {
+    type: "run",
+    fr: "Cavalier suivant",
+    meta: "#12 · Back 112",
+  };
+  const nextClass = {
+    itemId: "class-next",
+    name: "Novice Horse",
+    arena: "101",
+    isPaidWarmup: false,
+  };
+
+  const lastParticipantCards = buildTvUpcomingCards(
+    [pendingRun, null],
+    nextClass
+  );
+  expect(lastParticipantCards).toHaveLength(2);
+  expect(lastParticipantCards[0].participant).toBe(pendingRun);
+  expect(lastParticipantCards[1]).toMatchObject({
+    labelFr: "Prochaine classe",
+    labelEn: "Next class",
+    participant: {
+      type: "schedule",
+      fr: "Novice Horse",
+    },
+  });
+
+  const nextClassOnlyCards = buildTvUpcomingCards([null, null], nextClass);
+  expect(nextClassOnlyCards).toHaveLength(1);
+  expect(nextClassOnlyCards[0].participant.fr).toBe("Novice Horse");
+
+  expect(buildTvUpcomingCards([null, null], null)).toEqual([]);
+});
+
 test("calculates a scored run total", () => {
   const run = recalculateRun({
     scores: ["+0.5", "0", "-0.5"],
@@ -528,6 +608,16 @@ test("runs the announcer fallback without overwriting the scribe snapshot", () =
     runId: "run-2",
     draw: 2,
   });
+  const resolvedLegacyActivePointer = saveAnnouncerRunResult(
+    {
+      ...started,
+      activeManoeuvre: { draw: 2, manoeuvreIndex: 0 },
+    },
+    "run-2",
+    { status: ANNOUNCER_RUN_STATUSES.SCORED, scoreTotal: "69" },
+    { now: new Date("2026-07-20T12:06:30.000Z") }
+  );
+  expect(resolvedLegacyActivePointer.activeManoeuvre).toBeNull();
 
   const dragging = startAnnouncerDrag(initial, {
     id: "drag-after-run-1",

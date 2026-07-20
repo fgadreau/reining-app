@@ -10,8 +10,9 @@ import {
   saveAssociationRepository,
 } from "../../features/associations/associationRepository";
 import {
+  flattenSponsorGroups,
   formatSponsorLogoDetails,
-  normalizeSponsorLogos,
+  normalizeSponsorGroups,
   optimizeSponsorLogoFile,
 } from "../../features/associations/sponsorLogos";
 import {
@@ -73,7 +74,7 @@ function ShowDetailPage() {
     tvDisplayMessageFr: "",
     tvDisplayMessageEn: "",
   });
-  const [sponsorLogosDraft, setSponsorLogosDraft] = useState([]);
+  const [sponsorGroupsDraft, setSponsorGroupsDraft] = useState([]);
   const [isOptimizingSponsors, setIsOptimizingSponsors] = useState(false);
   const [livestreamMessage, setLivestreamMessage] = useState("");
   const [livestreamMessageTone, setLivestreamMessageTone] = useState("synced");
@@ -314,7 +315,11 @@ function ShowDetailPage() {
       tvDisplayMessageFr: show?.tvDisplayMessageFr || "",
       tvDisplayMessageEn: show?.tvDisplayMessageEn || "",
     });
-    setSponsorLogosDraft(normalizeSponsorLogos(association?.sponsorLogos));
+    setSponsorGroupsDraft(
+      normalizeSponsorGroups(
+        association?.sponsorGroups || association?.sponsorLogos
+      )
+    );
     setIsOptimizingSponsors(false);
     setLivestreamMessage("");
     setLivestreamMessageTone("synced");
@@ -328,7 +333,54 @@ function ShowDetailPage() {
     setIsOptimizingSponsors(false);
   };
 
-  const handleSponsorLogoFilesChange = async (event) => {
+  const addSponsorGroup = () => {
+    setSponsorGroupsDraft((current) => [
+      ...current,
+      {
+        id: createId("sponsor-level"),
+        name: t("management.shows.newSponsorLevel", {
+          number: current.length + 1,
+        }),
+        sortOrder: current.length + 1,
+        logos: [],
+      },
+    ]);
+  };
+
+  const updateSponsorGroup = (groupId, updates) => {
+    setSponsorGroupsDraft((current) =>
+      normalizeSponsorGroups(
+        current.map((group) =>
+          group.id === groupId ? { ...group, ...updates } : group
+        )
+      )
+    );
+  };
+
+  const moveSponsorGroup = (groupId, direction) => {
+    setSponsorGroupsDraft((current) => {
+      const index = current.findIndex((group) => group.id === groupId);
+      const targetIndex = index + direction;
+      if (index < 0 || targetIndex < 0 || targetIndex >= current.length) {
+        return current;
+      }
+
+      const next = [...current];
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      return normalizeSponsorGroups(next);
+    });
+  };
+
+  const removeSponsorGroup = (groupId) => {
+    if (!window.confirm(t("management.shows.removeSponsorLevelConfirm"))) {
+      return;
+    }
+    setSponsorGroupsDraft((current) =>
+      normalizeSponsorGroups(current.filter((group) => group.id !== groupId))
+    );
+  };
+
+  const handleSponsorLogoFilesChange = async (event, groupId) => {
     const files = Array.from(event.target.files || []);
     event.target.value = "";
 
@@ -355,8 +407,14 @@ function ShowDetailPage() {
         })
       );
 
-      setSponsorLogosDraft((current) =>
-        normalizeSponsorLogos([...current, ...nextSponsorLogos])
+      setSponsorGroupsDraft((current) =>
+        normalizeSponsorGroups(
+          current.map((group) =>
+            group.id === groupId
+              ? { ...group, logos: [...group.logos, ...nextSponsorLogos] }
+              : group
+          )
+        )
       );
     } catch (error) {
       console.error("Erreur ajout logos commanditaires:", error);
@@ -371,17 +429,39 @@ function ShowDetailPage() {
     }
   };
 
-  const updateSponsorLogo = (sponsorId, updates) => {
-    setSponsorLogosDraft((current) =>
-      current.map((sponsor) =>
-        sponsor.id === sponsorId ? { ...sponsor, ...updates } : sponsor
+  const updateSponsorLogo = (groupId, sponsorId, updates) => {
+    setSponsorGroupsDraft((current) =>
+      normalizeSponsorGroups(
+        current.map((group) =>
+          group.id === groupId
+            ? {
+                ...group,
+                logos: group.logos.map((sponsor) =>
+                  sponsor.id === sponsorId
+                    ? { ...sponsor, ...updates }
+                    : sponsor
+                ),
+              }
+            : group
+        )
       )
     );
   };
 
-  const removeSponsorLogo = (sponsorId) => {
-    setSponsorLogosDraft((current) =>
-      current.filter((sponsor) => sponsor.id !== sponsorId)
+  const removeSponsorLogo = (groupId, sponsorId) => {
+    setSponsorGroupsDraft((current) =>
+      normalizeSponsorGroups(
+        current.map((group) =>
+          group.id === groupId
+            ? {
+                ...group,
+                logos: group.logos.filter(
+                  (sponsor) => sponsor.id !== sponsorId
+                ),
+              }
+            : group
+        )
+      )
     );
   };
 
@@ -398,11 +478,13 @@ function ShowDetailPage() {
       tvDisplayMessageFr: livestreamDraft.tvDisplayMessageFr,
       tvDisplayMessageEn: livestreamDraft.tvDisplayMessageEn,
     };
-    const sponsorLogos = normalizeSponsorLogos(sponsorLogosDraft);
-    const currentSponsorLogos = normalizeSponsorLogos(association?.sponsorLogos);
-    const shouldSaveSponsorLogos =
+    const sponsorGroups = normalizeSponsorGroups(sponsorGroupsDraft);
+    const currentSponsorGroups = normalizeSponsorGroups(
+      association?.sponsorGroups || association?.sponsorLogos
+    );
+    const shouldSaveSponsorGroups =
       association &&
-      JSON.stringify(sponsorLogos) !== JSON.stringify(currentSponsorLogos);
+      JSON.stringify(sponsorGroups) !== JSON.stringify(currentSponsorGroups);
 
     setIsSaving(true);
     try {
@@ -410,11 +492,12 @@ function ShowDetailPage() {
       let savedAssociation = null;
       let sponsorLogoError = null;
 
-      if (shouldSaveSponsorLogos) {
+      if (shouldSaveSponsorGroups) {
         try {
           savedAssociation = await saveAssociationRepository({
             ...association,
-            sponsorLogos,
+            sponsorGroups,
+            sponsorLogos: flattenSponsorGroups(sponsorGroups),
           });
         } catch (error) {
           console.error("Erreur sauvegarde commanditaires association:", error);
@@ -426,7 +509,11 @@ function ShowDetailPage() {
       setPublicView(await getPublicShowViewRepository(showId));
       if (savedAssociation) {
         setAssociation(savedAssociation);
-        setSponsorLogosDraft(normalizeSponsorLogos(savedAssociation.sponsorLogos));
+        setSponsorGroupsDraft(
+          normalizeSponsorGroups(
+            savedAssociation.sponsorGroups || savedAssociation.sponsorLogos
+          )
+        );
       }
 
       if (sponsorLogoError) {
@@ -1035,18 +1122,18 @@ function ShowDetailPage() {
                     </div>
                   </div>
 
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleSponsorLogoFilesChange}
-                    style={fileInputStyle}
-                    disabled={
-                      !access.canManageAssociation ||
-                      isSaving ||
-                      isOptimizingSponsors
-                    }
-                  />
+                  {access.canManageAssociation ? (
+                    <div style={actionRowStyleNoMargin}>
+                      <button
+                        type="button"
+                        onClick={addSponsorGroup}
+                        style={primaryButtonStyle}
+                        disabled={isSaving || isOptimizingSponsors}
+                      >
+                        {t("management.shows.addSponsorLevel")}
+                      </button>
+                    </div>
+                  ) : null}
 
                   {isOptimizingSponsors ? (
                     <div style={softNoticeStyle}>
@@ -1054,56 +1141,159 @@ function ShowDetailPage() {
                     </div>
                   ) : null}
 
-                  {sponsorLogosDraft.length ? (
-                    <div style={sponsorGridStyle}>
-                      {sponsorLogosDraft.map((sponsor) => {
-                        const logoDetails = formatSponsorLogoDetails(sponsor);
-
-                        return (
-                          <div key={sponsor.id} style={sponsorCardStyle}>
-                            <div style={sponsorPreviewStyle}>
-                              <img
-                                src={sponsor.logoDataUrl}
-                                alt={
-                                  sponsor.name ||
-                                  t("management.shows.sponsorLogo")
-                                }
-                                style={sponsorImageStyle}
-                              />
-                            </div>
+                  {sponsorGroupsDraft.length ? (
+                    <div style={sponsorLevelListStyle}>
+                      {sponsorGroupsDraft.map((group, groupIndex) => (
+                        <section key={group.id} style={sponsorLevelCardStyle}>
+                          <div style={sponsorLevelHeaderStyle}>
                             <input
-                              value={sponsor.name}
+                              value={group.name}
                               onChange={(event) =>
-                                updateSponsorLogo(sponsor.id, {
+                                updateSponsorGroup(group.id, {
                                   name: event.target.value,
                                 })
                               }
-                              placeholder={t("management.shows.sponsorName")}
-                              style={inputStyle}
+                              placeholder={t(
+                                "management.shows.sponsorLevelName"
+                              )}
+                              style={sponsorLevelNameInputStyle}
                               disabled={
                                 !access.canManageAssociation ||
                                 isSaving ||
                                 isOptimizingSponsors
                               }
                             />
-                            {logoDetails ? (
-                              <div style={sponsorMetaStyle}>{logoDetails}</div>
-                            ) : null}
-                            <button
-                              type="button"
-                              onClick={() => removeSponsorLogo(sponsor.id)}
+                            <div style={sponsorLevelActionsStyle}>
+                              <button
+                                type="button"
+                                onClick={() => moveSponsorGroup(group.id, -1)}
+                                disabled={
+                                  !access.canManageAssociation ||
+                                  groupIndex === 0 ||
+                                  isSaving ||
+                                  isOptimizingSponsors
+                                }
+                                style={secondaryButtonStyle}
+                              >
+                                {t("management.paidWarmup.moveUp")}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => moveSponsorGroup(group.id, 1)}
+                                disabled={
+                                  !access.canManageAssociation ||
+                                  groupIndex === sponsorGroupsDraft.length - 1 ||
+                                  isSaving ||
+                                  isOptimizingSponsors
+                                }
+                                style={secondaryButtonStyle}
+                              >
+                                {t("management.paidWarmup.moveDown")}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeSponsorGroup(group.id)}
+                                disabled={
+                                  !access.canManageAssociation ||
+                                  isSaving ||
+                                  isOptimizingSponsors
+                                }
+                                style={dangerButtonStyle}
+                              >
+                                {t("management.shows.removeSponsorLevel")}
+                              </button>
+                            </div>
+                          </div>
+
+                          <label style={sponsorImportLabelStyle}>
+                            {t("management.shows.importSponsorLogos", {
+                              level:
+                                group.name ||
+                                t("management.shows.sponsorLevelFallback"),
+                            })}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={(event) =>
+                                handleSponsorLogoFilesChange(event, group.id)
+                              }
+                              style={fileInputStyle}
                               disabled={
                                 !access.canManageAssociation ||
                                 isSaving ||
                                 isOptimizingSponsors
                               }
-                              style={secondaryButtonStyle}
-                            >
-                              {t("management.shows.removeSponsorLogo")}
-                            </button>
-                          </div>
-                        );
-                      })}
+                            />
+                          </label>
+
+                          {group.logos.length ? (
+                            <div style={sponsorGridStyle}>
+                              {group.logos.map((sponsor) => {
+                                const logoDetails =
+                                  formatSponsorLogoDetails(sponsor);
+
+                                return (
+                                  <div key={sponsor.id} style={sponsorCardStyle}>
+                                    <div style={sponsorPreviewStyle}>
+                                      <img
+                                        src={sponsor.logoDataUrl}
+                                        alt={
+                                          sponsor.name ||
+                                          t("management.shows.sponsorLogo")
+                                        }
+                                        style={sponsorImageStyle}
+                                      />
+                                    </div>
+                                    <input
+                                      value={sponsor.name}
+                                      onChange={(event) =>
+                                        updateSponsorLogo(
+                                          group.id,
+                                          sponsor.id,
+                                          { name: event.target.value }
+                                        )
+                                      }
+                                      placeholder={t(
+                                        "management.shows.sponsorName"
+                                      )}
+                                      style={inputStyle}
+                                      disabled={
+                                        !access.canManageAssociation ||
+                                        isSaving ||
+                                        isOptimizingSponsors
+                                      }
+                                    />
+                                    {logoDetails ? (
+                                      <div style={sponsorMetaStyle}>
+                                        {logoDetails}
+                                      </div>
+                                    ) : null}
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        removeSponsorLogo(group.id, sponsor.id)
+                                      }
+                                      disabled={
+                                        !access.canManageAssociation ||
+                                        isSaving ||
+                                        isOptimizingSponsors
+                                      }
+                                      style={secondaryButtonStyle}
+                                    >
+                                      {t("management.shows.removeSponsorLogo")}
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div style={softNoticeStyle}>
+                              {t("management.shows.noSponsorLogosInLevel")}
+                            </div>
+                          )}
+                        </section>
+                      ))}
                     </div>
                   ) : (
                     <div style={softNoticeStyle}>
@@ -1660,6 +1850,56 @@ const fileInputStyle = {
   border: "1px dashed #cbd5e1",
   boxSizing: "border-box",
   background: "#fff",
+};
+
+const sponsorLevelListStyle = {
+  display: "grid",
+  gap: 14,
+};
+
+const sponsorLevelCardStyle = {
+  display: "grid",
+  gap: 12,
+  padding: 14,
+  border: "1px solid #cbd5e1",
+  borderRadius: 14,
+  background: "#f8fafc",
+};
+
+const sponsorLevelHeaderStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 10,
+  flexWrap: "wrap",
+};
+
+const sponsorLevelNameInputStyle = {
+  minWidth: 220,
+  flex: "1 1 280px",
+  padding: "10px 12px",
+  borderRadius: 10,
+  border: "1px solid #94a3b8",
+  background: "#fff",
+  color: "#0f172a",
+  fontSize: 17,
+  fontWeight: 850,
+  boxSizing: "border-box",
+};
+
+const sponsorLevelActionsStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
+const sponsorImportLabelStyle = {
+  display: "grid",
+  gap: 6,
+  color: "#475569",
+  fontSize: 13,
+  fontWeight: 800,
 };
 
 const sponsorGridStyle = {

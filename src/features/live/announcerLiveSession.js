@@ -477,8 +477,10 @@ export function saveAnnouncerRunResult(
     now
   );
 
-  const activeRunId = next.activeManoeuvre?.runId;
-  return activeRunId === runId
+  const activeRunMatches =
+    next.activeManoeuvre?.runId === runId ||
+    String(next.activeManoeuvre?.draw ?? "") === String(previous.draw ?? "");
+  return activeRunMatches
     ? { ...next, activeManoeuvre: null }
     : next;
 }

@@ -14,6 +14,63 @@ async function seedRobotShow(page) {
   await seedStorage(page, seed);
 }
 
+async function seedRobotShowOnLastRun(page) {
+  const seed = buildRobotShowStorageSeed();
+  const setup = seed.json["reining_class_setup_v1"][CLASS_ID];
+  const completedAt = "2026-05-28T15:45:00.000Z";
+  const updateRuns = (runs) =>
+    runs.map((run) =>
+      run.draw < setup.runs.length
+        ? {
+            ...run,
+            scores: Array.from({ length: 13 }, () => "0"),
+            penalties: Array.from({ length: 13 }, () => ""),
+            scoreTotal: "70",
+            status: "completed",
+            completedAt,
+          }
+        : {
+            ...run,
+            scores: Array.from({ length: 13 }, () => ""),
+            penalties: Array.from({ length: 13 }, () => ""),
+            scoreTotal: "",
+            status: "",
+            startedAt: completedAt,
+            completedAt: null,
+          }
+    );
+
+  seed.json["reining_classes_v1"].push({
+    id: "e2e-robot-next-class",
+    associationId: ASSOCIATION_ID,
+    showId: SHOW_ID,
+    dayId: "e2e-robot-day",
+    name: "Classe robot suivante",
+    classCode: "E2E-NEXT",
+    arena: "Manege Robot",
+    pattern: "RR2",
+    sortOrder: 2,
+  });
+  Object.values(
+    seed.json["showscore_judge_scoring_sessions_v1"]
+  ).forEach((session) => {
+    session.runs = updateRuns(session.runs);
+    session.activeManoeuvre = {
+      draw: setup.runs.length,
+      manoeuvreIndex: 0,
+    };
+  });
+  seed.json[`reining-scoring-runs-${CLASS_ID}`] = updateRuns(
+    seed.json[`reining-scoring-runs-${CLASS_ID}`]
+  );
+  seed.json[`reining-scoring-active-manoeuvre-${CLASS_ID}`] = {
+    draw: setup.runs.length,
+    manoeuvreIndex: 0,
+  };
+
+  await seedStorage(page, seed);
+}
+
 async function seedPublishedRobotShow(page) {
   const seed = buildRobotShowStorageSeed();
   const setup = seed.json["reining_class_setup_v1"][CLASS_ID];
@@ -222,6 +279,23 @@ test.describe("robot de show local", () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  test("remplace les cartes TV vides par la prochaine classe", async ({
+    page,
+  }) => {
+    await page.route("**/rest/v1/**", (route) => route.abort());
+    await seedRobotShowOnLastRun(page);
+
+    await page.goto(
+      `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/tv`
+    );
+
+    const body = page.locator("body");
+    await expect(body).toContainText("Cavalier 10");
+    await expect(body).toContainText("Prochaine classe");
+    await expect(body).toContainText("Classe robot suivante");
+    await expect(body).not.toContainText("À confirmer");
+  });
+
   test("permet le live annonceur et l affichage minimal ordre seulement", async ({
     page,
   }) => {
@@ -276,6 +350,10 @@ test.describe("robot de show local", () => {
     );
     await expect(page.locator("body")).toContainText("216");
     await page.getByRole("button", { name: "Enregistrer le score" }).click();
+    await expect(
+      page.getByRole("button", { name: "Démarrer prochain" })
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Scratch" })).toBeVisible();
 
     page.once("dialog", (dialog) => dialog.accept());
     await page
@@ -299,5 +377,78 @@ test.describe("robot de show local", () => {
     await expect(body).not.toContainText("Cheval 3");
     await expect(body).not.toContainText("Back 103");
     await expectNoHorizontalOverflow(page);
+  });
+
+  test("importe et fait defiler les commanditaires par niveau", async ({
+    page,
+  }) => {
+    await seedRobotShow(page);
+    await page.goto(`/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}`);
+    await page.getByRole("button", { name: /Réglages Live/ }).click();
+
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: "+ Ajouter un niveau" }).click();
+    await dialog
+      .getByPlaceholder("Nom du niveau (ex. Argent)")
+      .fill("Argent");
+    await dialog.locator('input[type="file"]').nth(0).setInputFiles([
+      {
+        name: "argent-1.svg",
+        mimeType: "image/svg+xml",
+        buffer: Buffer.from(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="60"><rect width="120" height="60" fill="silver"/></svg>'
+        ),
+      },
+      {
+        name: "argent-2.svg",
+        mimeType: "image/svg+xml",
+        buffer: Buffer.from(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="60"><rect width="120" height="60" fill="gray"/></svg>'
+        ),
+      },
+    ]);
+
+    await dialog.getByRole("button", { name: "+ Ajouter un niveau" }).click();
+    await dialog
+      .getByPlaceholder("Nom du niveau (ex. Argent)")
+      .nth(1)
+      .fill("Bronze");
+    await dialog.locator('input[type="file"]').nth(1).setInputFiles({
+      name: "bronze.svg",
+      mimeType: "image/svg+xml",
+      buffer: Buffer.from(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="60"><rect width="120" height="60" fill="#cd7f32"/></svg>'
+      ),
+    });
+
+    await dialog.getByRole("button", { name: "Enregistrer" }).click();
+    await expect
+      .poll(() =>
+        page.evaluate((associationId) => {
+          const associations = JSON.parse(
+            window.localStorage.getItem("reiningApp.associations") || "[]"
+          );
+          return (
+            associations.find((association) => association.id === associationId)
+              ?.sponsorGroups || []
+          ).map((group) => group.name);
+        }, ASSOCIATION_ID)
+      )
+      .toEqual(["Argent", "Bronze"]);
+
+    await navigateSpa(
+      page,
+      `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/tv`
+    );
+    await expect(page.locator("body")).toContainText("Argent");
+    await expect(page.locator("body")).toContainText("Bronze", {
+      timeout: 12000,
+    });
+
+    await navigateSpa(
+      page,
+      `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/overlay`
+    );
+    await expect(page.locator("body")).toContainText("Argent");
   });
 });

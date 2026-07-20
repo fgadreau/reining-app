@@ -10,6 +10,7 @@ import {
 } from "../../features/publication/publicViewRepository";
 import { translate } from "../../features/i18n/i18n";
 import { isLiveDragItem } from "../../features/live/liveQueueItems";
+import { buildSponsorLevelSlides } from "../../features/associations/sponsorLogos";
 
 const TV_REFRESH_MS = 5000;
 const SPONSOR_SLIDE_INTERVAL_MS = 9000;
@@ -26,11 +27,12 @@ function PublicShowTvPage() {
     () => getArenaFromSearch(location.search),
     [location.search]
   );
-  const sponsorLogos = Array.isArray(association?.sponsorLogos)
-    ? association.sponsorLogos
-    : [];
-  const sponsorSlides = buildSponsorSlides(sponsorLogos);
-  const visibleSponsors =
+  const sponsorGroups = association?.sponsorGroups || association?.sponsorLogos;
+  const sponsorSlides = buildSponsorLevelSlides(
+    sponsorGroups,
+    SPONSORS_PER_SLIDE
+  );
+  const visibleSponsorSlide =
     sponsorSlides[sponsorSlideIndex % sponsorSlides.length] || [];
   const liveItem = useMemo(
     () => pickTvLiveItem(publicView, selectedArena),
@@ -117,7 +119,7 @@ function PublicShowTvPage() {
 
   useEffect(() => {
     setSponsorSlideIndex(0);
-  }, [sponsorLogos.length]);
+  }, [sponsorSlides.length]);
 
   useEffect(() => {
     if (sponsorSlides.length <= 1) return undefined;
@@ -164,7 +166,7 @@ function PublicShowTvPage() {
         <WelcomePanel association={association} show={show} />
       )}
 
-      <SponsorRail sponsors={visibleSponsors} />
+      <SponsorRail slide={visibleSponsorSlide} />
     </main>
   );
 }
@@ -194,6 +196,11 @@ function LivePanel({ liveItem }) {
   const previous = isWarmup
     ? buildWarmupPrevious(liveItem.item)
     : buildClassPrevious(liveItem.item);
+  const upcomingCards = buildTvUpcomingCards(
+    upcoming,
+    liveItem?.item?.nextScheduleItem
+  );
+  const hasUpcomingCards = upcomingCards.length > 0;
 
   return (
     <section style={liveGridStyle}>
@@ -212,24 +219,23 @@ function LivePanel({ liveItem }) {
         />
       </div>
 
-      <aside style={sideStackStyle}>
-        <div style={panelStyle}>
-          <div style={panelTitleStyle}>
-            <BilingualText fr="À venir" en="Up next" />
+      <aside style={sideStackStyle(hasUpcomingCards)}>
+        {hasUpcomingCards ? (
+          <div style={upcomingPanelStyle(upcomingCards.length)}>
+            <div style={panelTitleStyle}>
+              <BilingualText fr="À venir" en="Up next" />
+            </div>
+            {upcomingCards.map((card, index) => (
+              <ParticipantCard
+                key={`${card.participant.type}-${card.participant.meta || card.participant.fr}-${index}`}
+                labelFr={card.labelFr}
+                labelEn={card.labelEn}
+                participant={card.participant}
+                variant={card.variant}
+              />
+            ))}
           </div>
-          <ParticipantCard
-            labelFr="Prochain"
-            labelEn="Next"
-            participant={upcoming[0]}
-            variant="next"
-          />
-          <ParticipantCard
-            labelFr="2e prochain"
-            labelEn="Second next"
-            participant={upcoming[1]}
-            variant="waiting"
-          />
-        </div>
+        ) : null}
 
         <div style={lastPanelStyle}>
           <div style={panelTitleStyle}>
@@ -310,10 +316,9 @@ function ParticipantCard({
   variant = "next",
   compact = false,
 }) {
-  const emptyLabel = compact
-    ? { fr: "—", en: "" }
-    : { fr: "À confirmer", en: "To confirm" };
-  const data = participant || emptyLabel;
+  if (!participant && !compact) return null;
+
+  const data = participant || { fr: "—", en: "" };
   const isDrag = data.type === "drag";
 
   return (
@@ -344,13 +349,15 @@ function ScoreBlock({ participant, compact }) {
   );
 }
 
-function SponsorRail({ sponsors }) {
+function SponsorRail({ slide }) {
+  const sponsors = Array.isArray(slide?.sponsors) ? slide.sponsors : [];
   const hasSponsors = sponsors.length > 0;
 
   return (
     <footer style={sponsorRailStyle}>
       <div style={sponsorTitleStyle}>
         <BilingualText fr="Commanditaires" en="Sponsors" />
+        {slide?.groupName ? ` · ${slide.groupName}` : ""}
       </div>
       {hasSponsors ? (
         <div style={sponsorGridStyle}>
@@ -468,6 +475,37 @@ function buildWarmupPrevious(warmup) {
   return (warmup?.lastPassedEntries || []).slice(0, 2).map(formatEntry);
 }
 
+export function buildTvUpcomingCards(upcoming, nextScheduleItem) {
+  const participantCards = (Array.isArray(upcoming) ? upcoming : [])
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((participant, index) => ({
+      participant,
+      labelFr: index === 0 ? "Prochain" : "2e prochain",
+      labelEn: index === 0 ? "Next" : "Second next",
+      variant: index === 0 ? "next" : "waiting",
+    }));
+
+  if (participantCards.length >= 2 || !nextScheduleItem) {
+    return participantCards;
+  }
+
+  const nextScheduleParticipant = formatNextScheduleItem(nextScheduleItem);
+  if (!nextScheduleParticipant) return participantCards;
+
+  return [
+    ...participantCards,
+    {
+      participant: nextScheduleParticipant,
+      labelFr: nextScheduleItem.isPaidWarmup
+        ? "Prochain bloc"
+        : "Prochaine classe",
+      labelEn: nextScheduleItem.isPaidWarmup ? "Next block" : "Next class",
+      variant: participantCards.length === 0 ? "next" : "waiting",
+    },
+  ];
+}
+
 function formatRun(run, { showScore = true } = {}) {
   if (!run) return null;
 
@@ -528,6 +566,42 @@ function formatDragItem(item) {
   };
 }
 
+function formatNextScheduleItem(item) {
+  if (!item) return null;
+
+  const typeLabel = item.isPaidWarmup
+    ? "Paid warm up"
+    : "Classe / Class";
+  const arenaLabel = item.arena ? `Manège / Arena: ${item.arena}` : "";
+  const startLabel = formatNextScheduleStart(item);
+
+  return {
+    type: "schedule",
+    fr: item.name || (item.isPaidWarmup ? "Paid warm up" : "Prochaine classe"),
+    en: "",
+    horse: startLabel,
+    meta: [typeLabel, arenaLabel].filter(Boolean).join(" · "),
+  };
+}
+
+function formatNextScheduleStart(item) {
+  if (!item?.startAt) return "";
+
+  const date = new Date(item.startAt);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const time = new Intl.DateTimeFormat("fr-CA", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+  const label =
+    item.startKind === "fixed"
+      ? "Heure prévue / Scheduled"
+      : "Estimation / Estimate";
+
+  return `${label}: ${time}`;
+}
+
 function formatClassSubtitle(classView) {
   return [
     classView?.classCode,
@@ -575,19 +649,6 @@ function getArenaFromSearch(search) {
 
 function normalizeArenaName(value) {
   return String(value || "").trim();
-}
-
-function buildSponsorSlides(sponsorLogos) {
-  const logos = Array.isArray(sponsorLogos) ? sponsorLogos.filter(Boolean) : [];
-
-  if (!logos.length) return [];
-
-  const slides = [];
-  for (let index = 0; index < logos.length; index += SPONSORS_PER_SLIDE) {
-    slides.push(logos.slice(index, index + SPONSORS_PER_SLIDE));
-  }
-
-  return slides;
 }
 
 const pageStyle = {
@@ -711,13 +772,15 @@ const blockSubtitleStyle = {
   fontWeight: 800,
 };
 
-const sideStackStyle = {
+const sideStackStyle = (hasUpcomingCards) => ({
   minWidth: 0,
   minHeight: 0,
   display: "grid",
-  gridTemplateRows: "minmax(0, 1fr) minmax(0, 0.96fr)",
+  gridTemplateRows: hasUpcomingCards
+    ? "minmax(0, 1fr) minmax(0, 0.96fr)"
+    : "minmax(0, 1fr)",
   gap: 16,
-};
+});
 
 const panelStyle = {
   minHeight: 0,
@@ -730,6 +793,11 @@ const panelStyle = {
   gap: 8,
   overflow: "hidden",
 };
+
+const upcomingPanelStyle = (cardCount) => ({
+  ...panelStyle,
+  gridTemplateRows: `auto repeat(${cardCount}, minmax(0, 1fr))`,
+});
 
 const lastPanelStyle = {
   ...panelStyle,
