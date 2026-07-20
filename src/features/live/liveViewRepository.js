@@ -36,6 +36,11 @@ import { getSupabaseClient } from "../cloud/supabaseClient";
 import { getPublicationStatusLabel } from "../publication/publicationRepository";
 import { loadActiveManoeuvre } from "../scoring/scoringRepository";
 import { formatScoreValue, formatTotalValue } from "../../utils/scoring";
+import {
+  LIVE_DATA_SOURCES,
+  normalizeLiveDisplayMode,
+  resolveLiveScoringSession,
+} from "./liveDataSource";
 
 const ANNOUNCER_CLASS_REALTIME_TABLES = [
   "show_score_scoring_sessions",
@@ -43,6 +48,7 @@ const ANNOUNCER_CLASS_REALTIME_TABLES = [
   "show_score_class_setups",
   "show_score_publication_states",
   "show_score_official_results",
+  "show_score_announcer_live_sessions",
 ];
 
 export function getAnnouncerShowView(showId) {
@@ -216,8 +222,18 @@ export function subscribeAnnouncerShowViewRepository(
 export function buildAnnouncerClassView(classData) {
   const classItem = classData.classItem;
   const classId = classItem?.id;
-  const scoringRuns = Array.isArray(classData.scoringRuns)
-    ? classData.scoringRuns
+  const scribeScoringSession = classData.scoringSession || {
+    classId,
+    runs: Array.isArray(classData.scoringRuns) ? classData.scoringRuns : [],
+  };
+  const resolvedLiveSession = resolveLiveScoringSession({
+    setup: classData.setup,
+    scoringSession: scribeScoringSession,
+    announcerSession: classData.announcerSession,
+  });
+  const selectedScoringSession = resolvedLiveSession.session;
+  const scoringRuns = Array.isArray(selectedScoringSession?.runs)
+    ? selectedScoringSession.runs
     : [];
   const setupRuns = Array.isArray(classData.setup?.runs)
     ? classData.setup.runs
@@ -231,10 +247,12 @@ export function buildAnnouncerClassView(classData) {
   );
   const headers = getPatternHeaders(pattern, customPattern);
   const hasRailAdjustment = patternHasRailAdjustment(pattern, customPattern);
-  const isMultiJudgeLive = hasMultiJudgeLiveSetup({
-    judges: classData.setup?.judges,
-    judgeSessions: classData.judgeSessions,
-  });
+  const isMultiJudgeLive =
+    resolvedLiveSession.source !== LIVE_DATA_SOURCES.ANNOUNCER &&
+    hasMultiJudgeLiveSetup({
+      judges: classData.setup?.judges,
+      judgeSessions: classData.judgeSessions,
+    });
   const sourceRuns = isMultiJudgeLive
     ? buildMultiJudgeLiveRuns({
         setupRuns,
@@ -266,7 +284,10 @@ export function buildAnnouncerClassView(classData) {
   );
   const activeManoeuvre =
     classId && !isOfficiallyCompleted && !isMultiJudgeLive
-      ? loadActiveManoeuvre(classId)
+      ? resolvedLiveSession.source === LIVE_DATA_SOURCES.ANNOUNCER
+        ? selectedScoringSession?.activeManoeuvre || null
+        : selectedScoringSession?.activeManoeuvre ||
+          loadActiveManoeuvre(classId)
       : null;
   const activeDragItem = buildActiveClassDragItem({
     activeManoeuvre,
@@ -334,7 +355,7 @@ export function buildAnnouncerClassView(classData) {
         dragDurationMinutes: classData.setup?.dragDurationMinutes,
         itemType: LIVE_QUEUE_ITEM_TYPES.RUN,
         isAvailable: (run) => !runIsPassed(run) && !run.isReview,
-        isPassed: runIsPassed,
+        isPassed: (run) => runIsPassed(run) || run.isReview,
       });
   const nextRun = upcomingRuns[0] || null;
   const secondNextRun = upcomingRuns[1] || null;
@@ -344,9 +365,18 @@ export function buildAnnouncerClassView(classData) {
   const lastPassedRuns = findLastPassedRuns(runs, activeRun, 2);
   const latestScore = lastPassedRuns.find(runHasScore) || null;
   const orderRuns = liveQueue.orderItems;
-  const scoringStarted = runs.some(runHasData);
+  const scoringStarted =
+    runs.some(runHasData) ||
+    Boolean(
+      resolvedLiveSession.source === LIVE_DATA_SOURCES.ANNOUNCER &&
+        selectedScoringSession?.startedAt
+    );
   const isComplete =
     isOfficiallyCompleted ||
+    Boolean(
+      resolvedLiveSession.source === LIVE_DATA_SOURCES.ANNOUNCER &&
+        classData.announcerSession?.completedAt
+    ) ||
     (runs.length > 0 && scoringStarted && !activeRun && !nextRun);
   const provisionalRanking =
     hasRailAdjustment && isComplete ? buildProvisionalRanking(runs) : [];
@@ -367,8 +397,17 @@ export function buildAnnouncerClassView(classData) {
     status: classData.status,
     publicationStatus,
     publicationStatusLabel: getPublicationStatusLabel(publicationStatus),
+    liveDataSource: resolvedLiveSession.source,
+    liveDisplayMode: normalizeLiveDisplayMode(
+      classData.setup?.liveDisplayMode
+    ),
+    qualifiedRiderCount: classData.setup?.qualifiedRiderCount || null,
+    announcerSession:
+      resolvedLiveSession.source === LIVE_DATA_SOURCES.ANNOUNCER
+        ? classData.announcerSession
+        : null,
     liveUpdatedAt:
-      classData.scoringSession?.updatedAt ||
+      selectedScoringSession?.updatedAt ||
       getMultiJudgeLiveUpdatedAt(classData.judgeSessions) ||
       getLatestRunActivityAt(runs) ||
       null,
@@ -441,6 +480,10 @@ function normalizeRunForAnnouncer(run, index, headers) {
     horse: run.horse || "",
     owner: run.owner || "",
     classCodes: Array.isArray(run.classCodes) ? run.classCodes : [],
+    riderContactId: run.riderContactId || "",
+    memberNrha: run.memberNrha || "",
+    horseId: run.horseId || "",
+    horseNrha: run.horseNrha || "",
     scoreTotal: formatTotalValue(run.scoreTotal),
     judgeScores,
     penTotal: formatTotalValue(run.penTotal),
@@ -455,7 +498,9 @@ function normalizeRunForAnnouncer(run, index, headers) {
     scores,
     penalties,
     isComplete: Boolean(run.isComplete),
-    isReview: String(run.scoreTotal ?? "").trim() === "Review",
+    isReview:
+      String(run.status || "").trim() === "review" ||
+      String(run.scoreTotal ?? "").trim() === "Review",
     manoeuvres: headers.map((name, manoeuvreIndex) => ({
       name,
       score: formatScoreValue(scores[manoeuvreIndex]),

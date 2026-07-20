@@ -70,6 +70,13 @@ import {
 import { normalizeResultGroups } from "../results/classResults";
 import { buildLiveClassStandings } from "../results/liveClassStandings";
 import {
+  LIVE_DATA_SOURCES,
+  LIVE_DISPLAY_MODES,
+  normalizeLiveDisplayMode,
+  resolveLiveScoringSession,
+} from "../live/liveDataSource";
+import { normalizeAnnouncerLiveSession } from "../live/announcerLiveSession";
+import {
   LIVE_SCORE_DISPLAY_MODES,
   PUBLICATION_STATUSES,
   getLiveScoreDisplayMode,
@@ -265,8 +272,27 @@ function toClassSetup(row) {
     blockClasses: Array.isArray(row.block_classes) ? row.block_classes : [],
     dragInterval: row.drag_interval || null,
     dragDurationMinutes: row.drag_duration_minutes,
+    liveDataSource: row.live_data_source || LIVE_DATA_SOURCES.SCRIBE,
+    liveDisplayMode: normalizeLiveDisplayMode(row.live_display_mode),
+    qualifiedRiderCount: row.qualified_rider_count || null,
     updatedAt: row.updated_at || null,
   };
+}
+
+function toAnnouncerLiveSession(row) {
+  return normalizeAnnouncerLiveSession({
+    classId: row.class_id,
+    runs: Array.isArray(row.runs) ? row.runs : [],
+    activeManoeuvre:
+      row.active_manoeuvre && typeof row.active_manoeuvre === "object"
+        ? row.active_manoeuvre
+        : null,
+    startedAt: row.started_at || null,
+    completedAt: row.completed_at || null,
+    completedBy: row.completed_by || null,
+    revision: row.revision,
+    updatedAt: row.updated_at || null,
+  });
 }
 
 function toJudgeScoringSession(row) {
@@ -350,6 +376,7 @@ export function getPublicShowView(showId) {
         publication: classData.publication,
         scoringSession: classData.scoringSession,
         judgeSessions: classData.judgeSessions,
+        announcerSession: classData.announcerSession,
       });
 
       if (liveClass) {
@@ -448,6 +475,7 @@ export async function getPublicShowViewRepository(showId) {
             publication: classData.publication,
             scoringSession: classData.scoringSession,
             judgeSessions: classData.judgeSessions,
+            announcerSession: classData.announcerSession,
           });
 
           return {
@@ -602,6 +630,7 @@ export function subscribePublicShowViewRepository(showId, classIds, onChange) {
       "show_score_scoring_sessions",
       "show_score_judge_sessions",
       "show_score_class_setups",
+      "show_score_announcer_live_sessions",
     ].forEach((table) => {
       channel.on(
         "postgres_changes",
@@ -702,6 +731,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
           scoringResult,
           judgeScoringResult,
           setupResult,
+          announcerLiveResult,
           resultPublicationsByClassId,
         ] = await Promise.all([
             supabase
@@ -724,6 +754,10 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
               .from("show_score_class_setups")
               .select("*")
               .in("class_id", classIds),
+            supabase
+              .from("show_score_announcer_live_sessions")
+              .select("*")
+              .in("class_id", classIds),
             getPublicResultPublicationMap(supabase, classIds),
           ]);
 
@@ -740,6 +774,12 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
         }
         if (setupResult.error) {
           console.error("Erreur chargement setup public Supabase:", setupResult.error);
+        }
+        if (announcerLiveResult.error) {
+          console.error(
+            "Erreur chargement live annonceur public Supabase:",
+            announcerLiveResult.error
+          );
         }
 
         const publicationsByClassId = new Map(
@@ -769,6 +809,12 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
         const setupByClassId = new Map(
           (setupResult.data || []).map((row) => [row.class_id, toClassSetup(row)])
         );
+        const announcerLiveByClassId = new Map(
+          (announcerLiveResult.data || []).map((row) => [
+            row.class_id,
+            toAnnouncerLiveSession(row),
+          ])
+        );
 
         const classEntries = classes.map((classItem) => {
           const publication = publicationsByClassId.get(classItem.id);
@@ -783,6 +829,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
             publication,
             scoringSession: scoringByClassId.get(classItem.id),
             judgeSessions: judgeScoringByClassId.get(classItem.id) || [],
+            announcerSession: announcerLiveByClassId.get(classItem.id),
           });
           const scoringSession = scoringByClassId.get(classItem.id);
 
@@ -1286,6 +1333,7 @@ export function buildPublicLiveClassView({
   publication,
   scoringSession,
   judgeSessions = [],
+  announcerSession = null,
 }) {
   const publicationStatus = publication?.status || PUBLICATION_STATUSES.HIDDEN;
 
@@ -1293,8 +1341,14 @@ export function buildPublicLiveClassView({
     return null;
   }
 
-  const scoringRuns = Array.isArray(scoringSession?.runs)
-    ? scoringSession.runs
+  const resolvedLiveSession = resolveLiveScoringSession({
+    setup,
+    scoringSession,
+    announcerSession,
+  });
+  const selectedScoringSession = resolvedLiveSession.session;
+  const scoringRuns = Array.isArray(selectedScoringSession?.runs)
+    ? selectedScoringSession.runs
     : [];
   const setupRuns = Array.isArray(setup?.runs) ? setup.runs : [];
   const patternValue = setup?.pattern || classItem?.pattern || "";
@@ -1336,15 +1390,21 @@ export function buildPublicLiveClassView({
     };
   }
 
-  const isMultiJudgeLive = hasMultiJudgeLiveSetup({
-    judges: setup?.judges,
-    judgeSessions,
-  });
+  const isMultiJudgeLive =
+    resolvedLiveSession.source !== LIVE_DATA_SOURCES.ANNOUNCER &&
+    hasMultiJudgeLiveSetup({
+      judges: setup?.judges,
+      judgeSessions,
+    });
   const requestedLiveScoreDisplayMode = getLiveScoreDisplayMode(
     publicationStatus
   );
-  const liveScoreDisplayMode =
-    isMultiJudgeLive &&
+  const liveDisplayMode = normalizeLiveDisplayMode(setup?.liveDisplayMode);
+  const isOrderOnlyDisplay =
+    liveDisplayMode === LIVE_DISPLAY_MODES.ORDER_ONLY;
+  const liveScoreDisplayMode = isOrderOnlyDisplay
+    ? LIVE_SCORE_DISPLAY_MODES.HIDDEN
+    : isMultiJudgeLive &&
     requestedLiveScoreDisplayMode === LIVE_SCORE_DISPLAY_MODES.FULL_DETAILS
       ? LIVE_SCORE_DISPLAY_MODES.COMPLETED_TOTAL
       : requestedLiveScoreDisplayMode;
@@ -1363,9 +1423,24 @@ export function buildPublicLiveClassView({
     : scoringRuns.length > 0
       ? scoringRuns
       : setupRuns;
-  const mergedRuns = sourceRuns.map((run, index) =>
-    mergeLiveRunWithSetupRun(run, setupRuns, index)
-  );
+  const mergedRuns = sourceRuns.map((run, index) => {
+    const mergedRun = mergeLiveRunWithSetupRun(run, setupRuns, index);
+
+    return isOrderOnlyDisplay
+      ? {
+          ...mergedRun,
+          backNumber: "",
+          rider: "",
+          horse: "",
+          owner: "",
+          riderContactId: "",
+          memberNrha: "",
+          horseId: "",
+          horseNrha: "",
+          identityHidden: true,
+        }
+      : mergedRun;
+  });
   const runs = mergedRuns.map((run, index) =>
     normalizePublicLiveRun(run, index, patternValue, customPattern, {
       liveScoreDisplayMode,
@@ -1381,7 +1456,7 @@ export function buildPublicLiveClassView({
     : [];
 
   const activeDragItem = buildActiveClassDragItem({
-    activeManoeuvre: scoringSession?.activeManoeuvre,
+    activeManoeuvre: selectedScoringSession?.activeManoeuvre,
     runs,
     dragDurationMinutes: setup?.dragDurationMinutes,
   });
@@ -1389,7 +1464,10 @@ export function buildPublicLiveClassView({
     ? null
     : isMultiJudgeLive
       ? runs.find((run) => run.isActive) || null
-      : runs.find((run) => run.draw === scoringSession?.activeManoeuvre?.draw) ||
+      : runs.find(
+            (run) =>
+              run.draw === selectedScoringSession?.activeManoeuvre?.draw
+          ) ||
         runs.find((run) => run.isActive) ||
         null;
   const liveQueue = buildLiveQueueItems({
@@ -1400,7 +1478,7 @@ export function buildPublicLiveClassView({
     dragDurationMinutes: setup?.dragDurationMinutes,
     itemType: LIVE_QUEUE_ITEM_TYPES.RUN,
     isAvailable: (run) => !runIsPassed(run) && !run.isReview,
-    isPassed: runIsPassed,
+    isPassed: (run) => runIsPassed(run) || run.isReview,
   });
   const upcomingRuns = findUpcomingRuns(runs, activeRun);
   const nextRun = upcomingRuns[0] || null;
@@ -1423,10 +1501,16 @@ export function buildPublicLiveClassView({
     classCode: classItem?.classCode || "",
     arena: classItem?.arena || "",
     publicationStatus,
+    liveDataSource: resolvedLiveSession.source,
+    liveDisplayMode,
+    isComplete:
+      resolvedLiveSession.source === LIVE_DATA_SOURCES.ANNOUNCER
+        ? Boolean(announcerSession?.completedAt)
+        : false,
     showScores,
     showScoreDetails,
     liveUpdatedAt:
-      scoringSession?.updatedAt ||
+      selectedScoringSession?.updatedAt ||
       getMultiJudgeLiveUpdatedAt(judgeSessions) ||
       getLatestRunActivityAt(runs) ||
       null,
@@ -1533,6 +1617,11 @@ function normalizePublicLiveRun(
     horse: run.horse || "",
     owner: run.owner || "",
     classCodes: Array.isArray(run.classCodes) ? run.classCodes : [],
+    riderContactId: run.riderContactId || "",
+    memberNrha: run.memberNrha || "",
+    horseId: run.horseId || "",
+    horseNrha: run.horseNrha || "",
+    identityHidden: Boolean(run.identityHidden),
     scoreTotal: showScores ? scoreTotal : "",
     judgeScores: showScores ? judgeScores : [],
     penTotal: showScoreDetails ? penTotal : "",
@@ -1548,7 +1637,10 @@ function normalizePublicLiveRun(
     completedAt: run.completedAt || null,
     durationSeconds: run.durationSeconds || null,
     isActive: Boolean(run.isActive),
-    isReview: String(run.scoreTotal ?? "").trim() === "Review",
+    isReview:
+      String(run.status || "").trim() === "review" ||
+      String(run.scoreTotal ?? "").trim() === "Review",
+    status: run.status || "",
     manoeuvres: headers.map((name, manoeuvreIndex) => ({
       name,
       description: getPatternManeuverDescription(name, pattern, customPattern),

@@ -11,6 +11,11 @@ import {
   normalizeSetApprovalMode,
   normalizeSetApprovals,
 } from "../scoring/setApprovals";
+import {
+  normalizeLiveDataSource,
+  normalizeLiveDisplayMode,
+  normalizeQualifiedRiderCount,
+} from "../live/liveDataSource";
 
 const STORAGE_KEY = "reining_class_setup_v1";
 
@@ -261,6 +266,19 @@ function normalizeSetup(setup = {}) {
     ),
     setApprovalMode: normalizeSetApprovalMode(setup.setApprovalMode),
     setApprovals: normalizeSetApprovals(setup.setApprovals),
+    liveDataSource: normalizeLiveDataSource(
+      setup.liveDataSource || setup.live_data_source
+    ),
+    liveDisplayMode: normalizeLiveDisplayMode(
+      setup.liveDisplayMode || setup.live_display_mode
+    ),
+    qualifiedRiderCount: normalizeQualifiedRiderCount(
+      setup.qualifiedRiderCount ?? setup.qualified_rider_count
+    ),
+    liveSourceChangedAt:
+      setup.liveSourceChangedAt || setup.live_source_changed_at || null,
+    liveSourceChangedBy:
+      setup.liveSourceChangedBy || setup.live_source_changed_by || null,
     finalized: Boolean(setup.finalized),
     finalizedAt: setup.finalizedAt ?? null,
     judgeName,

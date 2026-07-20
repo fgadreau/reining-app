@@ -87,6 +87,14 @@ async function seedStorage(page, seed) {
   }, seed);
 }
 
+async function navigateSpa(page, pathname) {
+  await page.evaluate((nextPathname) => {
+    window.history.pushState({}, "", nextPathname);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }, pathname);
+  await expect(page).toHaveURL(new RegExp(`${pathname}$`));
+}
+
 async function expectNoHorizontalOverflow(page) {
   await expect
     .poll(() =>
@@ -165,6 +173,9 @@ test.describe("robot de show local", () => {
     await expect(body).toContainText("En piste");
     await expect(body).toContainText(/En pr.paration/);
     await expect(body).toContainText("En attente");
+    await page
+      .getByRole("button", { name: /Ordre de passage/ })
+      .click();
     await expect(body).toContainText("Juge Alpha");
     await expect(body).toContainText("Juge Bravo");
     await expect(body).toContainText("Juge Charlie");
@@ -208,6 +219,66 @@ test.describe("robot de show local", () => {
     await page.getByRole("button", { name: "Détails" }).first().click();
     await expect(body).toContainText("Walk");
     await expect(body).toContainText("Run fluide");
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("permet le live annonceur et l affichage minimal ordre seulement", async ({
+    page,
+  }) => {
+    await page.route("**/rest/v1/**", (route) => route.abort());
+    await seedRobotShow(page);
+
+    await page.goto(
+      `/associations/${ASSOCIATION_ID}/classes/${CLASS_ID}/setup`
+    );
+    const liveSourceSelect = page.getByLabel("Source des données live");
+    page.once("dialog", (dialog) => dialog.accept());
+    await liveSourceSelect.selectOption("announcer");
+    await expect(liveSourceSelect).toHaveValue("announcer");
+    await expect
+      .poll(() =>
+        page.evaluate((classId) => {
+          const setups = JSON.parse(
+            window.localStorage.getItem("reining_class_setup_v1") || "{}"
+          );
+          return setups[classId]?.liveDataSource || "";
+        }, CLASS_ID)
+      )
+      .toBe("announcer");
+
+    await navigateSpa(
+      page,
+      `/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/announcer`
+    );
+    await expect(page.locator("body")).toContainText(
+      "Contrôle live par l’annonceur"
+    );
+    await expect(
+      page.getByRole("button", { name: "Entrer le résultat" })
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+
+    page.once("dialog", (dialog) => dialog.accept());
+    await page
+      .getByRole("button", { name: "Activer l’ordre seulement" })
+      .click();
+    await expect(page.locator("body")).toContainText(
+      "Rétablir l’affichage complet"
+    );
+
+    await navigateSpa(
+      page,
+      `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}`
+    );
+    await page
+      .getByRole("button", { name: /Classe robot 5 juges/ })
+      .click();
+
+    const body = page.locator("body");
+    await expect(body).toContainText("Ordre #3");
+    await expect(body).not.toContainText("Cavalier 3");
+    await expect(body).not.toContainText("Cheval 3");
+    await expect(body).not.toContainText("Back 103");
     await expectNoHorizontalOverflow(page);
   });
 });

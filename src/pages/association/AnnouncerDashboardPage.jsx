@@ -5,7 +5,10 @@ import {
   getAnnouncerShowViewRepository,
   subscribeAnnouncerShowViewRepository,
 } from "../../features/live/liveViewRepository";
-import { saveClassScheduleDetailsRepository } from "../../features/classes/classSetupRepository";
+import {
+  saveClassLiveDisplayModeRepository,
+  saveClassScheduleDetailsRepository,
+} from "../../features/classes/classSetupRepository";
 import { normalizeClassScheduleDetails } from "../../features/classes/classSchedule";
 import { formatLiveDataFreshness } from "../../features/live/liveFreshness";
 import {
@@ -26,10 +29,37 @@ import {
   stopPaidWarmupTimer,
 } from "../../features/paidWarmups/paidWarmupLive";
 import { isLiveDragItem } from "../../features/live/liveQueueItems";
+import {
+  LIVE_DATA_SOURCES,
+  LIVE_DISPLAY_MODES,
+} from "../../features/live/liveDataSource";
+import {
+  ANNOUNCER_RUN_STATUSES,
+  completeAnnouncerLiveSession,
+  reopenAnnouncerLiveSession,
+  saveAnnouncerRunResult,
+  startAnnouncerDrag,
+  startAnnouncerRun,
+  stopAnnouncerDrag,
+} from "../../features/live/announcerLiveSession";
+import {
+  getAnnouncerLiveSessionSyncStatus,
+  saveAnnouncerLiveSessionRepository,
+} from "../../features/live/announcerLiveRepository";
+import { buildQualifiedRiderList } from "../../features/results/qualifiedRiders";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
 import { getShowById } from "../../features/shows/showSelectors";
+import {
+  buildQualifiedRidersPdfFileName,
+  generateQualifiedRidersPdf,
+} from "../../utils/generateQualifiedRidersPdf";
+import { parseScoreTotalValue } from "../../utils/scoring";
+import {
+  buildClassResultsPdfFileName,
+  generateClassResultsPdf,
+} from "../../utils/generateResultsPdf";
 import { appStyles as styles } from "../../styles/appStyles";
 import ClassPaceSummary from "../../components/ClassPaceSummary";
 
@@ -142,6 +172,8 @@ function AnnouncerDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
   const [rankingClass, setRankingClass] = useState(null);
+  const [qualifiedRidersClass, setQualifiedRidersClass] = useState(null);
+  const [announcerSyncStatuses, setAnnouncerSyncStatuses] = useState({});
   const [isPaidWarmupAudioReady, setIsPaidWarmupAudioReady] = useState(false);
   const [paidWarmupUndoSnapshots, setPaidWarmupUndoSnapshots] = useState({});
   const autoCompletedPaidWarmupKeyRef = useRef(null);
@@ -206,6 +238,41 @@ function AnnouncerDashboardPage() {
 
     await refreshLiveViewNow();
   }, [refreshLiveViewNow, showId]);
+
+  const saveLiveDisplayModeUpdate = useCallback(
+    async (classView, mode) => {
+      await saveClassLiveDisplayModeRepository(classView.classId, mode);
+      await refreshLiveViewNow();
+    },
+    [refreshLiveViewNow]
+  );
+
+  const saveAnnouncerSessionUpdate = useCallback(
+    async (classView, nextSession) => {
+      if (
+        !classView?.classId ||
+        classView.liveDataSource !== LIVE_DATA_SOURCES.ANNOUNCER
+      ) {
+        return null;
+      }
+
+      const saved = await saveAnnouncerLiveSessionRepository(
+        classView.classId,
+        nextSession,
+        {
+          onStatusChange: (status) => {
+            setAnnouncerSyncStatuses((current) => ({
+              ...current,
+              [classView.classId]: status,
+            }));
+          },
+        }
+      );
+      await refreshLiveViewNow();
+      return saved;
+    },
+    [refreshLiveViewNow]
+  );
 
   const rememberPaidWarmupUndo = useCallback((warmup) => {
     if (!warmup?.id) return;
@@ -483,10 +550,19 @@ function AnnouncerDashboardPage() {
                 <ClassLiveCard
                   key={getLiveItemKey(item)}
                   classView={item.classView}
+                  showName={show.name}
                   now={now}
                   isPriority
                   onOpenProvisionalRanking={setRankingClass}
+                  onOpenQualifiedRiders={setQualifiedRidersClass}
                   onSaveScheduleDetails={saveScheduleDetailsUpdate}
+                  onSaveLiveDisplayMode={saveLiveDisplayModeUpdate}
+                  onSaveAnnouncerSession={saveAnnouncerSessionUpdate}
+                  announcerSyncStatus={
+                    announcerSyncStatuses[item.classView.classId] ||
+                    getAnnouncerLiveSessionSyncStatus(item.classView.classId)
+                  }
+                  updatedBy={access.user?.id || null}
                 />
               )
             )}
@@ -523,9 +599,18 @@ function AnnouncerDashboardPage() {
                   <ClassLiveCard
                     key={classView.classId}
                     classView={classView}
+                    showName={show.name}
                     now={now}
                     onOpenProvisionalRanking={setRankingClass}
+                    onOpenQualifiedRiders={setQualifiedRidersClass}
                     onSaveScheduleDetails={saveScheduleDetailsUpdate}
+                    onSaveLiveDisplayMode={saveLiveDisplayModeUpdate}
+                    onSaveAnnouncerSession={saveAnnouncerSessionUpdate}
+                    announcerSyncStatus={
+                      announcerSyncStatuses[classView.classId] ||
+                      getAnnouncerLiveSessionSyncStatus(classView.classId)
+                    }
+                    updatedBy={access.user?.id || null}
                   />
                 ))}
                 {(section.paidWarmups || []).map((warmup) => (
@@ -559,6 +644,14 @@ function AnnouncerDashboardPage() {
         <ProvisionalRankingModal
           classView={rankingClass}
           onClose={() => setRankingClass(null)}
+        />
+      )}
+
+      {qualifiedRidersClass && (
+        <QualifiedRidersModal
+          classView={qualifiedRidersClass}
+          showName={show.name}
+          onClose={() => setQualifiedRidersClass(null)}
         />
       )}
     </div>
@@ -1262,10 +1355,16 @@ function PaidWarmupTimerCue({ warmup, remainingSeconds }) {
 
 function ClassLiveCard({
   classView,
+  showName,
   now,
   isPriority = false,
   onOpenProvisionalRanking,
+  onOpenQualifiedRiders,
   onSaveScheduleDetails,
+  onSaveLiveDisplayMode,
+  onSaveAnnouncerSession,
+  announcerSyncStatus,
+  updatedBy,
 }) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(Boolean(isPriority));
@@ -1275,6 +1374,38 @@ function ClassLiveCard({
   const liveState = getClassLiveState(classView, t);
   const hasProvisionalRanking = classView.provisionalRanking?.length > 0;
   const hasClassStandings = classView.classStandings?.length > 0;
+  const isAnnouncerSource =
+    classView.liveDataSource === LIVE_DATA_SOURCES.ANNOUNCER;
+  const isOrderOnlyDisplay =
+    classView.liveDisplayMode === LIVE_DISPLAY_MODES.ORDER_ONLY;
+  const canBuildQualifiedRiders = Boolean(
+    classView.isComplete &&
+      classView.qualifiedRiderCount &&
+      hasClassStandings
+  );
+  const canDownloadProvisionalResults = Boolean(
+    classView.isComplete && hasClassStandings
+  );
+
+  function downloadProvisionalResultsPdf() {
+    const generatedAt = new Date();
+    const pdf = generateClassResultsPdf({
+      eventName: showName,
+      blockName: classView.className,
+      pattern: classView.pattern,
+      publishedAt:
+        classView.announcerSession?.completedAt || generatedAt.toISOString(),
+      documentTitle: t("management.announcer.provisionalResultsPdfTitle"),
+      resultGroups: classView.classStandings || [],
+    });
+    pdf.save(
+      buildClassResultsPdfFileName({
+        showName,
+        blockName: classView.className,
+        publishedAt: generatedAt,
+      })
+    );
+  }
   const isScheduleOnly = Boolean(classView.isScheduleOnly);
   const activeLiveItem = classView.activeDragItem || classView.activeRun;
   const nextLiveItem = classView.nextLiveItem || classView.nextRun;
@@ -1337,6 +1468,13 @@ function ClassLiveCard({
           </div>
         </div>
         <div style={badgeStackStyle}>
+          {!isScheduleOnly && (
+            <Badge tone={isAnnouncerSource ? "warn" : "muted"}>
+              {isAnnouncerSource
+                ? t("management.announcer.sourceAnnouncer")
+                : t("management.announcer.sourceScribes")}
+            </Badge>
+          )}
           <LiveFreshnessBadge updatedAt={classView.liveUpdatedAt} now={now} />
           <Badge tone="muted">
             {getPublicationStatusLabel(classView.publicationStatus, t)}
@@ -1361,6 +1499,61 @@ function ClassLiveCard({
             />
           ) : (
             <>
+              <div
+                style={
+                  isOrderOnlyDisplay
+                    ? minimalDisplayActiveStyle
+                    : minimalDisplayPanelStyle
+                }
+              >
+                <div>
+                  <div style={runLabelStyle}>
+                    {t("management.announcer.minimalDisplay")}
+                  </div>
+                  <div style={mutedTextStyle}>
+                    {t("management.announcer.minimalDisplayHelp")}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (
+                      !isOrderOnlyDisplay &&
+                      !window.confirm(
+                        t("management.announcer.minimalDisplayConfirm")
+                      )
+                    ) {
+                      return;
+                    }
+                    onSaveLiveDisplayMode(
+                      classView,
+                      isOrderOnlyDisplay
+                        ? LIVE_DISPLAY_MODES.FULL
+                        : LIVE_DISPLAY_MODES.ORDER_ONLY
+                    );
+                  }}
+                  style={
+                    isOrderOnlyDisplay
+                      ? primaryButtonStyle
+                      : secondaryButtonStyle
+                  }
+                >
+                  {isOrderOnlyDisplay
+                    ? t("management.announcer.restoreFullDisplay")
+                    : t("management.announcer.enableMinimalDisplay")}
+                </button>
+              </div>
+
+              {isAnnouncerSource && (
+                <AnnouncerManualLiveControls
+                  classView={classView}
+                  syncStatus={announcerSyncStatus}
+                  updatedBy={updatedBy}
+                  onSaveSession={(nextSession) =>
+                    onSaveAnnouncerSession(classView, nextSession)
+                  }
+                />
+              )}
               <div style={runGridStyle}>
                 <QueueItemBlock
                   label={t("management.announcer.active")}
@@ -1431,10 +1624,352 @@ function ClassLiveCard({
               </button>
             </div>
           )}
+
+          {!isScheduleOnly &&
+            (canDownloadProvisionalResults || canBuildQualifiedRiders) && (
+            <div style={actionRowStyle}>
+              {canDownloadProvisionalResults && (
+                <button
+                  type="button"
+                  onClick={downloadProvisionalResultsPdf}
+                  style={secondaryButtonStyle}
+                >
+                  {t("management.announcer.provisionalResultsPdf")}
+                </button>
+              )}
+              {canBuildQualifiedRiders && (
+                <button
+                  type="button"
+                  onClick={() => onOpenQualifiedRiders(classView)}
+                  style={primaryButtonStyle}
+                >
+                  {t("management.announcer.qualifiedRiders")}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
+}
+
+function AnnouncerManualLiveControls({
+  classView,
+  syncStatus,
+  updatedBy,
+  onSaveSession,
+}) {
+  const { t } = useTranslation();
+  const [editingRun, setEditingRun] = useState(null);
+  const [completionError, setCompletionError] = useState(null);
+  const session = classView.announcerSession || { runs: [] };
+  const activeRun = classView.activeRun;
+  const plannedDrag =
+    !classView.activeDragItem && isLiveDragItem(classView.nextLiveItem)
+      ? classView.nextLiveItem
+      : null;
+  const pendingReviews = (session.runs || []).filter(
+    (run) => run.status === ANNOUNCER_RUN_STATUSES.REVIEW
+  );
+  const editableResults = (session.runs || [])
+    .filter((run) =>
+      [
+        ANNOUNCER_RUN_STATUSES.SCORED,
+        ANNOUNCER_RUN_STATUSES.SCRATCH,
+        ANNOUNCER_RUN_STATUSES.REVIEW,
+      ].includes(run.status)
+    )
+    .slice(-6)
+    .reverse();
+
+  function save(nextSession) {
+    setCompletionError(null);
+    return onSaveSession(nextSession);
+  }
+
+  function handleStartNext() {
+    const nextRun = classView.nextRun;
+    if (!nextRun?.id) return;
+    save(startAnnouncerRun(session, nextRun.id));
+  }
+
+  function handleComplete() {
+    const result = completeAnnouncerLiveSession(session, {
+      completedBy: updatedBy,
+    });
+
+    if (!result.ok) {
+      setCompletionError({
+        reviews: result.pendingReviews.length,
+        unresolved: result.unresolvedRuns.length,
+      });
+      return;
+    }
+
+    save(result.session);
+  }
+
+  return (
+    <div style={manualLivePanelStyle}>
+      <div style={manualLiveHeaderStyle}>
+        <div>
+          <div style={runLabelStyle}>
+            {t("management.announcer.manualLiveTitle")}
+          </div>
+          <div style={mutedTextStyle}>
+            {t("management.announcer.manualLiveProvisional")}
+          </div>
+        </div>
+        <Badge tone={syncStatus === "pending" ? "warn" : "muted"}>
+          {getAnnouncerSyncStatusLabel(syncStatus, t)}
+        </Badge>
+      </div>
+
+      <div style={actionRowStyle}>
+        {plannedDrag && (
+          <button
+            type="button"
+            onClick={() => save(startAnnouncerDrag(session, plannedDrag))}
+            style={secondaryButtonStyle}
+          >
+            {t("management.announcer.startDrag")}
+          </button>
+        )}
+        {classView.activeDragItem && (
+          <button
+            type="button"
+            onClick={() => save(stopAnnouncerDrag(session))}
+            style={secondaryButtonStyle}
+          >
+            {t("management.announcer.stopDrag")}
+          </button>
+        )}
+        {!session.completedAt &&
+          !classView.activeDragItem &&
+          !activeRun &&
+          classView.nextRun && (
+            <button
+              type="button"
+              onClick={handleStartNext}
+              style={primaryButtonStyle}
+            >
+              {t("management.announcer.startNext")}
+            </button>
+          )}
+        {activeRun && (
+          <button
+            type="button"
+            onClick={() => setEditingRun(activeRun)}
+            style={primaryButtonStyle}
+          >
+            {t("management.announcer.enterResult")}
+          </button>
+        )}
+      </div>
+
+      {pendingReviews.length > 0 && (
+        <div style={reviewNoticeStyle}>
+          <strong>
+            {t("management.announcer.pendingReviews", {
+              count: pendingReviews.length,
+            })}
+          </strong>
+          <div style={compactButtonListStyle}>
+            {pendingReviews.map((run) => (
+              <button
+                key={run.id}
+                type="button"
+                onClick={() => setEditingRun(run)}
+                style={smallButtonStyle}
+              >
+                {t("management.announcer.draw")} {run.draw}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {editableResults.length > 0 && (
+        <div style={manualCorrectionWrapStyle}>
+          <div style={mutedTextStyle}>
+            {t("management.announcer.correctResult")}
+          </div>
+          <div style={compactButtonListStyle}>
+            {editableResults.map((run) => (
+              <button
+                key={run.id}
+                type="button"
+                onClick={() => setEditingRun(run)}
+                style={smallButtonStyle}
+              >
+                #{run.draw} · {run.scoreTotal || "—"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {completionError && (
+        <div style={errorNoticeStyle}>
+          {t("management.announcer.completeBlocked", {
+            reviews: completionError.reviews,
+            unresolved: completionError.unresolved,
+          })}
+        </div>
+      )}
+
+      <div style={actionRowStyle}>
+        {!session.completedAt ? (
+          <button
+            type="button"
+            onClick={handleComplete}
+            style={secondaryButtonStyle}
+          >
+            {t("management.announcer.markClassComplete")}
+          </button>
+        ) : (
+          <>
+            <Badge tone="success">
+              {t("management.announcer.manualBlockCompleted")}
+            </Badge>
+            <button
+              type="button"
+              onClick={() => save(reopenAnnouncerLiveSession(session))}
+              style={secondaryButtonStyle}
+            >
+              {t("management.announcer.reopenClass")}
+            </button>
+          </>
+        )}
+      </div>
+
+      {editingRun && (
+        <AnnouncerRunResultModal
+          run={editingRun}
+          onClose={() => setEditingRun(null)}
+          onSave={(result) => {
+            const nextSession = saveAnnouncerRunResult(
+              session,
+              editingRun.id,
+              result,
+              { updatedBy }
+            );
+            setEditingRun(null);
+            save(nextSession);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function AnnouncerRunResultModal({ run, onClose, onSave }) {
+  const { t } = useTranslation();
+  const [scoreTotal, setScoreTotal] = useState(
+    run.status === ANNOUNCER_RUN_STATUSES.SCORED ? run.scoreTotal || "" : ""
+  );
+  const [note, setNote] = useState(run.note || "");
+  const hasValidScore = Number.isFinite(parseScoreTotalValue(scoreTotal));
+
+  return (
+    <div style={modalBackdropStyle} role="dialog" aria-modal="true">
+      <div style={compactModalStyle}>
+        <div style={modalHeaderStyle}>
+          <div>
+            <h2 style={sectionTitleStyle}>
+              {t("management.announcer.enterResult")}
+            </h2>
+            <div style={classNameStyle}>
+              {t("management.announcer.draw")} {run.draw} ·{" "}
+              {run.rider || t("public.results.riderFallback")}
+            </div>
+            <div style={mutedTextStyle}>{run.horse || "—"}</div>
+          </div>
+          <button type="button" onClick={onClose} style={secondaryButtonStyle}>
+            {t("management.announcer.close")}
+          </button>
+        </div>
+
+        <label style={fieldLabelStyle}>
+          {t("management.announcer.totalScore")}
+          <input
+            type="text"
+            inputMode="decimal"
+            value={scoreTotal}
+            onChange={(event) => setScoreTotal(event.target.value)}
+            placeholder="70"
+            style={scoreInputStyle}
+            autoFocus
+          />
+        </label>
+
+        <label style={fieldLabelStyle}>
+          {t("management.announcer.correctionNote")}
+          <input
+            type="text"
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            style={textInputStyle}
+          />
+        </label>
+
+        <div style={actionRowStyle}>
+          <button
+            type="button"
+            disabled={!hasValidScore}
+            onClick={() =>
+              onSave({
+                status: ANNOUNCER_RUN_STATUSES.SCORED,
+                scoreTotal,
+                note,
+              })
+            }
+            style={primaryButtonStyle}
+          >
+            {t("management.announcer.saveScore")}
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              onSave({
+                status: ANNOUNCER_RUN_STATUSES.REVIEW,
+                note,
+              })
+            }
+            style={secondaryButtonStyle}
+          >
+            {t("management.announcer.videoReview")}
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              onSave({
+                status: ANNOUNCER_RUN_STATUSES.SCRATCH,
+                note,
+              })
+            }
+            style={dangerButtonStyle}
+          >
+            {t("management.announcer.scratch")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getAnnouncerSyncStatusLabel(status, t) {
+  switch (status) {
+    case "syncing":
+      return t("management.announcer.syncing");
+    case "pending":
+      return t("management.announcer.syncPending");
+    case "synced":
+      return t("management.announcer.synced");
+    default:
+      return t("management.announcer.savedLocally");
+  }
 }
 
 function AnnouncerClassStandings({ standings, panelId }) {
@@ -2075,6 +2610,80 @@ function ProvisionalRankingModal({ classView, onClose }) {
   );
 }
 
+function QualifiedRidersModal({ classView, showName, onClose }) {
+  const { t } = useTranslation();
+  const riders = buildQualifiedRiderList({
+    standings: classView.classStandings,
+    qualifiedRiderCount: classView.qualifiedRiderCount,
+  });
+
+  function downloadPdf() {
+    const generatedAt = new Date();
+    const pdf = generateQualifiedRidersPdf({
+      showName,
+      blockName: classView.className,
+      qualifiedRiderCount: classView.qualifiedRiderCount,
+      riders,
+      generatedAt,
+    });
+    pdf.save(
+      buildQualifiedRidersPdfFileName({
+        showName,
+        blockName: classView.className,
+        generatedAt,
+      })
+    );
+  }
+
+  return (
+    <div style={modalBackdropStyle} role="dialog" aria-modal="true">
+      <div style={modalStyle}>
+        <div style={modalHeaderStyle}>
+          <div>
+            <h2 style={sectionTitleStyle}>
+              {t("management.announcer.qualifiedRiders")}
+            </h2>
+            <div style={classNameStyle}>{classView.className}</div>
+            <div style={mutedTextStyle}>
+              {t("management.announcer.qualifiedRidersHelp", {
+                count: classView.qualifiedRiderCount,
+              })}
+            </div>
+          </div>
+          <button type="button" onClick={onClose} style={secondaryButtonStyle}>
+            {t("management.announcer.close")}
+          </button>
+        </div>
+
+        <div style={actionRowStyle}>
+          <button type="button" onClick={downloadPdf} style={primaryButtonStyle}>
+            {t("management.announcer.downloadQualifiedRidersPdf")}
+          </button>
+          <Badge tone="muted">
+            {t("management.announcer.qualifiedRiderTotal", {
+              count: riders.length,
+            })}
+          </Badge>
+        </div>
+
+        <div style={qualifiedRiderListStyle}>
+          {riders.map((rider, index) => (
+            <div key={rider.id} style={qualifiedRiderRowStyle}>
+              <strong>{index + 1}.</strong>
+              <span>{rider.rider}</span>
+            </div>
+          ))}
+          {!riders.length && (
+            <div style={softEmptyStyle}>
+              {t("management.announcer.noQualifiedRiders")}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Badge({ children, tone = "muted" }) {
   return <span style={badgeStyle(tone)}>{children}</span>;
 }
@@ -2111,12 +2720,137 @@ const modalStyle = {
   boxShadow: "0 20px 50px rgba(15, 23, 42, 0.25)",
 };
 
+const compactModalStyle = {
+  ...modalStyle,
+  width: "min(520px, 100%)",
+};
+
 const modalHeaderStyle = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "flex-start",
   gap: 12,
   marginBottom: 14,
+};
+
+const manualLivePanelStyle = {
+  display: "grid",
+  gap: 12,
+  padding: 12,
+  marginBottom: 12,
+  border: "1px solid #fdba74",
+  borderRadius: 10,
+  background: "#fffaf0",
+};
+
+const manualLiveHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 12,
+  flexWrap: "wrap",
+};
+
+const minimalDisplayPanelStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 12,
+  flexWrap: "wrap",
+  padding: 10,
+  marginBottom: 12,
+  border: "1px solid #cbd5e1",
+  borderRadius: 8,
+  background: "#f8fafc",
+};
+
+const minimalDisplayActiveStyle = {
+  ...minimalDisplayPanelStyle,
+  border: "2px solid #dc2626",
+  background: "#fff5f5",
+};
+
+const reviewNoticeStyle = {
+  display: "grid",
+  gap: 8,
+  padding: 10,
+  border: "1px solid #fdba74",
+  borderRadius: 8,
+  background: "#fff7ed",
+  color: "#9a3412",
+};
+
+const errorNoticeStyle = {
+  padding: 10,
+  border: "1px solid #fecaca",
+  borderRadius: 8,
+  background: "#fff5f5",
+  color: "#991b1b",
+  fontWeight: 700,
+};
+
+const manualCorrectionWrapStyle = {
+  display: "grid",
+  gap: 6,
+};
+
+const compactButtonListStyle = {
+  display: "flex",
+  gap: 6,
+  flexWrap: "wrap",
+};
+
+const smallButtonStyle = {
+  padding: "6px 9px",
+  borderRadius: 7,
+  border: "1px solid #cbd5e1",
+  background: "#fff",
+  color: "#111827",
+  cursor: "pointer",
+  fontWeight: 700,
+};
+
+const fieldLabelStyle = {
+  display: "grid",
+  gap: 6,
+  marginBottom: 12,
+  color: "#334155",
+  fontWeight: 700,
+};
+
+const textInputStyle = {
+  width: "100%",
+  boxSizing: "border-box",
+  border: "1px solid #cbd5e1",
+  borderRadius: 8,
+  padding: "10px 12px",
+  background: "#fff",
+  color: "#111827",
+  fontSize: 16,
+};
+
+const scoreInputStyle = {
+  ...textInputStyle,
+  fontSize: 28,
+  fontWeight: 900,
+  textAlign: "center",
+};
+
+const qualifiedRiderListStyle = {
+  display: "grid",
+  gap: 6,
+  marginTop: 14,
+};
+
+const qualifiedRiderRowStyle = {
+  display: "grid",
+  gridTemplateColumns: "34px 1fr",
+  gap: 8,
+  alignItems: "center",
+  padding: "9px 10px",
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  background: "#f8fafc",
 };
 
 const rankingListStyle = {
@@ -2758,6 +3492,13 @@ const secondaryButtonStyle = {
   background: "#fff",
   color: "#111827",
   cursor: "pointer",
+};
+
+const dangerButtonStyle = {
+  ...secondaryButtonStyle,
+  border: "1px solid #dc2626",
+  color: "#991b1b",
+  background: "#fff5f5",
 };
 
 const emptyStateStyle = {

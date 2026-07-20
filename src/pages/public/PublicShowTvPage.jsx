@@ -472,6 +472,17 @@ function formatRun(run, { showScore = true } = {}) {
   if (!run) return null;
 
   const draw = run.draw ? `#${run.draw}` : "";
+  if (run.identityHidden) {
+    return {
+      type: "run",
+      fr: draw ? `Ordre ${draw}` : "Ordre en piste",
+      en: draw ? `Order ${draw}` : "On-course order",
+      horse: "",
+      meta: "",
+      score: "",
+    };
+  }
+
   const back = run.backNumber ? `Back ${run.backNumber}` : "";
   const score = showScore ? String(run.scoreTotal || "").trim() : "";
 

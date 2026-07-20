@@ -43,6 +43,23 @@ import {
   hasPublicLivestream,
 } from "./features/livestream/livestreamEmbed";
 import {
+  LIVE_DATA_SOURCES,
+  LIVE_DISPLAY_MODES,
+  normalizeLiveDataSource,
+  normalizeLiveDisplayMode,
+  resolveLiveScoringSession,
+} from "./features/live/liveDataSource";
+import {
+  ANNOUNCER_RUN_STATUSES,
+  buildInitialAnnouncerLiveSession,
+  completeAnnouncerLiveSession,
+  getPendingAnnouncerReviews,
+  saveAnnouncerRunResult,
+  startAnnouncerDrag,
+  startAnnouncerRun,
+  stopAnnouncerDrag,
+} from "./features/live/announcerLiveSession";
+import {
   getPublicationState,
   publishClass,
   PUBLICATION_STATUSES,
@@ -112,6 +129,10 @@ import {
   normalizeResultGroups,
 } from "./features/results/classResults";
 import { buildLiveClassStandings } from "./features/results/liveClassStandings";
+import {
+  buildQualifiedRiderKey,
+  buildQualifiedRiderList,
+} from "./features/results/qualifiedRiders";
 import {
   getClassResultPublication,
   RESULT_PUBLICATION_STATUSES,
@@ -337,6 +358,269 @@ test("calculates and formats fractional maneuver scores", () => {
 
 test("calculates championship tie points without rounding to half points", () => {
   expect(calculateChampionshipPoints(10, 10, 3)).toBeCloseTo(1 / 3, 8);
+});
+
+test("selects one live data source for every live consumer", () => {
+  expect(normalizeLiveDataSource("unknown")).toBe(LIVE_DATA_SOURCES.SCRIBE);
+  expect(normalizeLiveDataSource("announcer")).toBe(
+    LIVE_DATA_SOURCES.ANNOUNCER
+  );
+
+  const resolved = resolveLiveScoringSession({
+    setup: { liveDataSource: "announcer" },
+    scoringSession: { classId: "block-1", runs: [{ id: "scribe-run" }] },
+    announcerSession: {
+      classId: "block-1",
+      runs: [{ id: "announcer-run" }],
+      activeManoeuvre: { draw: 2 },
+      updatedAt: "2026-07-20T12:00:00.000Z",
+    },
+  });
+
+  expect(resolved.source).toBe(LIVE_DATA_SOURCES.ANNOUNCER);
+  expect(resolved.session.runs).toEqual([{ id: "announcer-run" }]);
+  expect(resolved.session.activeManoeuvre).toEqual({ draw: 2 });
+});
+
+test("keeps only the on-course order in emergency minimal display", () => {
+  expect(normalizeLiveDisplayMode("unknown")).toBe(LIVE_DISPLAY_MODES.FULL);
+  expect(normalizeLiveDisplayMode("order_only")).toBe(
+    LIVE_DISPLAY_MODES.ORDER_ONLY
+  );
+
+  const classView = buildPublicLiveClassView({
+    classItem: {
+      id: "block-minimal",
+      name: "Open",
+      pattern: "2",
+    },
+    setup: {
+      liveDisplayMode: LIVE_DISPLAY_MODES.ORDER_ONLY,
+      runs: [
+        {
+          id: "run-1",
+          draw: 1,
+          backNumber: "101",
+          rider: "Alice Roy",
+          horse: "Secret Horse",
+          owner: "Secret Owner",
+        },
+      ],
+    },
+    publication: { status: PUBLICATION_STATUSES.LIVE },
+    scoringSession: {
+      activeManoeuvre: { type: "run", draw: 1 },
+      runs: [
+        {
+          id: "run-1",
+          draw: 1,
+          backNumber: "101",
+          rider: "Alice Roy",
+          horse: "Secret Horse",
+          owner: "Secret Owner",
+          scoreTotal: "72",
+          isActive: true,
+        },
+      ],
+    },
+  });
+
+  expect(classView.liveDisplayMode).toBe(LIVE_DISPLAY_MODES.ORDER_ONLY);
+  expect(classView.showScores).toBe(false);
+  expect(classView.classStandings).toEqual([]);
+  expect(classView.activeRun).toMatchObject({
+    draw: 1,
+    identityHidden: true,
+    rider: "",
+    horse: "",
+    owner: "",
+    backNumber: "",
+    scoreTotal: "",
+  });
+});
+
+test("uses the announcer score across internal and public live views", () => {
+  const setupRun = {
+    id: "run-1",
+    draw: 1,
+    rider: "Alice Roy",
+    horse: "Example Horse",
+    classCodes: ["OPEN"],
+  };
+  const scoringSession = {
+    classId: "block-1",
+    runs: [{ ...setupRun, scoreTotal: "70", completedAt: "2026-07-20T12:00:00Z" }],
+  };
+  const announcerSession = {
+    classId: "block-1",
+    runs: [
+      {
+        ...setupRun,
+        status: ANNOUNCER_RUN_STATUSES.SCORED,
+        scoreTotal: "66",
+        isComplete: true,
+        completedAt: "2026-07-20T12:01:00Z",
+      },
+    ],
+    startedAt: "2026-07-20T11:59:00Z",
+  };
+  const setup = {
+    pattern: "2",
+    liveDataSource: LIVE_DATA_SOURCES.ANNOUNCER,
+    runs: [setupRun],
+    blockClasses: [{ code: "OPEN", name: "Open" }],
+  };
+
+  const announcerView = buildAnnouncerClassView({
+    classItem: { id: "block-1", name: "Open", pattern: "2" },
+    setup,
+    scoringSession,
+    scoringRuns: scoringSession.runs,
+    announcerSession,
+    publication: { status: PUBLICATION_STATUSES.LIVE },
+  });
+  const publicView = buildPublicLiveClassView({
+    classItem: { id: "block-1", name: "Open", pattern: "2" },
+    setup,
+    scoringSession,
+    announcerSession,
+    publication: { status: PUBLICATION_STATUSES.LIVE },
+  });
+
+  expect(announcerView.latestScore.scoreTotal).toBe("66");
+  expect(publicView.latestScore.scoreTotal).toBe("66");
+  expect(publicView.liveDataSource).toBe(LIVE_DATA_SOURCES.ANNOUNCER);
+});
+
+test("runs the announcer fallback without overwriting the scribe snapshot", () => {
+  const setupRuns = [
+    { id: "run-1", draw: 1, rider: "Alice", classCodes: ["100"] },
+    { id: "run-2", draw: 2, rider: "Bob", classCodes: ["100"] },
+    { id: "run-3", draw: 3, rider: "Chloé", classCodes: ["200"] },
+  ];
+  const initial = buildInitialAnnouncerLiveSession({
+    classId: "block-1",
+    setupRuns,
+    scoringRuns: [
+      {
+        ...setupRuns[0],
+        scoreTotal: "70",
+        completedAt: "2026-07-20T12:00:00.000Z",
+      },
+    ],
+    now: new Date("2026-07-20T12:05:00.000Z"),
+  });
+
+  expect(initial.runs[0]).toMatchObject({
+    status: ANNOUNCER_RUN_STATUSES.SCORED,
+    scoreTotal: "70",
+    resultSource: "scribe_snapshot",
+  });
+
+  const started = startAnnouncerRun(
+    initial,
+    "run-2",
+    new Date("2026-07-20T12:06:00.000Z")
+  );
+  expect(started.activeManoeuvre).toMatchObject({
+    runId: "run-2",
+    draw: 2,
+  });
+
+  const dragging = startAnnouncerDrag(initial, {
+    id: "drag-after-run-1",
+    afterIndex: 0,
+    afterDraw: 1,
+    durationMinutes: 8,
+  });
+  expect(dragging.activeManoeuvre).toMatchObject({
+    type: "drag",
+    afterDraw: 1,
+    durationMinutes: 8,
+  });
+  expect(stopAnnouncerDrag(dragging).activeManoeuvre).toBeNull();
+
+  const underReview = saveAnnouncerRunResult(
+    started,
+    "run-2",
+    { status: ANNOUNCER_RUN_STATUSES.REVIEW },
+    { now: new Date("2026-07-20T12:08:00.000Z"), updatedBy: "announcer-1" }
+  );
+  expect(getPendingAnnouncerReviews(underReview)).toHaveLength(1);
+  expect(completeAnnouncerLiveSession(underReview).ok).toBe(false);
+
+  const resolved = saveAnnouncerRunResult(
+    underReview,
+    "run-2",
+    { status: ANNOUNCER_RUN_STATUSES.SCORED, scoreTotal: "66" },
+    { now: new Date("2026-07-20T12:10:00.000Z"), updatedBy: "announcer-1" }
+  );
+  const scratched = saveAnnouncerRunResult(
+    resolved,
+    "run-3",
+    { status: ANNOUNCER_RUN_STATUSES.SCRATCH },
+    { now: new Date("2026-07-20T12:11:00.000Z"), updatedBy: "announcer-1" }
+  );
+  const completed = completeAnnouncerLiveSession(scratched, {
+    now: new Date("2026-07-20T12:12:00.000Z"),
+    completedBy: "announcer-1",
+  });
+
+  expect(completed.ok).toBe(true);
+  expect(completed.session.completedAt).toBe("2026-07-20T12:12:00.000Z");
+  expect(completed.session.runs[0].resultSource).toBe("scribe_snapshot");
+  expect(completed.session.runs[1].history).toHaveLength(2);
+});
+
+test("builds a unique classified-rider call list with cutoff ties", () => {
+  const standings = [
+    {
+      id: "class-100",
+      code: "100",
+      className: "Rookie",
+      entries: [
+        { rank: 1, rider: "Alice Roy", riderContactId: "rider-1", scoreTotal: "72" },
+        { rank: 2, rider: "Bob Roy", memberNrha: "M-2", scoreTotal: "70" },
+        { rank: 3, rider: "Chloé Roy", memberNrha: "M-3", scoreTotal: "70" },
+        { rank: 4, rider: "Dan Roy", scoreTotal: "68" },
+      ],
+    },
+    {
+      id: "class-200",
+      code: "200",
+      className: "Non Pro",
+      entries: [
+        {
+          rank: 1,
+          rider: "Alice Roy",
+          riderContactId: "rider-1",
+          horse: "Another Horse",
+          scoreTotal: "74",
+        },
+        { rank: 2, rider: "Émilie Roy", scoreTotal: "71" },
+      ],
+    },
+  ];
+
+  const riders = buildQualifiedRiderList({
+    standings,
+    qualifiedRiderCount: 2,
+  });
+
+  expect(riders.map((rider) => rider.rider)).toEqual([
+    "Alice Roy",
+    "Bob Roy",
+    "Chloé Roy",
+    "Émilie Roy",
+  ]);
+  expect(riders[0].qualifications).toHaveLength(2);
+  expect(
+    buildQualifiedRiderKey({
+      rider: "Alice Roy",
+      riderContactId: "rider-1",
+      memberNrha: "M-1",
+    })
+  ).toBe("contact:RIDER1");
 });
 
 test("normalizes optional championship rules for the public modal", () => {

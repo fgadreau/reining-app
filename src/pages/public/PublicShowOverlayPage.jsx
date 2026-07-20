@@ -475,6 +475,15 @@ function buildOverlayLiveSummary(classView, t) {
 
 function formatOverlayRun(run, t, options = {}) {
   const draw = run?.draw ? `#${run.draw}` : "";
+  if (run?.identityHidden) {
+    return {
+      meta: "",
+      primary: `${t("public.results.order")} ${draw || "—"}`,
+      secondary: "",
+      score: "",
+    };
+  }
+
   const rider = run?.rider || t("public.results.riderFallback");
   const horse = run?.horse || "";
   const owner = run?.owner || "";

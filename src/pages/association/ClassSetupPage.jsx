@@ -85,6 +85,17 @@ import { useTranslation } from "../../features/i18n/I18nProvider";
 import { getDayById } from "../../features/days/daySelectors";
 import { getShowById } from "../../features/shows/showSelectors";
 import { createId } from "../../utils/createId";
+import {
+  LIVE_DATA_SOURCES,
+  normalizeLiveDataSource,
+} from "../../features/live/liveDataSource";
+import {
+  buildInitialAnnouncerLiveSession,
+} from "../../features/live/announcerLiveSession";
+import {
+  getAnnouncerLiveSession,
+  saveAnnouncerLiveSessionRepository,
+} from "../../features/live/announcerLiveRepository";
 
 function isOfficiallyFinalized(record) {
   return Boolean(
@@ -339,6 +350,7 @@ function ClassSetupPage() {
 
   const [classData, setClassData] = useState(() => getClassFullData(classId));
   const setupRef = useRef(classData.setup || {});
+  const lastSetupDraftFingerprintRef = useRef("");
   const [hasLoadedSetup, setHasLoadedSetup] = useState(false);
 
   const classItem = classData?.classItem;
@@ -391,6 +403,14 @@ function ClassSetupPage() {
   );
   const [setApprovalMode, setSetApprovalMode] = useState(
     normalizeSetApprovalMode(classSetup?.setApprovalMode)
+  );
+  const [liveDataSource, setLiveDataSource] = useState(
+    normalizeLiveDataSource(classSetup?.liveDataSource)
+  );
+  const [qualifiedRiderCount, setQualifiedRiderCount] = useState(
+    classSetup?.qualifiedRiderCount == null
+      ? ""
+      : String(classSetup.qualifiedRiderCount)
   );
   const [plannedLiveStatus, setPlannedLiveStatus] = useState(
     normalizePlannedLiveStatusForSetup(classData?.publication, classSetup?.judges)
@@ -473,6 +493,7 @@ function ClassSetupPage() {
 
     async function loadSetup() {
       setHasLoadedSetup(false);
+      lastSetupDraftFingerprintRef.current = "";
 
       const localData = getClassFullData(classId);
       const nextData = await getClassFullDataRepository(classId);
@@ -519,6 +540,12 @@ function ClassSetupPage() {
         String(nextSetup.dragDurationMinutes || DEFAULT_DRAG_DURATION_MINUTES)
       );
       setSetApprovalMode(normalizeSetApprovalMode(nextSetup.setApprovalMode));
+      setLiveDataSource(normalizeLiveDataSource(nextSetup.liveDataSource));
+      setQualifiedRiderCount(
+        nextSetup.qualifiedRiderCount == null
+          ? ""
+          : String(nextSetup.qualifiedRiderCount)
+      );
       setPlannedLiveStatus(
         normalizePlannedLiveStatusForSetup(resolvedData.publication, nextJudges)
       );
@@ -541,7 +568,37 @@ function ClassSetupPage() {
   useEffect(() => {
     if (!hasLoadedSetup) return undefined;
 
+    const setupDraftFingerprint = JSON.stringify({
+      classId,
+      pattern,
+      customPattern,
+      arena,
+      judges,
+      blockClasses,
+      runs,
+      scheduleDetails,
+      isDrawImported,
+      dragInterval,
+      dragDurationMinutes,
+      setApprovalMode,
+      liveDataSource,
+      qualifiedRiderCount,
+    });
+
+    if (!lastSetupDraftFingerprintRef.current) {
+      lastSetupDraftFingerprintRef.current = setupDraftFingerprint;
+      return undefined;
+    }
+
+    if (
+      lastSetupDraftFingerprintRef.current === setupDraftFingerprint
+    ) {
+      return undefined;
+    }
+
+    lastSetupDraftFingerprintRef.current = setupDraftFingerprint;
     let isCancelled = false;
+    let persistTimeout = null;
 
     async function persistSetup() {
       const currentRecord = getClassRecord(classId);
@@ -557,6 +614,9 @@ function ClassSetupPage() {
         judges,
         judgeName: classItem?.judgeName,
       });
+      const previousLiveDataSource = normalizeLiveDataSource(
+        setupRef.current?.liveDataSource
+      );
       const primaryJudgeName = getPrimaryJudgeName({ judges: normalizedJudges });
       const savedSetup = await saveSetupForClassRepository(classId, {
         ...setupRef.current,
@@ -571,7 +631,31 @@ function ClassSetupPage() {
         dragInterval: dragInterval || null,
         dragDurationMinutes,
         setApprovalMode,
+        liveDataSource,
+        qualifiedRiderCount,
       });
+      let savedAnnouncerSession = classData?.announcerSession || null;
+
+      if (
+        savedSetup.liveDataSource === LIVE_DATA_SOURCES.ANNOUNCER &&
+        previousLiveDataSource !== LIVE_DATA_SOURCES.ANNOUNCER
+      ) {
+        const existingSession = getAnnouncerLiveSession(classId, runs);
+        const nextSession = existingSession.startedAt
+          ? existingSession
+          : buildInitialAnnouncerLiveSession({
+              classId,
+              setupRuns: runs,
+              scoringRuns: classData?.scoringRuns || [],
+              activeManoeuvre: classData?.scoringSession?.activeManoeuvre,
+            });
+
+        savedAnnouncerSession = await saveAnnouncerLiveSessionRepository(
+          classId,
+          nextSession,
+          { setupRuns: runs }
+        );
+      }
 
       const classCustomPattern = nextCustomPattern || null;
       const scheduleStart = normalizeClassScheduleStart(scheduleDetails);
@@ -611,15 +695,18 @@ function ClassSetupPage() {
               ...currentData,
               classItem: savedClassItem || currentData.classItem,
               setup: savedSetup,
+              announcerSession:
+                savedAnnouncerSession || currentData.announcerSession,
             }
           : currentData
       );
     }
 
-    persistSetup();
+    persistTimeout = window.setTimeout(persistSetup, 100);
 
     return () => {
       isCancelled = true;
+      window.clearTimeout(persistTimeout);
     };
   }, [
     classId,
@@ -634,10 +721,33 @@ function ClassSetupPage() {
     dragInterval,
     dragDurationMinutes,
     setApprovalMode,
+    liveDataSource,
+    qualifiedRiderCount,
     hasLoadedSetup,
     canManageSetup,
     classItem,
+    classData?.announcerSession,
+    classData?.scoringRuns,
+    classData?.scoringSession?.activeManoeuvre,
   ]);
+
+  const updateLiveDataSource = (nextValue) => {
+    const nextSource = normalizeLiveDataSource(nextValue);
+    if (nextSource === liveDataSource) return;
+
+    const liveHasStarted =
+      scoringStarted || Boolean(classData?.announcerSession?.startedAt);
+    if (
+      liveHasStarted &&
+      !window.confirm(
+        t("management.classSetup.liveDataSourceEmergencyConfirm")
+      )
+    ) {
+      return;
+    }
+
+    setLiveDataSource(nextSource);
+  };
 
   const updateJudgeName = (judgeId, name) => {
     if (!canManageSetup || isFullyLocked) {
@@ -1387,6 +1497,62 @@ function ClassSetupPage() {
                 >
                   {t("management.classSetup.apply")}
                 </button>
+              </div>
+            </div>
+          )}
+
+          {canManageSetup && !isScheduleOnly && (
+            <div>
+              <label
+                htmlFor={`live-data-source-${classId}`}
+                style={labelStyle}
+              >
+                {t("management.classSetup.liveDataSource")}
+              </label>
+              <select
+                id={`live-data-source-${classId}`}
+                value={liveDataSource}
+                onChange={(event) =>
+                  updateLiveDataSource(event.target.value)
+                }
+                style={inputStyle}
+                disabled={!hasLoadedSetup || isFinalized}
+              >
+                <option value={LIVE_DATA_SOURCES.SCRIBE}>
+                  {t("management.classSetup.liveDataSourceScribe")}
+                </option>
+                <option value={LIVE_DATA_SOURCES.ANNOUNCER}>
+                  {t("management.classSetup.liveDataSourceAnnouncer")}
+                </option>
+              </select>
+              <div style={helperTextStyle}>
+                {t("management.classSetup.liveDataSourceHelp")}
+              </div>
+            </div>
+          )}
+
+          {canManageSetup && !isScheduleOnly && (
+            <div>
+              <label
+                htmlFor={`qualified-rider-count-${classId}`}
+                style={labelStyle}
+              >
+                {t("management.classSetup.qualifiedRiderCount")}
+              </label>
+              <input
+                id={`qualified-rider-count-${classId}`}
+                type="number"
+                min="1"
+                value={qualifiedRiderCount}
+                onChange={(event) =>
+                  setQualifiedRiderCount(event.target.value)
+                }
+                placeholder="10"
+                style={inputStyle}
+                disabled={!hasLoadedSetup || isFinalized}
+              />
+              <div style={helperTextStyle}>
+                {t("management.classSetup.qualifiedRiderCountHelp")}
               </div>
             </div>
           )}
