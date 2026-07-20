@@ -2026,6 +2026,11 @@ function LiveRunCard({ run, showScore = true, showDetails = true }) {
       <div style={mutedTextStyle}>
         {run.horse || t("public.results.horseFallback")}
       </div>
+      {run.owner && (
+        <div style={mutedTextStyle}>
+          {t("public.results.owner")}: {run.owner}
+        </div>
+      )}
       {showScore && <LiveRunScore run={run} />}
       {showDetails && (
         <>

@@ -1,9 +1,19 @@
 import {
   formatTotalValue,
+  parseScoreTotalValue,
   penaltyCellHasScratch,
   runHasVideoReview,
 } from "../../utils/scoring";
 import { getRunIntegrationMetadata } from "../classes/classSetupStorage";
+import {
+  getJudgeDisplayName,
+  normalizeClassJudges,
+} from "../classes/classJudges";
+import {
+  buildCombinedJudgeScore,
+  classUsesCombinedJudgeScore,
+} from "../scoring/multiJudgeScoring";
+import { isLivePublicationStatus } from "../publication/publicationRepository";
 
 export const ANNOUNCER_RUN_STATUSES = {
   PENDING: "pending",
@@ -69,6 +79,103 @@ function normalizeRunStatus(value) {
     : ANNOUNCER_RUN_STATUSES.PENDING;
 }
 
+function normalizeAnnouncerJudgeScores(judgeScores = []) {
+  return (Array.isArray(judgeScores) ? judgeScores : [])
+    .map((judgeScore, index) => ({
+      judgeId: judgeScore?.judgeId || `judge-${index + 1}`,
+      judgeName: judgeScore?.judgeName || "",
+      scoreTotal: formatTotalValue(judgeScore?.scoreTotal),
+    }))
+    .filter((judgeScore) => String(judgeScore.scoreTotal || "").trim());
+}
+
+export function buildAnnouncerJudgeScoreResult({
+  judges = [],
+  judgeScores = [],
+  pattern = "",
+  customPattern = null,
+} = {}) {
+  const normalizedJudges = normalizeClassJudges({ judges });
+  const judgeRows = normalizedJudges.length
+    ? normalizedJudges
+    : [{ id: "judge-1", name: "", order: 1 }];
+  const scoreByJudgeId = new Map(
+    (Array.isArray(judgeScores) ? judgeScores : []).map((judgeScore) => [
+      String(judgeScore?.judgeId || ""),
+      judgeScore,
+    ])
+  );
+  const normalizedScores = judgeRows.map((judge, index) => {
+    const source =
+      scoreByJudgeId.get(String(judge.id)) ||
+      (Array.isArray(judgeScores) ? judgeScores[index] : null) ||
+      {};
+
+    return {
+      judgeId: judge.id,
+      judgeName:
+        judge.name || source.judgeName || getJudgeDisplayName(judge, index),
+      scoreTotal: formatTotalValue(source.scoreTotal),
+    };
+  });
+  const allScoresValid = normalizedScores.every((judgeScore) =>
+    Number.isFinite(parseScoreTotalValue(judgeScore.scoreTotal))
+  );
+
+  if (!allScoresValid) {
+    return {
+      judgeScores: normalizedScores,
+      scoreTotal: "",
+      isComplete: false,
+      isSupported: true,
+    };
+  }
+
+  if (normalizedScores.length === 1) {
+    return {
+      judgeScores: normalizedScores,
+      scoreTotal: normalizedScores[0].scoreTotal,
+      isComplete: true,
+      isSupported: true,
+    };
+  }
+
+  if (!classUsesCombinedJudgeScore(pattern, customPattern)) {
+    return {
+      judgeScores: normalizedScores,
+      scoreTotal: "",
+      isComplete: false,
+      isSupported: false,
+    };
+  }
+
+  const combined = buildCombinedJudgeScore(normalizedScores);
+
+  return {
+    judgeScores: normalizedScores,
+    scoreTotal: combined.scoreTotal,
+    isComplete: combined.isComplete,
+    isSupported: true,
+  };
+}
+
+export function getAnnouncerLiveActivationStatus({
+  session = {},
+  publicationStatus = "",
+  plannedLiveStatus = "",
+} = {}) {
+  if (
+    !session?.startedAt ||
+    session?.completedAt ||
+    isLivePublicationStatus(publicationStatus) ||
+    !isLivePublicationStatus(plannedLiveStatus)
+  ) {
+    return null;
+  }
+
+  return plannedLiveStatus;
+}
+
 export function normalizeAnnouncerLiveRun(run = {}, index = 0) {
   const status = normalizeRunStatus(run?.status);
   const scoreTotal =
@@ -91,6 +198,7 @@ export function normalizeAnnouncerLiveRun(run = {}, index = 0) {
     ...getRunIntegrationMetadata(run),
     status,
     scoreTotal,
+    judgeScores: normalizeAnnouncerJudgeScores(run?.judgeScores),
     isActive: status === ANNOUNCER_RUN_STATUSES.ON_COURSE,
     isComplete: [
       ANNOUNCER_RUN_STATUSES.SCORED,
@@ -283,7 +391,12 @@ export function stopAnnouncerDrag(session, now = new Date()) {
 export function saveAnnouncerRunResult(
   session,
   runId,
-  { status = ANNOUNCER_RUN_STATUSES.SCORED, scoreTotal = "", note = "" } = {},
+  {
+    status = ANNOUNCER_RUN_STATUSES.SCORED,
+    scoreTotal = "",
+    judgeScores = [],
+    note = "",
+  } = {},
   { now = new Date(), updatedBy = null } = {}
 ) {
   const normalizedStatus = normalizeRunStatus(status);
@@ -299,10 +412,16 @@ export function saveAnnouncerRunResult(
       : normalizedStatus === ANNOUNCER_RUN_STATUSES.REVIEW
         ? "Review"
         : formatTotalValue(scoreTotal);
+  const cleanJudgeScores =
+    normalizedStatus === ANNOUNCER_RUN_STATUSES.SCORED
+      ? normalizeAnnouncerJudgeScores(judgeScores)
+      : [];
   const timestamp = nowIso(now);
   const didResultChange =
     previous.status !== normalizedStatus ||
     String(previous.scoreTotal || "") !== String(cleanScore || "") ||
+    JSON.stringify(previous.judgeScores || []) !==
+      JSON.stringify(cleanJudgeScores) ||
     String(previous.note || "") !== String(note || "");
 
   if (!didResultChange) return normalizeAnnouncerLiveSession(session);
@@ -314,6 +433,7 @@ export function saveAnnouncerRunResult(
       ...run,
       status: normalizedStatus,
       scoreTotal: cleanScore,
+      judgeScores: cleanJudgeScores,
       note: String(note || "").trim(),
       isActive: false,
       completedAt:
@@ -326,8 +446,10 @@ export function saveAnnouncerRunResult(
           changedBy: updatedBy,
           previousStatus: run.status,
           previousScoreTotal: run.scoreTotal || "",
+          previousJudgeScores: run.judgeScores || [],
           nextStatus: normalizedStatus,
           nextScoreTotal: cleanScore || "",
+          nextJudgeScores: cleanJudgeScores,
         },
       ],
     }),

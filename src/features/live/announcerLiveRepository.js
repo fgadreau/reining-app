@@ -155,6 +155,21 @@ export function getAnnouncerLiveSessionSyncStatus(classId) {
 
 export { getAnnouncerLiveSyncFailure };
 
+export async function activateAnnouncerLivePublicationRepository(classId) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !classId) return null;
+
+  const { data, error } = await supabase.rpc(
+    "activate_show_score_announcer_live",
+    {
+      target_class_id: classId,
+    }
+  );
+
+  if (error) throw error;
+  return data || null;
+}
+
 export async function getAnnouncerLiveSessionRepository(
   classId,
   setupRuns = []

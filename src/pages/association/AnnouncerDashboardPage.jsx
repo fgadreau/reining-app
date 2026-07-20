@@ -35,7 +35,9 @@ import {
 } from "../../features/live/liveDataSource";
 import {
   ANNOUNCER_RUN_STATUSES,
+  buildAnnouncerJudgeScoreResult,
   completeAnnouncerLiveSession,
+  getAnnouncerLiveActivationStatus,
   reopenAnnouncerLiveSession,
   saveAnnouncerRunResult,
   startAnnouncerDrag,
@@ -43,6 +45,7 @@ import {
   stopAnnouncerDrag,
 } from "../../features/live/announcerLiveSession";
 import {
+  activateAnnouncerLivePublicationRepository,
   getAnnouncerLiveSessionSyncStatus,
   saveAnnouncerLiveSessionRepository,
 } from "../../features/live/announcerLiveRepository";
@@ -268,6 +271,20 @@ function AnnouncerDashboardPage() {
           },
         }
       );
+      const activationStatus = getAnnouncerLiveActivationStatus({
+        session: saved,
+        publicationStatus: classView.publicationStatus,
+        plannedLiveStatus: classView.plannedLiveStatus,
+      });
+
+      if (activationStatus) {
+        try {
+          await activateAnnouncerLivePublicationRepository(classView.classId);
+        } catch (error) {
+          console.error("Erreur activation live annonceur Supabase:", error);
+        }
+      }
+
       await refreshLiveViewNow();
       return saved;
     },
@@ -1847,6 +1864,9 @@ function AnnouncerManualLiveControls({
       {editingRun && (
         <AnnouncerRunResultModal
           run={editingRun}
+          judges={classView.judges}
+          pattern={classView.patternValue}
+          customPattern={classView.customPattern}
           onClose={() => setEditingRun(null)}
           onSave={(result) => {
             const nextSession = saveAnnouncerRunResult(
@@ -1864,13 +1884,52 @@ function AnnouncerManualLiveControls({
   );
 }
 
-function AnnouncerRunResultModal({ run, onClose, onSave }) {
+function AnnouncerRunResultModal({
+  run,
+  judges = [],
+  pattern = "",
+  customPattern = null,
+  onClose,
+  onSave,
+}) {
   const { t } = useTranslation();
-  const [scoreTotal, setScoreTotal] = useState(
-    run.status === ANNOUNCER_RUN_STATUSES.SCORED ? run.scoreTotal || "" : ""
+  const judgeRows =
+    Array.isArray(judges) && judges.length
+      ? judges
+      : [{ id: "judge-1", name: t("public.results.judge"), order: 1 }];
+  const previousJudgeScores = Array.isArray(run.judgeScores)
+    ? run.judgeScores
+    : [];
+  const [judgeScoreValues, setJudgeScoreValues] = useState(
+    () =>
+      judgeRows.reduce((values, judge, index) => {
+        const previous =
+          previousJudgeScores.find(
+            (judgeScore) => judgeScore?.judgeId === judge.id
+          ) || previousJudgeScores[index];
+        values[judge.id] =
+          previous?.scoreTotal ||
+          (judgeRows.length === 1 &&
+          run.status === ANNOUNCER_RUN_STATUSES.SCORED
+            ? run.scoreTotal || ""
+            : "");
+        return values;
+      }, {})
   );
   const [note, setNote] = useState(run.note || "");
-  const hasValidScore = Number.isFinite(parseScoreTotalValue(scoreTotal));
+  const scoreResult = buildAnnouncerJudgeScoreResult({
+    judges: judgeRows,
+    judgeScores: judgeRows.map((judge) => ({
+      judgeId: judge.id,
+      judgeName: judge.name || "",
+      scoreTotal: judgeScoreValues[judge.id] || "",
+    })),
+    pattern,
+    customPattern,
+  });
+  const hasValidScore =
+    scoreResult.isComplete &&
+    Number.isFinite(parseScoreTotalValue(scoreResult.scoreTotal));
 
   return (
     <div style={modalBackdropStyle} role="dialog" aria-modal="true">
@@ -1885,24 +1944,54 @@ function AnnouncerRunResultModal({ run, onClose, onSave }) {
               {run.rider || t("public.results.riderFallback")}
             </div>
             <div style={mutedTextStyle}>{run.horse || "—"}</div>
+            {run.owner && (
+              <div style={mutedTextStyle}>
+                {t("public.results.owner")}: {run.owner}
+              </div>
+            )}
           </div>
           <button type="button" onClick={onClose} style={secondaryButtonStyle}>
             {t("management.announcer.close")}
           </button>
         </div>
 
-        <label style={fieldLabelStyle}>
-          {t("management.announcer.totalScore")}
-          <input
-            type="text"
-            inputMode="decimal"
-            value={scoreTotal}
-            onChange={(event) => setScoreTotal(event.target.value)}
-            placeholder="70"
-            style={scoreInputStyle}
-            autoFocus
-          />
-        </label>
+        <div style={judgeScoreInputGridStyle}>
+          {judgeRows.map((judge, index) => (
+            <label key={judge.id} style={fieldLabelStyle}>
+              {judge.name ||
+                t("management.classSetup.judgeName", {
+                  number: index + 1,
+                })}
+              <input
+                type="text"
+                inputMode="decimal"
+                value={judgeScoreValues[judge.id] || ""}
+                onChange={(event) =>
+                  setJudgeScoreValues((current) => ({
+                    ...current,
+                    [judge.id]: event.target.value,
+                  }))
+                }
+                placeholder="70"
+                style={scoreInputStyle}
+                autoFocus={index === 0}
+              />
+            </label>
+          ))}
+        </div>
+
+        {judgeRows.length > 1 && (
+          <div style={combinedScorePreviewStyle}>
+            <span>{t("management.announcer.combinedJudgeTotal")}</span>
+            <strong>{scoreResult.scoreTotal || "—"}</strong>
+          </div>
+        )}
+
+        {!scoreResult.isSupported && (
+          <div style={errorNoticeStyle}>
+            {t("management.announcer.combinedJudgeUnsupported")}
+          </div>
+        )}
 
         <label style={fieldLabelStyle}>
           {t("management.announcer.correctionNote")}
@@ -1921,7 +2010,8 @@ function AnnouncerRunResultModal({ run, onClose, onSave }) {
             onClick={() =>
               onSave({
                 status: ANNOUNCER_RUN_STATUSES.SCORED,
-                scoreTotal,
+                scoreTotal: scoreResult.scoreTotal,
+                judgeScores: scoreResult.judgeScores,
                 note,
               })
             }
@@ -2534,6 +2624,11 @@ function RunIdentity({ run }) {
       <div style={mutedTextStyle}>
         {run.horse || t("public.results.horseFallback")}
       </div>
+      {run.owner && (
+        <div style={mutedTextStyle}>
+          {t("public.results.owner")}: {run.owner}
+        </div>
+      )}
     </div>
   );
 }
@@ -2834,6 +2929,26 @@ const scoreInputStyle = {
   fontSize: 28,
   fontWeight: 900,
   textAlign: "center",
+};
+
+const judgeScoreInputGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+  gap: 10,
+};
+
+const combinedScorePreviewStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  alignItems: "baseline",
+  marginBottom: 12,
+  padding: "10px 12px",
+  border: "1px solid #cbd5e1",
+  borderRadius: 8,
+  background: "#f8fafc",
+  color: "#0f172a",
+  fontSize: 18,
 };
 
 const qualifiedRiderListStyle = {

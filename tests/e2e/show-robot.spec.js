@@ -256,7 +256,25 @@ test.describe("robot de show local", () => {
     await expect(
       page.getByRole("button", { name: "Entrer le résultat" })
     ).toBeVisible();
+    await expect(page.locator("body")).toContainText("Propriétaire: Proprio 3");
     await expectNoHorizontalOverflow(page);
+
+    await page.getByRole("button", { name: "Entrer le résultat" }).click();
+    const judgeScores = [
+      ["Juge Alpha", "70"],
+      ["Juge Bravo", "71"],
+      ["Juge Charlie", "72"],
+      ["Juge Delta", "73"],
+      ["Juge Echo", "74"],
+    ];
+    for (const [judgeName, score] of judgeScores) {
+      await page.getByLabel(judgeName).fill(score);
+    }
+    await expect(page.locator("body")).toContainText(
+      "Total combiné selon les règles multijuges"
+    );
+    await expect(page.locator("body")).toContainText("216");
+    await page.getByRole("button", { name: "Enregistrer le score" }).click();
 
     page.once("dialog", (dialog) => dialog.accept());
     await page

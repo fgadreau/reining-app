@@ -277,6 +277,138 @@ grant execute on function public.save_show_score_announcer_live_session(
   bigint
 ) to authenticated;
 
+create or replace function public.activate_show_score_announcer_live(
+  target_class_id uuid
+)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_show_id uuid;
+  target_arena_key text;
+  target_live_status text;
+begin
+  select
+    class_record.show_id,
+    coalesce(nullif(lower(trim(class_record.arena)), ''), '__default__'),
+    coalesce(
+      publication.planned_live_status,
+      case
+        when publication.status in (
+          'live',
+          'live_no_score',
+          'live_scoring',
+          'live_finished'
+        ) then publication.status
+        else 'live_scoring'
+      end
+    )
+  into
+    target_show_id,
+    target_arena_key,
+    target_live_status
+  from public.classes class_record
+  join public.shows show_record on show_record.id = class_record.show_id
+  join public.show_score_class_setups setup
+    on setup.class_id = class_record.id
+  left join public.show_score_publication_states publication
+    on publication.class_id = class_record.id
+  where class_record.id = target_class_id
+    and setup.live_data_source = 'announcer'
+    and (
+      public.is_platform_admin()
+      or public.is_org_member(
+        show_record.organization_id,
+        array['admin', 'secretary', 'announcer']
+      )
+      or public.has_show_role(
+        show_record.id,
+        array['organizer', 'secretary', 'announcer']
+      )
+    );
+
+  if not found then
+    raise exception 'Insufficient permissions or inactive announcer source';
+  end if;
+
+  if target_live_status not in (
+    'live',
+    'live_no_score',
+    'live_scoring',
+    'live_finished'
+  ) then
+    return 'hidden';
+  end if;
+
+  update public.shows
+  set status = 'open'
+  where id = target_show_id
+    and status <> 'open';
+
+  update public.classes
+  set is_public = true
+  where id = target_class_id;
+
+  update public.show_score_publication_states other_publication
+  set
+    status = 'hidden',
+    published_at = null,
+    published_by = null
+  from public.classes other_class
+  where other_class.id = other_publication.class_id
+    and other_class.show_id = target_show_id
+    and other_class.id <> target_class_id
+    and coalesce(
+      nullif(lower(trim(other_class.arena)), ''),
+      '__default__'
+    ) = target_arena_key
+    and other_publication.status in (
+      'live',
+      'live_no_score',
+      'live_scoring',
+      'live_finished'
+    );
+
+  update public.show_score_paid_warmups
+  set is_public_live = false
+  where show_id = target_show_id
+    and coalesce(
+      nullif(lower(trim(arena)), ''),
+      '__default__'
+    ) = target_arena_key
+    and is_public_live = true;
+
+  insert into public.show_score_publication_states (
+    class_id,
+    status,
+    planned_live_status,
+    published_at,
+    published_by
+  )
+  values (
+    target_class_id,
+    target_live_status,
+    target_live_status,
+    null,
+    null
+  )
+  on conflict (class_id) do update
+  set
+    status = excluded.status,
+    published_at = null,
+    published_by = null;
+
+  return target_live_status;
+end;
+$$;
+
+revoke all on function public.activate_show_score_announcer_live(uuid)
+  from public;
+grant execute on function public.activate_show_score_announcer_live(uuid)
+  to authenticated;
+
 create or replace function public.touch_show_score_announcer_live_session()
 returns trigger
 language plpgsql

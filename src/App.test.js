@@ -51,8 +51,10 @@ import {
 } from "./features/live/liveDataSource";
 import {
   ANNOUNCER_RUN_STATUSES,
+  buildAnnouncerJudgeScoreResult,
   buildInitialAnnouncerLiveSession,
   completeAnnouncerLiveSession,
+  getAnnouncerLiveActivationStatus,
   getPendingAnnouncerReviews,
   saveAnnouncerRunResult,
   startAnnouncerDrag,
@@ -570,6 +572,98 @@ test("runs the announcer fallback without overwriting the scribe snapshot", () =
   expect(completed.session.completedAt).toBe("2026-07-20T12:12:00.000Z");
   expect(completed.session.runs[0].resultSource).toBe("scribe_snapshot");
   expect(completed.session.runs[1].history).toHaveLength(2);
+});
+
+test("combines announcer scores entered per judge with the existing rules", () => {
+  const judges = [
+    { id: "judge-1", name: "Juge A", order: 1 },
+    { id: "judge-2", name: "Juge B", order: 2 },
+  ];
+  const twoJudgeResult = buildAnnouncerJudgeScoreResult({
+    judges,
+    pattern: "2",
+    judgeScores: [
+      { judgeId: "judge-1", scoreTotal: "70" },
+      { judgeId: "judge-2", scoreTotal: "66" },
+    ],
+  });
+
+  expect(twoJudgeResult).toMatchObject({
+    scoreTotal: "136",
+    isComplete: true,
+    isSupported: true,
+  });
+  expect(twoJudgeResult.judgeScores).toEqual([
+    { judgeId: "judge-1", judgeName: "Juge A", scoreTotal: "70" },
+    { judgeId: "judge-2", judgeName: "Juge B", scoreTotal: "66" },
+  ]);
+
+  const fiveJudgeResult = buildAnnouncerJudgeScoreResult({
+    judges: [
+      { id: "judge-1", name: "Juge 1" },
+      { id: "judge-2", name: "Juge 2" },
+      { id: "judge-3", name: "Juge 3" },
+      { id: "judge-4", name: "Juge 4" },
+      { id: "judge-5", name: "Juge 5" },
+    ],
+    pattern: "2",
+    judgeScores: ["68", "69", "70", "71", "72"].map(
+      (scoreTotal, index) => ({
+        judgeId: `judge-${index + 1}`,
+        scoreTotal,
+      })
+    ),
+  });
+
+  expect(fiveJudgeResult.scoreTotal).toBe("210");
+  expect(fiveJudgeResult.isComplete).toBe(true);
+});
+
+test("stores announcer judge scores and activates only the planned public live", () => {
+  const session = buildInitialAnnouncerLiveSession({
+    classId: "block-multi",
+    setupRuns: [{ id: "run-1", draw: 1 }],
+  });
+  const started = startAnnouncerRun(
+    session,
+    "run-1",
+    new Date("2026-07-20T12:00:00.000Z")
+  );
+  const saved = saveAnnouncerRunResult(
+    started,
+    "run-1",
+    {
+      status: ANNOUNCER_RUN_STATUSES.SCORED,
+      scoreTotal: "140",
+      judgeScores: [
+        { judgeId: "judge-1", judgeName: "Juge A", scoreTotal: "70" },
+        { judgeId: "judge-2", judgeName: "Juge B", scoreTotal: "70" },
+      ],
+    },
+    { now: new Date("2026-07-20T12:01:00.000Z") }
+  );
+
+  expect(saved.runs[0]).toMatchObject({
+    scoreTotal: "140",
+    judgeScores: [
+      { judgeId: "judge-1", judgeName: "Juge A", scoreTotal: "70" },
+      { judgeId: "judge-2", judgeName: "Juge B", scoreTotal: "70" },
+    ],
+  });
+  expect(
+    getAnnouncerLiveActivationStatus({
+      session: started,
+      publicationStatus: PUBLICATION_STATUSES.HIDDEN,
+      plannedLiveStatus: PUBLICATION_STATUSES.LIVE_SCORING,
+    })
+  ).toBe(PUBLICATION_STATUSES.LIVE_SCORING);
+  expect(
+    getAnnouncerLiveActivationStatus({
+      session: started,
+      publicationStatus: PUBLICATION_STATUSES.LIVE_SCORING,
+      plannedLiveStatus: PUBLICATION_STATUSES.LIVE_SCORING,
+    })
+  ).toBeNull();
 });
 
 test("builds a unique classified-rider call list with cutoff ties", () => {

@@ -678,6 +678,9 @@ export const translations = {
         manualLiveProvisional:
           "Ces données alimentent le live, mais restent provisoires et ne remplacent jamais la feuille du scribe.",
         manualLiveTitle: "Contrôle live par l’annonceur",
+        combinedJudgeTotal: "Total combiné selon les règles multijuges",
+        combinedJudgeUnsupported:
+          "Ce type de classe ne permet pas encore de calculer automatiquement un total multijuge.",
         minimalDisplay: "Affichage minimal · ordre seulement",
         minimalDisplayConfirm:
           "Activer l’affichage minimal? Le live public, la TV et l’overlay masqueront les identités et les pointages jusqu’à sa désactivation.",
@@ -1238,7 +1241,7 @@ export const translations = {
         lockedActionMessage:
           "{{action}} est bloqué parce que le scoring de ce bloc a déjà commencé.",
         liveDataSource: "Source des données live",
-        liveDataSourceAnnouncer: "Annonceur · scores totaux provisoires",
+        liveDataSourceAnnouncer: "Annonceur · pointages par juge provisoires",
         liveDataSourceEmergencyConfirm:
           "Le live de ce bloc a déjà commencé. Confirmer le changement manuel de source? Les données de l’autre source ne seront ni effacées ni transférées automatiquement.",
         liveDataSourceHelp:
@@ -2490,6 +2493,9 @@ export const translations = {
         manualLiveProvisional:
           "This data feeds live displays but remains provisional and never replaces the scribe sheet.",
         manualLiveTitle: "Announcer live control",
+        combinedJudgeTotal: "Combined total using multi-judge rules",
+        combinedJudgeUnsupported:
+          "This class type does not yet support an automatic combined multi-judge total.",
         minimalDisplay: "Minimal display · order only",
         minimalDisplayConfirm:
           "Enable minimal display? Public live, TV, and the overlay will hide identities and scores until it is disabled.",
@@ -3049,7 +3055,7 @@ export const translations = {
         lockedActionMessage:
           "{{action}} is locked because scoring for this block has already started.",
         liveDataSource: "Live data source",
-        liveDataSourceAnnouncer: "Announcer · provisional total scores",
+        liveDataSourceAnnouncer: "Announcer · provisional scores by judge",
         liveDataSourceEmergencyConfirm:
           "This block’s live feed has already started. Confirm the manual source change? Data from the other source will not be deleted or transferred automatically.",
         liveDataSourceHelp:

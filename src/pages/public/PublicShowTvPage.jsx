@@ -490,7 +490,12 @@ function formatRun(run, { showScore = true } = {}) {
     type: "run",
     fr: run.rider || translate("fr", "public.results.riderFallback"),
     en: run.rider ? "" : translate("en", "public.results.riderFallback"),
-    horse: [run.horse, run.owner].filter(Boolean).join(" · "),
+    horse: [
+      run.horse,
+      run.owner ? `Propriétaire / Owner: ${run.owner}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · "),
     meta: [draw, back].filter(Boolean).join(" · "),
     score,
   };

@@ -41,6 +41,7 @@ import {
   normalizeLiveDisplayMode,
   resolveLiveScoringSession,
 } from "./liveDataSource";
+import { normalizeClassJudges } from "../classes/classJudges";
 
 const ANNOUNCER_CLASS_REALTIME_TABLES = [
   "show_score_scoring_sessions",
@@ -304,6 +305,12 @@ export function buildAnnouncerClassView(classData) {
           null;
 
   const publicationStatus = classData.publication?.status || "hidden";
+  const plannedLiveStatus =
+    classData.publication?.plannedLiveStatus || publicationStatus;
+  const judges = normalizeClassJudges({
+    judges: classData.setup?.judges,
+    judgeName: classData.setup?.judgeName || classItem?.judgeName,
+  });
 
   if (isScheduleOnly) {
     return {
@@ -315,6 +322,7 @@ export function buildAnnouncerClassView(classData) {
       headers,
       status: classData.status,
       publicationStatus,
+      plannedLiveStatus,
       publicationStatusLabel: getPublicationStatusLabel(publicationStatus),
       liveUpdatedAt: classData.setup?.updatedAt || null,
       runCount: Number.parseInt(scheduleDetails.participantCount, 10) || 0,
@@ -396,7 +404,11 @@ export function buildAnnouncerClassView(classData) {
     headers,
     status: classData.status,
     publicationStatus,
+    plannedLiveStatus,
     publicationStatusLabel: getPublicationStatusLabel(publicationStatus),
+    judges,
+    patternValue: pattern,
+    customPattern,
     liveDataSource: resolvedLiveSession.source,
     liveDisplayMode: normalizeLiveDisplayMode(
       classData.setup?.liveDisplayMode

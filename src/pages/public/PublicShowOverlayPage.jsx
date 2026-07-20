@@ -494,7 +494,12 @@ function formatOverlayRun(run, t, options = {}) {
   return {
     meta: [draw, backNumber].filter(Boolean).join(" · "),
     primary: rider,
-    secondary: [horse, owner].filter(Boolean).join(" · "),
+    secondary: [
+      horse,
+      owner ? `${t("public.results.owner")}: ${owner}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · "),
     score: options.score == null ? "" : String(options.score).trim(),
   };
 }
