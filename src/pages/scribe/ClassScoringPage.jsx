@@ -2747,7 +2747,6 @@ function SetApprovalModal({
               {t("management.scoring.setApprovalTitle", {
                 set: setRange.setNumber,
               })}
-              {assignedJudgeName ? ` · ${assignedJudgeName}` : ""}
             </h2>
             <div style={helperTextStyle}>
               {t("management.scoring.setApprovalSummary", {
@@ -2779,22 +2778,20 @@ function SetApprovalModal({
                 <th style={setReviewHeaderStyle}>
                   {t("public.results.backNumber")}
                 </th>
-                <th style={setReviewHeaderStyle}>
-                  {t("public.results.rider")}
-                </th>
-                <th style={setReviewHeaderStyle}>
-                  {t("public.results.horse")}
-                </th>
                 {headers.map((header) => (
-                  <th key={header} style={setReviewHeaderStyle}>
+                  <th key={header} style={setReviewManeuverHeaderStyle}>
                     {header}
+                    <span style={setReviewManeuverLegendStyle}>
+                      {t("management.scoring.setApprovalPenaltyShort")} /{" "}
+                      {t("management.scoring.setApprovalManeuverShort")}
+                    </span>
                   </th>
                 ))}
                 <th style={setReviewHeaderStyle}>
-                  {t("public.results.totalPenalties")}
+                  {t("management.scoring.setApprovalTotalPenalties")}
                 </th>
                 <th style={setReviewHeaderStyle}>
-                  {t("public.results.score")}
+                  {t("management.scoring.setApprovalTotal")}
                 </th>
                 <th style={setReviewHeaderStyle}>
                   {t("management.scoring.setApprovalNote")}
@@ -2806,12 +2803,6 @@ function SetApprovalModal({
                 <tr key={run.id || run.draw}>
                   <td style={setReviewCellStyle}>{run.draw || "—"}</td>
                   <td style={setReviewCellStyle}>{run.backNumber || "—"}</td>
-                  <td style={setReviewParticipantCellStyle}>
-                    {run.rider || "—"}
-                  </td>
-                  <td style={setReviewParticipantCellStyle}>
-                    {run.horse || "—"}
-                  </td>
                   {headers.map((header, maneuverIndex) => {
                     const score = formatScoreValue(
                       run.scores?.[maneuverIndex]
@@ -2826,12 +2817,14 @@ function SetApprovalModal({
                         key={`${run.id || run.draw}-${header}-${maneuverIndex}`}
                         style={setReviewManeuverCellStyle}
                       >
-                        <strong>{score || "—"}</strong>
-                        {penalty && (
-                          <span style={setReviewPenaltyStyle}>
-                            P: {penalty}
-                          </span>
-                        )}
+                        <div style={setReviewManeuverBoxStyle}>
+                          <div style={setReviewPenaltyBoxStyle}>
+                            {penalty || "\u00a0"}
+                          </div>
+                          <div style={setReviewManeuverScoreBoxStyle}>
+                            {score || "—"}
+                          </div>
+                        </div>
                       </td>
                     );
                   })}
@@ -3212,37 +3205,66 @@ const setReviewTableStyle = {
 };
 
 const setReviewHeaderStyle = {
-  padding: "8px 9px",
+  padding: "6px 7px",
   borderBottom: "1px solid #cbd5e1",
   background: "#f1f5f9",
-  textAlign: "left",
+  textAlign: "center",
   whiteSpace: "nowrap",
+};
+
+const setReviewManeuverHeaderStyle = {
+  ...setReviewHeaderStyle,
+  minWidth: 66,
+};
+
+const setReviewManeuverLegendStyle = {
+  display: "block",
+  marginTop: 2,
+  color: "#64748b",
+  fontSize: 9,
+  fontWeight: 700,
 };
 
 const setReviewCellStyle = {
-  padding: "8px 9px",
+  padding: "5px 7px",
   borderBottom: "1px solid #e2e8f0",
   whiteSpace: "nowrap",
+  textAlign: "center",
   verticalAlign: "top",
-};
-
-const setReviewParticipantCellStyle = {
-  ...setReviewCellStyle,
-  minWidth: 140,
 };
 
 const setReviewManeuverCellStyle = {
   ...setReviewCellStyle,
-  minWidth: 64,
-  textAlign: "center",
+  minWidth: 66,
+  padding: 3,
 };
 
-const setReviewPenaltyStyle = {
-  display: "block",
-  marginTop: 2,
+const setReviewManeuverBoxStyle = {
+  display: "grid",
+  border: "1px solid #94a3b8",
+  borderRadius: 3,
+  overflow: "hidden",
+  background: "#fff",
+};
+
+const setReviewPenaltyBoxStyle = {
+  minHeight: 20,
+  padding: "2px 4px",
+  borderBottom: "1px solid #94a3b8",
+  background: "#fff7ed",
   color: "#b45309",
-  fontSize: 11,
+  fontSize: 12,
   fontWeight: 800,
+  lineHeight: 1.25,
+};
+
+const setReviewManeuverScoreBoxStyle = {
+  minHeight: 22,
+  padding: "3px 4px",
+  color: "#111827",
+  fontSize: 14,
+  fontWeight: 900,
+  lineHeight: 1.2,
 };
 
 const setReviewScoreCellStyle = {
@@ -3253,8 +3275,9 @@ const setReviewScoreCellStyle = {
 
 const setReviewNoteCellStyle = {
   ...setReviewCellStyle,
-  minWidth: 180,
+  minWidth: 150,
   whiteSpace: "normal",
+  textAlign: "left",
   color: "#475569",
 };
 
