@@ -436,11 +436,65 @@ test.describe("robot de show local", () => {
       )
       .toEqual(["Argent", "Bronze"]);
 
+    await page.evaluate((classId) => {
+      const publications = JSON.parse(
+        window.localStorage.getItem("reining_publication_states_v1") || "{}"
+      );
+      publications[classId] = {
+        ...publications[classId],
+        status: "hidden",
+      };
+      window.localStorage.setItem(
+        "reining_publication_states_v1",
+        JSON.stringify(publications)
+      );
+    }, CLASS_ID);
+
     await navigateSpa(
       page,
       `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/tv`
     );
+    const sponsorRail = page.locator('[data-sponsor-layout="expanded"]');
+    const sponsorTitle = sponsorRail.locator("[data-sponsor-title]");
+    const sponsorLevel = sponsorRail.locator("[data-sponsor-level]");
+
+    await expect(sponsorRail).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Robot Derby local" })
+    ).toBeVisible();
     await expect(page.locator("body")).toContainText("Argent");
+    await expect(sponsorLevel).toHaveText("Argent");
+    await expect
+      .poll(async () => {
+        const titleBox = await sponsorTitle.boundingBox();
+        const levelBox = await sponsorLevel.boundingBox();
+        const [titleFontSize, levelFontSize, titleColor, levelColor] =
+          await Promise.all([
+            sponsorTitle.evaluate((element) =>
+              Number.parseFloat(window.getComputedStyle(element).fontSize)
+            ),
+            sponsorLevel.evaluate((element) =>
+              Number.parseFloat(window.getComputedStyle(element).fontSize)
+            ),
+            sponsorTitle.evaluate(
+              (element) => window.getComputedStyle(element).color
+            ),
+            sponsorLevel.evaluate(
+              (element) => window.getComputedStyle(element).color
+            ),
+          ]);
+
+        return {
+          isBelow: levelBox.y > titleBox.y,
+          isLarger: levelFontSize > titleFontSize,
+          hasDifferentColor: levelColor !== titleColor,
+        };
+      })
+      .toEqual({
+        isBelow: true,
+        isLarger: true,
+        hasDifferentColor: true,
+      });
     await expect(page.locator("body")).toContainText("Bronze", {
       timeout: 12000,
     });

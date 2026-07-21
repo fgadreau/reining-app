@@ -166,7 +166,10 @@ function PublicShowTvPage() {
         <WelcomePanel association={association} show={show} />
       )}
 
-      <SponsorRail slide={visibleSponsorSlide} />
+      <SponsorRail
+        slide={visibleSponsorSlide}
+        expanded={displayMode === "welcome"}
+      />
     </main>
   );
 }
@@ -286,6 +289,10 @@ function PausePanel({ association, show }) {
 }
 
 function WelcomePanel({ association, show }) {
+  const showName = show?.name || association?.name || "";
+  const associationName =
+    association?.name && association.name !== showName ? association.name : "";
+
   return (
     <section style={centerPanelStyle}>
       <div style={centerLogoWrapStyle}>
@@ -294,8 +301,10 @@ function WelcomePanel({ association, show }) {
       <div style={sectionKickerStyle}>
         <BilingualText fr="Bienvenue à" en="Welcome to" />
       </div>
-      <h1 style={centerTitleStyle}>{association?.name || show?.name || ""}</h1>
-      <h2 style={centerSubtitleStyle}>{show?.name || ""}</h2>
+      <h1 style={centerTitleStyle}>{showName}</h1>
+      {associationName ? (
+        <h2 style={centerSubtitleStyle}>{associationName}</h2>
+      ) : null}
       <div style={centerMetaStyle}>
         {[show?.venue, show?.location].filter(Boolean).join(" · ")}
       </div>
@@ -349,20 +358,29 @@ function ScoreBlock({ participant, compact }) {
   );
 }
 
-function SponsorRail({ slide }) {
+function SponsorRail({ slide, expanded = false }) {
   const sponsors = Array.isArray(slide?.sponsors) ? slide.sponsors : [];
   const hasSponsors = sponsors.length > 0;
 
   return (
-    <footer style={sponsorRailStyle}>
-      <div style={sponsorTitleStyle}>
-        <BilingualText fr="Commanditaires" en="Sponsors" />
-        {slide?.groupName ? ` · ${slide.groupName}` : ""}
+    <footer
+      style={sponsorRailStyle(expanded)}
+      data-sponsor-layout={expanded ? "expanded" : "standard"}
+    >
+      <div style={sponsorHeadingStyle}>
+        <div style={sponsorTitleStyle} data-sponsor-title>
+          <BilingualText fr="Commanditaires" en="Sponsors" />
+        </div>
+        {slide?.groupName ? (
+          <div style={sponsorLevelStyle(expanded)} data-sponsor-level>
+            {slide.groupName}
+          </div>
+        ) : null}
       </div>
       {hasSponsors ? (
         <div style={sponsorGridStyle}>
           {sponsors.map((sponsor) => (
-            <div key={sponsor.id} style={sponsorTileStyle}>
+            <div key={sponsor.id} style={sponsorTileStyle(expanded)}>
               <img
                 src={sponsor.logoDataUrl}
                 alt={sponsor.name || "Sponsor"}
@@ -993,28 +1011,48 @@ const welcomeNoticeStyle = {
   fontWeight: 800,
 };
 
-const sponsorRailStyle = {
+const sponsorRailStyle = (expanded) => ({
   position: "relative",
   zIndex: 1,
-  minHeight: 104,
+  minHeight: expanded ? 164 : 104,
   borderRadius: 8,
   border: "1px solid rgba(244, 217, 140, 0.3)",
   background: "rgba(15, 23, 42, 0.58)",
-  padding: 14,
+  padding: expanded ? 18 : 14,
   display: "grid",
   gridTemplateColumns: "minmax(286px, 0.24fr) minmax(0, 1fr)",
   gap: 14,
   alignItems: "center",
   overflow: "hidden",
+});
+
+const sponsorHeadingStyle = {
+  minWidth: 0,
+  display: "grid",
+  gap: 6,
+  alignContent: "center",
 };
 
 const sponsorTitleStyle = {
   color: "#f4d98c",
-  fontSize: 18,
-  fontWeight: 950,
+  fontSize: 16,
+  fontWeight: 900,
   textTransform: "uppercase",
   whiteSpace: "nowrap",
 };
+
+const sponsorLevelStyle = (expanded) => ({
+  color: "#5eead4",
+  fontFamily: 'Georgia, "Times New Roman", serif',
+  fontSize: expanded
+    ? "clamp(32px, 2.8vw, 46px)"
+    : "clamp(25px, 2vw, 34px)",
+  lineHeight: 1,
+  fontWeight: 800,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+});
 
 const sponsorGridStyle = {
   display: "grid",
@@ -1022,15 +1060,15 @@ const sponsorGridStyle = {
   gap: 12,
 };
 
-const sponsorTileStyle = {
-  height: 92,
+const sponsorTileStyle = (expanded) => ({
+  height: expanded ? 132 : 92,
   borderRadius: 8,
   background: "#ffffff",
-  padding: 12,
+  padding: expanded ? 16 : 12,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-};
+});
 
 const sponsorImageStyle = {
   maxWidth: "100%",
