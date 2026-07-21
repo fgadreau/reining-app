@@ -1053,10 +1053,10 @@ export async function getPublicAssociationRepository(associationId) {
 
 export async function getPublicShowRepository(showId) {
   const supabase = getSupabaseClient();
+  const localShow = getShowById(showId) || null;
 
   if (!supabase) {
-    const show = getShowById(showId) || null;
-    return isShowPubliclyActive(show) ? show : null;
+    return isShowPubliclyActive(localShow) ? localShow : null;
   }
 
   try {
@@ -1067,12 +1067,41 @@ export async function getPublicShowRepository(showId) {
       .maybeSingle();
 
     if (error) throw error;
-    const show = data ? toShow(data) : null;
-    return isShowPubliclyActive(show) ? show : null;
+    if (data) {
+      const show = toShow(data);
+      return isShowPubliclyActive(show) ? show : null;
+    }
+
+    const publicTvShow = await getPublicTvShowContext(showId, supabase);
+    if (isShowPubliclyActive(publicTvShow)) {
+      return publicTvShow;
+    }
+
+    return isShowPubliclyActive(localShow) ? localShow : null;
   } catch (error) {
     console.error("Erreur chargement show public Supabase:", error);
-    return null;
+    return isShowPubliclyActive(localShow) ? localShow : null;
   }
+}
+
+async function getPublicTvShowContext(showId, supabase) {
+  const { data, error } = await supabase.rpc("get_public_tv_show_context", {
+    target_show_id: showId,
+  });
+
+  if (error) {
+    const errorText = [error.message, error.details, error.hint]
+      .filter(Boolean)
+      .join(" ");
+
+    if (/get_public_tv_show_context|schema cache/i.test(errorText)) {
+      return null;
+    }
+
+    throw error;
+  }
+
+  return data ? toShow(data) : null;
 }
 
 export async function getPublicShowsByAssociationRepository(associationId) {
