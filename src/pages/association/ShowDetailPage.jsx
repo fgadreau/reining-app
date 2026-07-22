@@ -302,6 +302,7 @@ function ShowDetailPage() {
     };
 
     setIsSaving(true);
+    let hasUploadedTvVideo = false;
     try {
       await saveDayRepository(nextDay);
       setDays((current) =>
@@ -575,6 +576,7 @@ function ShowDetailPage() {
             onProgress: setTvVideoUploadProgress,
           })
         : null;
+      hasUploadedTvVideo = Boolean(uploadedVideo);
       const nextShow = {
         ...show,
         associationId,
@@ -662,9 +664,13 @@ function ShowDetailPage() {
     } catch (error) {
       console.error("Erreur sauvegarde réglages livestream:", error);
       setLivestreamMessage(
-        t("common.localFirstSyncError", {
-          message: error?.message || "",
-        })
+        tvVideoFileDraft && !hasUploadedTvVideo
+          ? t("management.shows.tvDisplayVideoUploadFailed", {
+              message: error?.message || "",
+            })
+          : t("common.localFirstSyncError", {
+              message: error?.message || "",
+            })
       );
       setLivestreamMessageTone("warn");
     } finally {
@@ -712,10 +718,17 @@ function ShowDetailPage() {
     }
   };
 
-  const copyTvDisplayLink = async (arena = "") => {
+  const copyTvDisplayLink = async (arena = "", mode = "") => {
     const normalizedArena = normalizeArenaName(arena);
-    const tvUrl = getAbsoluteTvDisplayUrl(associationId, showId, normalizedArena);
-    const copyKey = `tv:${getOverlayCopyKey(normalizedArena)}`;
+    const tvUrl = getAbsoluteTvDisplayUrl(
+      associationId,
+      showId,
+      normalizedArena,
+      mode
+    );
+    const copyKey = `tv:${
+      mode === "competition" ? "competition:" : ""
+    }${getOverlayCopyKey(normalizedArena)}`;
 
     try {
       if (navigator.clipboard?.writeText) {
@@ -1276,7 +1289,8 @@ function ShowDetailPage() {
                           to={getTvDisplayPath(
                             associationId,
                             showId,
-                            competitionTvArena
+                            competitionTvArena,
+                            "competition"
                           )}
                           style={competitionPrimaryLinkStyle}
                           target="_blank"
@@ -1286,11 +1300,18 @@ function ShowDetailPage() {
                         </Link>
                         <button
                           type="button"
-                          onClick={() => copyTvDisplayLink(competitionTvArena)}
+                          onClick={() =>
+                            copyTvDisplayLink(
+                              competitionTvArena,
+                              "competition"
+                            )
+                          }
                           style={competitionSecondaryButtonStyle}
                         >
                           {copiedOverlayKey ===
-                          `tv:${getOverlayCopyKey(competitionTvArena)}`
+                          `tv:competition:${getOverlayCopyKey(
+                            competitionTvArena
+                          )}`
                             ? t("common.linkCopied")
                             : t("management.shows.copyTvDisplayCompetition")}
                         </button>
@@ -2808,13 +2829,16 @@ function getOverlayDemoPath(associationId, showId) {
   return `${path}?${params.toString()}`;
 }
 
-function getTvDisplayPath(associationId, showId, arena = "") {
+function getTvDisplayPath(associationId, showId, arena = "", mode = "") {
   const path = `/public/associations/${associationId}/shows/${showId}/tv`;
   const normalizedArena = normalizeArenaName(arena);
+  const normalizedMode = String(mode || "").trim().toLowerCase();
 
-  if (!normalizedArena) return path;
+  if (!normalizedArena && !normalizedMode) return path;
 
-  const params = new URLSearchParams({ arena: normalizedArena });
+  const params = new URLSearchParams();
+  if (normalizedMode) params.set("mode", normalizedMode);
+  if (normalizedArena) params.set("arena", normalizedArena);
   return `${path}?${params.toString()}`;
 }
 
@@ -2838,8 +2862,13 @@ function getAbsoluteOverlayDemoUrl(associationId, showId) {
   return `${origin}${path}`;
 }
 
-function getAbsoluteTvDisplayUrl(associationId, showId, arena = "") {
-  const path = getTvDisplayPath(associationId, showId, arena);
+function getAbsoluteTvDisplayUrl(
+  associationId,
+  showId,
+  arena = "",
+  mode = ""
+) {
+  const path = getTvDisplayPath(associationId, showId, arena, mode);
   const origin =
     typeof window === "undefined" || !window.location?.origin
       ? ""

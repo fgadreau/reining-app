@@ -336,7 +336,7 @@ test.describe("robot de show local", () => {
     await seedCompetitionVideoShow(page);
 
     await page.goto(
-      `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/tv?arena=Manege%20Robot`
+      `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/tv?mode=competition&arena=Manege%20Robot`
     );
 
     await expect(page.locator('[data-tv-layout="competition-video"]')).toBeVisible();
@@ -351,6 +351,15 @@ test.describe("robot de show local", () => {
     await expect(page.locator("[data-tv-live-strip]")).toContainText(
       "Cavalier 3"
     );
+    await expect(page.locator("[data-sponsor-layout]")).toHaveCount(0);
+
+    await page.goto(
+      `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/tv?mode=competition&arena=Autre`
+    );
+    await expect(
+      page.locator('[data-tv-layout="competition-loading"]')
+    ).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("Live en pause");
     await expect(page.locator("[data-sponsor-layout]")).toHaveCount(0);
 
     await page.goto(
@@ -383,6 +392,11 @@ test.describe("robot de show local", () => {
     );
     await expect(competition).toContainText("Manège de compétition seulement");
     await expect(competition).toContainText("Manege Robot");
+    await expect(
+      competition.getByRole("link", {
+        name: "Ouvrir l’écran de compétition",
+      })
+    ).toHaveAttribute("href", /\?mode=competition&arena=Manege\+Robot$/);
     await expect(general.locator("select option")).toHaveText([
       "Manege Annexe",
     ]);

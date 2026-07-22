@@ -31,6 +31,10 @@ function PublicShowTvPage() {
     () => getArenaFromSearch(location.search),
     [location.search]
   );
+  const isCompetitionDisplay = useMemo(
+    () => getDisplayModeFromSearch(location.search) === "competition",
+    [location.search]
+  );
   const sponsorGroups = getAssociationSponsorGroups(association);
   const sponsorSlides = buildSponsorLevelSlides(
     sponsorGroups,
@@ -43,15 +47,17 @@ function PublicShowTvPage() {
     [publicView, selectedArena]
   );
   const tvVideoUrl = getTvDisplayVideoPublicUrl(show?.tvDisplayVideoPath);
-  const isCompetitionVideoDisplay = Boolean(
+  const isCompetitionVideoReady = Boolean(
     tvVideoUrl &&
       selectedArena &&
       normalizeArenaName(show?.tvDisplayVideoArena).toLowerCase() ===
         normalizeArenaName(selectedArena).toLowerCase()
   );
   const publicClassIdsKey = (publicView?.classIds || []).join("|");
-  const displayMode = isCompetitionVideoDisplay
-    ? "competition-video"
+  const displayMode = isCompetitionDisplay
+    ? isCompetitionVideoReady
+      ? "competition-video"
+      : "competition-loading"
     : show?.isTvDisplayPaused
     ? "paused"
     : liveItem
@@ -147,9 +153,9 @@ function PublicShowTvPage() {
   }, [sponsorSlides.length]);
 
   return (
-    <main style={isCompetitionVideoDisplay ? competitionPageStyle : pageStyle}>
+    <main style={isCompetitionDisplay ? competitionPageStyle : pageStyle}>
       <div style={backgroundGlowStyle} />
-      {!isCompetitionVideoDisplay ? (
+      {!isCompetitionDisplay ? (
         <header style={headerStyle}>
           <div style={brandStyle}>
             <AssociationLogo association={association} size={74} />
@@ -182,6 +188,8 @@ function PublicShowTvPage() {
           selectedArena={selectedArena}
           show={show}
         />
+      ) : displayMode === "competition-loading" ? (
+        <CompetitionLoadingPanel selectedArena={selectedArena} />
       ) : displayMode === "paused" ? (
         <PausePanel association={association} show={show} />
       ) : displayMode === "live" ? (
@@ -190,13 +198,43 @@ function PublicShowTvPage() {
         <WelcomePanel association={association} show={show} />
       )}
 
-      {!isCompetitionVideoDisplay ? (
+      {!isCompetitionDisplay ? (
         <SponsorRail
           slide={visibleSponsorSlide}
           expanded={displayMode === "welcome"}
         />
       ) : null}
     </main>
+  );
+}
+
+function CompetitionLoadingPanel({ selectedArena }) {
+  return (
+    <section
+      style={competitionLoadingStyle}
+      data-tv-layout="competition-loading"
+    >
+      <div style={competitionLoadingEyebrowStyle}>
+        <BilingualText
+          fr="Écran du manège de compétition"
+          en="Competition arena screen"
+        />
+      </div>
+      <div style={competitionLoadingTitleStyle}>
+        <BilingualText fr="Connexion en cours…" en="Connecting…" />
+      </div>
+      <div style={competitionLoadingMessageStyle}>
+        <BilingualText
+          fr="La vidéo apparaîtra automatiquement dès que sa configuration sera disponible."
+          en="The video will appear automatically as soon as its configuration is available."
+        />
+      </div>
+      {selectedArena ? (
+        <div style={competitionLoadingArenaStyle}>
+          <BilingualText fr="Manège" en="Arena" /> · {selectedArena}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -807,6 +845,11 @@ function getArenaFromSearch(search) {
   return normalizeArenaName(params.get("arena") || "");
 }
 
+function getDisplayModeFromSearch(search) {
+  const params = new URLSearchParams(search || "");
+  return String(params.get("mode") || "").trim().toLowerCase();
+}
+
 function normalizeArenaName(value) {
   return String(value || "").trim();
 }
@@ -846,6 +889,54 @@ const competitionVideoLayoutStyle = {
   display: "grid",
   gridTemplateRows: "minmax(0, 1fr) auto",
   background: "#000",
+};
+
+const competitionLoadingStyle = {
+  position: "relative",
+  zIndex: 1,
+  width: "100%",
+  height: "100%",
+  boxSizing: "border-box",
+  padding: "clamp(28px, 5vw, 90px)",
+  display: "grid",
+  placeContent: "center",
+  justifyItems: "center",
+  gap: 22,
+  textAlign: "center",
+  background:
+    "radial-gradient(circle at 50% 42%, rgba(13, 148, 136, 0.2), transparent 38%), #000",
+  color: "#fff",
+};
+
+const competitionLoadingEyebrowStyle = {
+  color: "#f4d98c",
+  fontSize: "clamp(17px, 1.5vw, 28px)",
+  fontWeight: 950,
+  textTransform: "uppercase",
+};
+
+const competitionLoadingTitleStyle = {
+  fontSize: "clamp(42px, 6vw, 110px)",
+  fontWeight: 950,
+  lineHeight: 1,
+};
+
+const competitionLoadingMessageStyle = {
+  maxWidth: 1100,
+  color: "#dbeafe",
+  fontSize: "clamp(20px, 2vw, 36px)",
+  fontWeight: 750,
+  lineHeight: 1.35,
+};
+
+const competitionLoadingArenaStyle = {
+  marginTop: 14,
+  padding: "12px 20px",
+  border: "1px solid rgba(94, 234, 212, 0.55)",
+  borderRadius: 999,
+  color: "#5eead4",
+  fontSize: "clamp(17px, 1.4vw, 26px)",
+  fontWeight: 900,
 };
 
 const competitionVideoWrapStyle = {

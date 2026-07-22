@@ -1603,6 +1603,8 @@ export const translations = {
         tvDisplayVideoRemove: "Retirer la vidéo",
         tvDisplayVideoSelected: "Nouvelle vidéo",
         tvDisplayVideoTitle: "Écran du manège de compétition",
+        tvDisplayVideoUploadFailed:
+          "La vidéo n’a pas été téléversée ni enregistrée. {{message}}",
         tvDisplayVideoWillRemove:
           "La vidéo actuelle sera retirée lors de l’enregistrement.",
         openTvDisplayCompetition: "Ouvrir l’écran de compétition",
@@ -3452,6 +3454,8 @@ export const translations = {
         tvDisplayVideoRemove: "Remove video",
         tvDisplayVideoSelected: "New video",
         tvDisplayVideoTitle: "Competition arena screen",
+        tvDisplayVideoUploadFailed:
+          "The video was not uploaded or saved. {{message}}",
         tvDisplayVideoWillRemove:
           "The current video will be removed when you save.",
         openTvDisplayCompetition: "Open competition screen",
