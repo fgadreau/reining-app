@@ -69,9 +69,11 @@ import {
   getAnnouncerLiveActivationStatus,
   getPendingAnnouncerReviews,
   saveAnnouncerRunResult,
+  saveAnnouncerRunResultAndAdvance,
   startAnnouncerDrag,
   startAnnouncerRun,
   stopAnnouncerDrag,
+  stopAnnouncerDragAndAdvance,
 } from "./features/live/announcerLiveSession";
 import {
   getPublicationState,
@@ -781,6 +783,94 @@ test("runs the announcer fallback without overwriting the scribe snapshot", () =
   expect(completed.session.completedAt).toBe("2026-07-20T12:12:00.000Z");
   expect(completed.session.runs[0].resultSource).toBe("scribe_snapshot");
   expect(completed.session.runs[1].history).toHaveLength(2);
+});
+
+test("advances the announcer live automatically after a result but waits for drags", () => {
+  const setupRuns = [
+    { id: "auto-run-1", draw: 1, rider: "Alice" },
+    { id: "auto-run-2", draw: 2, rider: "Bob" },
+    { id: "auto-run-3", draw: 3, rider: "Chloé" },
+  ];
+  const initial = buildInitialAnnouncerLiveSession({
+    classId: "auto-class",
+    setupRuns,
+    now: new Date("2026-07-20T12:00:00.000Z"),
+  });
+  const started = startAnnouncerRun(
+    initial,
+    "auto-run-1",
+    new Date("2026-07-20T12:01:00.000Z")
+  );
+  const advanced = saveAnnouncerRunResultAndAdvance(
+    started,
+    "auto-run-1",
+    { status: ANNOUNCER_RUN_STATUSES.SCORED, scoreTotal: "70" },
+    {
+      nextRunId: "auto-run-2",
+      now: new Date("2026-07-20T12:03:00.000Z"),
+    }
+  );
+
+  expect(advanced.runs[0]).toMatchObject({
+    status: ANNOUNCER_RUN_STATUSES.SCORED,
+    scoreTotal: "70",
+  });
+  expect(advanced.runs[1].status).toBe(ANNOUNCER_RUN_STATUSES.ON_COURSE);
+  expect(advanced.activeManoeuvre).toMatchObject({
+    type: "run",
+    runId: "auto-run-2",
+    draw: 2,
+  });
+
+  const waitingForDrag = saveAnnouncerRunResultAndAdvance(
+    started,
+    "auto-run-1",
+    { status: ANNOUNCER_RUN_STATUSES.SCORED, scoreTotal: "70" },
+    {
+      nextRunId: "auto-run-2",
+      waitForDrag: true,
+      now: new Date("2026-07-20T12:03:00.000Z"),
+    }
+  );
+
+  expect(waitingForDrag.activeManoeuvre).toBeNull();
+  expect(waitingForDrag.runs[1].status).toBe(
+    ANNOUNCER_RUN_STATUSES.PENDING
+  );
+
+  const dragging = startAnnouncerDrag(
+    waitingForDrag,
+    { id: "drag-after-auto-run-1", afterIndex: 0, afterDraw: 1 },
+    new Date("2026-07-20T12:04:00.000Z")
+  );
+  const afterDrag = stopAnnouncerDragAndAdvance(
+    dragging,
+    "auto-run-2",
+    new Date("2026-07-20T12:12:00.000Z")
+  );
+
+  expect(afterDrag.runs[0].dragCompletedAt).toBe(
+    "2026-07-20T12:12:00.000Z"
+  );
+  expect(afterDrag.activeManoeuvre).toMatchObject({
+    type: "run",
+    runId: "auto-run-2",
+  });
+
+  const corrected = saveAnnouncerRunResultAndAdvance(
+    advanced,
+    "auto-run-1",
+    { status: ANNOUNCER_RUN_STATUSES.SCORED, scoreTotal: "71" },
+    {
+      nextRunId: "auto-run-3",
+      now: new Date("2026-07-20T12:13:00.000Z"),
+    }
+  );
+
+  expect(corrected.activeManoeuvre).toMatchObject({
+    runId: "auto-run-2",
+  });
+  expect(corrected.runs[2].status).toBe(ANNOUNCER_RUN_STATUSES.PENDING);
 });
 
 test("combines announcer scores entered per judge with the existing rules", () => {

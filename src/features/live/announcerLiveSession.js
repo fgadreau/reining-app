@@ -409,6 +409,19 @@ export function stopAnnouncerDrag(session, now = new Date()) {
   };
 }
 
+export function stopAnnouncerDragAndAdvance(
+  session,
+  nextRunId,
+  now = new Date()
+) {
+  const normalized = normalizeAnnouncerLiveSession(session);
+  const wasDragging = normalized.activeManoeuvre?.type === "drag";
+  const stopped = stopAnnouncerDrag(normalized, now);
+
+  if (!wasDragging || !nextRunId) return stopped;
+  return startAnnouncerRun(stopped, nextRunId, now);
+}
+
 export function saveAnnouncerRunResult(
   session,
   runId,
@@ -483,6 +496,34 @@ export function saveAnnouncerRunResult(
   return activeRunMatches
     ? { ...next, activeManoeuvre: null }
     : next;
+}
+
+export function saveAnnouncerRunResultAndAdvance(
+  session,
+  runId,
+  result = {},
+  {
+    nextRunId = "",
+    waitForDrag = false,
+    now = new Date(),
+    updatedBy = null,
+  } = {}
+) {
+  const normalized = normalizeAnnouncerLiveSession(session);
+  const targetRun = normalized.runs.find((run) => run.id === runId);
+  const activeRunMatches =
+    Boolean(targetRun) &&
+    normalized.activeManoeuvre?.type !== "drag" &&
+    (normalized.activeManoeuvre?.runId === runId ||
+      String(normalized.activeManoeuvre?.draw ?? "") ===
+        String(targetRun?.draw ?? ""));
+  const saved = saveAnnouncerRunResult(normalized, runId, result, {
+    now,
+    updatedBy,
+  });
+
+  if (!activeRunMatches || waitForDrag || !nextRunId) return saved;
+  return startAnnouncerRun(saved, nextRunId, now);
 }
 
 export function getPendingAnnouncerReviews(session) {

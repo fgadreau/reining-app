@@ -691,8 +691,12 @@ test.describe("robot de show local", () => {
     await expect(page.locator("body")).toContainText("216");
     await page.getByRole("button", { name: "Enregistrer le score" }).click();
     await expect(
-      page.getByRole("button", { name: "Démarrer prochain" })
+      page.getByRole("button", { name: "Entrer le résultat" })
     ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Démarrer prochain" })
+    ).toHaveCount(0);
+    await expect(page.locator("body")).toContainText("Propriétaire: Proprio 4");
     await expect(page.getByRole("button", { name: "Scratch" })).toBeVisible();
 
     page.once("dialog", (dialog) => dialog.accept());

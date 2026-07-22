@@ -39,10 +39,10 @@ import {
   completeAnnouncerLiveSession,
   getAnnouncerLiveActivationStatus,
   reopenAnnouncerLiveSession,
-  saveAnnouncerRunResult,
+  saveAnnouncerRunResultAndAdvance,
   startAnnouncerDrag,
   startAnnouncerRun,
-  stopAnnouncerDrag,
+  stopAnnouncerDragAndAdvance,
 } from "../../features/live/announcerLiveSession";
 import {
   activateAnnouncerLivePublicationRepository,
@@ -1729,11 +1729,24 @@ function AnnouncerManualLiveControls({
     }
 
     save(
-      saveAnnouncerRunResult(
+      saveAnnouncerRunResultAndAdvance(
         session,
         run.id,
         { status: ANNOUNCER_RUN_STATUSES.SCRATCH },
-        { updatedBy }
+        {
+          nextRunId: classView.nextRun?.id,
+          waitForDrag: Boolean(plannedDrag),
+          updatedBy,
+        }
+      )
+    );
+  }
+
+  function handleStopDrag() {
+    save(
+      stopAnnouncerDragAndAdvance(
+        session,
+        classView.nextRun?.id
       )
     );
   }
@@ -1801,7 +1814,7 @@ function AnnouncerManualLiveControls({
             {classView.activeDragItem ? (
               <button
                 type="button"
-                onClick={() => save(stopAnnouncerDrag(session))}
+                onClick={handleStopDrag}
                 style={manualDragButtonStyle}
               >
                 {t("management.announcer.stopDrag")}
@@ -1941,11 +1954,15 @@ function AnnouncerManualLiveControls({
           customPattern={classView.customPattern}
           onClose={() => setEditingRun(null)}
           onSave={(result) => {
-            const nextSession = saveAnnouncerRunResult(
+            const nextSession = saveAnnouncerRunResultAndAdvance(
               session,
               editingRun.id,
               result,
-              { updatedBy }
+              {
+                nextRunId: classView.nextRun?.id,
+                waitForDrag: Boolean(plannedDrag),
+                updatedBy,
+              }
             );
             setEditingRun(null);
             save(nextSession);
