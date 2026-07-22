@@ -135,6 +135,8 @@ async function seedCompetitionVideoShow(page) {
   const show = seed.json["reining_shows_v1"].find(
     (item) => item.id === SHOW_ID
   );
+  const activeRiderName =
+    "Cavalier 3 avec un nom volontairement très long pour le grand écran";
   Object.assign(show, {
     isTvDisplayPaused: true,
     tvDisplayVideoPath: "https://example.test/arena-display.mp4",
@@ -142,6 +144,24 @@ async function seedCompetitionVideoShow(page) {
     tvDisplayVideoSize: 1024 * 1024 * 1024,
     tvDisplayVideoArena: "Manege Robot",
   });
+  seed.json["reining_classes_v1"].find(
+    (item) => item.id === CLASS_ID
+  ).name =
+    "Classe robot 5 juges avec un titre volontairement très long";
+  seed.json["reining_class_setup_v1"][CLASS_ID].runs[2].rider =
+    activeRiderName;
+  seed.json["reining_class_setup_v1"][CLASS_ID].runs[2].owner =
+    "Propriétaire avec une raison sociale volontairement très longue";
+  Object.values(seed.json["showscore_judge_scoring_sessions_v1"]).forEach(
+    (session) => {
+      session.runs[2].rider = activeRiderName;
+      session.runs[2].owner =
+        "Propriétaire avec une raison sociale volontairement très longue";
+    }
+  );
+  seed.json[`reining-scoring-runs-${CLASS_ID}`][2].rider = activeRiderName;
+  seed.json[`reining-scoring-runs-${CLASS_ID}`][2].owner =
+    "Propriétaire avec une raison sociale volontairement très longue";
   seed.json["reining_classes_v1"].push({
     id: "e2e-robot-annexe-class",
     associationId: ASSOCIATION_ID,
@@ -533,6 +553,14 @@ test.describe("robot de show local", () => {
     await expect(page.locator("[data-tv-live-strip]")).toContainText(
       "Cavalier 3"
     );
+    await expect(
+      page.locator('[data-tv-overflow-text="class-name"]')
+    ).toHaveAttribute("data-tv-scrolling", "true");
+    await expect(
+      page
+        .locator('[data-tv-overflow-text="participant-name"]')
+        .filter({ hasText: "Cavalier 3" })
+    ).toHaveAttribute("data-tv-scrolling", "true");
     await expect(page.locator("[data-sponsor-layout]")).toHaveCount(0);
 
     await page.goto(

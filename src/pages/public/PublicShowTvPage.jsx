@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import AssociationLogo from "../../components/AssociationLogo";
 import {
@@ -292,7 +292,12 @@ function CompetitionVideoPanel({ videoUrl, liveItem, selectedArena, show }) {
             )}
             {selectedArena ? ` · ${selectedArena}` : ""}
           </div>
-          <div style={competitionClassNameStyle}>{title}</div>
+          <CompetitionScrollingText
+            style={competitionClassNameStyle}
+            dataLabel="class-name"
+          >
+            {title}
+          </CompetitionScrollingText>
         </div>
 
         {liveItem ? (
@@ -338,18 +343,109 @@ function CompetitionStripParticipant({
       <div style={competitionParticipantLabelStyle}>
         <BilingualText fr={labelFr} en={labelEn} />
       </div>
-      <div style={competitionParticipantNameStyle}>
-        {participant?.meta ? `${participant.meta} · ` : ""}
-        {participant?.fr || "—"}
-      </div>
+      <CompetitionScrollingText
+        style={competitionParticipantNameStyle}
+        dataLabel="participant-name"
+      >
+        {`${participant?.meta ? `${participant.meta} · ` : ""}${
+          participant?.fr || "—"
+        }`}
+      </CompetitionScrollingText>
       {participant?.horse ? (
-        <div style={competitionParticipantHorseStyle}>{participant.horse}</div>
+        <CompetitionScrollingText
+          style={competitionParticipantHorseStyle}
+          dataLabel="participant-details"
+        >
+          {participant.horse}
+        </CompetitionScrollingText>
       ) : null}
       {participant?.score ? (
         <div style={competitionParticipantScoreStyle}>
           Score · {participant.score}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function CompetitionScrollingText({
+  children,
+  style,
+  dataLabel,
+  scrollPadding = 36,
+}) {
+  const text = children == null ? "" : String(children);
+  const outerRef = useRef(null);
+  const innerRef = useRef(null);
+  const [scrollDistance, setScrollDistance] = useState(0);
+
+  useEffect(() => {
+    const measure = () => {
+      const outer = outerRef.current;
+      const inner = innerRef.current;
+
+      if (!outer || !inner) {
+        setScrollDistance(0);
+        return;
+      }
+
+      const overflow = inner.scrollWidth - outer.clientWidth;
+      setScrollDistance(overflow > 2 ? Math.ceil(overflow + scrollPadding) : 0);
+    };
+
+    measure();
+
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(measure);
+
+    if (resizeObserver && outerRef.current) {
+      resizeObserver.observe(outerRef.current);
+    }
+
+    const animationFrame = window.requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener("resize", measure);
+    };
+  }, [text, scrollPadding]);
+
+  const durationSeconds = Math.min(Math.max(scrollDistance / 18, 9), 24);
+  const isScrolling = scrollDistance > 0;
+  const innerStyle = isScrolling
+    ? {
+        display: "inline-block",
+        minWidth: "max-content",
+        paddingRight: scrollPadding,
+        "--showscore-marquee-distance": `${scrollDistance}px`,
+        animation: `showscore-overlay-marquee ${durationSeconds}s ease-in-out infinite alternate`,
+      }
+    : {
+        display: "block",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+      };
+
+  return (
+    <div
+      ref={outerRef}
+      style={{
+        ...style,
+        minWidth: 0,
+        overflow: "hidden",
+        whiteSpace: "nowrap",
+        textOverflow: "clip",
+      }}
+      data-tv-overflow-text={dataLabel}
+      data-tv-scrolling={isScrolling ? "true" : "false"}
+    >
+      <span ref={innerRef} style={innerStyle}>
+        {text}
+      </span>
     </div>
   );
 }
@@ -983,14 +1079,10 @@ const competitionLiveLabelStyle = {
 };
 
 const competitionClassNameStyle = {
-  overflow: "hidden",
   color: "#fff",
   fontSize: "clamp(22px, 2vw, 38px)",
   fontWeight: 950,
   lineHeight: 1,
-  display: "-webkit-box",
-  WebkitLineClamp: 2,
-  WebkitBoxOrient: "vertical",
 };
 
 const competitionParticipantStyle = (active) => ({
@@ -1012,18 +1104,12 @@ const competitionParticipantLabelStyle = {
 };
 
 const competitionParticipantNameStyle = {
-  overflow: "hidden",
-  whiteSpace: "nowrap",
-  textOverflow: "ellipsis",
   fontSize: "clamp(20px, 1.75vw, 34px)",
   fontWeight: 950,
   lineHeight: 1.05,
 };
 
 const competitionParticipantHorseStyle = {
-  overflow: "hidden",
-  whiteSpace: "nowrap",
-  textOverflow: "ellipsis",
   color: "#cbd5e1",
   fontSize: "clamp(15px, 1.1vw, 22px)",
   fontWeight: 750,
