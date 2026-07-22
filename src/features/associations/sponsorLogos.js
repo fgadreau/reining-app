@@ -37,6 +37,16 @@ export function normalizeSponsorGroups(value) {
   }));
 }
 
+export function getAssociationSponsorGroups(association) {
+  const sponsorGroups = normalizeSponsorGroups(association?.sponsorGroups);
+
+  if (sponsorGroups.length) {
+    return sponsorGroups;
+  }
+
+  return normalizeSponsorGroups(association?.sponsorLogos);
+}
+
 export function serializeSponsorGroups(value) {
   return {
     version: 2,

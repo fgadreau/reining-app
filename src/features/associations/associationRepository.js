@@ -5,6 +5,7 @@ import {
 } from "./associationsData";
 import {
   flattenSponsorGroups,
+  getAssociationSponsorGroups,
   normalizeSponsorGroups,
   serializeSponsorGroups,
 } from "./sponsorLogos";
@@ -46,9 +47,7 @@ function toSharedOrganizationRow(association) {
     timezone: association.timezone || "",
     logo_url: association.logoDataUrl || null,
     website_url: association.websiteUrl || null,
-    sponsor_logos: serializeSponsorGroups(
-      association.sponsorGroups || association.sponsorLogos
-    ),
+    sponsor_logos: serializeSponsorGroups(getAssociationSponsorGroups(association)),
     is_test_mode: Boolean(association.isTestMode),
   };
 }
@@ -117,6 +116,9 @@ export async function loadAssociationsRepository() {
   }
 
   try {
+    const localAssociationsById = new Map(
+      loadAssociations().map((association) => [association.id, association])
+    );
     const { data, error } = await supabase
       .from("organizations")
       .select("*")
@@ -124,7 +126,23 @@ export async function loadAssociationsRepository() {
 
     if (error) throw error;
 
-    const associations = Array.isArray(data) ? data.map(toAssociation) : [];
+    const associations = Array.isArray(data)
+      ? data.map(toAssociation).map((association) => {
+          const localSponsorGroups = getAssociationSponsorGroups(
+            localAssociationsById.get(association.id)
+          );
+
+          if (association.sponsorGroups.length || !localSponsorGroups.length) {
+            return association;
+          }
+
+          return {
+            ...association,
+            sponsorGroups: localSponsorGroups,
+            sponsorLogos: flattenSponsorGroups(localSponsorGroups),
+          };
+        })
+      : [];
     saveAssociations(associations);
     return associations;
   } catch (error) {

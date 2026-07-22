@@ -12,6 +12,7 @@ import {
 import {
   flattenSponsorGroups,
   formatSponsorLogoDetails,
+  getAssociationSponsorGroups,
   normalizeSponsorGroups,
   optimizeSponsorLogoFile,
 } from "../../features/associations/sponsorLogos";
@@ -75,6 +76,7 @@ function ShowDetailPage() {
     tvDisplayMessageEn: "",
   });
   const [sponsorGroupsDraft, setSponsorGroupsDraft] = useState([]);
+  const [hasEditedSponsorGroups, setHasEditedSponsorGroups] = useState(false);
   const [isOptimizingSponsors, setIsOptimizingSponsors] = useState(false);
   const [livestreamMessage, setLivestreamMessage] = useState("");
   const [livestreamMessageTone, setLivestreamMessageTone] = useState("synced");
@@ -315,11 +317,8 @@ function ShowDetailPage() {
       tvDisplayMessageFr: show?.tvDisplayMessageFr || "",
       tvDisplayMessageEn: show?.tvDisplayMessageEn || "",
     });
-    setSponsorGroupsDraft(
-      normalizeSponsorGroups(
-        association?.sponsorGroups || association?.sponsorLogos
-      )
-    );
+    setSponsorGroupsDraft(getAssociationSponsorGroups(association));
+    setHasEditedSponsorGroups(false);
     setIsOptimizingSponsors(false);
     setLivestreamMessage("");
     setLivestreamMessageTone("synced");
@@ -334,6 +333,7 @@ function ShowDetailPage() {
   };
 
   const addSponsorGroup = () => {
+    setHasEditedSponsorGroups(true);
     setSponsorGroupsDraft((current) => [
       ...current,
       {
@@ -348,6 +348,7 @@ function ShowDetailPage() {
   };
 
   const updateSponsorGroup = (groupId, updates) => {
+    setHasEditedSponsorGroups(true);
     setSponsorGroupsDraft((current) =>
       normalizeSponsorGroups(
         current.map((group) =>
@@ -358,6 +359,7 @@ function ShowDetailPage() {
   };
 
   const moveSponsorGroup = (groupId, direction) => {
+    setHasEditedSponsorGroups(true);
     setSponsorGroupsDraft((current) => {
       const index = current.findIndex((group) => group.id === groupId);
       const targetIndex = index + direction;
@@ -375,6 +377,7 @@ function ShowDetailPage() {
     if (!window.confirm(t("management.shows.removeSponsorLevelConfirm"))) {
       return;
     }
+    setHasEditedSponsorGroups(true);
     setSponsorGroupsDraft((current) =>
       normalizeSponsorGroups(current.filter((group) => group.id !== groupId))
     );
@@ -386,6 +389,7 @@ function ShowDetailPage() {
 
     if (!files.length) return;
 
+    setHasEditedSponsorGroups(true);
     setIsOptimizingSponsors(true);
     setLivestreamMessage("");
 
@@ -430,6 +434,7 @@ function ShowDetailPage() {
   };
 
   const updateSponsorLogo = (groupId, sponsorId, updates) => {
+    setHasEditedSponsorGroups(true);
     setSponsorGroupsDraft((current) =>
       normalizeSponsorGroups(
         current.map((group) =>
@@ -449,6 +454,7 @@ function ShowDetailPage() {
   };
 
   const removeSponsorLogo = (groupId, sponsorId) => {
+    setHasEditedSponsorGroups(true);
     setSponsorGroupsDraft((current) =>
       normalizeSponsorGroups(
         current.map((group) =>
@@ -479,10 +485,9 @@ function ShowDetailPage() {
       tvDisplayMessageEn: livestreamDraft.tvDisplayMessageEn,
     };
     const sponsorGroups = normalizeSponsorGroups(sponsorGroupsDraft);
-    const currentSponsorGroups = normalizeSponsorGroups(
-      association?.sponsorGroups || association?.sponsorLogos
-    );
+    const currentSponsorGroups = getAssociationSponsorGroups(association);
     const shouldSaveSponsorGroups =
+      hasEditedSponsorGroups &&
       association &&
       JSON.stringify(sponsorGroups) !== JSON.stringify(currentSponsorGroups);
 
@@ -510,10 +515,9 @@ function ShowDetailPage() {
       if (savedAssociation) {
         setAssociation(savedAssociation);
         setSponsorGroupsDraft(
-          normalizeSponsorGroups(
-            savedAssociation.sponsorGroups || savedAssociation.sponsorLogos
-          )
+          getAssociationSponsorGroups(savedAssociation)
         );
+        setHasEditedSponsorGroups(false);
       }
 
       if (sponsorLogoError) {

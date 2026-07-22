@@ -10,7 +10,10 @@ import {
 } from "../../features/publication/publicViewRepository";
 import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
 import { useTranslation } from "../../features/i18n/I18nProvider";
-import { buildSponsorLevelSlides } from "../../features/associations/sponsorLogos";
+import {
+  buildSponsorLevelSlides,
+  getAssociationSponsorGroups,
+} from "../../features/associations/sponsorLogos";
 
 const SPONSOR_LOGOS_PER_SLIDE = 4;
 const SPONSOR_SLIDE_INTERVAL_MS = 8000;
@@ -47,8 +50,7 @@ function PublicShowOverlayPage() {
     [overlayPublicView.liveClasses, selectedArena]
   );
   const liveSummary = buildOverlayLiveSummary(liveClass, t);
-  const sponsorGroups =
-    overlayAssociation?.sponsorGroups || overlayAssociation?.sponsorLogos;
+  const sponsorGroups = getAssociationSponsorGroups(overlayAssociation);
   const sponsorSlides = buildSponsorLevelSlides(
     sponsorGroups,
     SPONSOR_LOGOS_PER_SLIDE

@@ -6,6 +6,7 @@ import {
 import { loadAssociations } from "../associations/associationsData";
 import {
   flattenSponsorGroups,
+  getAssociationSponsorGroups,
   normalizeSponsorGroups,
 } from "../associations/sponsorLogos";
 import { getPublicChampionshipSeasonRepository } from "../championship/championshipRepository";
@@ -1032,15 +1033,13 @@ export async function getPublicAssociationRepository(associationId) {
     if (error) throw error;
     const association = data ? toAssociation(data) : null;
 
-    if (
-      association &&
-      !association.sponsorGroups.length &&
-      localAssociation?.sponsorGroups?.length
-    ) {
+    const localSponsorGroups = getAssociationSponsorGroups(localAssociation);
+
+    if (association && !association.sponsorGroups.length && localSponsorGroups.length) {
       return {
         ...association,
-        sponsorGroups: localAssociation.sponsorGroups,
-        sponsorLogos: localAssociation.sponsorLogos,
+        sponsorGroups: localSponsorGroups,
+        sponsorLogos: flattenSponsorGroups(localSponsorGroups),
       };
     }
 

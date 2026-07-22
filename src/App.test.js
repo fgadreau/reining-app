@@ -25,6 +25,7 @@ import {
 import { normalizeAssociationWebsiteUrl } from "./features/associations/associationProfile";
 import {
   buildSponsorLevelSlides,
+  getAssociationSponsorGroups,
   normalizeSponsorGroups,
   serializeSponsorGroups,
 } from "./features/associations/sponsorLogos";
@@ -377,6 +378,27 @@ test("groups sponsor slides by named level without mixing categories", () => {
     ["silver-1", "silver-2"],
     ["silver-3"],
     ["bronze-1"],
+  ]);
+});
+
+test("keeps legacy sponsor logos when the grouped list is empty", () => {
+  const sponsorGroups = getAssociationSponsorGroups({
+    sponsorGroups: [],
+    sponsorLogos: [
+      {
+        id: "legacy-sponsor",
+        name: "Legacy sponsor",
+        logoDataUrl: "data:image/png;base64,legacy",
+      },
+    ],
+  });
+
+  expect(sponsorGroups).toHaveLength(1);
+  expect(sponsorGroups[0].logos).toEqual([
+    expect.objectContaining({
+      id: "legacy-sponsor",
+      name: "Legacy sponsor",
+    }),
   ]);
 });
 

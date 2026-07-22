@@ -10,7 +10,10 @@ import {
 } from "../../features/publication/publicViewRepository";
 import { translate } from "../../features/i18n/i18n";
 import { isLiveDragItem } from "../../features/live/liveQueueItems";
-import { buildSponsorLevelSlides } from "../../features/associations/sponsorLogos";
+import {
+  buildSponsorLevelSlides,
+  getAssociationSponsorGroups,
+} from "../../features/associations/sponsorLogos";
 
 const TV_REFRESH_MS = 5000;
 const SPONSOR_SLIDE_INTERVAL_MS = 9000;
@@ -27,7 +30,7 @@ function PublicShowTvPage() {
     () => getArenaFromSearch(location.search),
     [location.search]
   );
-  const sponsorGroups = association?.sponsorGroups || association?.sponsorLogos;
+  const sponsorGroups = getAssociationSponsorGroups(association);
   const sponsorSlides = buildSponsorLevelSlides(
     sponsorGroups,
     SPONSORS_PER_SLIDE

@@ -1,7 +1,7 @@
 import { createId } from "../../utils/createId";
 import {
   flattenSponsorGroups,
-  normalizeSponsorGroups,
+  getAssociationSponsorGroups,
 } from "./sponsorLogos";
 
 const STORAGE_KEY = "reiningApp.associations";
@@ -28,9 +28,7 @@ const defaultAssociations = [
 ];
 
 function normalizeAssociation(association) {
-  const sponsorGroups = normalizeSponsorGroups(
-    association?.sponsorGroups || association?.sponsorLogos
-  );
+  const sponsorGroups = getAssociationSponsorGroups(association);
 
   return {
     ...association,
