@@ -698,6 +698,7 @@ test.describe("robot de show local", () => {
     ).toHaveCount(0);
     await expect(page.locator("body")).toContainText("Propriétaire: Proprio 4");
     await expect(page.getByRole("button", { name: "Scratch" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "No score" })).toBeVisible();
 
     page.once("dialog", (dialog) => dialog.accept());
     await page

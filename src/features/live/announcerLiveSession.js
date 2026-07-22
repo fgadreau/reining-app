@@ -19,6 +19,7 @@ export const ANNOUNCER_RUN_STATUSES = {
   PENDING: "pending",
   ON_COURSE: "on_course",
   SCORED: "scored",
+  NO_SCORE: "no_score",
   SCRATCH: "scratch",
   REVIEW: "review",
 };
@@ -66,6 +67,15 @@ function getSnapshotStatus(run = {}) {
     return ANNOUNCER_RUN_STATUSES.REVIEW;
   }
   if (scoringRunHasScratch(run)) return ANNOUNCER_RUN_STATUSES.SCRATCH;
+
+  const normalizedStatus = String(run?.status || "").trim().toLowerCase();
+  const normalizedScore = String(run?.scoreTotal || "").trim().toUpperCase();
+  if (
+    normalizedStatus === ANNOUNCER_RUN_STATUSES.NO_SCORE ||
+    normalizedScore === "NS"
+  ) {
+    return ANNOUNCER_RUN_STATUSES.NO_SCORE;
+  }
 
   const score = String(formatTotalValue(run?.scoreTotal) || "").trim();
   if (score && score !== "Review") return ANNOUNCER_RUN_STATUSES.SCORED;
@@ -181,9 +191,11 @@ export function normalizeAnnouncerLiveRun(run = {}, index = 0) {
   const scoreTotal =
     status === ANNOUNCER_RUN_STATUSES.SCRATCH
       ? "SCR"
-      : status === ANNOUNCER_RUN_STATUSES.REVIEW
-        ? "Review"
-        : formatTotalValue(run?.scoreTotal);
+      : status === ANNOUNCER_RUN_STATUSES.NO_SCORE
+        ? "NS"
+        : status === ANNOUNCER_RUN_STATUSES.REVIEW
+          ? "Review"
+          : formatTotalValue(run?.scoreTotal);
 
   return {
     ...run,
@@ -202,6 +214,7 @@ export function normalizeAnnouncerLiveRun(run = {}, index = 0) {
     isActive: status === ANNOUNCER_RUN_STATUSES.ON_COURSE,
     isComplete: [
       ANNOUNCER_RUN_STATUSES.SCORED,
+      ANNOUNCER_RUN_STATUSES.NO_SCORE,
       ANNOUNCER_RUN_STATUSES.SCRATCH,
     ].includes(status),
     startedAt: run?.startedAt || null,
@@ -264,6 +277,7 @@ export function buildInitialAnnouncerLiveSession({
             : "scribe_snapshot",
         completedAt:
           snapshotStatus === ANNOUNCER_RUN_STATUSES.SCORED ||
+          snapshotStatus === ANNOUNCER_RUN_STATUSES.NO_SCORE ||
           snapshotStatus === ANNOUNCER_RUN_STATUSES.SCRATCH
             ? scoringRun?.completedAt || timestamp
             : null,
@@ -443,9 +457,11 @@ export function saveAnnouncerRunResult(
   const cleanScore =
     normalizedStatus === ANNOUNCER_RUN_STATUSES.SCRATCH
       ? "SCR"
-      : normalizedStatus === ANNOUNCER_RUN_STATUSES.REVIEW
-        ? "Review"
-        : formatTotalValue(scoreTotal);
+      : normalizedStatus === ANNOUNCER_RUN_STATUSES.NO_SCORE
+        ? "NS"
+        : normalizedStatus === ANNOUNCER_RUN_STATUSES.REVIEW
+          ? "Review"
+          : formatTotalValue(scoreTotal);
   const cleanJudgeScores =
     normalizedStatus === ANNOUNCER_RUN_STATUSES.SCORED
       ? normalizeAnnouncerJudgeScores(judgeScores)

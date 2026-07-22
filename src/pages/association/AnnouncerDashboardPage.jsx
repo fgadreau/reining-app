@@ -1698,6 +1698,7 @@ function AnnouncerManualLiveControls({
     .filter((run) =>
       [
         ANNOUNCER_RUN_STATUSES.SCORED,
+        ANNOUNCER_RUN_STATUSES.NO_SCORE,
         ANNOUNCER_RUN_STATUSES.SCRATCH,
         ANNOUNCER_RUN_STATUSES.REVIEW,
       ].includes(run.status)
@@ -1733,6 +1734,32 @@ function AnnouncerManualLiveControls({
         session,
         run.id,
         { status: ANNOUNCER_RUN_STATUSES.SCRATCH },
+        {
+          nextRunId: classView.nextRun?.id,
+          waitForDrag: Boolean(plannedDrag),
+          updatedBy,
+        }
+      )
+    );
+  }
+
+  function handleNoScore(run) {
+    if (
+      !run?.id ||
+      !window.confirm(
+        t("management.announcer.noScoreConfirm", {
+          draw: run.draw || "—",
+        })
+      )
+    ) {
+      return;
+    }
+
+    save(
+      saveAnnouncerRunResultAndAdvance(
+        session,
+        run.id,
+        { status: ANNOUNCER_RUN_STATUSES.NO_SCORE },
         {
           nextRunId: classView.nextRun?.id,
           waitForDrag: Boolean(plannedDrag),
@@ -1835,6 +1862,13 @@ function AnnouncerManualLiveControls({
                 >
                   {t("management.announcer.scratch")}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => handleNoScore(activeRun)}
+                  style={manualNoScoreButtonStyle}
+                >
+                  {t("management.announcer.noScore")}
+                </button>
               </>
             ) : plannedDrag ? (
               <button
@@ -1859,6 +1893,13 @@ function AnnouncerManualLiveControls({
                   style={manualDangerButtonStyle}
                 >
                   {t("management.announcer.scratch")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleNoScore(classView.nextRun)}
+                  style={manualNoScoreButtonStyle}
+                >
+                  {t("management.announcer.noScore")}
                 </button>
               </>
             ) : null}
@@ -2107,6 +2148,18 @@ function AnnouncerRunResultModal({
             style={primaryButtonStyle}
           >
             {t("management.announcer.saveScore")}
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              onSave({
+                status: ANNOUNCER_RUN_STATUSES.NO_SCORE,
+                note,
+              })
+            }
+            style={noScoreButtonStyle}
+          >
+            {t("management.announcer.noScore")}
           </button>
           <button
             type="button"
@@ -3008,6 +3061,14 @@ const manualDangerButtonStyle = {
   boxShadow: "none",
 };
 
+const manualNoScoreButtonStyle = {
+  ...manualPrimaryButtonStyle,
+  border: "1px solid #b45309",
+  background: "#fffbeb",
+  color: "#92400e",
+  boxShadow: "none",
+};
+
 const manualSupportPanelStyle = {
   minWidth: 0,
   display: "grid",
@@ -3882,6 +3943,13 @@ const dangerButtonStyle = {
   border: "1px solid #dc2626",
   color: "#991b1b",
   background: "#fff5f5",
+};
+
+const noScoreButtonStyle = {
+  ...secondaryButtonStyle,
+  border: "1px solid #b45309",
+  color: "#92400e",
+  background: "#fffbeb",
 };
 
 const emptyStateStyle = {

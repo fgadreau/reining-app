@@ -873,6 +873,34 @@ test("advances the announcer live automatically after a result but waits for dra
   expect(corrected.runs[2].status).toBe(ANNOUNCER_RUN_STATUSES.PENDING);
 });
 
+test("records an announcer no score as NS and completes the run", () => {
+  const initial = buildInitialAnnouncerLiveSession({
+    classId: "no-score-class",
+    setupRuns: [{ id: "no-score-run", draw: 1, rider: "Alice" }],
+    now: new Date("2026-07-20T13:00:00.000Z"),
+  });
+  const started = startAnnouncerRun(
+    initial,
+    "no-score-run",
+    new Date("2026-07-20T13:01:00.000Z")
+  );
+  const noScore = saveAnnouncerRunResultAndAdvance(
+    started,
+    "no-score-run",
+    { status: ANNOUNCER_RUN_STATUSES.NO_SCORE },
+    { now: new Date("2026-07-20T13:03:00.000Z") }
+  );
+
+  expect(noScore.runs[0]).toMatchObject({
+    status: ANNOUNCER_RUN_STATUSES.NO_SCORE,
+    scoreTotal: "NS",
+    isComplete: true,
+    completedAt: "2026-07-20T13:03:00.000Z",
+  });
+  expect(noScore.activeManoeuvre).toBeNull();
+  expect(completeAnnouncerLiveSession(noScore).ok).toBe(true);
+});
+
 test("combines announcer scores entered per judge with the existing rules", () => {
   const judges = [
     { id: "judge-1", name: "Juge A", order: 1 },
