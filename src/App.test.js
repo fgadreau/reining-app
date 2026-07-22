@@ -3881,6 +3881,47 @@ test("builds provisional live standings by imported class code", () => {
   ]);
 });
 
+test("builds a fallback standing for a completed simple block", () => {
+  const standings = buildLiveClassStandings({
+    classItem: {
+      id: "simple-block",
+      name: "Open Derby",
+      classCode: "OPEN",
+    },
+    setupRuns: [
+      {
+        id: "simple-run-1",
+        draw: 1,
+        backNumber: "101",
+        rider: "Alice Roy",
+        horse: "Horse One",
+      },
+      {
+        id: "simple-run-2",
+        draw: 2,
+        backNumber: "202",
+        rider: "Bob Lee",
+        horse: "Horse Two",
+      },
+    ],
+    runs: [
+      { id: "simple-run-1", draw: 1, scoreTotal: "72" },
+      { id: "simple-run-2", draw: 2, scoreTotal: "70" },
+    ],
+  });
+
+  expect(standings).toHaveLength(1);
+  expect(standings[0]).toMatchObject({
+    code: "OPEN",
+    className: "Open Derby",
+    entryCount: 2,
+  });
+  expect(standings[0].entries).toMatchObject([
+    { rank: 1, rider: "Alice Roy", scoreTotal: "72" },
+    { rank: 2, rider: "Bob Lee", scoreTotal: "70" },
+  ]);
+});
+
 test("builds complete provisional live standings by default", () => {
   const standings = buildLiveClassStandings({
     classItem: {

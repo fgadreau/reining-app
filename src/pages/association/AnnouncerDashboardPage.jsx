@@ -1454,7 +1454,13 @@ function ClassLiveCard({
   }
 
   return (
-    <div style={isPriority ? priorityClassCardStyle : classCardStyle}>
+    <div
+      style={isPriority ? priorityClassCardStyle : classCardStyle}
+      data-announcer-class-id={classView.classId || ""}
+      data-announcer-class-complete={classView.isComplete ? "true" : "false"}
+      data-qualified-rider-count={classView.qualifiedRiderCount || ""}
+      data-standing-group-count={classView.classStandings?.length || 0}
+    >
       <div
         role={canToggle ? "button" : undefined}
         tabIndex={canToggle ? 0 : undefined}
@@ -1504,6 +1510,23 @@ function ClassLiveCard({
           )}
         </div>
       </div>
+
+      {canBuildQualifiedRiders && (
+        <div style={qualifiedRidersShortcutStyle}>
+          <button
+            type="button"
+            onClick={() => onOpenQualifiedRiders(classView)}
+            style={primaryButtonStyle}
+          >
+            {t("management.announcer.qualifiedRiders")}
+          </button>
+          <span style={mutedTextStyle}>
+            {t("management.announcer.qualifiedRidersHelp", {
+              count: classView.qualifiedRiderCount,
+            })}
+          </span>
+        </div>
+      )}
 
       {!isExpanded ? null : (
         <div id={cardDetailsId}>
@@ -1647,27 +1670,15 @@ function ClassLiveCard({
             </div>
           )}
 
-          {!isScheduleOnly &&
-            (canDownloadProvisionalResults || canBuildQualifiedRiders) && (
+          {!isScheduleOnly && canDownloadProvisionalResults && (
             <div style={actionRowStyle}>
-              {canDownloadProvisionalResults && (
-                <button
-                  type="button"
-                  onClick={downloadProvisionalResultsPdf}
-                  style={secondaryButtonStyle}
-                >
-                  {t("management.announcer.provisionalResultsPdf")}
-                </button>
-              )}
-              {canBuildQualifiedRiders && (
-                <button
-                  type="button"
-                  onClick={() => onOpenQualifiedRiders(classView)}
-                  style={primaryButtonStyle}
-                >
-                  {t("management.announcer.qualifiedRiders")}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={downloadProvisionalResultsPdf}
+                style={secondaryButtonStyle}
+              >
+                {t("management.announcer.provisionalResultsPdf")}
+              </button>
             </div>
           )}
         </div>
@@ -2990,6 +3001,16 @@ const manualLiveHeaderStyle = {
   alignItems: "flex-start",
   gap: 12,
   flexWrap: "wrap",
+};
+
+const qualifiedRidersShortcutStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+  flexWrap: "wrap",
+  padding: "12px 16px",
+  borderTop: "1px solid #dbeafe",
+  background: "#eff6ff",
 };
 
 const manualLiveTitleStyle = {

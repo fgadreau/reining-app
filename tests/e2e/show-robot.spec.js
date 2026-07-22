@@ -177,6 +177,37 @@ async function seedCompetitionVideoShow(page) {
   await seedStorage(page, seed);
 }
 
+async function seedCompletedSimpleAnnouncerShow(page) {
+  const seed = buildRobotShowStorageSeed();
+  const setup = seed.json["reining_class_setup_v1"][CLASS_ID];
+  const completedAt = "2026-05-28T16:00:00.000Z";
+  const runs = setup.runs.map((run, index) => ({
+    ...run,
+    status: "scored",
+    scoreTotal: String(80 - index),
+    isComplete: true,
+    startedAt: `2026-05-28T15:${String(index).padStart(2, "0")}:00.000Z`,
+    completedAt: `2026-05-28T15:${String(index + 1).padStart(2, "0")}:00.000Z`,
+  }));
+
+  setup.liveDataSource = "announcer";
+  setup.qualifiedRiderCount = 3;
+  seed.json["showscore_announcer_live_sessions_v1"] = {
+    [CLASS_ID]: {
+      classId: CLASS_ID,
+      runs,
+      activeManoeuvre: null,
+      startedAt: "2026-05-28T15:00:00.000Z",
+      completedAt,
+      completedBy: "Test local",
+      revision: 12,
+      updatedAt: completedAt,
+    },
+  };
+
+  await seedStorage(page, seed);
+}
+
 async function seedDailyLivestreamShow(page) {
   const seed = buildRobotShowStorageSeed();
   const show = seed.json["reining_shows_v1"].find(
@@ -722,6 +753,34 @@ test.describe("robot de show local", () => {
     await expect(body).not.toContainText("Cheval 3");
     await expect(body).not.toContainText("Back 103");
     await expectNoHorizontalOverflow(page);
+  });
+
+  test("affiche la liste de rappel apres un bloc annonceur simple termine", async ({
+    page,
+  }) => {
+    await page.route("**/rest/v1/**", (route) => route.abort());
+    await seedCompletedSimpleAnnouncerShow(page);
+
+    await page.goto(
+      `/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/announcer`
+    );
+
+    const classCard = page.locator(
+      `[data-announcer-class-id="${CLASS_ID}"]`
+    );
+    await expect(classCard).toHaveAttribute(
+      "data-announcer-class-complete",
+      "true"
+    );
+    await expect(classCard).toHaveAttribute("data-qualified-rider-count", "3");
+    await expect(classCard).toHaveAttribute("data-standing-group-count", "1");
+    const qualifiedButton = page.getByRole("button", {
+      name: "Liste des cavaliers classés",
+    });
+    await expect(qualifiedButton).toBeVisible();
+    await qualifiedButton.click();
+    await expect(page.getByRole("dialog")).toContainText("Cavalier 1");
+    await expect(page.getByRole("dialog")).toContainText("3 cavalier(s)");
   });
 
   test("importe et fait defiler les commanditaires par niveau", async ({

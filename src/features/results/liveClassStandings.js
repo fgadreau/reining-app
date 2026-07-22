@@ -18,9 +18,13 @@ export function buildLiveClassStandings({
   classItem = {},
   visibleEntryCount = DEFAULT_VISIBLE_ENTRIES,
 } = {}) {
-  if (!hasClassStandingSource({ runs, setupRuns, blockClasses })) {
-    return [];
-  }
+  const hasExplicitClassGroups = hasClassStandingSource({
+    runs,
+    setupRuns,
+    blockClasses,
+  });
+  const sourceRuns = Array.isArray(runs) ? runs : [];
+  if (!sourceRuns.length) return [];
 
   const normalizedBlockClasses = normalizeBlockClasses(blockClasses);
   const blockClassByCode = new Map(
@@ -31,11 +35,14 @@ export function buildLiveClassStandings({
   );
   const fallbackCode = normalizeClassCode(classItem?.classCode) || "RESULTS";
   const groupsByCode = new Map();
-  const sourceRuns = Array.isArray(runs) ? runs : [];
 
   sourceRuns.forEach((run, index) => {
     const setupRun = findMatchingSetupRun(setupRuns, run, index);
-    const classCodes = getRunClassCodes(run, setupRun);
+    const explicitClassCodes = getRunClassCodes(run, setupRun);
+    const classCodes =
+      explicitClassCodes.length || hasExplicitClassGroups
+        ? explicitClassCodes
+        : [fallbackCode];
 
     if (!classCodes.length) return;
 
