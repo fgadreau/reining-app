@@ -72,6 +72,7 @@ function ShowDetailPage() {
   const [copiedOverlayKey, setCopiedOverlayKey] = useState("");
   const [overlayArenas, setOverlayArenas] = useState([]);
   const [selectedOverlayArena, setSelectedOverlayArena] = useState("");
+  const [selectedTvArena, setSelectedTvArena] = useState("");
   const [isLivestreamModalOpen, setIsLivestreamModalOpen] = useState(false);
   const [livestreamDraft, setLivestreamDraft] = useState({
     isLivestreamPublic: false,
@@ -104,6 +105,24 @@ function ShowDetailPage() {
   const publicShowcaseStatus = useMemo(
     () => buildPublicShowcaseStatus({ show, publicView, t }),
     [publicView, show, t]
+  );
+  const competitionTvArena = normalizeArenaName(
+    livestreamDraft.tvDisplayVideoArena
+  );
+  const competitionTvDisplayReady = Boolean(
+    show?.tvDisplayVideoPath &&
+      !removeTvVideoDraft &&
+      normalizeArenaName(show?.tvDisplayVideoArena).toLowerCase() ===
+        competitionTvArena.toLowerCase()
+  );
+  const generalTvArenas = useMemo(
+    () =>
+      overlayArenas.filter(
+        (arena) =>
+          normalizeArenaName(arena).toLowerCase() !==
+          competitionTvArena.toLowerCase()
+      ),
+    [competitionTvArena, overlayArenas]
   );
 
   useEffect(() => {
@@ -157,6 +176,14 @@ function ShowDetailPage() {
       overlayArenas.includes(currentArena) ? currentArena : overlayArenas[0] || ""
     );
   }, [overlayArenas]);
+
+  useEffect(() => {
+    setSelectedTvArena((currentArena) =>
+      generalTvArenas.includes(currentArena)
+        ? currentArena
+        : generalTvArenas[0] || ""
+    );
+  }, [generalTvArenas]);
 
   useEffect(() => {
     if (access.isLoadingAccess) return;
@@ -982,7 +1009,10 @@ function ShowDetailPage() {
                 </Link>
               </section>
 
-              <section style={settingsSectionStyle}>
+              <section
+                style={generalTvSectionStyle}
+                data-tv-settings="general"
+              >
                 <div>
                   <h3 style={settingsTitleStyle}>
                     {t("management.shows.tvDisplayTitle")}
@@ -1044,108 +1074,6 @@ function ShowDetailPage() {
                   </div>
                 </div>
 
-                <div style={tvVideoSettingsStyle}>
-                  <div>
-                    <h4 style={overlaySponsorTitleStyle}>
-                      {t("management.shows.tvDisplayVideoTitle")}
-                    </h4>
-                    <div style={helpTextStyle}>
-                      {t("management.shows.tvDisplayVideoHelp")}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={labelStyle}>
-                      {t("management.shows.tvDisplayVideoArenaLabel")}
-                    </label>
-                    <input
-                      type="text"
-                      list="tv-display-video-arenas"
-                      value={livestreamDraft.tvDisplayVideoArena}
-                      onChange={(event) =>
-                        setLivestreamDraft((current) => ({
-                          ...current,
-                          tvDisplayVideoArena: event.target.value,
-                        }))
-                      }
-                      placeholder={t(
-                        "management.shows.tvDisplayVideoArenaPlaceholder"
-                      )}
-                      style={inputStyle}
-                      disabled={!access.canManageAssociation || isSaving}
-                    />
-                    <datalist id="tv-display-video-arenas">
-                      {overlayArenas.map((arena) => (
-                        <option key={arena} value={arena} />
-                      ))}
-                    </datalist>
-                  </div>
-
-                  <div>
-                    <label style={labelStyle}>
-                      {t("management.shows.tvDisplayVideoFileLabel")}
-                    </label>
-                    <input
-                      type="file"
-                      accept="video/mp4,.mp4"
-                      onChange={handleTvVideoFileChange}
-                      style={fileInputStyle}
-                      disabled={!access.canManageAssociation || isSaving}
-                    />
-                  </div>
-
-                  {tvVideoFileDraft ? (
-                    <div style={videoFileSummaryStyle}>
-                      <span>
-                        {t("management.shows.tvDisplayVideoSelected")}: {" "}
-                        <strong>{tvVideoFileDraft.name}</strong>
-                        {tvVideoFileDraft.size
-                          ? ` · ${formatTvDisplayVideoSize(tvVideoFileDraft.size)}`
-                          : ""}
-                        {isSaving && tvVideoUploadProgress > 0
-                          ? ` · ${Math.round(tvVideoUploadProgress)} %`
-                          : ""}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setTvVideoFileDraft(null)}
-                        style={secondaryButtonStyle}
-                        disabled={isSaving}
-                      >
-                        {t("management.shows.tvDisplayVideoCancelSelection")}
-                      </button>
-                    </div>
-                  ) : show?.tvDisplayVideoPath && !removeTvVideoDraft ? (
-                    <div style={videoFileSummaryStyle}>
-                      <span>
-                        {t("management.shows.tvDisplayVideoCurrent")}: {" "}
-                        <strong>
-                          {show.tvDisplayVideoName || "video.mp4"}
-                        </strong>
-                        {show.tvDisplayVideoSize
-                          ? ` · ${formatTvDisplayVideoSize(
-                              show.tvDisplayVideoSize
-                            )}`
-                          : ""}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={removeTvVideo}
-                        style={dangerButtonStyle}
-                        disabled={isSaving}
-                      >
-                        {t("management.shows.tvDisplayVideoRemove")}
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={softNoticeStyle}>
-                      {removeTvVideoDraft
-                        ? t("management.shows.tvDisplayVideoWillRemove")
-                        : t("management.shows.tvDisplayVideoEmpty")}
-                    </div>
-                  )}
-                </div>
-
                 <div style={arenaOverlayRowStyle}>
                   <span style={arenaOverlayNameStyle}>
                     {t("management.shows.tvDisplayGeneralTitle")}
@@ -1169,20 +1097,20 @@ function ShowDetailPage() {
                   </button>
                 </div>
 
-                {overlayArenas.length > 0 ? (
+                {generalTvArenas.length > 0 ? (
                   <div style={arenaOverlayListStyle}>
                     <label style={labelStyle}>
                       {t("management.shows.tvDisplayArenaTitle")}
                     </label>
                     <div style={arenaOverlayPickerStyle}>
                       <select
-                        value={selectedOverlayArena}
+                        value={selectedTvArena}
                         onChange={(event) =>
-                          setSelectedOverlayArena(event.target.value)
+                          setSelectedTvArena(event.target.value)
                         }
                         style={inputStyle}
                       >
-                        {overlayArenas.map((arena) => (
+                        {generalTvArenas.map((arena) => (
                           <option key={arena} value={arena}>
                             {arena}
                           </option>
@@ -1192,7 +1120,7 @@ function ShowDetailPage() {
                         to={getTvDisplayPath(
                           associationId,
                           showId,
-                          selectedOverlayArena
+                          selectedTvArena
                         )}
                         style={linkButtonStyle}
                         target="_blank"
@@ -1202,17 +1130,182 @@ function ShowDetailPage() {
                       </Link>
                       <button
                         type="button"
-                        onClick={() => copyTvDisplayLink(selectedOverlayArena)}
+                        onClick={() => copyTvDisplayLink(selectedTvArena)}
                         style={secondaryButtonStyle}
                       >
                         {copiedOverlayKey ===
-                        `tv:${getOverlayCopyKey(selectedOverlayArena)}`
+                        `tv:${getOverlayCopyKey(selectedTvArena)}`
                           ? t("common.linkCopied")
                           : t("management.shows.copyTvDisplayArenaLink")}
                       </button>
                     </div>
                   </div>
                 ) : null}
+              </section>
+
+              <section
+                style={competitionTvSectionStyle}
+                data-tv-settings="competition"
+              >
+                <div style={competitionTvHeaderStyle}>
+                  <div>
+                    <div style={competitionTvEyebrowStyle}>
+                      {t("management.shows.tvDisplayCompetitionEyebrow")}
+                    </div>
+                    <h3 style={competitionTvTitleStyle}>
+                      {t("management.shows.tvDisplayVideoTitle")}
+                    </h3>
+                    <div style={competitionTvHelpStyle}>
+                      {t("management.shows.tvDisplayVideoHelp")}
+                    </div>
+                  </div>
+                  <span style={competitionTvBadgeStyle}>
+                    {t("management.shows.tvDisplayCompetitionBadge")}
+                  </span>
+                </div>
+
+                <div style={competitionTvSetupGridStyle}>
+                  <div style={competitionTvStepStyle}>
+                    <div style={competitionTvStepNumberStyle}>1</div>
+                    <div style={competitionTvStepContentStyle}>
+                      <label style={competitionTvStepLabelStyle}>
+                        {t("management.shows.tvDisplayVideoArenaLabel")}
+                      </label>
+                      <input
+                        type="text"
+                        list="tv-display-video-arenas"
+                        value={livestreamDraft.tvDisplayVideoArena}
+                        onChange={(event) =>
+                          setLivestreamDraft((current) => ({
+                            ...current,
+                            tvDisplayVideoArena: event.target.value,
+                          }))
+                        }
+                        placeholder={t(
+                          "management.shows.tvDisplayVideoArenaPlaceholder"
+                        )}
+                        style={competitionTvInputStyle}
+                        disabled={!access.canManageAssociation || isSaving}
+                      />
+                      <datalist id="tv-display-video-arenas">
+                        {overlayArenas.map((arena) => (
+                          <option key={arena} value={arena} />
+                        ))}
+                      </datalist>
+                    </div>
+                  </div>
+
+                  <div style={competitionTvStepStyle}>
+                    <div style={competitionTvStepNumberStyle}>2</div>
+                    <div style={competitionTvStepContentStyle}>
+                      <label style={competitionTvStepLabelStyle}>
+                        {t("management.shows.tvDisplayVideoFileLabel")}
+                      </label>
+                      <input
+                        type="file"
+                        accept="video/mp4,.mp4"
+                        onChange={handleTvVideoFileChange}
+                        style={competitionTvFileInputStyle}
+                        disabled={!access.canManageAssociation || isSaving}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {tvVideoFileDraft ? (
+                  <div style={competitionVideoFileSummaryStyle}>
+                    <span>
+                      {t("management.shows.tvDisplayVideoSelected")}: {" "}
+                      <strong>{tvVideoFileDraft.name}</strong>
+                      {tvVideoFileDraft.size
+                        ? ` · ${formatTvDisplayVideoSize(tvVideoFileDraft.size)}`
+                        : ""}
+                      {isSaving && tvVideoUploadProgress > 0
+                        ? ` · ${Math.round(tvVideoUploadProgress)} %`
+                        : ""}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setTvVideoFileDraft(null)}
+                      style={competitionSecondaryButtonStyle}
+                      disabled={isSaving}
+                    >
+                      {t("management.shows.tvDisplayVideoCancelSelection")}
+                    </button>
+                  </div>
+                ) : show?.tvDisplayVideoPath && !removeTvVideoDraft ? (
+                  <div style={competitionVideoFileSummaryStyle}>
+                    <span>
+                      {t("management.shows.tvDisplayVideoCurrent")}: {" "}
+                      <strong>{show.tvDisplayVideoName || "video.mp4"}</strong>
+                      {show.tvDisplayVideoSize
+                        ? ` · ${formatTvDisplayVideoSize(
+                            show.tvDisplayVideoSize
+                          )}`
+                        : ""}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={removeTvVideo}
+                      style={competitionDangerButtonStyle}
+                      disabled={isSaving}
+                    >
+                      {t("management.shows.tvDisplayVideoRemove")}
+                    </button>
+                  </div>
+                ) : (
+                  <div style={competitionEmptyVideoStyle}>
+                    {removeTvVideoDraft
+                      ? t("management.shows.tvDisplayVideoWillRemove")
+                      : t("management.shows.tvDisplayVideoEmpty")}
+                  </div>
+                )}
+
+                <div style={competitionTvLinkPanelStyle}>
+                  <div style={competitionTvStepNumberStyle}>3</div>
+                  <div style={competitionTvStepContentStyle}>
+                    <div style={competitionTvStepLabelStyle}>
+                      {t("management.shows.tvDisplayCompetitionLinkTitle")}
+                    </div>
+                    {competitionTvArena && competitionTvDisplayReady ? (
+                      <div style={competitionTvLinkRowStyle}>
+                        <span style={competitionTvArenaPillStyle}>
+                          {competitionTvArena}
+                        </span>
+                        <Link
+                          to={getTvDisplayPath(
+                            associationId,
+                            showId,
+                            competitionTvArena
+                          )}
+                          style={competitionPrimaryLinkStyle}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {t("management.shows.openTvDisplayCompetition")}
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => copyTvDisplayLink(competitionTvArena)}
+                          style={competitionSecondaryButtonStyle}
+                        >
+                          {copiedOverlayKey ===
+                          `tv:${getOverlayCopyKey(competitionTvArena)}`
+                            ? t("common.linkCopied")
+                            : t("management.shows.copyTvDisplayCompetition")}
+                        </button>
+                      </div>
+                    ) : competitionTvArena ? (
+                      <div style={competitionTvLinkHintStyle}>
+                        {t("management.shows.tvDisplayCompetitionSaveHint")}
+                      </div>
+                    ) : (
+                      <div style={competitionTvLinkHintStyle}>
+                        {t("management.shows.tvDisplayCompetitionLinkHint")}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </section>
 
               <section style={settingsSectionStyle}>
@@ -2044,26 +2137,211 @@ const overlaySponsorSectionStyle = {
   borderTop: "1px solid #e2e8f0",
 };
 
-const tvVideoSettingsStyle = {
+const generalTvSectionStyle = {
   display: "grid",
-  gap: 12,
-  padding: 14,
-  borderRadius: 10,
-  border: "1px solid #bfdbfe",
-  background: "#eff6ff",
+  gap: 14,
+  padding: 18,
+  borderRadius: 14,
+  border: "1px solid #cbd5e1",
+  borderLeft: "5px solid #64748b",
+  background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
 };
 
-const videoFileSummaryStyle = {
+const competitionTvSectionStyle = {
+  display: "grid",
+  gap: 16,
+  padding: 20,
+  borderRadius: 16,
+  border: "2px solid #0f766e",
+  background: "linear-gradient(135deg, #0f172a 0%, #164e63 100%)",
+  boxShadow: "0 12px 28px rgba(15, 23, 42, 0.18)",
+};
+
+const competitionTvHeaderStyle = {
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  gap: 18,
+  flexWrap: "wrap",
+};
+
+const competitionTvEyebrowStyle = {
+  marginBottom: 5,
+  color: "#5eead4",
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: "0.12em",
+  textTransform: "uppercase",
+};
+
+const competitionTvTitleStyle = {
+  margin: 0,
+  color: "#fff",
+  fontSize: 23,
+  lineHeight: 1.1,
+};
+
+const competitionTvHelpStyle = {
+  maxWidth: 680,
+  marginTop: 7,
+  color: "#cbd5e1",
+  fontSize: 14,
+  lineHeight: 1.45,
+};
+
+const competitionTvBadgeStyle = {
+  padding: "7px 11px",
+  borderRadius: 999,
+  border: "1px solid rgba(94, 234, 212, 0.5)",
+  background: "rgba(20, 184, 166, 0.18)",
+  color: "#99f6e4",
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: "0.05em",
+  textTransform: "uppercase",
+};
+
+const competitionTvSetupGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+  gap: 12,
+};
+
+const competitionTvStepStyle = {
+  display: "flex",
+  alignItems: "flex-start",
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 12,
+  border: "1px solid rgba(255, 255, 255, 0.14)",
+  background: "rgba(255, 255, 255, 0.07)",
+};
+
+const competitionTvStepNumberStyle = {
+  flex: "0 0 30px",
+  width: 30,
+  height: 30,
+  display: "grid",
+  placeItems: "center",
+  borderRadius: 999,
+  background: "#f4d98c",
+  color: "#17252c",
+  fontSize: 15,
+  fontWeight: 950,
+};
+
+const competitionTvStepContentStyle = {
+  flex: "1 1 auto",
+  minWidth: 0,
+  display: "grid",
+  gap: 8,
+};
+
+const competitionTvStepLabelStyle = {
+  color: "#fff",
+  fontSize: 14,
+  fontWeight: 900,
+};
+
+const competitionTvInputStyle = {
+  width: "100%",
+  padding: "11px 12px",
+  borderRadius: 9,
+  border: "1px solid #94a3b8",
+  background: "#fff",
+  color: "#0f172a",
+  boxSizing: "border-box",
+  fontSize: 15,
+  fontWeight: 750,
+};
+
+const competitionTvFileInputStyle = {
+  ...competitionTvInputStyle,
+  padding: 8,
+  borderStyle: "dashed",
+};
+
+const competitionVideoFileSummaryStyle = {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
   gap: 12,
   flexWrap: "wrap",
-  padding: 12,
-  borderRadius: 8,
-  border: "1px solid #bfdbfe",
-  background: "#fff",
-  color: "#1e3a8a",
+  padding: 13,
+  borderRadius: 10,
+  border: "1px solid rgba(94, 234, 212, 0.4)",
+  background: "rgba(15, 118, 110, 0.24)",
+  color: "#ccfbf1",
+};
+
+const competitionEmptyVideoStyle = {
+  padding: 13,
+  borderRadius: 10,
+  border: "1px dashed rgba(203, 213, 225, 0.45)",
+  background: "rgba(255, 255, 255, 0.05)",
+  color: "#cbd5e1",
+};
+
+const competitionTvLinkPanelStyle = {
+  display: "flex",
+  alignItems: "flex-start",
+  gap: 12,
+  padding: 14,
+  borderRadius: 12,
+  border: "1px solid rgba(244, 217, 140, 0.42)",
+  background: "rgba(244, 217, 140, 0.09)",
+};
+
+const competitionTvLinkRowStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 9,
+  flexWrap: "wrap",
+};
+
+const competitionTvArenaPillStyle = {
+  padding: "8px 12px",
+  borderRadius: 999,
+  background: "rgba(255, 255, 255, 0.12)",
+  color: "#fff",
+  fontWeight: 950,
+};
+
+const competitionPrimaryLinkStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "10px 14px",
+  borderRadius: 9,
+  border: "1px solid #f4d98c",
+  background: "#f4d98c",
+  color: "#17252c",
+  textDecoration: "none",
+  fontWeight: 900,
+};
+
+const competitionSecondaryButtonStyle = {
+  padding: "10px 14px",
+  borderRadius: 9,
+  border: "1px solid rgba(255, 255, 255, 0.35)",
+  background: "rgba(255, 255, 255, 0.08)",
+  color: "#fff",
+  cursor: "pointer",
+  fontWeight: 850,
+};
+
+const competitionDangerButtonStyle = {
+  ...competitionSecondaryButtonStyle,
+  border: "1px solid rgba(252, 165, 165, 0.65)",
+  background: "rgba(127, 29, 29, 0.28)",
+  color: "#fecaca",
+};
+
+const competitionTvLinkHintStyle = {
+  color: "#fde68a",
+  fontSize: 13,
+  fontWeight: 800,
 };
 
 const overlaySponsorTitleStyle = {

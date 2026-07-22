@@ -44,8 +44,7 @@ function PublicShowTvPage() {
   );
   const tvVideoUrl = getTvDisplayVideoPublicUrl(show?.tvDisplayVideoPath);
   const isCompetitionVideoDisplay = Boolean(
-    !show?.isTvDisplayPaused &&
-      tvVideoUrl &&
+    tvVideoUrl &&
       selectedArena &&
       normalizeArenaName(show?.tvDisplayVideoArena).toLowerCase() ===
         normalizeArenaName(selectedArena).toLowerCase()

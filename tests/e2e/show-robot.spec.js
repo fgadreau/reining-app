@@ -136,10 +136,22 @@ async function seedCompetitionVideoShow(page) {
     (item) => item.id === SHOW_ID
   );
   Object.assign(show, {
+    isTvDisplayPaused: true,
     tvDisplayVideoPath: "https://example.test/arena-display.mp4",
     tvDisplayVideoName: "arena-display.mp4",
     tvDisplayVideoSize: 1024 * 1024 * 1024,
     tvDisplayVideoArena: "Manege Robot",
+  });
+  seed.json["reining_classes_v1"].push({
+    id: "e2e-robot-annexe-class",
+    associationId: ASSOCIATION_ID,
+    showId: SHOW_ID,
+    dayId: "e2e-robot-day",
+    name: "Classe manège annexe",
+    classCode: "ANNEXE",
+    arena: "Manege Annexe",
+    pattern: "RR3",
+    sortOrder: 2,
   });
 
   await seedStorage(page, seed);
@@ -328,6 +340,7 @@ test.describe("robot de show local", () => {
     );
 
     await expect(page.locator('[data-tv-layout="competition-video"]')).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("Live en pause");
     await expect(page.locator("[data-tv-competition-video]")).toHaveAttribute(
       "loop",
       ""
@@ -344,7 +357,52 @@ test.describe("robot de show local", () => {
       `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/tv?arena=Autre`
     );
     await expect(page.locator('[data-tv-layout="competition-video"]')).toHaveCount(0);
+    await expect(page.locator("body")).toContainText("Live en pause");
     await expect(page.locator("[data-sponsor-layout]")).toBeVisible();
+  });
+
+  test("separe clairement les reglages TV generaux et competition", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1100, height: 1000 });
+    await seedCompetitionVideoShow(page);
+    await page.goto(`/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}`);
+    await page.getByRole("button", { name: /Réglages Live/ }).click();
+
+    const general = page.locator('[data-tv-settings="general"]');
+    const competition = page.locator('[data-tv-settings="competition"]');
+
+    await expect(general).toContainText(
+      "Affichage TV général — autres écrans"
+    );
+    await expect(general).toContainText(
+      "Mettre seulement les écrans généraux en pause"
+    );
+    await expect(competition).toContainText(
+      "Écran du manège de compétition"
+    );
+    await expect(competition).toContainText("Manège de compétition seulement");
+    await expect(competition).toContainText("Manege Robot");
+    await expect(general.locator("select option")).toHaveText([
+      "Manege Annexe",
+    ]);
+
+    const [generalBackground, competitionBackground] = await Promise.all([
+      general.evaluate((element) => getComputedStyle(element).backgroundImage),
+      competition.evaluate(
+        (element) => getComputedStyle(element).backgroundImage
+      ),
+    ]);
+    expect(generalBackground).not.toBe(competitionBackground);
+
+    if (process.env.E2E_CAPTURE_TV_SETTINGS === "1") {
+      await page.getByRole("dialog").screenshot({
+        path: "/tmp/tv-settings-redesign.png",
+      });
+      await competition.screenshot({
+        path: "/tmp/tv-competition-card.png",
+      });
+    }
   });
 
   test("permet le live annonceur et l affichage minimal ordre seulement", async ({
