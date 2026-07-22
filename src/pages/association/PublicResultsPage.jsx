@@ -25,10 +25,7 @@ import { getAssociationWebsiteHref } from "../../features/associations/associati
 import { getShowById } from "../../features/shows/showSelectors";
 import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
 import { useTranslation } from "../../features/i18n/I18nProvider";
-import {
-  buildLivestreamEmbed,
-  hasPublicLivestream,
-} from "../../features/livestream/livestreamEmbed";
+import { hasPublicLivestream } from "../../features/livestream/livestreamEmbed";
 import {
   seedClassResultsDemo,
   shouldSeedClassResultsDemo,
@@ -51,6 +48,7 @@ import {
   publicHeroStyle,
   publicMutedTextStyle,
   publicPageStyle,
+  publicPrimaryActionStyle,
   publicSecondaryActionStyle,
   publicSubtitleStyle,
   publicTitleStyle,
@@ -68,7 +66,6 @@ function PublicResultsPage() {
   const [publicView, setPublicView] = useState(() => getPublicShowView(showId));
   const [isLoading, setIsLoading] = useState(true);
   const [openClassId, setOpenClassId] = useState(null);
-  const [isVideoOpen, setIsVideoOpen] = useState(true);
   const [now, setNow] = useState(() => new Date());
   const { t } = useTranslation();
   const publicClassIdsKey = (publicView.classIds || []).join("|");
@@ -261,6 +258,14 @@ function PublicResultsPage() {
             title={seo.title}
             text={seo.description}
           />
+          {hasLivestreamVideo && isPublicRoute ? (
+            <Link
+              to={`${canonicalPublicPath}/livestream`}
+              style={publicPrimaryActionStyle}
+            >
+              {t("public.results.openLivestream")}
+            </Link>
+          ) : null}
           {isPublicRoute ? (
             <Link to={`/public/associations/${associationId}`} style={linkButtonStyle}>
               {t("common.shows")}
@@ -275,14 +280,6 @@ function PublicResultsPage() {
           )}
         </div>
       </section>
-
-      {hasLivestreamVideo && (
-        <PublicLivestreamPanel
-          show={show}
-          isOpen={isVideoOpen}
-          onToggle={() => setIsVideoOpen((current) => !current)}
-        />
-      )}
 
       {livePaidWarmups.length > 0 && (
         <div style={liveStackStyle}>
@@ -600,83 +597,6 @@ function getPublicScheduleDrawLabel(row, t) {
   return row.runCount > 0
     ? t("management.schedulePreview.drawCount", { count: row.runCount })
     : t("management.schedulePreview.drawPending");
-}
-
-function PublicLivestreamPanel({ show, isOpen, onToggle }) {
-  const { t } = useTranslation();
-  const embed = buildLivestreamEmbed(show?.livestreamUrl);
-
-  function handleKeyDown(event) {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
-    onToggle();
-  }
-
-  return (
-    <section style={livestreamPanelStyle}>
-      <div
-        role="button"
-        tabIndex={0}
-        aria-expanded={isOpen}
-        onClick={onToggle}
-        onKeyDown={handleKeyDown}
-        style={livestreamHeaderStyle(isOpen)}
-      >
-        <div>
-          <div style={eyebrowStyle}>{t("public.results.videoLiveLabel")}</div>
-          <h2 style={sectionTitleStyle}>
-            {t("public.results.videoLiveTitle")}
-          </h2>
-          <div style={mutedTextStyle}>
-            {t("public.results.videoLiveHelp")}
-          </div>
-        </div>
-        <div style={badgeStackStyle}>
-          {embed.providerLabel && <Badge>{embed.providerLabel}</Badge>}
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggle();
-            }}
-            style={smallButtonStyle}
-          >
-            {isOpen
-              ? t("public.results.hideVideo")
-              : t("public.results.showVideo")}
-          </button>
-        </div>
-      </div>
-
-      {isOpen && (
-        embed.canEmbed ? (
-          <div style={livestreamFrameWrapStyle}>
-            <iframe
-              title={t("public.results.videoLiveTitle")}
-              src={embed.embedUrl}
-              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-              allowFullScreen
-              style={livestreamFrameStyle}
-            />
-          </div>
-        ) : (
-          <div style={livestreamFallbackStyle}>
-            <div style={mutedTextStyle}>
-              {t("public.results.videoExternalOnly")}
-            </div>
-            <a
-              href={embed.externalUrl}
-              target="_blank"
-              rel="noreferrer"
-              style={linkButtonStyle}
-            >
-              {t("public.results.openVideo")}
-            </a>
-          </div>
-        )
-      )}
-    </section>
-  );
 }
 
 function PublicClassResults({ association, show, classView, isOpen, onToggle }) {
@@ -2429,53 +2349,6 @@ const livePanelStyle = {
   padding: 14,
   marginBottom: 12,
   border: `1px solid ${publicColors.greenBorder}`,
-};
-
-const livestreamPanelStyle = {
-  ...publicCardStyle,
-  padding: 14,
-  marginBottom: 12,
-  border: "1px solid #bfdbfe",
-};
-
-const livestreamHeaderStyle = (isOpen) => ({
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-start",
-  gap: 12,
-  flexWrap: "wrap",
-  marginBottom: isOpen ? 12 : 0,
-  cursor: "pointer",
-  outlineOffset: 4,
-});
-
-const livestreamFrameWrapStyle = {
-  position: "relative",
-  width: "100%",
-  aspectRatio: "16 / 9",
-  background: "#020617",
-  borderRadius: 8,
-  overflow: "hidden",
-};
-
-const livestreamFrameStyle = {
-  position: "absolute",
-  inset: 0,
-  width: "100%",
-  height: "100%",
-  border: 0,
-};
-
-const livestreamFallbackStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: 12,
-  flexWrap: "wrap",
-  border: `1px solid ${publicColors.border}`,
-  borderRadius: 8,
-  padding: 12,
-  background: publicColors.surfaceSoft,
 };
 
 const livePanelToggleStyle = (isOpen) => ({

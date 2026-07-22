@@ -38,7 +38,8 @@ as $$
       shows.tv_display_video_path,
       shows.tv_display_video_name,
       shows.tv_display_video_size,
-      shows.tv_display_video_arena
+      shows.tv_display_video_arena,
+      shows.livestream_urls_by_date
     from public.shows
     where shows.id = target_show_id
       and shows.status in ('draft', 'open')

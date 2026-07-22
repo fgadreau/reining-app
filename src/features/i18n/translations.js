@@ -1482,14 +1482,18 @@ export const translations = {
         copyTvDisplayLink: "Copier le lien TV",
         loading: "Chargement des shows...",
         livestreamHelp:
-          "Colle un lien YouTube, Vimeo ou un code iframe. La vidéo peut être masquée par le public; le live scoring reste disponible.",
+          "Ajoute le lien YouTube, Vimeo ou iframe propre à chaque journée. Seule la vidéo de la date courante sera chargée sur la page Livestream.",
+        livestreamDailyLinkAria: "Lien du livestream pour le {{date}}",
+        livestreamDailyLinksLabel: "Liens vidéo par journée",
+        livestreamDatesRequired:
+          "Définis d’abord les dates du show pour ajouter les liens vidéo quotidiens.",
         livestreamPublicEnabled: "Livestream public activé",
-        livestreamPublicLabel: "Afficher la vidéo sur la vitrine publique",
+        livestreamPublicLabel: "Publier la page Livestream du show",
         livestreamSettings: "Réglages Live / Vue en direct",
         livestreamSettingsHelp:
           "Centralise ici la vidéo publique, l’horaire public, les liens OBS et les overlays par manège pour ce show.",
         livestreamUrlLabel: "Lien du livestream",
-        livestreamVideoTitle: "Vidéo publique",
+        livestreamVideoTitle: "Livestream public par journée",
         locationLabel: "Lieu",
         locationTbd: "Lieu non défini",
         nameLabel: "Nom",
@@ -1772,6 +1776,7 @@ export const translations = {
         onCourse: "En piste",
         oneMinute: "Il reste 1 minute",
         openVideo: "Ouvrir la vidéo",
+        openLivestream: "Voir le livestream",
         order: "Ordre",
         orderOfGo: "Ordre de passage",
         owner: "Propriétaire",
@@ -1842,6 +1847,22 @@ export const translations = {
         videoLiveLabel: "Vidéo",
         videoLiveTitle: "Livestream du show",
         returnSoon: "Retour en piste bientôt",
+      },
+      livestream: {
+        eyebrow: "Livestream du show",
+        externalOnly:
+          "Cette plateforme doit être ouverte dans une nouvelle fenêtre.",
+        loading: "Chargement du livestream…",
+        noVideoToday: "Aucune vidéo n’est publiée pour aujourd’hui.",
+        openExternal: "Ouvrir le livestream",
+        openResults: "Voir le pointage et l’avancement",
+        outsideShowDay:
+          "Le livestream est disponible uniquement pendant les journées du show.",
+        resultsRemainAvailable:
+          "Le pointage, l’horaire et l’avancement demeurent accessibles sans charger de vidéo.",
+        seoTitle: "Livestream · {{showName}} | ShowScore",
+        today: "Diffusion d’aujourd’hui",
+        videoTitle: "Livestream du show",
       },
       status: {
         hidden: "Masqué",
@@ -3333,14 +3354,18 @@ export const translations = {
         copyTvDisplayLink: "Copy TV link",
         loading: "Loading shows...",
         livestreamHelp:
-          "Paste a YouTube, Vimeo, or iframe link. Visitors can hide the video; live scoring stays available.",
+          "Add the YouTube, Vimeo, or iframe link for each show day. Only the current date’s video loads on the Livestream page.",
+        livestreamDailyLinkAria: "Livestream link for {{date}}",
+        livestreamDailyLinksLabel: "Daily video links",
+        livestreamDatesRequired:
+          "Set the show dates first to add daily video links.",
         livestreamPublicEnabled: "Public livestream enabled",
-        livestreamPublicLabel: "Show the video on the public showcase",
+        livestreamPublicLabel: "Publish the show Livestream page",
         livestreamSettings: "Live / Public View settings",
         livestreamSettingsHelp:
           "Keep the public video, public schedule, OBS links, and arena overlays for this show in one place.",
         livestreamUrlLabel: "Livestream link",
-        livestreamVideoTitle: "Public video",
+        livestreamVideoTitle: "Daily public livestream",
         locationLabel: "Location",
         locationTbd: "Location not set",
         nameLabel: "Name",
@@ -3624,6 +3649,7 @@ export const translations = {
         onCourse: "In the arena",
         oneMinute: "1 minute remaining",
         openVideo: "Open video",
+        openLivestream: "Watch livestream",
         order: "Order",
         orderOfGo: "Order of go",
         owner: "Owner",
@@ -3693,6 +3719,21 @@ export const translations = {
         videoLiveTitle: "Show livestream",
         view: "View",
         viewDetails: "Details",
+      },
+      livestream: {
+        eyebrow: "Show livestream",
+        externalOnly: "This platform must be opened in a new window.",
+        loading: "Loading livestream…",
+        noVideoToday: "No video is published for today.",
+        openExternal: "Open livestream",
+        openResults: "View scoring and progress",
+        outsideShowDay:
+          "The livestream is available only during the show dates.",
+        resultsRemainAvailable:
+          "Scoring, schedule, and progress remain available without loading video.",
+        seoTitle: "Livestream · {{showName}} | ShowScore",
+        today: "Today’s broadcast",
+        videoTitle: "Show livestream",
       },
       status: {
         hidden: "Hidden",

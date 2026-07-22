@@ -138,5 +138,6 @@ export function buildLivestreamEmbed(value) {
 }
 
 export function hasPublicLivestream(show) {
-  return Boolean(show?.isLivestreamPublic && String(show?.livestreamUrl || "").trim());
+  return Boolean(show?.isLivestreamPublic && hasConfiguredLivestream(show));
 }
+import { hasConfiguredLivestream } from "./livestreamSchedule";

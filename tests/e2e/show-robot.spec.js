@@ -157,6 +157,37 @@ async function seedCompetitionVideoShow(page) {
   await seedStorage(page, seed);
 }
 
+async function seedDailyLivestreamShow(page) {
+  const seed = buildRobotShowStorageSeed();
+  const show = seed.json["reining_shows_v1"].find(
+    (item) => item.id === SHOW_ID
+  );
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Toronto",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const today = `${values.year}-${values.month}-${values.day}`;
+  const tomorrowDate = new Date(`${today}T12:00:00.000Z`);
+  tomorrowDate.setUTCDate(tomorrowDate.getUTCDate() + 1);
+  const tomorrow = tomorrowDate.toISOString().slice(0, 10);
+
+  Object.assign(show, {
+    startDate: today,
+    endDate: tomorrow,
+    isLivestreamPublic: true,
+    livestreamUrl: "https://example.test/live-today",
+    livestreamUrlsByDate: {
+      [today]: '<iframe src="https://example.test/live-today"></iframe>',
+      [tomorrow]: '<iframe src="https://example.test/live-tomorrow"></iframe>',
+    },
+  });
+
+  await seedStorage(page, seed);
+}
+
 async function seedStorage(page, seed) {
   await page.addInitScript((storageSeed) => {
     window.localStorage.clear();
@@ -306,6 +337,44 @@ test.describe("robot de show local", () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  test("separe le livestream quotidien du pointage public", async ({ page }) => {
+    await page.route("https://example.test/live-today", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: "<html><body>Livestream du jour</body></html>",
+      })
+    );
+    await page.route("https://example.test/live-tomorrow", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: "<html><body>Livestream futur</body></html>",
+      })
+    );
+    await seedDailyLivestreamShow(page);
+
+    await page.goto(`/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}`);
+    await expect(
+      page.getByRole("link", { name: "Voir le livestream" })
+    ).toBeVisible();
+    await expect(page.locator("iframe")).toHaveCount(0);
+
+    await page.getByRole("link", { name: "Voir le livestream" }).click();
+    await expect(page).toHaveURL(
+      new RegExp(
+        `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/livestream$`
+      )
+    );
+    await expect(page.locator("iframe")).toHaveAttribute(
+      "src",
+      "https://example.test/live-today"
+    );
+    await expect(
+      page.getByRole("link", { name: "Voir le pointage et l’avancement" })
+    ).toBeVisible();
+  });
+
   test("remplace les cartes TV vides par la prochaine classe", async ({
     page,
   }) => {
@@ -380,6 +449,13 @@ test.describe("robot de show local", () => {
 
     const general = page.locator('[data-tv-settings="general"]');
     const competition = page.locator('[data-tv-settings="competition"]');
+    const dialog = page.getByRole("dialog");
+
+    await expect(dialog).toContainText("Livestream public par journée");
+    await expect(dialog).toContainText("Liens vidéo par journée");
+    await expect(
+      dialog.getByLabel("Lien du livestream pour le 2026-05-28")
+    ).toBeVisible();
 
     await expect(general).toContainText(
       "Affichage TV général — autres écrans"

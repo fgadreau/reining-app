@@ -1,4 +1,5 @@
 import { shows as mockShows } from "../../data/mock/shows";
+import { normalizeLivestreamUrlsByDate } from "../livestream/livestreamSchedule";
 
 const STORAGE_KEY = "reining_shows_v1";
 
@@ -6,6 +7,9 @@ function normalizeShow(show) {
   return {
     ...show,
     livestreamUrl: show?.livestreamUrl || "",
+    livestreamUrlsByDate: normalizeLivestreamUrlsByDate(
+      show?.livestreamUrlsByDate
+    ),
     isLivestreamPublic: Boolean(show?.isLivestreamPublic),
     isSchedulePublic: Boolean(show?.isSchedulePublic),
     isTvDisplayPaused: Boolean(show?.isTvDisplayPaused),

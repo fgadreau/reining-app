@@ -39,6 +39,10 @@ import {
 } from "../../features/cloud/localFirstSyncMessages";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { hasPublicLivestream } from "../../features/livestream/livestreamEmbed";
+import {
+  getLivestreamUrlsForShow,
+  normalizeLivestreamUrlsByDate,
+} from "../../features/livestream/livestreamSchedule";
 import { getPaidWarmupsForDayRepository } from "../../features/paidWarmups/paidWarmupRepository";
 import { getPublicShowViewRepository } from "../../features/publication/publicViewRepository";
 import {
@@ -76,7 +80,7 @@ function ShowDetailPage() {
   const [isLivestreamModalOpen, setIsLivestreamModalOpen] = useState(false);
   const [livestreamDraft, setLivestreamDraft] = useState({
     isLivestreamPublic: false,
-    livestreamUrl: "",
+    livestreamUrlsByDate: {},
     isSchedulePublic: false,
     isTvDisplayPaused: false,
     tvDisplayMessageFr: "",
@@ -347,9 +351,17 @@ function ShowDetailPage() {
   };
 
   const openLivestreamSettings = () => {
+    const configuredLivestreamUrls = getLivestreamUrlsForShow(show, {
+      timezone: association?.timezone,
+    });
     setLivestreamDraft({
       isLivestreamPublic: Boolean(show?.isLivestreamPublic),
-      livestreamUrl: show?.livestreamUrl || "",
+      livestreamUrlsByDate: Object.fromEntries(
+        showDateRange.map((date) => [
+          date,
+          configuredLivestreamUrls[date] || "",
+        ])
+      ),
       isSchedulePublic: Boolean(show?.isSchedulePublic),
       isTvDisplayPaused: Boolean(show?.isTvDisplayPaused),
       tvDisplayMessageFr: show?.tvDisplayMessageFr || "",
@@ -577,10 +589,21 @@ function ShowDetailPage() {
           })
         : null;
       hasUploadedTvVideo = Boolean(uploadedVideo);
+      const livestreamUrlsByDate = normalizeLivestreamUrlsByDate(
+        Object.fromEntries(
+          showDateRange.map((date) => [
+            date,
+            livestreamDraft.livestreamUrlsByDate?.[date] || "",
+          ])
+        )
+      );
+      const firstLivestreamUrl =
+        Object.values(livestreamUrlsByDate).find(Boolean) || "";
       const nextShow = {
         ...show,
         associationId,
-        livestreamUrl: livestreamDraft.livestreamUrl,
+        livestreamUrl: firstLivestreamUrl,
+        livestreamUrlsByDate,
         isLivestreamPublic: Boolean(livestreamDraft.isLivestreamPublic),
         isSchedulePublic: Boolean(livestreamDraft.isSchedulePublic),
         isTvDisplayPaused: Boolean(livestreamDraft.isTvDisplayPaused),
@@ -969,22 +992,48 @@ function ShowDetailPage() {
                 </label>
 
                 <div>
-                  <label style={labelStyle}>
-                    {t("management.shows.livestreamUrlLabel")}
-                  </label>
-                  <input
-                    type="text"
-                    value={livestreamDraft.livestreamUrl}
-                    onChange={(event) =>
-                      setLivestreamDraft((current) => ({
-                        ...current,
-                        livestreamUrl: event.target.value,
-                      }))
-                    }
-                    placeholder="https://youtube.com/watch?v=..."
-                    style={inputStyle}
-                    disabled={!access.canManageAssociation || isSaving}
-                  />
+                  <div style={labelStyle}>
+                    {t("management.shows.livestreamDailyLinksLabel")}
+                  </div>
+                  {showDateRange.length > 0 ? (
+                    <div style={livestreamDayListStyle}>
+                      {showDateRange.map((date) => (
+                        <label key={date} style={livestreamDayRowStyle}>
+                          <span style={livestreamDayDateStyle}>
+                            <strong>{formatDayLabel(date, language)}</strong>
+                            <span>{date}</span>
+                          </span>
+                          <input
+                            type="text"
+                            value={
+                              livestreamDraft.livestreamUrlsByDate?.[date] ||
+                              ""
+                            }
+                            onChange={(event) =>
+                              setLivestreamDraft((current) => ({
+                                ...current,
+                                livestreamUrlsByDate: {
+                                  ...(current.livestreamUrlsByDate || {}),
+                                  [date]: event.target.value,
+                                },
+                              }))
+                            }
+                            aria-label={t(
+                              "management.shows.livestreamDailyLinkAria",
+                              { date }
+                            )}
+                            placeholder="https://youtube.com/watch?v=..."
+                            style={inputStyle}
+                            disabled={!access.canManageAssociation || isSaving}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={helpTextStyle}>
+                      {t("management.shows.livestreamDatesRequired")}
+                    </div>
+                  )}
                 </div>
               </section>
 
@@ -2499,6 +2548,30 @@ const helpTextStyle = {
   color: "#475569",
   fontSize: 13,
   lineHeight: 1.35,
+};
+
+const livestreamDayListStyle = {
+  display: "grid",
+  gap: 9,
+};
+
+const livestreamDayRowStyle = {
+  display: "grid",
+  gridTemplateColumns: "minmax(190px, 0.38fr) minmax(0, 1fr)",
+  gap: 12,
+  alignItems: "center",
+  padding: 10,
+  border: "1px solid #dbe3ed",
+  borderRadius: 8,
+  background: "#fff",
+};
+
+const livestreamDayDateStyle = {
+  minWidth: 0,
+  display: "grid",
+  gap: 3,
+  color: "#0f172a",
+  textTransform: "capitalize",
 };
 
 const checkboxLabelStyle = {

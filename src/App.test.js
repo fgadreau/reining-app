@@ -49,6 +49,11 @@ import {
   hasPublicLivestream,
 } from "./features/livestream/livestreamEmbed";
 import {
+  getCurrentPublicLivestream,
+  getDateValueInTimeZone,
+  normalizeLivestreamUrlsByDate,
+} from "./features/livestream/livestreamSchedule";
+import {
   LIVE_DATA_SOURCES,
   LIVE_DISPLAY_MODES,
   normalizeLiveDataSource,
@@ -2671,10 +2676,67 @@ test("builds livestream embeds from public video links", () => {
   ).toBe(true);
   expect(
     hasPublicLivestream({
+      isLivestreamPublic: true,
+      livestreamUrlsByDate: {
+        "2026-07-22": "https://youtu.be/daily123",
+      },
+    })
+  ).toBe(true);
+  expect(
+    hasPublicLivestream({
       isLivestreamPublic: false,
       livestreamUrl: "https://youtu.be/abc123",
     })
   ).toBe(false);
+});
+
+test("selects only the current show day livestream in the association timezone", () => {
+  const show = {
+    startDate: "2026-07-22",
+    endDate: "2026-07-24",
+    isLivestreamPublic: true,
+    livestreamUrlsByDate: {
+      "2026-07-22": "https://example.com/day-1",
+      "2026-07-23": "https://example.com/day-2",
+      "2026-07-24": "https://example.com/day-3",
+    },
+  };
+
+  expect(
+    getDateValueInTimeZone(
+      new Date("2026-07-23T02:30:00.000Z"),
+      "America/Toronto"
+    )
+  ).toBe("2026-07-22");
+  expect(
+    getCurrentPublicLivestream(show, {
+      timezone: "America/Toronto",
+      now: new Date("2026-07-23T16:00:00.000Z"),
+    })
+  ).toMatchObject({
+    showDate: "2026-07-23",
+    url: "https://example.com/day-2",
+  });
+  expect(
+    getCurrentPublicLivestream(show, {
+      timezone: "America/Toronto",
+      now: new Date("2026-07-25T16:00:00.000Z"),
+    }).url
+  ).toBe("");
+});
+
+test("normalizes daily livestream links by valid date", () => {
+  expect(
+    normalizeLivestreamUrlsByDate({
+      invalid: "https://example.com/invalid",
+      "2026-07-24": "  https://example.com/day-3  ",
+      "2026-07-22": "https://example.com/day-1",
+      "2026-07-23": "",
+    })
+  ).toEqual({
+    "2026-07-22": "https://example.com/day-1",
+    "2026-07-24": "https://example.com/day-3",
+  });
 });
 
 test("detects and translates the interface language", () => {

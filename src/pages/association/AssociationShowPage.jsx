@@ -35,6 +35,7 @@ function AssociationShowPage() {
     status: "draft",
     isLivestreamPublic: false,
     livestreamUrl: "",
+    livestreamUrlsByDate: {},
     isSchedulePublic: false,
   });
   const access = useAssociationAccess(associationId);
@@ -76,6 +77,7 @@ function AssociationShowPage() {
       status: "draft",
       isLivestreamPublic: false,
       livestreamUrl: "",
+      livestreamUrlsByDate: {},
       isSchedulePublic: false,
     };
 
@@ -93,6 +95,7 @@ function AssociationShowPage() {
         status: newShow.status,
         isLivestreamPublic: newShow.isLivestreamPublic,
         livestreamUrl: newShow.livestreamUrl,
+        livestreamUrlsByDate: newShow.livestreamUrlsByDate,
         isSchedulePublic: newShow.isSchedulePublic,
       });
     } catch (error) {
@@ -114,6 +117,7 @@ function AssociationShowPage() {
       status: show.status || "draft",
       isLivestreamPublic: Boolean(show.isLivestreamPublic),
       livestreamUrl: show.livestreamUrl || "",
+      livestreamUrlsByDate: show.livestreamUrlsByDate || {},
       isSchedulePublic: Boolean(show.isSchedulePublic),
     });
   };
@@ -129,6 +133,7 @@ function AssociationShowPage() {
       status: "draft",
       isLivestreamPublic: false,
       livestreamUrl: "",
+      livestreamUrlsByDate: {},
       isSchedulePublic: false,
     });
   };
@@ -156,6 +161,7 @@ function AssociationShowPage() {
       status: draft.status,
       isLivestreamPublic: Boolean(draft.isLivestreamPublic),
       livestreamUrl: draft.livestreamUrl,
+      livestreamUrlsByDate: draft.livestreamUrlsByDate || {},
       isSchedulePublic: Boolean(draft.isSchedulePublic),
     };
 

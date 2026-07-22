@@ -15,6 +15,7 @@ import {
   saveShows,
   updateShow,
 } from "./showStorage";
+import { normalizeLivestreamUrlsByDate } from "../livestream/livestreamSchedule";
 
 function toShowStatus(hspStatus) {
   if (hspStatus === "open") return "active";
@@ -39,6 +40,9 @@ function toShow(row) {
     endDate: row.end_date || "",
     status: toShowStatus(row.status),
     livestreamUrl: row.livestream_url || "",
+    livestreamUrlsByDate: normalizeLivestreamUrlsByDate(
+      row.livestream_urls_by_date
+    ),
     isLivestreamPublic: Boolean(row.is_livestream_public),
     isSchedulePublic: Boolean(
       row.is_public || row.show_schedule_public || row.is_schedule_public
@@ -65,6 +69,9 @@ function toShowRow(show, options = {}) {
     end_date: show.endDate || null,
     status: toHspShowStatus(show.status),
     livestream_url: show.livestreamUrl || "",
+    livestream_urls_by_date: normalizeLivestreamUrlsByDate(
+      show.livestreamUrlsByDate
+    ),
     is_livestream_public: Boolean(show.isLivestreamPublic),
     tv_display_paused: Boolean(show.isTvDisplayPaused),
     tv_display_message_fr: show.tvDisplayMessageFr || "",
@@ -86,6 +93,7 @@ function toShowRow(show, options = {}) {
 function toLegacyShowRow(show) {
   const row = toShowRow(show, { includePublicSchedule: false });
   delete row.livestream_url;
+  delete row.livestream_urls_by_date;
   delete row.is_livestream_public;
   delete row.tv_display_paused;
   delete row.tv_display_message_fr;
@@ -118,7 +126,9 @@ function getSupabaseErrorText(error) {
 function isLivestreamSchemaMissing(error) {
   const message = getSupabaseErrorText(error);
 
-  return /livestream_url|is_livestream_public/i.test(message);
+  return /livestream_url|livestream_urls_by_date|is_livestream_public/i.test(
+    message
+  );
 }
 
 function isScheduleSchemaMissing(error) {

@@ -86,6 +86,7 @@ import {
   getLiveScoreDisplayMode,
   isLivePublicationStatus,
 } from "./publicationRepository";
+import { normalizeLivestreamUrlsByDate } from "../livestream/livestreamSchedule";
 
 function toAssociation(row) {
   const sponsorGroups = normalizeSponsorGroups(row.sponsor_logos);
@@ -120,6 +121,9 @@ function toShow(row) {
     endDate: row.end_date || "",
     status,
     livestreamUrl: row.livestream_url || "",
+    livestreamUrlsByDate: normalizeLivestreamUrlsByDate(
+      row.livestream_urls_by_date
+    ),
     isLivestreamPublic: Boolean(row.is_livestream_public),
     isSchedulePublic: Boolean(
       row.is_public || row.is_schedule_public || row.show_schedule_public
