@@ -56,6 +56,10 @@ function PublicShowOverlayPage() {
     SPONSOR_LOGOS_PER_SLIDE
   );
   const hasSponsorRail = sponsorSlides.length > 0;
+  const isDragActive = Boolean(
+    liveClass?.activeDragItem || liveClass?.dragBreak?.isActive
+  );
+  const isSponsorTakeover = isDragActive && hasSponsorRail;
   const visibleSponsorSlide =
     sponsorSlides[sponsorSlideIndex % sponsorSlides.length] || null;
   const visibleSponsorLogos = visibleSponsorSlide?.sponsors || [];
@@ -138,6 +142,10 @@ function PublicShowOverlayPage() {
   }, [sponsorSlides.length]);
 
   useEffect(() => {
+    setSponsorSlideIndex(0);
+  }, [isSponsorTakeover]);
+
+  useEffect(() => {
     if (sponsorSlides.length <= 1) {
       return undefined;
     }
@@ -154,28 +162,64 @@ function PublicShowOverlayPage() {
   }, [sponsorSlides.length]);
 
   return (
-    <main style={overlayPageStyle(isCompactOverlay)}>
-      {isDemoMode && (
+    <main
+      style={overlayPageStyle(isCompactOverlay)}
+      data-overlay-layout={isSponsorTakeover ? "sponsor-takeover" : "live"}
+    >
+      {isDemoMode && !isSponsorTakeover && (
         <div style={demoBadgeStyle(isCompactOverlay)}>
           {t("public.overlay.demoBadge")}
         </div>
       )}
 
       {hasSponsorRail && (
-        <aside style={sponsorRailStyle(isCompactOverlay)}>
-          <div style={sponsorRailTitleStyle(isCompactOverlay)}>
-            {t("public.overlay.sponsorRailTitle")}
-            {visibleSponsorSlide?.groupName
-              ? ` · ${visibleSponsorSlide.groupName}`
-              : ""}
+        <aside
+          style={sponsorRailStyle(isCompactOverlay, isSponsorTakeover)}
+          data-overlay-sponsor-mode={isSponsorTakeover ? "takeover" : "rail"}
+        >
+          <div>
+            {isSponsorTakeover ? (
+              <div style={sponsorTakeoverTitleStyle}>
+                {t("public.overlay.dragSponsorTitle")}
+              </div>
+            ) : null}
+            <div
+              style={sponsorRailTitleStyle(
+                isCompactOverlay,
+                isSponsorTakeover
+              )}
+            >
+              {t("public.overlay.sponsorRailTitle")}
+              {visibleSponsorSlide?.groupName
+                ? ` · ${visibleSponsorSlide.groupName}`
+                : ""}
+            </div>
           </div>
-          <div key={sponsorSlideIndex} style={sponsorListStyle(isCompactOverlay)}>
-            {visibleSponsorLogos.map((sponsor) => (
-              <div key={sponsor.id} style={sponsorTileStyle(isCompactOverlay)}>
+          <div
+            key={sponsorSlideIndex}
+            style={sponsorListStyle(
+              isCompactOverlay,
+              isSponsorTakeover,
+              visibleSponsorLogos.length
+            )}
+          >
+            {visibleSponsorLogos.map((sponsor, index) => (
+              <div
+                key={sponsor.id}
+                style={sponsorTileStyle(
+                  isCompactOverlay,
+                  isSponsorTakeover,
+                  index,
+                  visibleSponsorLogos.length
+                )}
+              >
                 <img
                   src={sponsor.logoDataUrl}
                   alt={sponsor.name || t("public.overlay.sponsorLogo")}
-                  style={sponsorImageStyle(isCompactOverlay)}
+                  style={sponsorImageStyle(
+                    isCompactOverlay,
+                    isSponsorTakeover
+                  )}
                 />
               </div>
             ))}
@@ -183,7 +227,11 @@ function PublicShowOverlayPage() {
         </aside>
       )}
 
-      <section style={bottomBarStyle(hasSponsorRail, isCompactOverlay)}>
+      {!isSponsorTakeover && (
+        <section
+          style={bottomBarStyle(hasSponsorRail, isCompactOverlay)}
+          data-overlay-bottom-bar
+        >
         <div style={bottomBarAccentStyle} />
         <div style={brandBlockStyle(isCompactOverlay)}>
           <AssociationLogo
@@ -229,7 +277,8 @@ function PublicShowOverlayPage() {
           <span>{t("public.overlay.poweredBy")}</span>
           <strong>ShowScore.app</strong>
         </div>
-      </section>
+        </section>
+      )}
     </main>
   );
 }
@@ -643,47 +692,80 @@ const demoBadgeStyle = (isCompact) => ({
   textTransform: "uppercase",
 });
 
-const sponsorRailStyle = (isCompact) => ({
-  position: isCompact ? "relative" : "absolute",
-  top: isCompact ? "auto" : 28,
-  right: isCompact ? "auto" : 32,
-  bottom: isCompact ? "auto" : 158,
-  width: isCompact ? "100%" : "clamp(150px, 11vw, 228px)",
-  borderRadius: 8,
+const sponsorRailStyle = (isCompact, isTakeover) => ({
+  position: isTakeover ? "absolute" : isCompact ? "relative" : "absolute",
+  top: isTakeover ? 0 : isCompact ? "auto" : 28,
+  right: isTakeover ? 0 : isCompact ? "auto" : 32,
+  bottom: isTakeover ? 0 : isCompact ? "auto" : 158,
+  left: isTakeover ? 0 : "auto",
+  width: isTakeover ? "100%" : isCompact ? "100%" : "clamp(150px, 11vw, 228px)",
+  height: isTakeover ? "100%" : "auto",
+  borderRadius: isTakeover ? 0 : 8,
   background:
-    "linear-gradient(180deg, rgba(25, 20, 13, 0.94), rgba(10, 12, 16, 0.88))",
-  border: "1px solid rgba(230, 196, 122, 0.44)",
-  boxShadow: "0 24px 54px rgba(0, 0, 0, 0.38)",
-  padding: isCompact ? 10 : 14,
+    isTakeover
+      ? "radial-gradient(circle at 50% 42%, rgba(230, 196, 122, 0.18), transparent 42%), linear-gradient(145deg, rgba(25, 20, 13, 0.99), rgba(7, 11, 16, 0.99))"
+      : "linear-gradient(180deg, rgba(25, 20, 13, 0.94), rgba(10, 12, 16, 0.88))",
+  border: isTakeover ? 0 : "1px solid rgba(230, 196, 122, 0.44)",
+  boxShadow: isTakeover ? "none" : "0 24px 54px rgba(0, 0, 0, 0.38)",
+  padding: isTakeover ? "clamp(28px, 4.5vw, 82px)" : isCompact ? 10 : 14,
   boxSizing: "border-box",
   display: "grid",
-  gridTemplateRows: isCompact ? "auto" : "auto 1fr",
-  gap: isCompact ? 10 : 12,
+  gridTemplateRows: isTakeover ? "auto minmax(0, 1fr)" : isCompact ? "auto" : "auto 1fr",
+  gap: isTakeover ? "clamp(24px, 4vh, 52px)" : isCompact ? 10 : 12,
   backdropFilter: "blur(10px)",
+  overflow: "hidden",
+  transition: "inset 420ms ease, width 420ms ease, height 420ms ease, padding 420ms ease, border-radius 420ms ease",
 });
 
-const sponsorRailTitleStyle = (isCompact) => ({
+const sponsorTakeoverTitleStyle = {
+  color: "#fff",
+  fontSize: "clamp(30px, 4vw, 72px)",
+  fontWeight: 950,
+  lineHeight: 1,
+  textAlign: "center",
+  textTransform: "uppercase",
+};
+
+const sponsorRailTitleStyle = (isCompact, isTakeover) => ({
   color: "#f6e7bf",
-  fontSize: isCompact ? 13 : 14,
+  fontSize: isTakeover ? "clamp(18px, 2vw, 34px)" : isCompact ? 13 : 14,
   fontWeight: 900,
-  textAlign: isCompact ? "left" : "center",
+  textAlign: isTakeover ? "center" : isCompact ? "left" : "center",
   textTransform: "uppercase",
   borderBottom: "1px solid rgba(230, 196, 122, 0.32)",
-  paddingBottom: isCompact ? 8 : 10,
+  paddingTop: isTakeover ? 14 : 0,
+  paddingBottom: isTakeover ? 18 : isCompact ? 8 : 10,
 });
 
-const sponsorListStyle = (isCompact) => ({
+const sponsorListStyle = (isCompact, isTakeover, sponsorCount) => ({
   minHeight: 0,
+  width: isTakeover ? "min(100%, 1500px)" : "auto",
+  justifySelf: isTakeover ? "center" : "stretch",
   display: "grid",
-  gridTemplateColumns: isCompact
-    ? "repeat(auto-fit, minmax(94px, 1fr))"
-    : undefined,
-  gap: isCompact ? 8 : 10,
-  alignContent: "start",
+  gridTemplateColumns: isTakeover
+    ? sponsorCount <= 1
+      ? "minmax(0, 1fr)"
+      : "repeat(2, minmax(0, 1fr))"
+    : isCompact
+      ? "repeat(auto-fit, minmax(94px, 1fr))"
+      : undefined,
+  gridTemplateRows:
+    isTakeover && sponsorCount > 2
+      ? "repeat(2, minmax(0, 1fr))"
+      : undefined,
+  gap: isTakeover ? "clamp(16px, 2.2vw, 34px)" : isCompact ? 8 : 10,
+  alignContent: isTakeover ? "stretch" : "start",
 });
 
-const sponsorTileStyle = (isCompact) => ({
-  minHeight: isCompact ? 72 : "clamp(58px, 6vh, 104px)",
+const sponsorTileStyle = (
+  isCompact,
+  isTakeover,
+  sponsorIndex,
+  sponsorCount
+) => ({
+  minHeight: isTakeover ? 0 : isCompact ? 72 : "clamp(58px, 6vh, 104px)",
+  gridColumn:
+    isTakeover && sponsorCount === 3 && sponsorIndex === 2 ? "1 / -1" : "auto",
   borderRadius: 8,
   background:
     "linear-gradient(145deg, rgba(255,255,255,0.98), rgba(242,238,229,0.94))",
@@ -692,12 +774,12 @@ const sponsorTileStyle = (isCompact) => ({
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: isCompact ? 8 : 10,
+  padding: isTakeover ? "clamp(20px, 3vw, 54px)" : isCompact ? 8 : 10,
 });
 
-const sponsorImageStyle = (isCompact) => ({
-  maxWidth: "100%",
-  maxHeight: isCompact ? 54 : "clamp(44px, 5vh, 84px)",
+const sponsorImageStyle = (isCompact, isTakeover) => ({
+  maxWidth: isTakeover ? "88%" : "100%",
+  maxHeight: isTakeover ? "82%" : isCompact ? 54 : "clamp(44px, 5vh, 84px)",
   objectFit: "contain",
 });
 

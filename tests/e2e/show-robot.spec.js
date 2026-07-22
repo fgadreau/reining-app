@@ -188,6 +188,46 @@ async function seedDailyLivestreamShow(page) {
   await seedStorage(page, seed);
 }
 
+async function seedOverlayDragShow(page) {
+  const seed = buildRobotShowStorageSeed();
+  const association = seed.json["reiningApp.associations"].find(
+    (item) => item.id === ASSOCIATION_ID
+  );
+  const makeLogo = (label, color) =>
+    `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="640" height="360" fill="white"/><text x="320" y="205" text-anchor="middle" font-family="Arial" font-size="88" font-weight="700" fill="${color}">${label}</text></svg>`
+    )}`;
+
+  association.sponsorGroups = [
+    {
+      id: "overlay-gold",
+      name: "Or",
+      logos: [
+        { id: "gold-1", name: "Sponsor 1", logoDataUrl: makeLogo("S1", "#9a6b10") },
+        { id: "gold-2", name: "Sponsor 2", logoDataUrl: makeLogo("S2", "#166534") },
+        { id: "gold-3", name: "Sponsor 3", logoDataUrl: makeLogo("S3", "#1d4ed8") },
+        { id: "gold-4", name: "Sponsor 4", logoDataUrl: makeLogo("S4", "#9f1239") },
+      ],
+    },
+  ];
+
+  const activeDrag = {
+    type: "drag",
+    afterIndex: 1,
+    afterDraw: 2,
+    durationMinutes: 8,
+    startedAt: "2026-05-28T14:30:00.000Z",
+  };
+  Object.values(
+    seed.json["showscore_judge_scoring_sessions_v1"]
+  ).forEach((session) => {
+    session.activeManoeuvre = activeDrag;
+  });
+  seed.json[`reining-scoring-active-manoeuvre-${CLASS_ID}`] = activeDrag;
+
+  await seedStorage(page, seed);
+}
+
 async function seedStorage(page, seed) {
   await page.addInitScript((storageSeed) => {
     window.localStorage.clear();
@@ -373,6 +413,79 @@ test.describe("robot de show local", () => {
     await expect(
       page.getByRole("link", { name: "Voir le pointage et l’avancement" })
     ).toBeVisible();
+  });
+
+  test("agrandit les commanditaires pendant le drag puis restaure le live", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await seedOverlayDragShow(page);
+    await page.goto(
+      `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/overlay`
+    );
+
+    const overlay = page.locator("main");
+    const sponsors = page.locator('[data-overlay-sponsor-mode="takeover"]');
+    await expect(overlay).toHaveAttribute(
+      "data-overlay-layout",
+      "sponsor-takeover"
+    );
+    await expect(sponsors).toBeVisible();
+    await expect(page.locator("body")).toContainText(
+      "Drag en cours · Merci à nos commanditaires"
+    );
+    await expect(page.locator("[data-overlay-bottom-bar]")).toHaveCount(0);
+    await expect
+      .poll(async () => {
+        const box = await sponsors.boundingBox();
+        return box
+          ? {
+              x: Math.round(box.x),
+              y: Math.round(box.y),
+              width: Math.round(box.width),
+              height: Math.round(box.height),
+            }
+          : null;
+      })
+      .toEqual({ x: 0, y: 0, width: 1920, height: 1080 });
+
+    if (process.env.E2E_CAPTURE_OVERLAY_DRAG === "1") {
+      await page.screenshot({
+        path: "/tmp/overlay-drag-sponsors.png",
+        fullPage: true,
+      });
+    }
+
+    await page.evaluate((classId) => {
+      const activeRun = {
+        type: "run",
+        draw: 3,
+        startedAt: "2026-05-28T14:38:00.000Z",
+      };
+      const sessions = JSON.parse(
+        window.localStorage.getItem("showscore_judge_scoring_sessions_v1") ||
+          "{}"
+      );
+      Object.values(sessions).forEach((session) => {
+        session.activeManoeuvre = activeRun;
+      });
+      window.localStorage.setItem(
+        "showscore_judge_scoring_sessions_v1",
+        JSON.stringify(sessions)
+      );
+      window.localStorage.setItem(
+        `reining-scoring-active-manoeuvre-${classId}`,
+        JSON.stringify(activeRun)
+      );
+    }, CLASS_ID);
+
+    await expect(overlay).toHaveAttribute("data-overlay-layout", "live", {
+      timeout: 8000,
+    });
+    await expect(
+      page.locator('[data-overlay-sponsor-mode="rail"]')
+    ).toBeVisible();
+    await expect(page.locator("[data-overlay-bottom-bar]")).toBeVisible();
   });
 
   test("remplace les cartes TV vides par la prochaine classe", async ({

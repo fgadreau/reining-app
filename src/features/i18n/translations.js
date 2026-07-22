@@ -1711,6 +1711,7 @@ export const translations = {
       label: "Vitrine publique",
       overlay: {
         demoBadge: "Demo overlay",
+        dragSponsorTitle: "Drag en cours · Merci à nos commanditaires",
         lastScore: "Dernier concurrent",
         noActiveRun: "En attente du prochain départ",
         noScoreYet: "Aucun score",
@@ -3583,6 +3584,7 @@ export const translations = {
       label: "Public showcase",
       overlay: {
         demoBadge: "Demo overlay",
+        dragSponsorTitle: "Ground drag · Thank you to our sponsors",
         lastScore: "Last competitor",
         noActiveRun: "Waiting for the next run",
         noScoreYet: "No score yet",
