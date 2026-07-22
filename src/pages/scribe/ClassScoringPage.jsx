@@ -23,6 +23,7 @@ import {
 import {
   LIVE_QUEUE_ITEM_TYPES,
   getLiveDragItemId,
+  markLiveDragCompleted,
 } from "../../features/live/liveQueueItems";
 import {
   finalizeClassWithJudge,
@@ -326,6 +327,7 @@ function mergeScoringRuns(
           note: saved.note ?? baseRun.note ?? "",
           startedAt: saved.startedAt ?? null,
           completedAt: saved.completedAt ?? null,
+          dragCompletedAt: saved.dragCompletedAt ?? null,
           durationSeconds: saved.durationSeconds ?? null,
         },
         maneuverCount
@@ -1639,6 +1641,9 @@ function ClassScoringPage() {
     if (!canEditScores) return;
     if (activeDrag?.afterIndex !== afterIndex) return;
 
+    setRuns((prevRuns) =>
+      markLiveDragCompleted(prevRuns, afterIndex, new Date())
+    );
     setActiveManoeuvre(null);
   };
 

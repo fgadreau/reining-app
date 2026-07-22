@@ -60,6 +60,7 @@ import {
   normalizeLiveDisplayMode,
   resolveLiveScoringSession,
 } from "./features/live/liveDataSource";
+import { markLiveDragCompleted } from "./features/live/liveQueueItems";
 import {
   ANNOUNCER_RUN_STATUSES,
   buildAnnouncerJudgeScoreResult,
@@ -134,6 +135,7 @@ import { buildTvUpcomingCards } from "./pages/public/PublicShowTvPage";
 import {
   buildTvDisplayVideoPath,
   formatTvDisplayVideoSize,
+  getTvDisplayUploadAccessToken,
   TV_DISPLAY_VIDEO_MAX_BYTES,
   validateTvDisplayVideoFile,
 } from "./features/tvDisplay/tvDisplayVideo";
@@ -448,6 +450,46 @@ test("validates high-quality MP4 files for the arena display", () => {
       size: TV_DISPLAY_VIDEO_MAX_BYTES + 1,
     })
   ).toThrow(/2 Go/);
+});
+
+test("reuses the current Supabase session for a TV video upload", async () => {
+  let refreshCalls = 0;
+  const supabase = {
+    auth: {
+      getSession: async () => ({
+        data: { session: { access_token: "current-token" } },
+        error: null,
+      }),
+      refreshSession: async () => {
+        refreshCalls += 1;
+        return { data: { session: null }, error: null };
+      },
+    },
+  };
+
+  await expect(getTvDisplayUploadAccessToken(supabase)).resolves.toBe(
+    "current-token"
+  );
+  expect(refreshCalls).toBe(0);
+});
+
+test("refreshes an expired Supabase session before a TV video upload", async () => {
+  const supabase = {
+    auth: {
+      getSession: async () => ({
+        data: { session: null },
+        error: null,
+      }),
+      refreshSession: async () => ({
+        data: { session: { access_token: "refreshed-token" } },
+        error: null,
+      }),
+    },
+  };
+
+  await expect(getTvDisplayUploadAccessToken(supabase)).resolves.toBe(
+    "refreshed-token"
+  );
 });
 
 test("TV upcoming cards replace empty participant slots with the next class", () => {
@@ -7171,6 +7213,72 @@ test("summarizes class timing by pattern", () => {
     dragBreaks: 2,
     totalSeconds: 2460,
   });
+});
+
+test("a completed scribe drag advances the live queue to the next rider", () => {
+  const setupRuns = Array.from({ length: 4 }, (_, index) => ({
+    id: `scribe-drag-${index + 1}`,
+    draw: index + 1,
+    rider: `Rider ${index + 1}`,
+  }));
+  const classView = buildAnnouncerClassView({
+    classItem: {
+      id: "class-scribe-drag",
+      name: "Scribe Drag",
+      pattern: "5",
+    },
+    setup: {
+      pattern: "5",
+      liveDataSource: LIVE_DATA_SOURCES.SCRIBE,
+      dragInterval: 2,
+      dragDurationMinutes: 8,
+      runs: setupRuns,
+    },
+    scoringSession: {
+      classId: "class-scribe-drag",
+      activeManoeuvre: null,
+      runs: [
+        {
+          ...setupRuns[0],
+          scoreTotal: "70",
+          completedAt: "2026-07-20T12:02:00.000Z",
+        },
+        {
+          ...setupRuns[1],
+          scoreTotal: "71",
+          completedAt: "2026-07-20T12:05:00.000Z",
+          dragCompletedAt: "2026-07-20T12:13:00.000Z",
+        },
+        setupRuns[2],
+        setupRuns[3],
+      ],
+    },
+    publication: {
+      status: PUBLICATION_STATUSES.LIVE,
+    },
+  });
+
+  expect(classView.nextLiveItem).toMatchObject({
+    type: "run",
+    draw: 3,
+  });
+  expect(classView.upcomingLiveItems[0]).toMatchObject({
+    type: "run",
+    draw: 3,
+  });
+});
+
+test("terminating a scribe drag records it on the preceding run", () => {
+  const runs = [{ id: "run-1" }, { id: "run-2" }, { id: "run-3" }];
+  const completed = markLiveDragCompleted(
+    runs,
+    1,
+    new Date("2026-07-20T12:13:00.000Z")
+  );
+
+  expect(completed[1].dragCompletedAt).toBe("2026-07-20T12:13:00.000Z");
+  expect(completed[0]).toBe(runs[0]);
+  expect(completed[2]).toBe(runs[2]);
 });
 
 test("normalizes planned class start details", () => {

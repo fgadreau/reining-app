@@ -306,7 +306,6 @@ function ShowDetailPage() {
     };
 
     setIsSaving(true);
-    let hasUploadedTvVideo = false;
     try {
       await saveDayRepository(nextDay);
       setDays((current) =>
@@ -555,6 +554,8 @@ function ShowDetailPage() {
 
   const saveLivestreamSettings = async () => {
     if (!show) return;
+
+    let hasUploadedTvVideo = false;
 
     const willHaveTvVideo = Boolean(
       tvVideoFileDraft || (show.tvDisplayVideoPath && !removeTvVideoDraft)

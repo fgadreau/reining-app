@@ -8,6 +8,31 @@ export function isLiveDragItem(item) {
   return item?.type === LIVE_QUEUE_ITEM_TYPES.DRAG;
 }
 
+export function markLiveDragCompleted(items, afterIndex, completedAt) {
+  const normalizedItems = Array.isArray(items) ? items : [];
+  if (
+    !Number.isInteger(afterIndex) ||
+    afterIndex < 0 ||
+    afterIndex >= normalizedItems.length
+  ) {
+    return normalizedItems;
+  }
+
+  const timestamp =
+    completedAt instanceof Date
+      ? completedAt.toISOString()
+      : String(completedAt || new Date().toISOString());
+
+  return normalizedItems.map((item, index) =>
+    index === afterIndex
+      ? {
+          ...item,
+          dragCompletedAt: timestamp,
+        }
+      : item
+  );
+}
+
 export function buildLiveQueueItems({
   items,
   activeItem = null,

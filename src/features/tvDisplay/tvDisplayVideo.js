@@ -23,6 +23,26 @@ export function validateTvDisplayVideoFile(file) {
   return file;
 }
 
+export async function getTvDisplayUploadAccessToken(supabase) {
+  const { data: sessionData, error: sessionError } =
+    await supabase.auth.getSession();
+  const currentAccessToken = sessionData?.session?.access_token;
+
+  if (!sessionError && currentAccessToken) return currentAccessToken;
+
+  const { data: refreshedData, error: refreshError } =
+    await supabase.auth.refreshSession();
+  const refreshedAccessToken = refreshedData?.session?.access_token;
+
+  if (refreshError || !refreshedAccessToken) {
+    throw new Error(
+      "Votre session a expiré. Reconnectez-vous à ShowScore, puis réessayez l’envoi vidéo."
+    );
+  }
+
+  return refreshedAccessToken;
+}
+
 export async function uploadTvDisplayVideo({
   associationId,
   showId,
@@ -38,14 +58,7 @@ export async function uploadTvDisplayVideo({
   validateTvDisplayVideoFile(file);
 
   const path = buildTvDisplayVideoPath({ associationId, showId, file });
-  const { data: sessionData, error: sessionError } =
-    await supabase.auth.getSession();
-  const accessToken = sessionData?.session?.access_token;
-
-  if (sessionError) throw sessionError;
-  if (!accessToken) {
-    throw new Error("La session doit être reconnectée avant l’envoi vidéo.");
-  }
+  const accessToken = await getTvDisplayUploadAccessToken(supabase);
 
   const publicUrl = getTvDisplayVideoPublicUrl(path);
   const projectRef = new URL(publicUrl).hostname.split(".")[0];

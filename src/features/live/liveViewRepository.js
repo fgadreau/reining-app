@@ -303,13 +303,10 @@ export function buildAnnouncerClassView(classData) {
         : runs.find((run) => run.draw === activeManoeuvre?.draw) ||
           runs.find((run) => run.isActive) ||
           null;
-  const completedDragIds =
-    resolvedLiveSession.source === LIVE_DATA_SOURCES.ANNOUNCER
-      ? getCompletedAnnouncerDragIds({
-          runs,
-          dragInterval: classData.setup?.dragInterval,
-        })
-      : [];
+  const completedDragIds = getCompletedDragIds({
+    runs,
+    dragInterval: classData.setup?.dragInterval,
+  });
 
   const publicationStatus = classData.publication?.status || "hidden";
   const plannedLiveStatus =
@@ -523,6 +520,7 @@ function normalizeRunForAnnouncer(run, index, headers) {
     isActive: Boolean(run.isActive),
     startedAt: run.startedAt || null,
     completedAt: run.completedAt || null,
+    dragCompletedAt: run.dragCompletedAt || null,
     durationSeconds: Number.isFinite(Number(run.durationSeconds))
       ? Number(run.durationSeconds)
       : null,
@@ -647,7 +645,7 @@ function runIsPassed(run) {
   );
 }
 
-function getCompletedAnnouncerDragIds({ runs, dragInterval }) {
+function getCompletedDragIds({ runs, dragInterval }) {
   const sourceRuns = Array.isArray(runs) ? runs : [];
   const interval = Number.parseInt(dragInterval, 10);
   if (!Number.isFinite(interval) || interval <= 0) return [];
