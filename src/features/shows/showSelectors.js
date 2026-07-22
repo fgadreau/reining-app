@@ -11,6 +11,10 @@ function normalizeShow(show) {
     isTvDisplayPaused: Boolean(show?.isTvDisplayPaused),
     tvDisplayMessageFr: show?.tvDisplayMessageFr || "",
     tvDisplayMessageEn: show?.tvDisplayMessageEn || "",
+    tvDisplayVideoPath: show?.tvDisplayVideoPath || "",
+    tvDisplayVideoName: show?.tvDisplayVideoName || "",
+    tvDisplayVideoSize: Number(show?.tvDisplayVideoSize || 0),
+    tvDisplayVideoArena: show?.tvDisplayVideoArena || "",
   };
 }
 

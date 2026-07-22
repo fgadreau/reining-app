@@ -127,6 +127,10 @@ function toShow(row) {
     isTvDisplayPaused: Boolean(row.tv_display_paused),
     tvDisplayMessageFr: row.tv_display_message_fr || "",
     tvDisplayMessageEn: row.tv_display_message_en || "",
+    tvDisplayVideoPath: row.tv_display_video_path || "",
+    tvDisplayVideoName: row.tv_display_video_name || "",
+    tvDisplayVideoSize: Number(row.tv_display_video_size || 0),
+    tvDisplayVideoArena: row.tv_display_video_arena || "",
   };
 }
 

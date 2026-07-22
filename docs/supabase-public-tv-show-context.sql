@@ -34,7 +34,11 @@ as $$
       end as status,
       shows.tv_display_paused,
       shows.tv_display_message_fr,
-      shows.tv_display_message_en
+      shows.tv_display_message_en,
+      shows.tv_display_video_path,
+      shows.tv_display_video_name,
+      shows.tv_display_video_size,
+      shows.tv_display_video_arena
     from public.shows
     where shows.id = target_show_id
       and shows.status in ('draft', 'open')

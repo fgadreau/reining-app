@@ -126,6 +126,12 @@ import {
 } from "./features/scoring/scoringTestMode";
 import { canOpenClassForScribe } from "./pages/association/ShowScribePage";
 import { buildTvUpcomingCards } from "./pages/public/PublicShowTvPage";
+import {
+  buildTvDisplayVideoPath,
+  formatTvDisplayVideoSize,
+  TV_DISPLAY_VIDEO_MAX_BYTES,
+  validateTvDisplayVideoFile,
+} from "./features/tvDisplay/tvDisplayVideo";
 import { buildHspScoredRunRows } from "./features/integrations/hspScoredRunRepository";
 import {
   buildPublicClassView,
@@ -400,6 +406,43 @@ test("keeps legacy sponsor logos when the grouped list is empty", () => {
       name: "Legacy sponsor",
     }),
   ]);
+});
+
+test("validates high-quality MP4 files for the arena display", () => {
+  const validVideo = {
+    name: "competition-1080p.mp4",
+    type: "video/mp4",
+    size: 1024 * 1024 * 1024,
+  };
+
+  expect(validateTvDisplayVideoFile(validVideo)).toBe(validVideo);
+  expect(formatTvDisplayVideoSize(validVideo.size)).toBe("1.0 Go");
+  expect(
+    buildTvDisplayVideoPath({
+      associationId: "association-1",
+      showId: "show-1",
+      file: validVideo,
+    })
+  ).toBe(
+    buildTvDisplayVideoPath({
+      associationId: "association-1",
+      showId: "show-1",
+      file: validVideo,
+    })
+  );
+  expect(() =>
+    validateTvDisplayVideoFile({
+      ...validVideo,
+      name: "competition.mov",
+      type: "video/quicktime",
+    })
+  ).toThrow(/MP4/);
+  expect(() =>
+    validateTvDisplayVideoFile({
+      ...validVideo,
+      size: TV_DISPLAY_VIDEO_MAX_BYTES + 1,
+    })
+  ).toThrow(/2 Go/);
 });
 
 test("TV upcoming cards replace empty participant slots with the next class", () => {

@@ -14,6 +14,7 @@ import {
   buildSponsorLevelSlides,
   getAssociationSponsorGroups,
 } from "../../features/associations/sponsorLogos";
+import { getTvDisplayVideoPublicUrl } from "../../features/tvDisplay/tvDisplayVideo";
 
 const TV_REFRESH_MS = 5000;
 const SPONSOR_SLIDE_INTERVAL_MS = 9000;
@@ -41,8 +42,18 @@ function PublicShowTvPage() {
     () => pickTvLiveItem(publicView, selectedArena),
     [publicView, selectedArena]
   );
+  const tvVideoUrl = getTvDisplayVideoPublicUrl(show?.tvDisplayVideoPath);
+  const isCompetitionVideoDisplay = Boolean(
+    !show?.isTvDisplayPaused &&
+      tvVideoUrl &&
+      selectedArena &&
+      normalizeArenaName(show?.tvDisplayVideoArena).toLowerCase() ===
+        normalizeArenaName(selectedArena).toLowerCase()
+  );
   const publicClassIdsKey = (publicView?.classIds || []).join("|");
-  const displayMode = show?.isTvDisplayPaused
+  const displayMode = isCompetitionVideoDisplay
+    ? "competition-video"
+    : show?.isTvDisplayPaused
     ? "paused"
     : liveItem
       ? "live"
@@ -137,31 +148,42 @@ function PublicShowTvPage() {
   }, [sponsorSlides.length]);
 
   return (
-    <main style={pageStyle}>
+    <main style={isCompetitionVideoDisplay ? competitionPageStyle : pageStyle}>
       <div style={backgroundGlowStyle} />
-      <header style={headerStyle}>
-        <div style={brandStyle}>
-          <AssociationLogo association={association} size={74} />
-          <div style={{ minWidth: 0 }}>
-            <div style={eyebrowStyle}>
-              <BilingualText fr="Affichage manège" en="Arena display" />
-            </div>
-            <div style={showTitleStyle}>{show?.name || association?.name || ""}</div>
-            <div style={showMetaStyle}>
-              {[association?.name, show?.venue, show?.location]
-                .filter(Boolean)
-                .join(" · ")}
+      {!isCompetitionVideoDisplay ? (
+        <header style={headerStyle}>
+          <div style={brandStyle}>
+            <AssociationLogo association={association} size={74} />
+            <div style={{ minWidth: 0 }}>
+              <div style={eyebrowStyle}>
+                <BilingualText fr="Affichage manège" en="Arena display" />
+              </div>
+              <div style={showTitleStyle}>
+                {show?.name || association?.name || ""}
+              </div>
+              <div style={showMetaStyle}>
+                {[association?.name, show?.venue, show?.location]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </div>
             </div>
           </div>
-        </div>
-        {selectedArena ? (
-          <div style={arenaBadgeStyle}>
-            <BilingualText fr="Manège" en="Arena" /> · {selectedArena}
-          </div>
-        ) : null}
-      </header>
+          {selectedArena ? (
+            <div style={arenaBadgeStyle}>
+              <BilingualText fr="Manège" en="Arena" /> · {selectedArena}
+            </div>
+          ) : null}
+        </header>
+      ) : null}
 
-      {displayMode === "paused" ? (
+      {displayMode === "competition-video" ? (
+        <CompetitionVideoPanel
+          videoUrl={tvVideoUrl}
+          liveItem={liveItem}
+          selectedArena={selectedArena}
+          show={show}
+        />
+      ) : displayMode === "paused" ? (
         <PausePanel association={association} show={show} />
       ) : displayMode === "live" ? (
         <LivePanel liveItem={liveItem} />
@@ -169,11 +191,129 @@ function PublicShowTvPage() {
         <WelcomePanel association={association} show={show} />
       )}
 
-      <SponsorRail
-        slide={visibleSponsorSlide}
-        expanded={displayMode === "welcome"}
-      />
+      {!isCompetitionVideoDisplay ? (
+        <SponsorRail
+          slide={visibleSponsorSlide}
+          expanded={displayMode === "welcome"}
+        />
+      ) : null}
     </main>
+  );
+}
+
+function CompetitionVideoPanel({ videoUrl, liveItem, selectedArena, show }) {
+  const isWarmup = liveItem?.kind === "paidWarmup";
+  const title = liveItem
+    ? isWarmup
+      ? liveItem.item?.name || "Paid warm up"
+      : liveItem.item?.className || "Classe / Class"
+    : show?.name || "";
+  const current = liveItem
+    ? isWarmup
+      ? buildWarmupCurrent(liveItem.item)
+      : buildClassCurrent(liveItem.item)
+    : null;
+  const upcoming = liveItem
+    ? (isWarmup
+        ? buildWarmupUpcoming(liveItem.item)
+        : buildClassUpcoming(liveItem.item)
+      ).find(Boolean)
+    : null;
+  const previous = liveItem
+    ? (isWarmup
+        ? buildWarmupPrevious(liveItem.item)
+        : buildClassPrevious(liveItem.item)
+      )[0] || null
+    : null;
+
+  return (
+    <section
+      style={competitionVideoLayoutStyle}
+      data-tv-layout="competition-video"
+    >
+      <div style={competitionVideoWrapStyle}>
+        <video
+          key={videoUrl}
+          src={videoUrl}
+          style={competitionVideoStyle}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          data-tv-competition-video
+        />
+      </div>
+
+      <div style={competitionLiveStripStyle} data-tv-live-strip>
+        <div style={competitionBlockStyle}>
+          <div style={competitionLiveLabelStyle}>
+            {liveItem ? (
+              <BilingualText fr="En direct" en="Live" />
+            ) : (
+              <BilingualText fr="En attente" en="Waiting" />
+            )}
+            {selectedArena ? ` · ${selectedArena}` : ""}
+          </div>
+          <div style={competitionClassNameStyle}>{title}</div>
+        </div>
+
+        {liveItem ? (
+          <>
+            <CompetitionStripParticipant
+              labelFr="En piste"
+              labelEn="On course"
+              participant={current}
+              active
+            />
+            <CompetitionStripParticipant
+              labelFr="Prochain"
+              labelEn="Up next"
+              participant={upcoming}
+            />
+            <CompetitionStripParticipant
+              labelFr="Dernier passage"
+              labelEn="Last run"
+              participant={previous}
+            />
+          </>
+        ) : (
+          <div style={competitionWaitingStyle}>
+            <BilingualText
+              fr="Les données du passage apparaîtront ici dès que le live sera lancé."
+              en="Run data will appear here as soon as live starts."
+            />
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function CompetitionStripParticipant({
+  labelFr,
+  labelEn,
+  participant,
+  active = false,
+}) {
+  return (
+    <div style={competitionParticipantStyle(active)}>
+      <div style={competitionParticipantLabelStyle}>
+        <BilingualText fr={labelFr} en={labelEn} />
+      </div>
+      <div style={competitionParticipantNameStyle}>
+        {participant?.meta ? `${participant.meta} · ` : ""}
+        {participant?.fr || "—"}
+      </div>
+      {participant?.horse ? (
+        <div style={competitionParticipantHorseStyle}>{participant.horse}</div>
+      ) : null}
+      {participant?.score ? (
+        <div style={competitionParticipantScoreStyle}>
+          Score · {participant.score}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -689,6 +829,135 @@ const pageStyle = {
   gap: 14,
   padding: 18,
   boxSizing: "border-box",
+};
+
+const competitionPageStyle = {
+  ...pageStyle,
+  display: "block",
+  padding: 0,
+  background: "#000",
+};
+
+const competitionVideoLayoutStyle = {
+  position: "relative",
+  zIndex: 1,
+  width: "100%",
+  height: "100%",
+  minHeight: 0,
+  display: "grid",
+  gridTemplateRows: "minmax(0, 1fr) auto",
+  background: "#000",
+};
+
+const competitionVideoWrapStyle = {
+  minHeight: 0,
+  display: "grid",
+  placeItems: "center",
+  overflow: "hidden",
+  background: "#000",
+};
+
+const competitionVideoStyle = {
+  width: "100%",
+  height: "100%",
+  display: "block",
+  objectFit: "contain",
+  background: "#000",
+};
+
+const competitionLiveStripStyle = {
+  minHeight: 150,
+  display: "grid",
+  gridTemplateColumns: "minmax(250px, 0.85fr) repeat(3, minmax(0, 1fr))",
+  alignItems: "stretch",
+  borderTop: "3px solid #f4d98c",
+  background: "linear-gradient(90deg, #111827 0%, #17252c 100%)",
+  color: "#fff",
+};
+
+const competitionBlockStyle = {
+  minWidth: 0,
+  display: "grid",
+  alignContent: "center",
+  gap: 8,
+  padding: "18px 24px",
+  background: "rgba(244, 217, 140, 0.1)",
+  borderRight: "1px solid rgba(255, 255, 255, 0.16)",
+};
+
+const competitionLiveLabelStyle = {
+  color: "#f4d98c",
+  fontSize: "clamp(16px, 1.2vw, 23px)",
+  fontWeight: 950,
+  textTransform: "uppercase",
+};
+
+const competitionClassNameStyle = {
+  overflow: "hidden",
+  color: "#fff",
+  fontSize: "clamp(22px, 2vw, 38px)",
+  fontWeight: 950,
+  lineHeight: 1,
+  display: "-webkit-box",
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: "vertical",
+};
+
+const competitionParticipantStyle = (active) => ({
+  position: "relative",
+  minWidth: 0,
+  display: "grid",
+  alignContent: "center",
+  gap: 5,
+  padding: "16px 22px",
+  borderRight: "1px solid rgba(255, 255, 255, 0.16)",
+  background: active ? "rgba(13, 148, 136, 0.22)" : "transparent",
+});
+
+const competitionParticipantLabelStyle = {
+  color: "#f4d98c",
+  fontSize: "clamp(14px, 1vw, 20px)",
+  fontWeight: 950,
+  textTransform: "uppercase",
+};
+
+const competitionParticipantNameStyle = {
+  overflow: "hidden",
+  whiteSpace: "nowrap",
+  textOverflow: "ellipsis",
+  fontSize: "clamp(20px, 1.75vw, 34px)",
+  fontWeight: 950,
+  lineHeight: 1.05,
+};
+
+const competitionParticipantHorseStyle = {
+  overflow: "hidden",
+  whiteSpace: "nowrap",
+  textOverflow: "ellipsis",
+  color: "#cbd5e1",
+  fontSize: "clamp(15px, 1.1vw, 22px)",
+  fontWeight: 750,
+};
+
+const competitionParticipantScoreStyle = {
+  justifySelf: "start",
+  padding: "3px 8px",
+  borderRadius: 6,
+  background: "rgba(34, 197, 94, 0.18)",
+  color: "#bbf7d0",
+  fontSize: "clamp(15px, 1vw, 20px)",
+  fontWeight: 950,
+};
+
+const competitionWaitingStyle = {
+  gridColumn: "span 3",
+  display: "grid",
+  placeItems: "center",
+  padding: "18px 28px",
+  color: "#dbeafe",
+  fontSize: "clamp(20px, 1.6vw, 30px)",
+  fontWeight: 850,
+  textAlign: "center",
 };
 
 const backgroundGlowStyle = {

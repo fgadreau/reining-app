@@ -130,6 +130,21 @@ async function seedPublishedRobotShow(page) {
   await seedStorage(page, seed);
 }
 
+async function seedCompetitionVideoShow(page) {
+  const seed = buildRobotShowStorageSeed();
+  const show = seed.json["reining_shows_v1"].find(
+    (item) => item.id === SHOW_ID
+  );
+  Object.assign(show, {
+    tvDisplayVideoPath: "https://example.test/arena-display.mp4",
+    tvDisplayVideoName: "arena-display.mp4",
+    tvDisplayVideoSize: 1024 * 1024 * 1024,
+    tvDisplayVideoArena: "Manege Robot",
+  });
+
+  await seedStorage(page, seed);
+}
+
 async function seedStorage(page, seed) {
   await page.addInitScript((storageSeed) => {
     window.localStorage.clear();
@@ -296,6 +311,42 @@ test.describe("robot de show local", () => {
     await expect(body).not.toContainText("À confirmer");
   });
 
+  test("garde la video du manege principal avec les donnees live dessous", async ({
+    page,
+  }) => {
+    await page.route("https://example.test/arena-display.mp4", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "video/mp4",
+        body: Buffer.from([]),
+      })
+    );
+    await seedCompetitionVideoShow(page);
+
+    await page.goto(
+      `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/tv?arena=Manege%20Robot`
+    );
+
+    await expect(page.locator('[data-tv-layout="competition-video"]')).toBeVisible();
+    await expect(page.locator("[data-tv-competition-video]")).toHaveAttribute(
+      "loop",
+      ""
+    );
+    await expect(page.locator("[data-tv-live-strip]")).toContainText(
+      "Classe robot 5 juges"
+    );
+    await expect(page.locator("[data-tv-live-strip]")).toContainText(
+      "Cavalier 3"
+    );
+    await expect(page.locator("[data-sponsor-layout]")).toHaveCount(0);
+
+    await page.goto(
+      `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/tv?arena=Autre`
+    );
+    await expect(page.locator('[data-tv-layout="competition-video"]')).toHaveCount(0);
+    await expect(page.locator("[data-sponsor-layout]")).toBeVisible();
+  });
+
   test("permet le live annonceur et l affichage minimal ordre seulement", async ({
     page,
   }) => {
@@ -391,7 +442,7 @@ test.describe("robot de show local", () => {
     await dialog
       .getByPlaceholder("Nom du niveau (ex. Argent)")
       .fill("Argent");
-    await dialog.locator('input[type="file"]').nth(0).setInputFiles([
+    await dialog.locator('input[type="file"][accept="image/*"]').nth(0).setInputFiles([
       {
         name: "argent-1.svg",
         mimeType: "image/svg+xml",
@@ -413,7 +464,7 @@ test.describe("robot de show local", () => {
       .getByPlaceholder("Nom du niveau (ex. Argent)")
       .nth(1)
       .fill("Bronze");
-    await dialog.locator('input[type="file"]').nth(1).setInputFiles({
+    await dialog.locator('input[type="file"][accept="image/*"]').nth(1).setInputFiles({
       name: "bronze.svg",
       mimeType: "image/svg+xml",
       buffer: Buffer.from(

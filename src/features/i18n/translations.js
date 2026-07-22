@@ -1582,6 +1582,21 @@ export const translations = {
         tvDisplayPausedLabel: "Mettre l’affichage TV en pause",
         tvDisplayPrompt: "Lien écran TV à ouvrir sur la télévision",
         tvDisplayTitle: "Affichage manège",
+        tvDisplayVideoArenaLabel: "Manège principal associé à la vidéo",
+        tvDisplayVideoArenaPlaceholder: "Ex. 101",
+        tvDisplayVideoArenaRequired:
+          "Choisis le manège principal avant d’enregistrer la vidéo.",
+        tvDisplayVideoCancelSelection: "Annuler la sélection",
+        tvDisplayVideoCurrent: "Vidéo actuelle",
+        tvDisplayVideoEmpty: "Aucune vidéo MP4 configurée.",
+        tvDisplayVideoFileLabel: "Importer une vidéo MP4 · maximum 2 Go",
+        tvDisplayVideoHelp:
+          "Cette présentation spéciale s’applique uniquement au manège choisi. La vidéo joue en boucle avec les données live dans une bande dessous, sans bande de commanditaires.",
+        tvDisplayVideoRemove: "Retirer la vidéo",
+        tvDisplayVideoSelected: "Nouvelle vidéo",
+        tvDisplayVideoTitle: "Vidéo du manège principal",
+        tvDisplayVideoWillRemove:
+          "La vidéo actuelle sera retirée lors de l’enregistrement.",
         unnamedShow: "Show sans nom",
         venueFallback: "Venue —",
         venueLabel: "Venue",
@@ -3406,6 +3421,21 @@ export const translations = {
         tvDisplayPausedLabel: "Pause the TV display",
         tvDisplayPrompt: "TV display link to open on the television",
         tvDisplayTitle: "Arena display",
+        tvDisplayVideoArenaLabel: "Main arena assigned to the video",
+        tvDisplayVideoArenaPlaceholder: "For example 101",
+        tvDisplayVideoArenaRequired:
+          "Select the main arena before saving the video.",
+        tvDisplayVideoCancelSelection: "Cancel selection",
+        tvDisplayVideoCurrent: "Current video",
+        tvDisplayVideoEmpty: "No MP4 video configured.",
+        tvDisplayVideoFileLabel: "Upload an MP4 video · maximum 2 GB",
+        tvDisplayVideoHelp:
+          "This special layout applies only to the selected arena. The video loops with live data in a strip below it and no sponsor rail.",
+        tvDisplayVideoRemove: "Remove video",
+        tvDisplayVideoSelected: "New video",
+        tvDisplayVideoTitle: "Main arena video",
+        tvDisplayVideoWillRemove:
+          "The current video will be removed when you save.",
         unnamedShow: "Unnamed show",
         venueFallback: "Venue —",
         venueLabel: "Venue",

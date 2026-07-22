@@ -46,6 +46,10 @@ function toShow(row) {
     isTvDisplayPaused: Boolean(row.tv_display_paused),
     tvDisplayMessageFr: row.tv_display_message_fr || "",
     tvDisplayMessageEn: row.tv_display_message_en || "",
+    tvDisplayVideoPath: row.tv_display_video_path || "",
+    tvDisplayVideoName: row.tv_display_video_name || "",
+    tvDisplayVideoSize: Number(row.tv_display_video_size || 0),
+    tvDisplayVideoArena: row.tv_display_video_arena || "",
   };
 }
 
@@ -65,6 +69,10 @@ function toShowRow(show, options = {}) {
     tv_display_paused: Boolean(show.isTvDisplayPaused),
     tv_display_message_fr: show.tvDisplayMessageFr || "",
     tv_display_message_en: show.tvDisplayMessageEn || "",
+    tv_display_video_path: show.tvDisplayVideoPath || "",
+    tv_display_video_name: show.tvDisplayVideoName || "",
+    tv_display_video_size: Number(show.tvDisplayVideoSize || 0),
+    tv_display_video_arena: show.tvDisplayVideoArena || "",
   };
 
   if (includePublicSchedule) {
@@ -82,6 +90,10 @@ function toLegacyShowRow(show) {
   delete row.tv_display_paused;
   delete row.tv_display_message_fr;
   delete row.tv_display_message_en;
+  delete row.tv_display_video_path;
+  delete row.tv_display_video_name;
+  delete row.tv_display_video_size;
+  delete row.tv_display_video_arena;
   return row;
 }
 
@@ -90,6 +102,10 @@ function toShowRowWithoutTvDisplay(show, options = {}) {
   delete row.tv_display_paused;
   delete row.tv_display_message_fr;
   delete row.tv_display_message_en;
+  delete row.tv_display_video_path;
+  delete row.tv_display_video_name;
+  delete row.tv_display_video_size;
+  delete row.tv_display_video_arena;
   return row;
 }
 
@@ -112,7 +128,7 @@ function isScheduleSchemaMissing(error) {
 }
 
 function isTvDisplaySchemaMissing(error) {
-  return /tv_display_paused|tv_display_message_fr|tv_display_message_en/i.test(
+  return /tv_display_paused|tv_display_message_fr|tv_display_message_en|tv_display_video_path|tv_display_video_name|tv_display_video_size|tv_display_video_arena/i.test(
     getSupabaseErrorText(error)
   );
 }

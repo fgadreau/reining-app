@@ -47,6 +47,12 @@ import {
 } from "../../features/shows/showRepository";
 import { appStyles as styles } from "../../styles/appStyles";
 import { createId } from "../../utils/createId";
+import {
+  deleteTvDisplayVideo,
+  formatTvDisplayVideoSize,
+  uploadTvDisplayVideo,
+  validateTvDisplayVideoFile,
+} from "../../features/tvDisplay/tvDisplayVideo";
 
 function ShowDetailPage() {
   const { associationId, showId } = useParams();
@@ -74,10 +80,14 @@ function ShowDetailPage() {
     isTvDisplayPaused: false,
     tvDisplayMessageFr: "",
     tvDisplayMessageEn: "",
+    tvDisplayVideoArena: "",
   });
   const [sponsorGroupsDraft, setSponsorGroupsDraft] = useState([]);
   const [hasEditedSponsorGroups, setHasEditedSponsorGroups] = useState(false);
   const [isOptimizingSponsors, setIsOptimizingSponsors] = useState(false);
+  const [tvVideoFileDraft, setTvVideoFileDraft] = useState(null);
+  const [removeTvVideoDraft, setRemoveTvVideoDraft] = useState(false);
+  const [tvVideoUploadProgress, setTvVideoUploadProgress] = useState(0);
   const [livestreamMessage, setLivestreamMessage] = useState("");
   const [livestreamMessageTone, setLivestreamMessageTone] = useState("synced");
   const [copyDraft, setCopyDraft] = useState({
@@ -316,10 +326,14 @@ function ShowDetailPage() {
       isTvDisplayPaused: Boolean(show?.isTvDisplayPaused),
       tvDisplayMessageFr: show?.tvDisplayMessageFr || "",
       tvDisplayMessageEn: show?.tvDisplayMessageEn || "",
+      tvDisplayVideoArena: show?.tvDisplayVideoArena || "",
     });
     setSponsorGroupsDraft(getAssociationSponsorGroups(association));
     setHasEditedSponsorGroups(false);
     setIsOptimizingSponsors(false);
+    setTvVideoFileDraft(null);
+    setRemoveTvVideoDraft(false);
+    setTvVideoUploadProgress(0);
     setLivestreamMessage("");
     setLivestreamMessageTone("synced");
     setIsLivestreamModalOpen(true);
@@ -330,6 +344,34 @@ function ShowDetailPage() {
     setCopiedOverlayKey("");
     setLivestreamMessage("");
     setIsOptimizingSponsors(false);
+    setTvVideoFileDraft(null);
+    setRemoveTvVideoDraft(false);
+    setTvVideoUploadProgress(0);
+  };
+
+  const handleTvVideoFileChange = (event) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = "";
+
+    if (!file) return;
+
+    try {
+      validateTvDisplayVideoFile(file);
+      setTvVideoFileDraft(file);
+      setRemoveTvVideoDraft(false);
+      setTvVideoUploadProgress(0);
+      setLivestreamMessage("");
+    } catch (error) {
+      setTvVideoFileDraft(null);
+      setLivestreamMessage(error?.message || "Vidéo MP4 invalide.");
+      setLivestreamMessageTone("warn");
+    }
+  };
+
+  const removeTvVideo = () => {
+    setTvVideoFileDraft(null);
+    setRemoveTvVideoDraft(true);
+    setLivestreamMessage("");
   };
 
   const addSponsorGroup = () => {
@@ -474,16 +516,20 @@ function ShowDetailPage() {
   const saveLivestreamSettings = async () => {
     if (!show) return;
 
-    const nextShow = {
-      ...show,
-      associationId,
-      livestreamUrl: livestreamDraft.livestreamUrl,
-      isLivestreamPublic: Boolean(livestreamDraft.isLivestreamPublic),
-      isSchedulePublic: Boolean(livestreamDraft.isSchedulePublic),
-      isTvDisplayPaused: Boolean(livestreamDraft.isTvDisplayPaused),
-      tvDisplayMessageFr: livestreamDraft.tvDisplayMessageFr,
-      tvDisplayMessageEn: livestreamDraft.tvDisplayMessageEn,
-    };
+    const willHaveTvVideo = Boolean(
+      tvVideoFileDraft || (show.tvDisplayVideoPath && !removeTvVideoDraft)
+    );
+    if (
+      willHaveTvVideo &&
+      !String(livestreamDraft.tvDisplayVideoArena || "").trim()
+    ) {
+      setLivestreamMessage(
+        t("management.shows.tvDisplayVideoArenaRequired")
+      );
+      setLivestreamMessageTone("warn");
+      return;
+    }
+
     const sponsorGroups = normalizeSponsorGroups(sponsorGroupsDraft);
     const currentSponsorGroups = getAssociationSponsorGroups(association);
     const shouldSaveSponsorGroups =
@@ -493,9 +539,48 @@ function ShowDetailPage() {
 
     setIsSaving(true);
     try {
+      const previousVideoPath = show.tvDisplayVideoPath || "";
+      const uploadedVideo = tvVideoFileDraft
+        ? await uploadTvDisplayVideo({
+            associationId,
+            showId,
+            file: tvVideoFileDraft,
+            onProgress: setTvVideoUploadProgress,
+          })
+        : null;
+      const nextShow = {
+        ...show,
+        associationId,
+        livestreamUrl: livestreamDraft.livestreamUrl,
+        isLivestreamPublic: Boolean(livestreamDraft.isLivestreamPublic),
+        isSchedulePublic: Boolean(livestreamDraft.isSchedulePublic),
+        isTvDisplayPaused: Boolean(livestreamDraft.isTvDisplayPaused),
+        tvDisplayMessageFr: livestreamDraft.tvDisplayMessageFr,
+        tvDisplayMessageEn: livestreamDraft.tvDisplayMessageEn,
+        tvDisplayVideoArena:
+          removeTvVideoDraft && !uploadedVideo
+            ? ""
+            : String(livestreamDraft.tvDisplayVideoArena || "").trim(),
+        tvDisplayVideoPath: uploadedVideo
+          ? uploadedVideo.path
+          : removeTvVideoDraft
+            ? ""
+            : previousVideoPath,
+        tvDisplayVideoName: uploadedVideo
+          ? uploadedVideo.name
+          : removeTvVideoDraft
+            ? ""
+            : show.tvDisplayVideoName || "",
+        tvDisplayVideoSize: uploadedVideo
+          ? uploadedVideo.size
+          : removeTvVideoDraft
+            ? 0
+            : Number(show.tvDisplayVideoSize || 0),
+      };
       const savedShow = await saveShowRepository(nextShow);
       let savedAssociation = null;
       let sponsorLogoError = null;
+      let videoCleanupError = null;
 
       if (shouldSaveSponsorGroups) {
         try {
@@ -510,7 +595,22 @@ function ShowDetailPage() {
         }
       }
 
+      if (
+        previousVideoPath &&
+        previousVideoPath !== savedShow.tvDisplayVideoPath
+      ) {
+        try {
+          await deleteTvDisplayVideo(previousVideoPath);
+        } catch (error) {
+          console.error("Erreur suppression ancienne vidéo TV:", error);
+          videoCleanupError = error;
+        }
+      }
+
       setShow(savedShow);
+      setTvVideoFileDraft(null);
+      setRemoveTvVideoDraft(false);
+      setTvVideoUploadProgress(0);
       setPublicView(await getPublicShowViewRepository(showId));
       if (savedAssociation) {
         setAssociation(savedAssociation);
@@ -520,10 +620,11 @@ function ShowDetailPage() {
         setHasEditedSponsorGroups(false);
       }
 
-      if (sponsorLogoError) {
+      if (sponsorLogoError || videoCleanupError) {
         setLivestreamMessage(
           t("common.localFirstSyncError", {
-            message: sponsorLogoError?.message || "",
+            message:
+              sponsorLogoError?.message || videoCleanupError?.message || "",
           })
         );
         setLivestreamMessageTone("warn");
@@ -941,6 +1042,108 @@ function ShowDetailPage() {
                       disabled={!access.canManageAssociation || isSaving}
                     />
                   </div>
+                </div>
+
+                <div style={tvVideoSettingsStyle}>
+                  <div>
+                    <h4 style={overlaySponsorTitleStyle}>
+                      {t("management.shows.tvDisplayVideoTitle")}
+                    </h4>
+                    <div style={helpTextStyle}>
+                      {t("management.shows.tvDisplayVideoHelp")}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>
+                      {t("management.shows.tvDisplayVideoArenaLabel")}
+                    </label>
+                    <input
+                      type="text"
+                      list="tv-display-video-arenas"
+                      value={livestreamDraft.tvDisplayVideoArena}
+                      onChange={(event) =>
+                        setLivestreamDraft((current) => ({
+                          ...current,
+                          tvDisplayVideoArena: event.target.value,
+                        }))
+                      }
+                      placeholder={t(
+                        "management.shows.tvDisplayVideoArenaPlaceholder"
+                      )}
+                      style={inputStyle}
+                      disabled={!access.canManageAssociation || isSaving}
+                    />
+                    <datalist id="tv-display-video-arenas">
+                      {overlayArenas.map((arena) => (
+                        <option key={arena} value={arena} />
+                      ))}
+                    </datalist>
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>
+                      {t("management.shows.tvDisplayVideoFileLabel")}
+                    </label>
+                    <input
+                      type="file"
+                      accept="video/mp4,.mp4"
+                      onChange={handleTvVideoFileChange}
+                      style={fileInputStyle}
+                      disabled={!access.canManageAssociation || isSaving}
+                    />
+                  </div>
+
+                  {tvVideoFileDraft ? (
+                    <div style={videoFileSummaryStyle}>
+                      <span>
+                        {t("management.shows.tvDisplayVideoSelected")}: {" "}
+                        <strong>{tvVideoFileDraft.name}</strong>
+                        {tvVideoFileDraft.size
+                          ? ` · ${formatTvDisplayVideoSize(tvVideoFileDraft.size)}`
+                          : ""}
+                        {isSaving && tvVideoUploadProgress > 0
+                          ? ` · ${Math.round(tvVideoUploadProgress)} %`
+                          : ""}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setTvVideoFileDraft(null)}
+                        style={secondaryButtonStyle}
+                        disabled={isSaving}
+                      >
+                        {t("management.shows.tvDisplayVideoCancelSelection")}
+                      </button>
+                    </div>
+                  ) : show?.tvDisplayVideoPath && !removeTvVideoDraft ? (
+                    <div style={videoFileSummaryStyle}>
+                      <span>
+                        {t("management.shows.tvDisplayVideoCurrent")}: {" "}
+                        <strong>
+                          {show.tvDisplayVideoName || "video.mp4"}
+                        </strong>
+                        {show.tvDisplayVideoSize
+                          ? ` · ${formatTvDisplayVideoSize(
+                              show.tvDisplayVideoSize
+                            )}`
+                          : ""}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={removeTvVideo}
+                        style={dangerButtonStyle}
+                        disabled={isSaving}
+                      >
+                        {t("management.shows.tvDisplayVideoRemove")}
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={softNoticeStyle}>
+                      {removeTvVideoDraft
+                        ? t("management.shows.tvDisplayVideoWillRemove")
+                        : t("management.shows.tvDisplayVideoEmpty")}
+                    </div>
+                  )}
                 </div>
 
                 <div style={arenaOverlayRowStyle}>
@@ -1839,6 +2042,28 @@ const overlaySponsorSectionStyle = {
   gap: 12,
   paddingTop: 12,
   borderTop: "1px solid #e2e8f0",
+};
+
+const tvVideoSettingsStyle = {
+  display: "grid",
+  gap: 12,
+  padding: 14,
+  borderRadius: 10,
+  border: "1px solid #bfdbfe",
+  background: "#eff6ff",
+};
+
+const videoFileSummaryStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 12,
+  flexWrap: "wrap",
+  padding: 12,
+  borderRadius: 8,
+  border: "1px solid #bfdbfe",
+  background: "#fff",
+  color: "#1e3a8a",
 };
 
 const overlaySponsorTitleStyle = {
