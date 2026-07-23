@@ -1831,6 +1831,8 @@ export const translations = {
         scheduleHelp:
           "Départs planifiés selon l’ordre du show. Les estimations peuvent bouger pendant la journée.",
         scheduleItems: "éléments à l’horaire: {{count}}",
+        scheduledFor: "Prévu: {{date}} à {{time}}",
+        scheduledOnDate: "Prévu le {{date}}",
         scheduleStart: "Départ",
         scheduleTitle: "Horaire du show",
         sectionCount: "{{count}} sections",
@@ -3721,6 +3723,8 @@ export const translations = {
         scheduleHelp:
           "Planned starts based on the show order. Estimates can move during the day.",
         scheduleItems: "scheduled items: {{count}}",
+        scheduledFor: "Scheduled: {{date}} at {{time}}",
+        scheduledOnDate: "Scheduled on {{date}}",
         scheduleStart: "Start",
         scheduleTitle: "Show schedule",
         sectionCount: "{{count}} sections",

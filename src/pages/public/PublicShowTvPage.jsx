@@ -15,6 +15,7 @@ import {
   getAssociationSponsorGroups,
 } from "../../features/associations/sponsorLogos";
 import { getTvDisplayVideoPublicUrl } from "../../features/tvDisplay/tvDisplayVideo";
+import { isScheduledLiveViewCurrent } from "../../features/schedule/liveSchedule";
 
 const TV_REFRESH_MS = 5000;
 const SPONSOR_SLIDE_INTERVAL_MS = 9000;
@@ -721,10 +722,10 @@ function BilingualText({ fr, en }) {
 
 export function pickTvLiveItem(publicView, arena = "", now = new Date()) {
   const liveClasses = filterByArena(publicView?.liveClasses, arena).filter(
-    (item) => isTvLiveItemCurrent(item, now)
+    (item) => isScheduledLiveViewCurrent(item, now)
   );
   const liveWarmups = filterByArena(publicView?.livePaidWarmups, arena).filter(
-    (item) => isTvLiveItemCurrent(item, now)
+    (item) => isScheduledLiveViewCurrent(item, now)
   );
   const warmup =
     liveWarmups.find((item) => item.activeDragItem) ||
@@ -768,7 +769,7 @@ export function pickTvUpcomingItem(
       kind: "class",
       item,
     })),
-  ].filter(({ item }) => !isTvLiveItemCurrent(item, now));
+  ].filter(({ item }) => !isScheduledLiveViewCurrent(item, now));
 
   return (
     candidates.sort((first, second) =>
@@ -779,38 +780,12 @@ export function pickTvUpcomingItem(
   );
 }
 
-function isTvLiveItemCurrent(item, now = new Date()) {
-  if (
-    item?.activeEntry ||
-    item?.activeDragItem ||
-    item?.activeRun ||
-    item?.dragBreak?.isActive
-  ) {
-    return true;
-  }
-
-  const scheduleDayDate = String(item?.scheduleDayDate || "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(scheduleDayDate)) return true;
-
-  return scheduleDayDate <= formatLocalDateKey(now);
-}
-
 function getTvScheduleSortKey(item) {
   return [
     String(item?.scheduleDayDate || "9999-12-31"),
     String(item?.scheduleStartAt || "23:59"),
     String(item?.name || item?.className || ""),
   ].join("|");
-}
-
-function formatLocalDateKey(now = new Date()) {
-  const date = now instanceof Date ? now : new Date(now);
-  if (Number.isNaN(date.getTime())) return "";
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 function getTvScheduleItemName(scheduleItem) {

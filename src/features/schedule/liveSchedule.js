@@ -33,6 +33,35 @@ export function isPaidWarmupScheduleLiveEligible(warmup) {
   return Boolean(warmup?.isPublicLive) && !isPaidWarmupScheduleComplete(warmup);
 }
 
+export function isScheduledLiveViewCurrent(item, now = new Date()) {
+  if (
+    item?.activeEntry ||
+    item?.activeDragItem ||
+    item?.activeRun ||
+    item?.dragBreak?.isActive
+  ) {
+    return true;
+  }
+
+  const scheduleDayDate = String(item?.scheduleDayDate || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(scheduleDayDate)) return true;
+
+  return scheduleDayDate <= formatLocalScheduleDateKey(now);
+}
+
+export function partitionScheduledLiveViews(items, now = new Date()) {
+  return (Array.isArray(items) ? items : []).reduce(
+    (partition, item) => {
+      const target = isScheduledLiveViewCurrent(item, now)
+        ? partition.current
+        : partition.upcoming;
+      target.push(item);
+      return partition;
+    },
+    { current: [], upcoming: [] }
+  );
+}
+
 export function buildLiveScheduleItems({
   classes = [],
   paidWarmups = [],
@@ -201,4 +230,14 @@ function inferPaidWarmupArenas(scheduleItems) {
         nextClass?.effectiveArena || previousClass?.effectiveArena || "",
     };
   });
+}
+
+function formatLocalScheduleDateKey(now = new Date()) {
+  const date = now instanceof Date ? now : new Date(now);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }

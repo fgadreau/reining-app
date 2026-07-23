@@ -26,6 +26,7 @@ import { getShowById } from "../../features/shows/showSelectors";
 import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { hasPublicLivestream } from "../../features/livestream/livestreamEmbed";
+import { partitionScheduledLiveViews } from "../../features/schedule/liveSchedule";
 import {
   seedClassResultsDemo,
   shouldSeedClassResultsDemo,
@@ -69,23 +70,31 @@ function PublicResultsPage() {
   const [now, setNow] = useState(() => new Date());
   const { t } = useTranslation();
   const publicClassIdsKey = (publicView.classIds || []).join("|");
-  const liveClasses = Array.isArray(publicView.liveClasses)
+  const enabledLiveClasses = Array.isArray(publicView.liveClasses)
     ? publicView.liveClasses
     : publicView.liveClass
       ? [publicView.liveClass]
       : [];
-  const livePaidWarmups = Array.isArray(publicView.livePaidWarmups)
+  const enabledLivePaidWarmups = Array.isArray(publicView.livePaidWarmups)
     ? publicView.livePaidWarmups
     : publicView.livePaidWarmup
       ? [publicView.livePaidWarmup]
       : [];
+  const {
+    current: liveClasses,
+    upcoming: upcomingLiveClasses,
+  } = partitionScheduledLiveViews(enabledLiveClasses, now);
+  const {
+    current: livePaidWarmups,
+    upcoming: upcomingLivePaidWarmups,
+  } = partitionScheduledLiveViews(enabledLivePaidWarmups, now);
   const scheduleSections = Array.isArray(publicView.scheduleSections)
     ? publicView.scheduleSections
     : [];
   const resultSections = Array.isArray(publicView.resultSections)
     ? publicView.resultSections
     : [];
-  const hasLiveClass = Boolean(liveClasses.length || livePaidWarmups.length);
+  const activeLiveCount = liveClasses.length + livePaidWarmups.length;
   const hasLivestreamVideo = hasPublicLivestream(show);
   const canonicalPublicPath = `/public/associations/${associationId}/shows/${showId}`;
   const seo = useMemo(
@@ -305,6 +314,32 @@ function PublicResultsPage() {
         </div>
       )}
 
+      {upcomingLivePaidWarmups.length > 0 && (
+        <div style={liveStackStyle}>
+          {upcomingLivePaidWarmups.map((warmup) => (
+            <PublicPaidWarmupLivePanel
+              key={warmup.id}
+              warmup={warmup}
+              now={now}
+              isUpcoming
+            />
+          ))}
+        </div>
+      )}
+
+      {upcomingLiveClasses.length > 0 && (
+        <div style={liveStackStyle}>
+          {upcomingLiveClasses.map((classView) => (
+            <PublicLivePanel
+              key={classView.classId}
+              classView={classView}
+              now={now}
+              isUpcoming
+            />
+          ))}
+        </div>
+      )}
+
       {scheduleSections.length > 0 && (
         <PublicScheduleSections sections={scheduleSections} />
       )}
@@ -322,10 +357,10 @@ function PublicResultsPage() {
             })}
           </div>
         )}
-        {publicView.liveClassCount > 0 && (
+        {activeLiveCount > 0 && (
           <div style={summarySubLabelStyle}>
             {t("public.results.liveActive", {
-              count: publicView.liveClassCount,
+              count: activeLiveCount,
             })}
           </div>
         )}
@@ -944,7 +979,7 @@ function PublicScoresheetRun({ run, isExpanded, onToggleDetails }) {
   );
 }
 
-function PublicLivePanel({ classView, now }) {
+function PublicLivePanel({ classView, now, isUpcoming = false }) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const dragBreak = classView.dragBreak?.isActive ? classView.dragBreak : null;
@@ -986,7 +1021,13 @@ function PublicLivePanel({ classView, now }) {
         style={livePanelToggleStyle(isOpen)}
       >
         <div>
-          <div style={eyebrowStyle}>{t("public.results.liveLabel")}</div>
+          <div style={eyebrowStyle}>
+            {t(
+              isUpcoming
+                ? "public.results.scheduleEyebrow"
+                : "public.results.liveLabel"
+            )}
+          </div>
           <h2 style={sectionTitleStyle}>
             {classView.className}
             {classView.classCode ? ` (${classView.classCode})` : ""}
@@ -1000,12 +1041,21 @@ function PublicLivePanel({ classView, now }) {
                 t("public.results.scheduleOnly")
               : `${t("public.results.pattern")} ${classView.pattern || "—"}`}
           </div>
+          {isUpcoming && (
+            <div style={upcomingStartStyle}>
+              {formatScheduledLiveStart(classView, t)}
+            </div>
+          )}
         </div>
         <div style={badgeStackStyle}>
-          <LiveFreshnessBadge updatedAt={classView.liveUpdatedAt} now={now} />
-          <Badge>{publicationLabel}</Badge>
+          {!isUpcoming && (
+            <LiveFreshnessBadge updatedAt={classView.liveUpdatedAt} now={now} />
+          )}
+          {!isUpcoming && <Badge>{publicationLabel}</Badge>}
           <Badge>
-            {isScheduleOnly
+            {isUpcoming
+              ? t("public.results.statusUpcoming")
+              : isScheduleOnly
               ? classView.isComplete
                 ? t("management.classes.statusCompleted")
                 : t("public.results.classInProgress")
@@ -1309,7 +1359,7 @@ function ScheduleOnlyLiveDetails({ classView }) {
   );
 }
 
-function PublicPaidWarmupLivePanel({ warmup, now }) {
+function PublicPaidWarmupLivePanel({ warmup, now, isUpcoming = false }) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const remainingSeconds = getPaidWarmupRemainingSeconds(warmup, now);
@@ -1321,13 +1371,15 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
   const nextLiveItem = warmup.nextLiveItem || warmup.nextEntry || null;
   const secondNextLiveItem =
     warmup.secondNextLiveItem || warmup.secondNextEntry || null;
-  const statusLabel = isDragDue
-    ? t("public.results.drag")
-    : warmup.activeEntry
-      ? t("public.results.inProgress")
-      : warmup.stagedEntry
-        ? t("public.results.statusOnCourse")
-      : t("public.results.paidWarmupStatusPending");
+  const statusLabel = isUpcoming
+    ? t("public.results.statusUpcoming")
+    : isDragDue
+      ? t("public.results.drag")
+      : warmup.activeEntry
+        ? t("public.results.inProgress")
+        : warmup.stagedEntry
+          ? t("public.results.statusOnCourse")
+          : t("public.results.paidWarmupStatusPending");
   const panelDetailsId = `public-paid-warmup-details-${warmup.id || "warmup"}`;
 
   function togglePanel() {
@@ -1352,7 +1404,13 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
         style={livePanelToggleStyle(isOpen)}
       >
         <div>
-          <div style={eyebrowStyle}>{t("public.results.liveLabel")}</div>
+          <div style={eyebrowStyle}>
+            {t(
+              isUpcoming
+                ? "public.results.scheduleEyebrow"
+                : "public.results.liveLabel"
+            )}
+          </div>
           <h2 style={sectionTitleStyle}>
             {warmup.name || t("public.results.paidWarmup")}
           </h2>
@@ -1364,9 +1422,16 @@ function PublicPaidWarmupLivePanel({ warmup, now }) {
               minutes: warmup.durationMinutesPerRider,
             })}
           </div>
+          {isUpcoming && (
+            <div style={upcomingStartStyle}>
+              {formatScheduledLiveStart(warmup, t)}
+            </div>
+          )}
         </div>
         <div style={badgeStackStyle}>
-          <LiveFreshnessBadge updatedAt={warmup.updatedAt} now={now} />
+          {!isUpcoming && (
+            <LiveFreshnessBadge updatedAt={warmup.updatedAt} now={now} />
+          )}
           <Badge>{statusLabel}</Badge>
           <span style={toggleIconStyle}>
             {isOpen ? t("public.results.hide") : t("public.results.view")}
@@ -1485,6 +1550,25 @@ function formatNextScheduleStart(item, t) {
   return item.startKind === "fixed"
     ? t("public.results.nextScheduleFixedStart", { date, time })
     : t("public.results.nextScheduleEstimatedStart", { date, time });
+}
+
+function formatScheduledLiveStart(item, t) {
+  const date = item?.scheduleDayDate
+    ? formatPublicDate(item.scheduleDayDate)
+    : "";
+  const time = item?.scheduleStartAt
+    ? formatClockTime(item.scheduleStartAt)
+    : "";
+
+  if (date && time) {
+    return t("public.results.scheduledFor", { date, time });
+  }
+
+  if (date) {
+    return t("public.results.scheduledOnDate", { date });
+  }
+
+  return t("public.results.nextScheduleUnknownStart");
 }
 
 function formatPublicDate(value) {
@@ -2269,6 +2353,13 @@ const livePanelStyle = {
   padding: 14,
   marginBottom: 12,
   border: `1px solid ${publicColors.greenBorder}`,
+};
+
+const upcomingStartStyle = {
+  ...publicMutedTextStyle,
+  marginTop: 5,
+  color: publicColors.green,
+  fontWeight: 800,
 };
 
 const livePanelToggleStyle = (isOpen) => ({

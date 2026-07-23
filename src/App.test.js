@@ -201,7 +201,10 @@ import {
   buildShowSchedulePreviewSections,
   buildShowScheduleSections,
 } from "./features/schedule/showSchedule";
-import { buildLiveScheduleItems } from "./features/schedule/liveSchedule";
+import {
+  buildLiveScheduleItems,
+  partitionScheduledLiveViews,
+} from "./features/schedule/liveSchedule";
 import { saveDays } from "./features/days/dayStorage";
 import { saveClasses } from "./features/classes/classStorage";
 import { saveShows } from "./features/shows/showStorage";
@@ -588,6 +591,27 @@ test("TV keeps a future paid warmup upcoming until its day starts", () => {
   ).toMatchObject({
     kind: "paidWarmup",
     item: { id: "future-warmup" },
+  });
+});
+
+test("public storefront separates future authorized items from active live feeds", () => {
+  const now = new Date(2026, 6, 23, 12, 0, 0);
+  const futureWarmup = {
+    id: "future-warmup",
+    scheduleDayDate: "2026-07-28",
+    stagedEntry: { id: "entry-1" },
+  };
+  const activeWarmup = {
+    ...futureWarmup,
+    id: "active-warmup",
+    activeEntry: { id: "entry-1" },
+  };
+
+  expect(
+    partitionScheduledLiveViews([futureWarmup, activeWarmup], now)
+  ).toEqual({
+    current: [activeWarmup],
+    upcoming: [futureWarmup],
   });
 });
 
