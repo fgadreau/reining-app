@@ -27,7 +27,10 @@ import {
   buildClassResultsPdfFileName,
   generateClassResultsPdf,
 } from "../../utils/generateResultsPdf";
-import { validateOfficialResultRepository } from "../../features/classes/officialResultRepository";
+import {
+  validateAnnouncerResultsRepository,
+  validateOfficialResultRepository,
+} from "../../features/classes/officialResultRepository";
 import { getDaysByShowId } from "../../features/days/daySelectors";
 import {
   publishClassRepository,
@@ -40,6 +43,11 @@ import {
   publishClassResultsRepository,
   unpublishClassResultsRepository,
 } from "../../features/results/resultPublicationRepository";
+import {
+  hasCompletedAnnouncerResults,
+  isAnnouncerResultsApproval,
+  isClassResultsSecretariatApproved,
+} from "../../features/results/classResults";
 import {
   formatLocalFirstSyncNotice,
   getLocalFirstSyncNoticeTone,
@@ -270,6 +278,18 @@ function SecretariatDashboardPage() {
     }
   };
 
+  const handleValidateAnnouncerResults = async (classData) => {
+    try {
+      await validateAnnouncerResultsRepository({ classData });
+      refresh();
+    } catch (error) {
+      alert(
+        error.message ||
+          t("management.secretariat.announcerResultsValidationFailed")
+      );
+    }
+  };
+
   const handleReleaseJudgeSession = async (classData, judge) => {
     const judgeSummary = getJudgeSheetSummary(classData);
     const judgeRow = judgeSummary.rows.find((row) => row.judge.id === judge.id);
@@ -427,6 +447,9 @@ function SecretariatDashboardPage() {
                           onDownloadJudgePdf={handleDownloadJudgePdf}
                           onDownloadSetPdf={handleDownloadSetPdf}
                           onValidateOfficial={handleValidateOfficial}
+                          onValidateAnnouncerResults={
+                            handleValidateAnnouncerResults
+                          }
                           onReleaseJudgeSession={handleReleaseJudgeSession}
                           onPublish={handlePublish}
                           onUnpublish={handleUnpublish}
@@ -526,6 +549,7 @@ function ClassRow({
   onDownloadJudgePdf,
   onDownloadSetPdf,
   onValidateOfficial,
+  onValidateAnnouncerResults,
   onReleaseJudgeSession,
   onPublish,
   onUnpublish,
@@ -550,8 +574,11 @@ function ClassRow({
   const isSigned = isMultiJudge
     ? judgeSummary.allSigned
     : Boolean(official?.isFinalized);
-  const isValidated = Boolean(official?.isSecretariatValidated);
-  const officialPdfReady = isValidated && hasOfficialPdf;
+  const announcerResultsCompleted = hasCompletedAnnouncerResults(classData);
+  const announcerResultsApproved = isAnnouncerResultsApproval(classData);
+  const isValidated = isClassResultsSecretariatApproved(classData);
+  const hasOfficialScoresheet = isSigned && !announcerResultsApproved;
+  const officialPdfReady = hasOfficialScoresheet && isValidated && hasOfficialPdf;
   const resultsPublished =
     resultPublication?.status === RESULT_PUBLICATION_STATUSES.PUBLISHED;
   const resultGroupCount = Array.isArray(resultPublication?.resultGroups)
@@ -564,7 +591,10 @@ function ClassRow({
     : scoringRuns.some(runHasScoringData);
   const scoringComplete = isMultiJudge
     ? judgeSummary.allSigned || isValidated
-    : classData.status === "completed" || isSigned || isValidated;
+    : classData.status === "completed" ||
+      isSigned ||
+      announcerResultsCompleted ||
+      isValidated;
   const scoringBadge = scoringComplete
     ? { label: t("management.secretariat.scoringCompleted"), tone: "success" }
     : scoringStarted
@@ -690,12 +720,16 @@ function ClassRow({
       <td style={tdStyle}>
         <Badge tone={isValidated ? "success" : isSigned ? "warn" : "muted"}>
           {isValidated
-            ? t("management.secretariat.officialValidated")
+            ? announcerResultsApproved
+              ? t("management.secretariat.announcerResultsValidated")
+              : t("management.secretariat.officialValidated")
             : isSigned
               ? t("management.secretariat.officialSignedToValidate")
+              : announcerResultsCompleted
+                ? t("management.secretariat.announcerResultsToValidate")
               : getClassStatusLabel(classData.status, t)}
         </Badge>
-        {official?.secretariatValidatedAt && (
+        {isValidated && official?.secretariatValidatedAt && (
           <div style={metaStyle}>
             {t("management.secretariat.validatedAt", {
               date: formatDateTime(official.secretariatValidatedAt, language),
@@ -731,7 +765,9 @@ function ClassRow({
       <td style={tdStyle}>
         <div style={{ display: "grid", gap: 6 }}>
           <Badge tone={officialPdfReady ? "success" : isSigned ? "warn" : "muted"}>
-            {isMultiJudge && officialPdfReady
+            {announcerResultsApproved
+              ? t("management.secretariat.noScoresheet")
+              : isMultiJudge && officialPdfReady
               ? t("management.secretariat.combinedPdfGenerated")
               : isMultiJudge && isValidated
                 ? t("management.secretariat.multiJudgePdfPending")
@@ -787,18 +823,31 @@ function ClassRow({
                   {t("management.secretariat.validateOfficial")}
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => onDownloadOfficialPdf(classData)}
-                style={smallButtonStyle}
-                disabled={!isValidated}
-              >
-                {isMultiJudge
-                  ? t("management.secretariat.combinedPdf")
-                  : officialPdfReady
-                    ? t("public.results.downloadPdf")
-                    : t("management.secretariat.generatePdf")}
-              </button>
+              {announcerResultsCompleted &&
+                !isValidated &&
+                !isSigned && (
+                  <button
+                    type="button"
+                    onClick={() => onValidateAnnouncerResults(classData)}
+                    style={smallPrimaryButtonStyle}
+                  >
+                    {t("management.secretariat.validateAnnouncerResults")}
+                  </button>
+                )}
+              {hasOfficialScoresheet && (
+                <button
+                  type="button"
+                  onClick={() => onDownloadOfficialPdf(classData)}
+                  style={smallButtonStyle}
+                  disabled={!isValidated}
+                >
+                  {isMultiJudge
+                    ? t("management.secretariat.combinedPdf")
+                    : officialPdfReady
+                      ? t("public.results.downloadPdf")
+                      : t("management.secretariat.generatePdf")}
+                </button>
+              )}
               {officialPdfReady && (
                 <button
                   type="button"
@@ -850,7 +899,9 @@ function ClassRow({
                   type="button"
                   onClick={() => onPublish(classId)}
                   style={smallButtonStyle}
-                  disabled={!isValidated || !officialPdfReady}
+                  disabled={
+                    !hasOfficialScoresheet || !isValidated || !officialPdfReady
+                  }
                 >
                   {t("management.secretariat.publish")}
                 </button>
@@ -956,7 +1007,7 @@ function buildSummary(classRows) {
       const isSigned = judgeSummary.isMultiJudge
         ? judgeSummary.allSigned
         : Boolean(classData.official?.isFinalized);
-      const isValidated = Boolean(classData.official?.isSecretariatValidated);
+      const isValidated = isClassResultsSecretariatApproved(classData);
       const isInProgress = judgeSummary.isMultiJudge
         ? judgeSummary.anyStarted && !judgeSummary.allSigned
         : status === "in_progress";

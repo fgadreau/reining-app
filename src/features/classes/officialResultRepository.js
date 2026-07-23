@@ -1,6 +1,11 @@
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import { syncHspScoredRunsBatchRepository } from "../integrations/hspScoredRunRepository";
 import { publishClassRepository } from "../publication/publicationCloudRepository";
+import {
+  buildClassResultGroups,
+  hasCompletedAnnouncerResults,
+} from "../results/classResults";
+import { unpublishClassResultsRepository } from "../results/resultPublicationRepository";
 import { getClassRecord, saveClassRecord } from "./classRecordStorage";
 
 function toOfficialResult(row) {
@@ -222,5 +227,63 @@ export async function validateOfficialResultRepository({
     await publishClassRepository(classId, publishedBy);
   }
 
+  return officialResult;
+}
+
+export async function validateAnnouncerResultsRepository({
+  classData,
+  validatedAt = new Date().toISOString(),
+}) {
+  const classId = classData?.classItem?.id;
+  const official = classData?.official || {};
+  const announcerRuns = Array.isArray(classData?.announcerSession?.runs)
+    ? classData.announcerSession.runs
+    : [];
+
+  if (!classId) {
+    throw new Error("Bloc introuvable.");
+  }
+
+  if (official.isFinalized || official.judgeSignature) {
+    throw new Error(
+      "Une feuille de juge existe déjà pour ce bloc. Utilisez la validation officielle."
+    );
+  }
+
+  if (!hasCompletedAnnouncerResults(classData)) {
+    throw new Error(
+      "L’annonceur doit terminer le bloc et résoudre tous les résultats avant validation."
+    );
+  }
+
+  const resultGroups = buildClassResultGroups({
+    ...classData,
+    official: {
+      ...official,
+      officialRuns: announcerRuns,
+    },
+  });
+
+  if (resultGroups.length === 0) {
+    throw new Error("Aucun classement par classe ne peut être validé.");
+  }
+
+  const officialResult = await saveOfficialResultRepository(classId, {
+    judgeName: official.judgeName || "",
+    judgeSignature: null,
+    finalized: false,
+    finalizedAt: null,
+    judgeSignedAt: null,
+    secretariatValidatedAt: validatedAt,
+    finalPdfFileName: null,
+    customPattern:
+      classData?.setup?.customPattern ||
+      classData?.classItem?.customPattern ||
+      official.customPattern ||
+      null,
+    officialRuns: announcerRuns,
+  });
+
+  await unpublishClassResultsRepository(classId);
   return officialResult;
 }

@@ -7,6 +7,7 @@ import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
 import { getClassById } from "../classes/classSelectors";
 import {
   buildClassResultGroups,
+  isClassResultsSecretariatApproved,
   normalizeResultGroups,
 } from "./classResults";
 
@@ -157,7 +158,7 @@ export async function publishClassResultsRepository({
     throw new Error("Bloc introuvable.");
   }
 
-  if (!classData?.official?.isSecretariatValidated) {
+  if (!isClassResultsSecretariatApproved(classData)) {
     throw new Error(
       "Les résultats doivent être validés au secrétariat avant publication."
     );

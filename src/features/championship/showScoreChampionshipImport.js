@@ -1,4 +1,7 @@
-import { buildClassResultGroups } from "../results/classResults";
+import {
+  buildClassResultGroups,
+  isClassResultsSecretariatApproved,
+} from "../results/classResults";
 import {
   ASSOCIATION_CLASS_MATCH_STATUSES,
   resolveAssociationChampionshipClass,
@@ -24,7 +27,7 @@ export function buildShowScoreChampionshipImportPreview({
   let sourceRowNumber = 1;
 
   (Array.isArray(classDataItems) ? classDataItems : []).forEach((classData) => {
-    if (!classData?.official?.isSecretariatValidated) return;
+    if (!isClassResultsSecretariatApproved(classData)) return;
 
     const classItem = classData.classItem || {};
     const official = classData.official || {};

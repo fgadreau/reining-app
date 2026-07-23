@@ -150,6 +150,9 @@ import {
 } from "./features/publication/publicViewRepository";
 import {
   buildClassResultGroups,
+  hasCompletedAnnouncerResults,
+  isAnnouncerResultsApproval,
+  isClassResultsSecretariatApproved,
   normalizeResultGroups,
 } from "./features/results/classResults";
 import { buildLiveClassStandings } from "./features/results/liveClassStandings";
@@ -159,9 +162,13 @@ import {
 } from "./features/results/qualifiedRiders";
 import {
   getClassResultPublication,
+  publishClassResultsRepository,
   RESULT_PUBLICATION_STATUSES,
 } from "./features/results/resultPublicationRepository";
-import { validateOfficialResultRepository } from "./features/classes/officialResultRepository";
+import {
+  validateAnnouncerResultsRepository,
+  validateOfficialResultRepository,
+} from "./features/classes/officialResultRepository";
 import { buildAnnouncerClassView } from "./features/live/liveViewRepository";
 import {
   PAID_WARMUP_TIMER_CUES,
@@ -4628,6 +4635,125 @@ test("secretariat validation publishes the public scoresheet without publishing 
   expect(scoresheetPublication.status).toBe(PUBLICATION_STATUSES.PUBLISHED);
   expect(scoresheetPublication.publishedBy).toBe("secretariat");
   expect(resultPublication.status).toBe(RESULT_PUBLICATION_STATUSES.HIDDEN);
+});
+
+test("secretariat can approve completed announcer results without publishing a scoresheet", async () => {
+  const classData = {
+    classItem: {
+      id: "class-announcer-results",
+      name: "Derby block",
+      pattern: "R1",
+    },
+    setup: {
+      pattern: "R1",
+      blockClasses: [
+        { code: "105", name: "Rookie" },
+        { code: "110", name: "Non Pro" },
+      ],
+      runs: [
+        {
+          id: "run-1",
+          draw: 1,
+          rider: "Alice",
+          horse: "Smart Horse",
+          classCodes: ["105", "110"],
+        },
+        {
+          id: "run-2",
+          draw: 2,
+          rider: "Bob",
+          horse: "Quick Horse",
+          classCodes: ["105"],
+        },
+      ],
+    },
+    official: {
+      isFinalized: false,
+      isSecretariatValidated: false,
+      officialRuns: [],
+    },
+    announcerSession: {
+      completedAt: "2026-07-23T12:10:00.000Z",
+      updatedAt: "2026-07-23T12:10:00.000Z",
+      runs: [
+        {
+          id: "run-1",
+          draw: 1,
+          rider: "Alice",
+          horse: "Smart Horse",
+          classCodes: ["105", "110"],
+          status: "scored",
+          scoreTotal: "72.5",
+        },
+        {
+          id: "run-2",
+          draw: 2,
+          rider: "Bob",
+          horse: "Quick Horse",
+          classCodes: ["105"],
+          status: "scored",
+          scoreTotal: "71",
+        },
+      ],
+    },
+    scoringRuns: [],
+  };
+
+  expect(hasCompletedAnnouncerResults(classData)).toBe(true);
+
+  const officialResult = await validateAnnouncerResultsRepository({
+    classData,
+    validatedAt: "2026-07-23T12:15:00.000Z",
+  });
+  const approvedClassData = {
+    ...classData,
+    official: {
+      ...classData.official,
+      ...officialResult,
+      isFinalized: officialResult.finalized,
+      isSecretariatValidated: Boolean(
+        officialResult.secretariatValidatedAt
+      ),
+    },
+  };
+  const groups = buildClassResultGroups(approvedClassData);
+
+  expect(officialResult).toMatchObject({
+    finalized: false,
+    judgeSignature: null,
+    secretariatValidatedAt: "2026-07-23T12:15:00.000Z",
+  });
+  expect(officialResult.officialRuns).toHaveLength(2);
+  expect(getPublicationState("class-announcer-results").status).toBe(
+    PUBLICATION_STATUSES.HIDDEN
+  );
+  expect(isClassResultsSecretariatApproved(approvedClassData)).toBe(true);
+  expect(isAnnouncerResultsApproval(approvedClassData)).toBe(true);
+  expect(groups.map((group) => group.code)).toEqual(["105", "110"]);
+  expect(groups[0].entries.map((entry) => entry.rider)).toEqual([
+    "Alice",
+    "Bob",
+  ]);
+
+  const publication = await publishClassResultsRepository({
+    classData: approvedClassData,
+    publishedBy: "secretariat",
+  });
+
+  expect(publication.status).toBe(RESULT_PUBLICATION_STATUSES.PUBLISHED);
+  expect(publication.resultGroups.map((group) => group.code)).toEqual([
+    "105",
+    "110",
+  ]);
+  expect(
+    isClassResultsSecretariatApproved({
+      ...approvedClassData,
+      announcerSession: {
+        ...approvedClassData.announcerSession,
+        updatedAt: "2026-07-23T12:16:00.000Z",
+      },
+    })
+  ).toBe(false);
 });
 
 test("public live view exposes active, next, and last passed runs", () => {

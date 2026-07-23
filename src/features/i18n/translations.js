@@ -1305,6 +1305,10 @@ export const translations = {
       },
       secretariat: {
         accessDenied: "Ce rôle n’a pas accès au tableau secrétariat.",
+        announcerResultsToValidate: "Résultats annonceur à valider",
+        announcerResultsValidated: "Résultats annonceur validés",
+        announcerResultsValidationFailed:
+          "Impossible de valider les résultats saisis par l’annonceur.",
         class: "Bloc",
         classes: "Blocs",
         classCount: "Blocs: {{count}}",
@@ -1327,6 +1331,7 @@ export const translations = {
         multiJudgeValidationBlocked:
           "Validation disponible quand toutes les feuilles de juges sont signées.",
         noClassesForDay: "Aucun bloc pour cette journée.",
+        noScoresheet: "Aucune scoresheet attendue",
         official: "Officiel",
         officialPdf: "PDF officiel",
         officialSignedToValidate: "Signé, à valider",
@@ -1370,6 +1375,7 @@ export const translations = {
         signed: "Signés",
         timeManagement: "Gestion du temps",
         validateOfficial: "Valider officiel",
+        validateAnnouncerResults: "Approuver résultats annonceur",
         validated: "Validés",
         validatedAt: "Validé {{date}}",
         validationFailed: "Impossible de valider ce bloc.",
@@ -1741,6 +1747,7 @@ export const translations = {
         day: "Journée",
         dayEnd: "Fin estimée de la journée",
         downloadBlockResultsPdf: "PDF résultats du bloc",
+        downloadClassResultsPdf: "PDF résultats de la classe",
         downloadPdf: "Télécharger PDF",
         drag: "Drag",
         dragFinished: "Drag terminé",
@@ -3180,6 +3187,10 @@ export const translations = {
       },
       secretariat: {
         accessDenied: "This role does not have access to the secretariat dashboard.",
+        announcerResultsToValidate: "Announcer results need approval",
+        announcerResultsValidated: "Announcer results approved",
+        announcerResultsValidationFailed:
+          "Unable to approve the results entered by the announcer.",
         class: "Block",
         classes: "Blocks",
         classCount: "Blocks: {{count}}",
@@ -3202,6 +3213,7 @@ export const translations = {
         multiJudgeValidationBlocked:
           "Validation becomes available when every judge sheet is signed.",
         noClassesForDay: "No blocks for this day.",
+        noScoresheet: "No scoresheet expected",
         official: "Official",
         officialPdf: "Official PDF",
         officialSignedToValidate: "Signed, needs validation",
@@ -3245,6 +3257,7 @@ export const translations = {
         signed: "Signed",
         timeManagement: "Time management",
         validateOfficial: "Validate official",
+        validateAnnouncerResults: "Approve announcer results",
         validated: "Validated",
         validatedAt: "Validated {{date}}",
         validationFailed: "Unable to validate this block.",
@@ -3616,6 +3629,7 @@ export const translations = {
         day: "Day",
         dayEnd: "Estimated day end",
         downloadBlockResultsPdf: "Block results PDF",
+        downloadClassResultsPdf: "Class results PDF",
         downloadPdf: "Download PDF",
         drag: "Drag",
         dragFinished: "Drag complete",

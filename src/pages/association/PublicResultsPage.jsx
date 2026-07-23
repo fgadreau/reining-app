@@ -347,8 +347,6 @@ function PublicResultsPage() {
       ) : publicView.sections.length > 0 || resultSections.length > 0 ? (
         <div style={{ display: "grid", gap: 16 }}>
           {resultSections.map((section) => {
-            const resultBlocks = groupResultClassesByBlock(section.classes);
-
             return (
               <CollapsiblePublicSection
                 key={`results-${section.day.id}`}
@@ -365,13 +363,13 @@ function PublicResultsPage() {
                 }
               >
                 <div style={{ display: "grid", gap: 14 }}>
-                  {resultBlocks.map((resultBlock) => (
-                    <PublicResultBlock
-                      key={resultBlock.id}
+                  {section.classes.map((classView) => (
+                    <PublicClassResultStandings
+                      key={classView.id}
                       association={association}
                       show={show}
                       day={section.day}
-                      resultBlock={resultBlock}
+                      classView={classView}
                     />
                   ))}
                 </div>
@@ -752,90 +750,34 @@ function PublicClassResults({ association, show, classView, isOpen, onToggle }) 
   );
 }
 
-function PublicResultBlock({ association, show, day, resultBlock }) {
+function PublicClassResultStandings({
+  association,
+  show,
+  day,
+  classView,
+}) {
   const { t } = useTranslation();
-  const [isOpen, setIsOpen] = useState(true);
 
-  const downloadBlockPdf = () => {
-    const publishedAt =
-      resultBlock.classes.find((classView) => classView.publishedAt)
-        ?.publishedAt || null;
+  const downloadClassPdf = () => {
     const pdf = generateClassResultsPdf({
       associationName: association?.name || t("common.association"),
       associationLogoDataUrl: association?.logoDataUrl || null,
       eventName: show?.name || "",
       eventDate: day?.date || show?.startDate || "",
-      blockName: resultBlock.blockName,
-      pattern: resultBlock.pattern,
-      publishedAt,
-      resultGroups: resultBlock.classes,
+      blockName: classView.className,
+      pattern: classView.pattern,
+      publishedAt: classView.publishedAt || null,
+      resultGroups: [classView],
     });
     const fileName = buildClassResultsPdfFileName({
       associationAbbreviation: association?.shortName || "ASSOC",
       showName: show?.name || "show",
-      blockName: resultBlock.blockName || "results",
-      publishedAt,
+      blockName: classView.className || "results",
+      publishedAt: classView.publishedAt || null,
     });
 
     pdf.save(fileName);
   };
-
-  function toggleBlock() {
-    setIsOpen((current) => !current);
-  }
-
-  function handleBlockKeyDown(event) {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
-    toggleBlock();
-  }
-
-  return (
-    <section style={resultBlockStyle}>
-      <div style={resultBlockHeaderStyle}>
-        <div
-          role="button"
-          tabIndex={0}
-          aria-expanded={isOpen}
-          onClick={toggleBlock}
-          onKeyDown={handleBlockKeyDown}
-          style={resultBlockTitleToggleStyle}
-        >
-          <h3 style={classTitleStyle}>
-            {resultBlock.blockName || t("public.results.resultsTitle")}
-          </h3>
-          <div style={mutedTextStyle}>
-            {t("public.results.publishedResultClasses", {
-              count: resultBlock.classes.length,
-            })}
-            {resultBlock.pattern
-              ? ` · ${t("public.results.pattern")} ${resultBlock.pattern}`
-              : ""}
-          </div>
-        </div>
-        <div style={classActionsStyle}>
-          <button type="button" onClick={downloadBlockPdf} style={smallButtonStyle}>
-            {t("public.results.downloadBlockResultsPdf")}
-          </button>
-          <button type="button" onClick={toggleBlock} style={smallButtonStyle}>
-            {isOpen ? t("public.results.hide") : t("public.results.view")}
-          </button>
-        </div>
-      </div>
-
-      {isOpen && (
-        <div style={{ display: "grid", gap: 14 }}>
-          {resultBlock.classes.map((classView) => (
-            <PublicClassResultStandings key={classView.id} classView={classView} />
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function PublicClassResultStandings({ classView }) {
-  const { t } = useTranslation();
 
   return (
     <section style={classCardStyle}>
@@ -855,7 +797,16 @@ function PublicClassResultStandings({ classView }) {
               : ""}
           </div>
         </div>
-        <Badge>{t("public.results.resultsBadge")}</Badge>
+        <div style={classActionsStyle}>
+          <Badge>{t("public.results.resultsBadge")}</Badge>
+          <button
+            type="button"
+            onClick={downloadClassPdf}
+            style={smallButtonStyle}
+          >
+            {t("public.results.downloadClassResultsPdf")}
+          </button>
+        </div>
       </div>
 
       <div style={resultTableWrapStyle}>
@@ -896,37 +847,6 @@ function PublicClassResultStandings({ classView }) {
       </div>
     </section>
   );
-}
-
-function groupResultClassesByBlock(classes) {
-  const groupsById = new Map();
-
-  (Array.isArray(classes) ? classes : []).forEach((classView) => {
-    const blockId =
-      classView.sourceClassId ||
-      classView.parentClassName ||
-      classView.id ||
-      "results";
-    const blockName =
-      classView.parentClassName || classView.className || "Résultats";
-
-    if (!groupsById.has(blockId)) {
-      groupsById.set(blockId, {
-        id: blockId,
-        blockName,
-        pattern: classView.pattern || "",
-        classes: [],
-      });
-    }
-
-    const group = groupsById.get(blockId);
-    group.classes.push(classView);
-    if (!group.pattern && classView.pattern) {
-      group.pattern = classView.pattern;
-    }
-  });
-
-  return Array.from(groupsById.values());
 }
 
 function getPublicRunKey(run, index) {
@@ -2852,28 +2772,6 @@ const resultClassHeaderStyle = {
   alignItems: "flex-start",
   flexWrap: "wrap",
   marginBottom: 10,
-};
-
-const resultBlockStyle = {
-  border: `1px solid ${publicColors.border}`,
-  borderRadius: 8,
-  padding: 12,
-  background: publicColors.surfaceSoft,
-};
-
-const resultBlockHeaderStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  gap: 12,
-  alignItems: "flex-start",
-  flexWrap: "wrap",
-  marginBottom: 12,
-};
-
-const resultBlockTitleToggleStyle = {
-  minWidth: 0,
-  cursor: "pointer",
-  outlineOffset: 4,
 };
 
 const classTitleStyle = {

@@ -21,6 +21,68 @@ function normalizeClassCode(value) {
     .toUpperCase();
 }
 
+const APPROVED_ANNOUNCER_RUN_STATUSES = new Set([
+  "scored",
+  "no_score",
+  "scratch",
+]);
+
+export function hasCompletedAnnouncerResults(classData) {
+  const session = classData?.announcerSession || {};
+  const runs = Array.isArray(session.runs) ? session.runs : [];
+
+  return (
+    Boolean(session.completedAt) &&
+    runs.length > 0 &&
+    runs.every((run) => {
+      const status = String(run?.status || "").trim().toLowerCase();
+      if (!APPROVED_ANNOUNCER_RUN_STATUSES.has(status)) return false;
+      if (status !== "scored") return true;
+      return Number.isFinite(parseScoreTotalValue(run?.scoreTotal));
+    })
+  );
+}
+
+export function isClassResultsSecretariatApproved(classData) {
+  const official = classData?.official || {};
+  const announcerSession = classData?.announcerSession || {};
+  const hasAnnouncerResultSession = Boolean(
+    announcerSession.startedAt ||
+      announcerSession.completedAt ||
+      (Array.isArray(announcerSession.runs) &&
+        announcerSession.runs.some(
+          (run) => run?.resultSource === "announcer"
+        ))
+  );
+
+  if (!official.isSecretariatValidated) return false;
+  if (official.isFinalized) return true;
+  if (!hasAnnouncerResultSession) return true;
+  if (!hasCompletedAnnouncerResults(classData)) return false;
+  if (!Array.isArray(official.officialRuns) || official.officialRuns.length === 0) {
+    return false;
+  }
+
+  const approvedAt = Date.parse(official.secretariatValidatedAt || "");
+  const announcerUpdatedAt = Date.parse(
+    classData?.announcerSession?.updatedAt || ""
+  );
+
+  return (
+    !Number.isFinite(approvedAt) ||
+    !Number.isFinite(announcerUpdatedAt) ||
+    announcerUpdatedAt <= approvedAt
+  );
+}
+
+export function isAnnouncerResultsApproval(classData) {
+  return (
+    isClassResultsSecretariatApproved(classData) &&
+    hasCompletedAnnouncerResults(classData) &&
+    !Boolean(classData?.official?.isFinalized)
+  );
+}
+
 export function normalizeBlockClasses(value) {
   return Array.from(
     new Map(
@@ -127,6 +189,10 @@ function buildResultSourceRuns(classData) {
     : [];
 
   if (officialRuns.length > 0) return officialRuns;
+
+  if (hasCompletedAnnouncerResults(classData)) {
+    return classData.announcerSession.runs;
+  }
 
   return Array.isArray(classData?.scoringRuns) ? classData.scoringRuns : [];
 }
