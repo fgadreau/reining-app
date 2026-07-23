@@ -123,7 +123,7 @@ export function normalizeResultGroups(value) {
     .filter((group) => group.id && group.entries.length > 0);
 }
 
-export function buildClassResultGroups(classData) {
+export function buildClassResultGroups(classData, options = {}) {
   const classItem = classData?.classItem || {};
   const setup = classData?.setup || {};
   const patternValue = setup.pattern || classItem.pattern || "";
@@ -135,7 +135,9 @@ export function buildClassResultGroups(classData) {
   const blockClassByCode = new Map(
     blockClasses.map((classEntry) => [classEntry.code, classEntry])
   );
-  const runs = buildResultSourceRuns(classData);
+  const runs = Array.isArray(options.sourceRuns)
+    ? options.sourceRuns
+    : buildResultSourceRuns(classData);
   const fallbackCode = normalizeClassCode(classItem.classCode) || "RESULTS";
   const groupsByCode = new Map();
 
@@ -177,13 +179,17 @@ export function buildClassResultGroups(classData) {
     .sort((a, b) => String(a.code).localeCompare(String(b.code)));
 }
 
+export function buildAnnouncerResultGroups(classData) {
+  const announcerRuns = Array.isArray(classData?.announcerSession?.runs)
+    ? classData.announcerSession.runs
+    : [];
+
+  return buildClassResultGroups(classData, {
+    sourceRuns: announcerRuns,
+  });
+}
+
 function buildResultSourceRuns(classData) {
-  const judgeSummary = getJudgeSheetSummary(classData);
-
-  if (judgeSummary.isMultiJudge && Array.isArray(classData?.setup?.runs)) {
-    return buildMultiJudgeResultRuns(classData, judgeSummary.rows);
-  }
-
   const officialRuns = Array.isArray(classData?.official?.officialRuns)
     ? classData.official.officialRuns
     : [];
@@ -192,6 +198,12 @@ function buildResultSourceRuns(classData) {
 
   if (hasCompletedAnnouncerResults(classData)) {
     return classData.announcerSession.runs;
+  }
+
+  const judgeSummary = getJudgeSheetSummary(classData);
+
+  if (judgeSummary.isMultiJudge && Array.isArray(classData?.setup?.runs)) {
+    return buildMultiJudgeResultRuns(classData, judgeSummary.rows);
   }
 
   return Array.isArray(classData?.scoringRuns) ? classData.scoringRuns : [];

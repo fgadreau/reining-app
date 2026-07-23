@@ -1306,6 +1306,10 @@ export const translations = {
       secretariat: {
         accessDenied: "Ce rôle n’a pas accès au tableau secrétariat.",
         announcerResultsToValidate: "Résultats annonceur à valider",
+        announcerResultsSource: "Source : annonceur",
+        announcerResultsTitle: "Résultats saisis par l’annonceur",
+        announcerResultsUnavailable:
+          "Aucun résultat provenant de l’annonceur n’est disponible.",
         announcerResultsValidated: "Résultats annonceur validés",
         announcerResultsValidationFailed:
           "Impossible de valider les résultats saisis par l’annonceur.",
@@ -1314,6 +1318,8 @@ export const translations = {
         classCount: "Blocs: {{count}}",
         combinedPdf: "PDF combiné",
         combinedPdfGenerated: "PDF combiné généré",
+        close: "Fermer",
+        downloadAnnouncerResultsPdf: "PDF résultats annonceur",
         downloadResultsPdf: "PDF résultats",
         generatePdf: "Générer PDF",
         hide: "Masquer",
@@ -1374,11 +1380,13 @@ export const translations = {
         setupRunCount: "Runs: {{count}}",
         signed: "Signés",
         timeManagement: "Gestion du temps",
+        updateAnnouncerResults: "Mettre à jour les résultats",
         validateOfficial: "Valider officiel",
         validateAnnouncerResults: "Approuver résultats annonceur",
         validated: "Validés",
         validatedAt: "Validé {{date}}",
         validationFailed: "Impossible de valider ce bloc.",
+        viewAnnouncerResults: "Voir résultats annonceur",
       },
       scribe: {
         accessDenied: "Ce rôle n’a pas accès à l’onglet scribe.",
@@ -3188,6 +3196,9 @@ export const translations = {
       secretariat: {
         accessDenied: "This role does not have access to the secretariat dashboard.",
         announcerResultsToValidate: "Announcer results need approval",
+        announcerResultsSource: "Source: announcer",
+        announcerResultsTitle: "Results entered by the announcer",
+        announcerResultsUnavailable: "No announcer results are available.",
         announcerResultsValidated: "Announcer results approved",
         announcerResultsValidationFailed:
           "Unable to approve the results entered by the announcer.",
@@ -3196,6 +3207,8 @@ export const translations = {
         classCount: "Blocks: {{count}}",
         combinedPdf: "Combined PDF",
         combinedPdfGenerated: "Combined PDF generated",
+        close: "Close",
+        downloadAnnouncerResultsPdf: "Announcer results PDF",
         downloadResultsPdf: "Results PDF",
         generatePdf: "Generate PDF",
         hide: "Hide",
@@ -3256,11 +3269,13 @@ export const translations = {
         setupRunCount: "Runs: {{count}}",
         signed: "Signed",
         timeManagement: "Time management",
+        updateAnnouncerResults: "Update results",
         validateOfficial: "Validate official",
         validateAnnouncerResults: "Approve announcer results",
         validated: "Validated",
         validatedAt: "Validated {{date}}",
         validationFailed: "Unable to validate this block.",
+        viewAnnouncerResults: "View announcer results",
       },
       scribe: {
         accessDenied: "This role does not have access to the scribe tab.",

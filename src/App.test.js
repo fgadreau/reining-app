@@ -149,6 +149,7 @@ import {
   sortPublicResults,
 } from "./features/publication/publicViewRepository";
 import {
+  buildAnnouncerResultGroups,
   buildClassResultGroups,
   hasCompletedAnnouncerResults,
   isAnnouncerResultsApproval,
@@ -3843,6 +3844,78 @@ test("builds independent result groups by imported class code", () => {
       },
     ])[0].entries
   ).toMatchObject([{ rank: 1 }, { rank: 2 }]);
+});
+
+test("uses completed announcer scores before multi-judge scribe sessions for class results", () => {
+  const classData = {
+    classItem: {
+      id: "announcer-priority-block",
+      name: "Rookie block",
+      classCode: "105",
+      pattern: "8",
+    },
+    setup: {
+      pattern: "8",
+      judges: [
+        { id: "judge-1", name: "Judge One", order: 1 },
+        { id: "judge-2", name: "Judge Two", order: 2 },
+      ],
+      runs: [
+        {
+          id: "run-1",
+          draw: 1,
+          rider: "Announcer Rider",
+          horse: "Announcer Horse",
+          classCodes: ["105"],
+        },
+      ],
+    },
+    official: {
+      isSecretariatValidated: false,
+      officialRuns: [],
+    },
+    announcerSession: {
+      completedAt: "2026-07-23T16:00:00.000Z",
+      updatedAt: "2026-07-23T16:00:00.000Z",
+      runs: [
+        {
+          id: "run-1",
+          draw: 1,
+          rider: "Announcer Rider",
+          horse: "Announcer Horse",
+          classCodes: ["105"],
+          status: "scored",
+          scoreTotal: "72.5",
+        },
+      ],
+    },
+    judgeSessions: [
+      {
+        judgeId: "judge-1",
+        runs: [{ id: "run-1", draw: 1, scoreTotal: "70" }],
+      },
+      {
+        judgeId: "judge-2",
+        runs: [{ id: "run-1", draw: 1, scoreTotal: "71" }],
+      },
+    ],
+    scoringRuns: [{ id: "run-1", draw: 1, scoreTotal: "69" }],
+  };
+
+  const groups = buildClassResultGroups(classData);
+  const directAnnouncerGroups = buildAnnouncerResultGroups({
+    ...classData,
+    official: {
+      isSecretariatValidated: true,
+      officialRuns: [{ id: "run-1", draw: 1, scoreTotal: "140" }],
+    },
+  });
+
+  expect(groups[0].entries[0]).toMatchObject({
+    rider: "Announcer Rider",
+    scoreTotal: "72½",
+  });
+  expect(directAnnouncerGroups[0].entries[0].scoreTotal).toBe("72½");
 });
 
 test("builds provisional live standings by imported class code", () => {

@@ -44,6 +44,7 @@ import {
   unpublishClassResultsRepository,
 } from "../../features/results/resultPublicationRepository";
 import {
+  buildAnnouncerResultGroups,
   hasCompletedAnnouncerResults,
   isAnnouncerResultsApproval,
   isClassResultsSecretariatApproved,
@@ -80,6 +81,7 @@ function SecretariatDashboardPage() {
   const [version, setVersion] = useState(0);
   const [daySections, setDaySections] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [announcerResultsPreview, setAnnouncerResultsPreview] = useState(null);
   const access = useAssociationAccess(associationId);
 
   const association = useMemo(() => {
@@ -213,6 +215,42 @@ function SecretariatDashboardPage() {
       showName: show?.name || "show",
       blockName: classItem.name || "results",
       publishedAt,
+    });
+
+    pdf.save(fileName);
+  };
+
+  const handleDownloadAnnouncerResultsPdf = (classData) => {
+    const resultGroups = buildAnnouncerResultGroups(classData);
+
+    if (!resultGroups.length) {
+      alert(t("management.secretariat.announcerResultsUnavailable"));
+      return;
+    }
+
+    const classItem = classData?.classItem || {};
+    const generatedAt = new Date();
+    const pdf = generateClassResultsPdf({
+      associationName: association?.name || t("common.association"),
+      associationLogoDataUrl: association?.logoDataUrl || null,
+      eventName: show?.name || "",
+      eventDate: classData?.official?.eventDate || show?.startDate || "",
+      blockName: classItem.name || t("management.classes.unnamedClass"),
+      pattern:
+        classData?.official?.pattern ||
+        classData?.setup?.pattern ||
+        classItem.pattern ||
+        "",
+      publishedAt:
+        classData?.announcerSession?.updatedAt || generatedAt.toISOString(),
+      documentTitle: t("management.secretariat.announcerResultsTitle"),
+      resultGroups,
+    });
+    const fileName = buildClassResultsPdfFileName({
+      associationAbbreviation: association?.shortName || "ASSOC",
+      showName: show?.name || "show",
+      blockName: `${classItem.name || "results"}-announcer`,
+      publishedAt: generatedAt,
     });
 
     pdf.save(fileName);
@@ -456,6 +494,7 @@ function SecretariatDashboardPage() {
                           onPublishResults={handlePublishResults}
                           onUnpublishResults={handleUnpublishResults}
                           onDownloadResultsPdf={handleDownloadResultsPdf}
+                          onOpenAnnouncerResults={setAnnouncerResultsPreview}
                           canManage={access.canManageAssociation}
                           language={language}
                         />
@@ -467,6 +506,16 @@ function SecretariatDashboardPage() {
             </section>
           ))}
         </div>
+      )}
+
+      {announcerResultsPreview && (
+        <AnnouncerResultsPreview
+          classData={announcerResultsPreview}
+          onClose={() => setAnnouncerResultsPreview(null)}
+          onDownload={() =>
+            handleDownloadAnnouncerResultsPdf(announcerResultsPreview)
+          }
+        />
       )}
     </div>
   );
@@ -556,6 +605,7 @@ function ClassRow({
   onPublishResults,
   onUnpublishResults,
   onDownloadResultsPdf,
+  onOpenAnnouncerResults,
   canManage,
   language,
 }) {
@@ -575,6 +625,7 @@ function ClassRow({
     ? judgeSummary.allSigned
     : Boolean(official?.isFinalized);
   const announcerResultsCompleted = hasCompletedAnnouncerResults(classData);
+  const hasAnnouncerResults = hasAnnouncerEnteredResults(classData);
   const announcerResultsApproved = isAnnouncerResultsApproval(classData);
   const isValidated = isClassResultsSecretariatApproved(classData);
   const hasOfficialScoresheet = isSigned && !announcerResultsApproved;
@@ -834,6 +885,15 @@ function ClassRow({
                     {t("management.secretariat.validateAnnouncerResults")}
                   </button>
                 )}
+              {hasAnnouncerResults && (
+                <button
+                  type="button"
+                  onClick={() => onOpenAnnouncerResults(classData)}
+                  style={smallButtonStyle}
+                >
+                  {t("management.secretariat.viewAnnouncerResults")}
+                </button>
+              )}
               {hasOfficialScoresheet && (
                 <button
                   type="button"
@@ -861,6 +921,15 @@ function ClassRow({
               )}
               {resultsPublished ? (
                 <>
+                  {announcerResultsApproved && (
+                    <button
+                      type="button"
+                      onClick={() => onPublishResults(classData)}
+                      style={smallPrimaryButtonStyle}
+                    >
+                      {t("management.secretariat.updateAnnouncerResults")}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => onDownloadResultsPdf(classData)}
@@ -912,6 +981,86 @@ function ClassRow({
       </td>
     </tr>
   );
+}
+
+function AnnouncerResultsPreview({ classData, onClose, onDownload }) {
+  const { t } = useTranslation();
+  const groups = buildAnnouncerResultGroups(classData);
+  const className =
+    classData?.classItem?.name || t("management.classes.unnamedClass");
+
+  return (
+    <div style={modalBackdropStyle} role="dialog" aria-modal="true">
+      <section style={modalStyle}>
+        <div style={modalHeaderStyle}>
+          <div>
+            <div style={eyebrowStyle}>
+              {t("management.secretariat.announcerResultsSource")}
+            </div>
+            <h2 style={sectionTitleStyle}>
+              {t("management.secretariat.announcerResultsTitle")}
+            </h2>
+            <div style={metaStyle}>{className}</div>
+          </div>
+          <div style={actionRowStyle}>
+            <button type="button" onClick={onDownload} style={smallButtonStyle}>
+              {t("management.secretariat.downloadAnnouncerResultsPdf")}
+            </button>
+            <button type="button" onClick={onClose} style={smallButtonStyle}>
+              {t("management.secretariat.close")}
+            </button>
+          </div>
+        </div>
+
+        <div style={modalResultListStyle}>
+          {groups.map((group) => (
+            <section key={group.id} style={modalResultGroupStyle}>
+              <h3 style={modalResultTitleStyle}>
+                {group.className || group.classCode || group.code}
+                {group.classCode ? ` (${group.classCode})` : ""}
+              </h3>
+              <div style={tableWrapStyle}>
+                <table style={modalResultTableStyle}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>{t("public.results.rank")}</th>
+                      <th style={thStyle}>{t("public.results.backNumber")}</th>
+                      <th style={thStyle}>{t("public.results.rider")}</th>
+                      <th style={thStyle}>{t("public.results.horse")}</th>
+                      <th style={thStyle}>{t("public.results.score")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {group.entries.map((entry) => (
+                      <tr key={`${group.id}-${entry.id}`}>
+                        <td style={tdStyle}>{entry.rank || "—"}</td>
+                        <td style={tdStyle}>{entry.backNumber || "—"}</td>
+                        <td style={tdStyle}>{entry.rider || "—"}</td>
+                        <td style={tdStyle}>{entry.horse || "—"}</td>
+                        <td style={tdStyle}>
+                          {entry.scoreTotal || entry.status || "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function hasAnnouncerEnteredResults(classData) {
+  return (classData?.announcerSession?.runs || []).some((run) => {
+    const status = String(run?.status || "").trim().toLowerCase();
+    return (
+      Boolean(String(run?.scoreTotal || "").trim()) ||
+      ["scored", "no_score", "scratch", "review"].includes(status)
+    );
+  });
 }
 
 function SummaryTile({ label, value, tone = "default" }) {
@@ -1408,6 +1557,60 @@ const softEmptyStyle = {
   borderRadius: 8,
   padding: 14,
   color: "#64748b",
+};
+
+const modalBackdropStyle = {
+  position: "fixed",
+  inset: 0,
+  zIndex: 1000,
+  background: "rgba(15, 23, 42, 0.62)",
+  display: "grid",
+  placeItems: "center",
+  padding: 16,
+};
+
+const modalStyle = {
+  width: "min(100%, 980px)",
+  maxHeight: "calc(100vh - 32px)",
+  overflowY: "auto",
+  background: "#fff",
+  borderRadius: 12,
+  padding: 18,
+  boxShadow: "0 24px 70px rgba(15, 23, 42, 0.28)",
+};
+
+const modalHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 12,
+  flexWrap: "wrap",
+  marginBottom: 16,
+};
+
+const modalResultListStyle = {
+  display: "grid",
+  gap: 16,
+};
+
+const modalResultGroupStyle = {
+  border: "1px solid #e2e8f0",
+  borderRadius: 10,
+  overflow: "hidden",
+};
+
+const modalResultTitleStyle = {
+  margin: 0,
+  padding: "12px 14px",
+  background: "#f8fafc",
+  borderBottom: "1px solid #e2e8f0",
+  fontSize: 17,
+};
+
+const modalResultTableStyle = {
+  width: "100%",
+  minWidth: 680,
+  borderCollapse: "collapse",
 };
 
 export default SecretariatDashboardPage;
