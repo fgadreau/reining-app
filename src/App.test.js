@@ -133,7 +133,11 @@ import {
   isScoringTestAssociation,
 } from "./features/scoring/scoringTestMode";
 import { canOpenClassForScribe } from "./pages/association/ShowScribePage";
-import { buildTvUpcomingCards } from "./pages/public/PublicShowTvPage";
+import {
+  buildTvUpcomingCards,
+  pickTvLiveItem,
+  pickTvUpcomingItem,
+} from "./pages/public/PublicShowTvPage";
 import {
   buildTvDisplayVideoPath,
   formatTvDisplayVideoSize,
@@ -535,6 +539,56 @@ test("TV upcoming cards replace empty participant slots with the next class", ()
   expect(nextClassOnlyCards[0].participant.fr).toBe("Novice Horse");
 
   expect(buildTvUpcomingCards([null, null], null)).toEqual([]);
+});
+
+test("TV keeps a future paid warmup upcoming until its day starts", () => {
+  const futureWarmup = {
+    id: "future-warmup",
+    name: "Paid warm up 40x",
+    arena: "101",
+    scheduleDayDate: "2026-07-28",
+    scheduleDayLabel: "Mardi",
+    scheduleStartAt: "2026-07-28T07:00:00.000Z",
+    stagedEntry: { id: "entry-1", rider: "Ready Rider" },
+    nextEntry: { id: "entry-2", rider: "Next Rider" },
+  };
+  const publicView = {
+    liveClasses: [],
+    livePaidWarmups: [futureWarmup],
+  };
+  const now = new Date(2026, 6, 23, 12, 0, 0);
+
+  expect(pickTvLiveItem(publicView, "101", now)).toBeNull();
+  expect(pickTvUpcomingItem(publicView, "101", now)).toMatchObject({
+    kind: "paidWarmup",
+    item: { id: "future-warmup" },
+  });
+
+  expect(
+    pickTvLiveItem(
+      {
+        ...publicView,
+        livePaidWarmups: [
+          {
+            ...futureWarmup,
+            activeEntry: { id: "entry-1", rider: "Ready Rider" },
+          },
+        ],
+      },
+      "101",
+      now
+    )
+  ).toMatchObject({
+    kind: "paidWarmup",
+    item: { id: "future-warmup" },
+  });
+
+  expect(
+    pickTvLiveItem(publicView, "101", new Date(2026, 6, 28, 6, 0, 0))
+  ).toMatchObject({
+    kind: "paidWarmup",
+    item: { id: "future-warmup" },
+  });
 });
 
 test("calculates a scored run total", () => {

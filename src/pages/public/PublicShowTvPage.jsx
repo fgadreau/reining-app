@@ -43,7 +43,11 @@ function PublicShowTvPage() {
   const visibleSponsorSlide =
     sponsorSlides[sponsorSlideIndex % sponsorSlides.length] || [];
   const liveItem = useMemo(
-    () => pickTvLiveItem(publicView, selectedArena),
+    () => pickTvLiveItem(publicView, selectedArena, new Date()),
+    [publicView, selectedArena]
+  );
+  const upcomingScheduleItem = useMemo(
+    () => pickTvUpcomingItem(publicView, selectedArena, new Date()),
     [publicView, selectedArena]
   );
   const tvVideoUrl = getTvDisplayVideoPublicUrl(show?.tvDisplayVideoPath);
@@ -185,6 +189,7 @@ function PublicShowTvPage() {
         <CompetitionVideoPanel
           videoUrl={tvVideoUrl}
           liveItem={liveItem}
+          upcomingScheduleItem={upcomingScheduleItem}
           selectedArena={selectedArena}
           show={show}
         />
@@ -195,7 +200,11 @@ function PublicShowTvPage() {
       ) : displayMode === "live" ? (
         <LivePanel liveItem={liveItem} />
       ) : (
-        <WelcomePanel association={association} show={show} />
+        <WelcomePanel
+          association={association}
+          show={show}
+          upcomingScheduleItem={upcomingScheduleItem}
+        />
       )}
 
       {!isCompetitionDisplay ? (
@@ -238,13 +247,21 @@ function CompetitionLoadingPanel({ selectedArena }) {
   );
 }
 
-function CompetitionVideoPanel({ videoUrl, liveItem, selectedArena, show }) {
+function CompetitionVideoPanel({
+  videoUrl,
+  liveItem,
+  upcomingScheduleItem,
+  selectedArena,
+  show,
+}) {
   const isWarmup = liveItem?.kind === "paidWarmup";
   const title = liveItem
     ? isWarmup
       ? liveItem.item?.name || "Paid warm up"
       : liveItem.item?.className || "Classe / Class"
-    : show?.name || "";
+    : upcomingScheduleItem
+      ? getTvScheduleItemName(upcomingScheduleItem)
+      : show?.name || "";
   const current = liveItem
     ? isWarmup
       ? buildWarmupCurrent(liveItem.item)
@@ -287,6 +304,8 @@ function CompetitionVideoPanel({ videoUrl, liveItem, selectedArena, show }) {
           <div style={competitionLiveLabelStyle}>
             {liveItem ? (
               <BilingualText fr="En direct" en="Live" />
+            ) : upcomingScheduleItem ? (
+              <BilingualText fr="À venir" en="Upcoming" />
             ) : (
               <BilingualText fr="En attente" en="Waiting" />
             )}
@@ -321,10 +340,14 @@ function CompetitionVideoPanel({ videoUrl, liveItem, selectedArena, show }) {
           </>
         ) : (
           <div style={competitionWaitingStyle}>
-            <BilingualText
-              fr="Les données du passage apparaîtront ici dès que le live sera lancé."
-              en="Run data will appear here as soon as live starts."
-            />
+            {upcomingScheduleItem ? (
+              formatTvUpcomingSchedule(upcomingScheduleItem)
+            ) : (
+              <BilingualText
+                fr="Les données du passage apparaîtront ici dès que le live sera lancé."
+                en="Run data will appear here as soon as live starts."
+              />
+            )}
           </div>
         )}
       </div>
@@ -564,7 +587,7 @@ function PausePanel({ association, show }) {
   );
 }
 
-function WelcomePanel({ association, show }) {
+function WelcomePanel({ association, show, upcomingScheduleItem }) {
   const showName = show?.name || association?.name || "";
   const associationName =
     association?.name && association.name !== showName ? association.name : "";
@@ -585,10 +608,21 @@ function WelcomePanel({ association, show }) {
         {[show?.venue, show?.location].filter(Boolean).join(" · ")}
       </div>
       <div style={welcomeNoticeStyle}>
-        <BilingualText
-          fr="Le prochain bloc apparaîtra ici dès que le live sera lancé."
-          en="The next block will appear here as soon as live starts."
-        />
+        {upcomingScheduleItem ? (
+          <>
+            <strong>
+              <BilingualText fr="À venir" en="Upcoming" />
+              {" · "}
+              {getTvScheduleItemName(upcomingScheduleItem)}
+            </strong>
+            <span>{formatTvUpcomingSchedule(upcomingScheduleItem)}</span>
+          </>
+        ) : (
+          <BilingualText
+            fr="Le prochain bloc apparaîtra ici dès que le live sera lancé."
+            en="The next block will appear here as soon as live starts."
+          />
+        )}
       </div>
     </section>
   );
@@ -685,9 +719,13 @@ function BilingualText({ fr, en }) {
   );
 }
 
-function pickTvLiveItem(publicView, arena = "") {
-  const liveClasses = filterByArena(publicView?.liveClasses, arena);
-  const liveWarmups = filterByArena(publicView?.livePaidWarmups, arena);
+export function pickTvLiveItem(publicView, arena = "", now = new Date()) {
+  const liveClasses = filterByArena(publicView?.liveClasses, arena).filter(
+    (item) => isTvLiveItemCurrent(item, now)
+  );
+  const liveWarmups = filterByArena(publicView?.livePaidWarmups, arena).filter(
+    (item) => isTvLiveItemCurrent(item, now)
+  );
   const warmup =
     liveWarmups.find((item) => item.activeDragItem) ||
     liveWarmups.find((item) => item.activeEntry || item.stagedEntry) ||
@@ -714,6 +752,110 @@ function pickTvLiveItem(publicView, arena = "") {
   if (classView) return { kind: "class", item: classView };
 
   return null;
+}
+
+export function pickTvUpcomingItem(
+  publicView,
+  arena = "",
+  now = new Date()
+) {
+  const candidates = [
+    ...filterByArena(publicView?.livePaidWarmups, arena).map((item) => ({
+      kind: "paidWarmup",
+      item,
+    })),
+    ...filterByArena(publicView?.liveClasses, arena).map((item) => ({
+      kind: "class",
+      item,
+    })),
+  ].filter(({ item }) => !isTvLiveItemCurrent(item, now));
+
+  return (
+    candidates.sort((first, second) =>
+      getTvScheduleSortKey(first.item).localeCompare(
+        getTvScheduleSortKey(second.item)
+      )
+    )[0] || null
+  );
+}
+
+function isTvLiveItemCurrent(item, now = new Date()) {
+  if (
+    item?.activeEntry ||
+    item?.activeDragItem ||
+    item?.activeRun ||
+    item?.dragBreak?.isActive
+  ) {
+    return true;
+  }
+
+  const scheduleDayDate = String(item?.scheduleDayDate || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(scheduleDayDate)) return true;
+
+  return scheduleDayDate <= formatLocalDateKey(now);
+}
+
+function getTvScheduleSortKey(item) {
+  return [
+    String(item?.scheduleDayDate || "9999-12-31"),
+    String(item?.scheduleStartAt || "23:59"),
+    String(item?.name || item?.className || ""),
+  ].join("|");
+}
+
+function formatLocalDateKey(now = new Date()) {
+  const date = now instanceof Date ? now : new Date(now);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getTvScheduleItemName(scheduleItem) {
+  if (!scheduleItem) return "";
+  return scheduleItem.kind === "paidWarmup"
+    ? scheduleItem.item?.name || "Paid warm up"
+    : scheduleItem.item?.className || "Classe / Class";
+}
+
+function formatTvUpcomingSchedule(scheduleItem) {
+  const item = scheduleItem?.item || {};
+  const dateValue = String(item.scheduleDayDate || "").trim();
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(dateValue)
+    ? new Date(`${dateValue}T12:00:00`)
+    : null;
+  const dateFr =
+    date && !Number.isNaN(date.getTime())
+      ? new Intl.DateTimeFormat("fr-CA", {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+        }).format(date)
+      : item.scheduleDayLabel || "";
+  const dateEn =
+    date && !Number.isNaN(date.getTime())
+      ? new Intl.DateTimeFormat("en-CA", {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+        }).format(date)
+      : item.scheduleDayLabel || "";
+  const startDate = item.scheduleStartAt
+    ? new Date(item.scheduleStartAt)
+    : null;
+  const time =
+    startDate && !Number.isNaN(startDate.getTime())
+      ? new Intl.DateTimeFormat("fr-CA", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(startDate)
+      : "";
+
+  return [dateFr && dateEn ? `${dateFr} / ${dateEn}` : dateFr || dateEn, time]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function filterByArena(items, arena) {
@@ -1457,6 +1599,8 @@ const welcomeNoticeStyle = {
   color: "#dbeafe",
   fontSize: "clamp(18px, 1.5vw, 26px)",
   fontWeight: 800,
+  display: "grid",
+  gap: 8,
 };
 
 const sponsorRailStyle = (expanded) => ({

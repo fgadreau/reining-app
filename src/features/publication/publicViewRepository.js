@@ -1876,6 +1876,10 @@ function attachNextScheduleItem({
   return {
     ...view,
     arena: view.arena || scheduleItem?.effectiveArena || "",
+    scheduleDayDate: scheduleRow?.dayDate || "",
+    scheduleDayLabel: scheduleRow?.dayLabel || "",
+    scheduleStartAt:
+      scheduleRow?.plannedStartAt || scheduleRow?.estimatedStartAt || null,
     nextScheduleItem: buildPublicNextScheduleItem({
       scheduleItem: nextScheduleItem,
       scheduleRow: nextScheduleItem
