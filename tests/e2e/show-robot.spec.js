@@ -792,9 +792,13 @@ test.describe("robot de show local", () => {
 
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: "+ Ajouter un niveau" }).click();
-    await dialog
-      .getByPlaceholder("Nom du niveau (ex. Argent)")
-      .fill("Argent");
+    const firstSponsorLevelInput = dialog.getByPlaceholder(
+      "Nom du niveau (ex. Argent)"
+    );
+    await firstSponsorLevelInput.fill("Partenaire");
+    await firstSponsorLevelInput.pressSequentially(
+      " Argent Prestige Extraordinaire"
+    );
     await dialog.locator('input[type="file"][accept="image/*"]').nth(0).setInputFiles([
       {
         name: "argent-1.svg",
@@ -838,7 +842,7 @@ test.describe("robot de show local", () => {
           ).map((group) => group.name);
         }, ASSOCIATION_ID)
       )
-      .toEqual(["Argent", "Bronze"]);
+      .toEqual(["Partenaire Argent Prestige Extraordinaire", "Bronze"]);
 
     await page.evaluate((classId) => {
       const publications = JSON.parse(
@@ -866,8 +870,13 @@ test.describe("robot de show local", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: "Robot Derby local" })
     ).toBeVisible();
-    await expect(page.locator("body")).toContainText("Argent");
-    await expect(sponsorLevel).toHaveText("Argent");
+    await expect(page.locator("body")).toContainText(
+      "Partenaire Argent Prestige Extraordinaire"
+    );
+    await expect(sponsorLevel).toHaveText(
+      "Partenaire Argent Prestige Extraordinaire"
+    );
+    await expect(sponsorLevel).toHaveAttribute("data-tv-scrolling", "true");
     await expect
       .poll(async () => {
         const titleBox = await sponsorTitle.boundingBox();
@@ -907,6 +916,8 @@ test.describe("robot de show local", () => {
       page,
       `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/overlay`
     );
-    await expect(page.locator("body")).toContainText("Argent");
+    await expect(page.locator("body")).toContainText(
+      "Partenaire Argent Prestige Extraordinaire"
+    );
   });
 });

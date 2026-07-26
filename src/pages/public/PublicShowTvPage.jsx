@@ -396,6 +396,7 @@ function CompetitionScrollingText({
   children,
   style,
   dataLabel,
+  dataAttributes,
   scrollPadding = 36,
 }) {
   const text = children == null ? "" : String(children);
@@ -466,6 +467,7 @@ function CompetitionScrollingText({
       }}
       data-tv-overflow-text={dataLabel}
       data-tv-scrolling={isScrolling ? "true" : "false"}
+      {...dataAttributes}
     >
       <span ref={innerRef} style={innerStyle}>
         {text}
@@ -683,9 +685,14 @@ function SponsorRail({ slide, expanded = false }) {
           <BilingualText fr="Commanditaires" en="Sponsors" />
         </div>
         {slide?.groupName ? (
-          <div style={sponsorLevelStyle(expanded)} data-sponsor-level>
+          <CompetitionScrollingText
+            style={sponsorLevelStyle(expanded)}
+            dataLabel="sponsor-level"
+            dataAttributes={{ "data-sponsor-level": "" }}
+            scrollPadding={28}
+          >
             {slide.groupName}
-          </div>
+          </CompetitionScrollingText>
         ) : null}
       </div>
       {hasSponsors ? (
@@ -1614,11 +1621,10 @@ const sponsorLevelStyle = (expanded) => ({
   fontSize: expanded
     ? "clamp(32px, 2.8vw, 46px)"
     : "clamp(25px, 2vw, 34px)",
-  lineHeight: 1,
+  lineHeight: 1.18,
   fontWeight: 800,
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
+  paddingBottom: "0.08em",
+  boxSizing: "border-box",
 });
 
 const sponsorGridStyle = {

@@ -431,10 +431,8 @@ function ShowDetailPage() {
   const updateSponsorGroup = (groupId, updates) => {
     setHasEditedSponsorGroups(true);
     setSponsorGroupsDraft((current) =>
-      normalizeSponsorGroups(
-        current.map((group) =>
-          group.id === groupId ? { ...group, ...updates } : group
-        )
+      current.map((group) =>
+        group.id === groupId ? { ...group, ...updates } : group
       )
     );
   };
