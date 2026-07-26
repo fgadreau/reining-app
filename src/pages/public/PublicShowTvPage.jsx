@@ -398,6 +398,9 @@ function CompetitionScrollingText({
   dataLabel,
   dataAttributes,
   scrollPadding = 36,
+  scrollPixelsPerSecond = 18,
+  minDurationSeconds = 9,
+  maxDurationSeconds = 24,
 }) {
   const text = children == null ? "" : String(children);
   const outerRef = useRef(null);
@@ -439,7 +442,10 @@ function CompetitionScrollingText({
     };
   }, [text, scrollPadding]);
 
-  const durationSeconds = Math.min(Math.max(scrollDistance / 18, 9), 24);
+  const durationSeconds = Math.min(
+    Math.max(scrollDistance / scrollPixelsPerSecond, minDurationSeconds),
+    maxDurationSeconds
+  );
   const isScrolling = scrollDistance > 0;
   const innerStyle = isScrolling
     ? {
@@ -690,6 +696,9 @@ function SponsorRail({ slide, expanded = false }) {
             dataLabel="sponsor-level"
             dataAttributes={{ "data-sponsor-level": "" }}
             scrollPadding={28}
+            scrollPixelsPerSecond={65}
+            minDurationSeconds={5}
+            maxDurationSeconds={8}
           >
             {slide.groupName}
           </CompetitionScrollingText>
@@ -1621,9 +1630,9 @@ const sponsorLevelStyle = (expanded) => ({
   fontSize: expanded
     ? "clamp(32px, 2.8vw, 46px)"
     : "clamp(25px, 2vw, 34px)",
-  lineHeight: 1.18,
+  lineHeight: 1.25,
   fontWeight: 800,
-  paddingBottom: "0.08em",
+  padding: "0.04em 0 0.16em",
   boxSizing: "border-box",
 });
 

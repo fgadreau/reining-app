@@ -795,9 +795,9 @@ test.describe("robot de show local", () => {
     const firstSponsorLevelInput = dialog.getByPlaceholder(
       "Nom du niveau (ex. Argent)"
     );
-    await firstSponsorLevelInput.fill("Partenaire");
+    await firstSponsorLevelInput.fill("Argent");
     await firstSponsorLevelInput.pressSequentially(
-      " Argent Prestige Extraordinaire"
+      " / Silver Partenaire Prestige Extraordinaire"
     );
     await dialog.locator('input[type="file"][accept="image/*"]').nth(0).setInputFiles([
       {
@@ -842,7 +842,10 @@ test.describe("robot de show local", () => {
           ).map((group) => group.name);
         }, ASSOCIATION_ID)
       )
-      .toEqual(["Partenaire Argent Prestige Extraordinaire", "Bronze"]);
+      .toEqual([
+        "Argent / Silver Partenaire Prestige Extraordinaire",
+        "Bronze",
+      ]);
 
     await page.evaluate((classId) => {
       const publications = JSON.parse(
@@ -871,17 +874,39 @@ test.describe("robot de show local", () => {
       page.getByRole("heading", { level: 1, name: "Robot Derby local" })
     ).toBeVisible();
     await expect(page.locator("body")).toContainText(
-      "Partenaire Argent Prestige Extraordinaire"
+      "Argent / Silver Partenaire Prestige Extraordinaire"
     );
     await expect(sponsorLevel).toHaveText(
-      "Partenaire Argent Prestige Extraordinaire"
+      "Argent / Silver Partenaire Prestige Extraordinaire"
     );
     await expect(sponsorLevel).toHaveAttribute("data-tv-scrolling", "true");
+    const scrollingSponsorLevelText = sponsorLevel.locator("span");
+    const sponsorLevelStartX = await scrollingSponsorLevelText.evaluate(
+      (element) => element.getBoundingClientRect().x
+    );
+    await expect
+      .poll(
+        () =>
+          scrollingSponsorLevelText.evaluate(
+            (element, startX) =>
+              Math.abs(element.getBoundingClientRect().x - startX) > 5,
+            sponsorLevelStartX
+          ),
+        { timeout: 4000 }
+      )
+      .toBe(true);
     await expect
       .poll(async () => {
         const titleBox = await sponsorTitle.boundingBox();
         const levelBox = await sponsorLevel.boundingBox();
-        const [titleFontSize, levelFontSize, titleColor, levelColor] =
+        const [
+          titleFontSize,
+          levelFontSize,
+          titleColor,
+          levelColor,
+          levelLineHeight,
+          levelPaddingBottom,
+        ] =
           await Promise.all([
             sponsorTitle.evaluate((element) =>
               Number.parseFloat(window.getComputedStyle(element).fontSize)
@@ -895,18 +920,27 @@ test.describe("robot de show local", () => {
             sponsorLevel.evaluate(
               (element) => window.getComputedStyle(element).color
             ),
+            sponsorLevel.evaluate((element) =>
+              Number.parseFloat(window.getComputedStyle(element).lineHeight)
+            ),
+            sponsorLevel.evaluate((element) =>
+              Number.parseFloat(window.getComputedStyle(element).paddingBottom)
+            ),
           ]);
 
         return {
           isBelow: levelBox.y > titleBox.y,
           isLarger: levelFontSize > titleFontSize,
           hasDifferentColor: levelColor !== titleColor,
+          hasDescenderRoom:
+            levelLineHeight > levelFontSize && levelPaddingBottom > 0,
         };
       })
       .toEqual({
         isBelow: true,
         isLarger: true,
         hasDifferentColor: true,
+        hasDescenderRoom: true,
       });
     await expect(page.locator("body")).toContainText("Bronze", {
       timeout: 12000,
@@ -917,7 +951,7 @@ test.describe("robot de show local", () => {
       `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/overlay`
     );
     await expect(page.locator("body")).toContainText(
-      "Partenaire Argent Prestige Extraordinaire"
+      "Argent / Silver Partenaire Prestige Extraordinaire"
     );
   });
 });
