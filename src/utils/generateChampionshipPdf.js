@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import { formatChampionshipPoints } from "../features/championship/championshipPoints";
+import { normalizeChampionshipClassNotes } from "../features/championship/championshipClassNotes";
 
 function safeText(value) {
   return String(value ?? "");
@@ -159,6 +160,7 @@ export function generateChampionshipPdf({
   const contentBottom = pageHeight - 15;
   const usableWidth = pageWidth - margin * 2;
   const classes = getSeasonClasses(season);
+  const classNotes = normalizeChampionshipClassNotes(season?.classNotes);
   const includedShows = getIncludedShows(season);
   const classPageNumbers = new Map();
   const generatedLabel = formatDateTime(generatedAt);
@@ -455,6 +457,21 @@ export function generateChampionshipPdf({
         Array.isArray(classEntry?.teams) ? classEntry.teams.length : 0
       } equipes`
     );
+
+    const note = classNotes[classEntry?.id];
+    if (note) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      const lines = doc.splitTextToSize(note, usableWidth - 8);
+      const noteHeight = Math.max(12, lines.length * 3.8 + 7);
+
+      doc.setFillColor(255, 251, 235);
+      doc.setDrawColor(245, 158, 11);
+      doc.roundedRect(margin, y, usableWidth, noteHeight, 2, 2, "FD");
+      setTextColor("#92400e");
+      doc.text(lines, margin + 4, y + 6);
+      y += noteHeight + 4;
+    }
   }
 
   function clamp(value, min, max) {

@@ -247,6 +247,11 @@ import {
   normalizeChampionshipRules,
 } from "./features/championship/championshipRules";
 import {
+  CHAMPIONSHIP_CLASS_NOTE_MAX_LENGTH,
+  getChampionshipClassNote,
+  normalizeChampionshipClassNotes,
+} from "./features/championship/championshipClassNotes";
+import {
   buildShowScoreChampionshipImportBatch,
   buildShowScoreChampionshipImportPreview,
 } from "./features/championship/showScoreChampionshipImport";
@@ -1186,6 +1191,22 @@ test("normalizes optional championship rules for the public modal", () => {
       rulesStatement: "x".repeat(CHAMPIONSHIP_RULE_TEXT_MAX_LENGTH + 10),
     }).rulesStatement
   ).toHaveLength(CHAMPIONSHIP_RULE_TEXT_MAX_LENGTH);
+});
+
+test("normalizes public notes by championship class", () => {
+  const notes = normalizeChampionshipClassNotes({
+    "class-1": "  Championnat incomplet pour cette classe.  ",
+    "class-2": "",
+    "class-3": "x".repeat(CHAMPIONSHIP_CLASS_NOTE_MAX_LENGTH + 20),
+  });
+
+  expect(notes).toEqual({
+    "class-1": "Championnat incomplet pour cette classe.",
+    "class-3": "x".repeat(CHAMPIONSHIP_CLASS_NOTE_MAX_LENGTH),
+  });
+  expect(getChampionshipClassNote(notes, "class-1")).toBe(
+    "Championnat incomplet pour cette classe."
+  );
 });
 
 test("builds championship standings by technical show occurrence and team", () => {
@@ -2243,6 +2264,9 @@ test("generates a season championship PDF with a class table of contents", () =>
   const pageNumbers = new Map(
     dataset.classes.map((classEntry, index) => [classEntry.id, index + 3])
   );
+  dataset.classNotes = {
+    [dataset.classes[0].id]: "Championship incomplete for this class.",
+  };
   const tableOfContents = buildChampionshipPdfTableOfContents(
     dataset,
     pageNumbers
@@ -2275,6 +2299,9 @@ test("generates a season championship PDF with a class table of contents", () =>
   ]);
   expect(tableOfContentsColumns.map((column) => column.length)).toEqual([1, 1]);
   expect(pdf.getNumberOfPages()).toBeGreaterThanOrEqual(4);
+  expect(pdf.internal.pages.flat().join("\n")).toContain(
+    "Championship incomplete for this class."
+  );
   expect(
     buildChampionshipPdfFileName({
       associationAbbreviation: "AQR",

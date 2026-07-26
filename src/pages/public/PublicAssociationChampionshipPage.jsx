@@ -16,6 +16,7 @@ import {
   hasChampionshipRules,
   normalizeChampionshipRules,
 } from "../../features/championship/championshipRules";
+import { normalizeChampionshipClassNotes } from "../../features/championship/championshipClassNotes";
 import { buildChampionshipPublicSeo } from "../../features/seo/publicSeo";
 import { formatChampionshipPoints } from "../../features/championship/championshipPoints";
 import {
@@ -95,6 +96,10 @@ function PublicAssociationChampionshipPage() {
     [season]
   );
   const hasRules = hasChampionshipRules(championshipRules);
+  const classNotes = useMemo(
+    () => normalizeChampionshipClassNotes(season?.classNotes),
+    [season]
+  );
   const filteredClasses = useMemo(
     () =>
       filterChampionshipClasses(classes, normalizedSearchQuery, selectedClassId),
@@ -672,6 +677,11 @@ function PublicAssociationChampionshipPage() {
                           teams: classEntry.teams.length,
                         })}
                       </span>
+                      {classNotes[classEntry.id] && (
+                        <span style={classNoteStyle}>
+                          {classNotes[classEntry.id]}
+                        </span>
+                      )}
                     </span>
                     <span style={isMobileLayout ? mobileViewToggleStyle : viewToggleStyle}>
                       {isOpen ? t("public.results.hide") : t("public.results.view")}
@@ -2094,6 +2104,22 @@ const classMetaStyle = {
   color: publicColors.muted,
   fontSize: 13,
   fontWeight: 750,
+};
+
+const classNoteStyle = {
+  display: "block",
+  width: "fit-content",
+  maxWidth: "min(100%, 760px)",
+  marginTop: 7,
+  padding: "6px 9px",
+  border: "1px solid #f59e0b",
+  borderRadius: 7,
+  background: "#fffbeb",
+  color: "#92400e",
+  fontSize: 13,
+  fontWeight: 800,
+  lineHeight: 1.35,
+  whiteSpace: "pre-wrap",
 };
 
 const viewToggleStyle = {

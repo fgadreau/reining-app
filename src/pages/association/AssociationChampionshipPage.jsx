@@ -50,6 +50,10 @@ import {
   CHAMPIONSHIP_RULE_TEXT_MAX_LENGTH,
   normalizeChampionshipRules,
 } from "../../features/championship/championshipRules";
+import {
+  CHAMPIONSHIP_CLASS_NOTE_MAX_LENGTH,
+  normalizeChampionshipClassNotes,
+} from "../../features/championship/championshipClassNotes";
 
 function AssociationChampionshipPage() {
   const { associationId } = useParams();
@@ -63,6 +67,8 @@ function AssociationChampionshipPage() {
   const [seasonStatus, setSeasonStatus] = useState("draft");
   const [rulesStatement, setRulesStatement] = useState("");
   const [pointsExplanation, setPointsExplanation] = useState("");
+  const [classNotes, setClassNotes] = useState({});
+  const [classNoteClassId, setClassNoteClassId] = useState("");
   const [csvText, setCsvText] = useState("");
   const [fileName, setFileName] = useState("");
   const [fileInputKey, setFileInputKey] = useState(0);
@@ -141,6 +147,10 @@ function AssociationChampionshipPage() {
         const nextRules = normalizeChampionshipRules(nextSeason);
         setRulesStatement(nextRules.rulesStatement);
         setPointsExplanation(nextRules.pointsExplanation);
+        setClassNotes(
+          normalizeChampionshipClassNotes(nextSeason.classNotes)
+        );
+        setClassNoteClassId(nextSeason.classes?.[0]?.id || "");
         setEventLabels(nextEventLabels);
         setEventOrder(nextEventOrder);
         setPreview(nextPreview);
@@ -190,6 +200,17 @@ function AssociationChampionshipPage() {
     return Array.isArray(catalog?.classes) ? catalog.classes : [];
   }, [preview]);
 
+  useEffect(() => {
+    if (
+      classNoteClassId &&
+      classSummaries.some((classEntry) => classEntry.id === classNoteClassId)
+    ) {
+      return;
+    }
+
+    setClassNoteClassId(classSummaries[0]?.id || "");
+  }, [classNoteClassId, classSummaries]);
+
   const updateSeasonTitle = (value) => {
     setSeasonTitle(value);
     setSaveMessage("");
@@ -212,6 +233,27 @@ function AssociationChampionshipPage() {
 
   const updatePointsExplanation = (value) => {
     setPointsExplanation(value);
+    setSaveMessage("");
+  };
+
+  const updateClassNote = (value) => {
+    if (!classNoteClassId) return;
+
+    setClassNotes((current) => {
+      const next = { ...current };
+      const note = String(value || "").slice(
+        0,
+        CHAMPIONSHIP_CLASS_NOTE_MAX_LENGTH
+      );
+
+      if (note) {
+        next[classNoteClassId] = note;
+      } else {
+        delete next[classNoteClassId];
+      }
+
+      return next;
+    });
     setSaveMessage("");
   };
 
@@ -715,6 +757,7 @@ function AssociationChampionshipPage() {
           rulesStatement,
           pointsExplanation,
         }),
+        classNotes: normalizeChampionshipClassNotes(classNotes),
       });
       setSeason(saved);
       setPreview(saved);
@@ -1256,6 +1299,15 @@ function AssociationChampionshipPage() {
             </section>
           )}
 
+          <ChampionshipClassNotesPanel
+            classes={classSummaries}
+            notes={classNotes}
+            selectedClassId={classNoteClassId}
+            onSelectClass={setClassNoteClassId}
+            onChangeNote={updateClassNote}
+            t={t}
+          />
+
           <ChampionshipDisqualificationPanel
             classes={disqualificationClassSummaries}
             corrections={championshipCorrections}
@@ -1328,6 +1380,11 @@ function AssociationChampionshipPage() {
                 <div key={classEntry.id} style={classPreviewStyle}>
                   <div>
                     <div style={classTitleStyle}>{classEntry.name}</div>
+                    {classNotes[classEntry.id] && (
+                      <div style={adminClassNoteStyle}>
+                        {classNotes[classEntry.id]}
+                      </div>
+                    )}
                     <div style={mutedTextStyle}>
                       {t("championship.admin.eventCount", {
                         count: classEntry.events.length,
@@ -1404,6 +1461,70 @@ function SummaryCard({ label, value }) {
       <div style={summaryValueStyle}>{value}</div>
       <div style={mutedTextStyle}>{label}</div>
     </div>
+  );
+}
+
+function ChampionshipClassNotesPanel({
+  classes,
+  notes,
+  selectedClassId,
+  onSelectClass,
+  onChangeNote,
+  t,
+}) {
+  const classOptions = Array.isArray(classes) ? classes : [];
+  const note = String(notes?.[selectedClassId] || "");
+
+  return (
+    <section style={panelStyle}>
+      <div style={sectionTitleStyle}>
+        {t("championship.admin.classNotesTitle")}
+      </div>
+      <div style={mutedTextStyle}>
+        {t("championship.admin.classNotesHelp")}
+      </div>
+      <div style={championshipClassNoteFormStyle}>
+        <label style={fieldStyle}>
+          <span style={labelStyle}>
+            {t("championship.admin.classNotesClass")}
+          </span>
+          <select
+            value={selectedClassId}
+            onChange={(event) => onSelectClass(event.target.value)}
+            style={inputStyle}
+            disabled={!classOptions.length}
+          >
+            <option value="">
+              {t("championship.admin.classNotesChooseClass")}
+            </option>
+            {classOptions.map((classEntry) => (
+              <option key={classEntry.id} value={classEntry.id}>
+                {classEntry.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label style={fieldStyle}>
+          <span style={labelStyle}>
+            {t("championship.admin.classNotesMention")}
+          </span>
+          <textarea
+            value={note}
+            onChange={(event) => onChangeNote(event.target.value)}
+            maxLength={CHAMPIONSHIP_CLASS_NOTE_MAX_LENGTH}
+            placeholder={t("championship.admin.classNotesPlaceholder")}
+            style={championshipClassNoteTextareaStyle}
+            disabled={!selectedClassId}
+          />
+          <span style={fieldHelpStyle}>
+            {t("championship.admin.classNotesCount", {
+              count: note.length,
+              max: CHAMPIONSHIP_CLASS_NOTE_MAX_LENGTH,
+            })}
+          </span>
+        </label>
+      </div>
+    </section>
   );
 }
 
@@ -2425,6 +2546,33 @@ const championshipRuleTextareaStyle = {
   minHeight: 130,
   fontFamily: "inherit",
   lineHeight: 1.45,
+};
+
+const championshipClassNoteFormStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))",
+  gap: 12,
+  marginTop: 14,
+};
+
+const championshipClassNoteTextareaStyle = {
+  ...textareaStyle,
+  minHeight: 92,
+  fontFamily: "inherit",
+  lineHeight: 1.45,
+};
+
+const adminClassNoteStyle = {
+  marginTop: 6,
+  padding: "6px 8px",
+  border: "1px solid #f59e0b",
+  borderRadius: 7,
+  background: "#fffbeb",
+  color: "#92400e",
+  fontSize: 12,
+  fontWeight: 800,
+  lineHeight: 1.35,
+  whiteSpace: "pre-wrap",
 };
 
 const fieldHelpStyle = {

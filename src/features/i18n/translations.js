@@ -287,6 +287,15 @@ export const translations = {
         analyze: "Analyser le CSV",
         anomalies: "Anomalies",
         classes: "Classes",
+        classNotesChooseClass: "Choisir une classe",
+        classNotesClass: "Classe",
+        classNotesCount: "{{count}} / {{max}} caractères",
+        classNotesHelp:
+          "Ajoute une mention propre à une classe. Elle sera visible dans le classement public et le PDF après l’enregistrement.",
+        classNotesMention: "Mention publique",
+        classNotesPlaceholder:
+          "Ex. Championnat incomplet pour cette classe.",
+        classNotesTitle: "Notes par classe",
         csvPlaceholder:
           "Colle ici un CSV de résultats AQR à ajouter à la saison ou importe un fichier .csv.",
         duplicateCancel: "Annuler",
@@ -2191,6 +2200,15 @@ export const translations = {
         analyze: "Analyze CSV",
         anomalies: "Anomalies",
         classes: "Classes",
+        classNotesChooseClass: "Choose a class",
+        classNotesClass: "Class",
+        classNotesCount: "{{count}} / {{max}} characters",
+        classNotesHelp:
+          "Add a class-specific note. It will appear in the public standings and PDF after saving.",
+        classNotesMention: "Public note",
+        classNotesPlaceholder:
+          "Example: Championship incomplete for this class.",
+        classNotesTitle: "Class notes",
         csvPlaceholder:
           "Paste an AQR results CSV to add to the season or import a .csv file.",
         duplicateCancel: "Cancel",
