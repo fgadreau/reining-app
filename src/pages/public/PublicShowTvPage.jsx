@@ -18,6 +18,7 @@ import {
 import { getTvDisplayVideoPublicUrl } from "../../features/tvDisplay/tvDisplayVideo";
 import { rememberTvDisplayShortcut } from "../../features/tvDisplay/tvDisplayShortCode";
 import { isScheduledLiveViewCurrent } from "../../features/schedule/liveSchedule";
+import "./PublicShowTvPage.css";
 
 const TV_REFRESH_MS = 5000;
 const SPONSOR_SLIDE_INTERVAL_MS = 9000;
@@ -177,27 +178,35 @@ function PublicShowTvPage() {
   }, [sponsorSlides.length]);
 
   return (
-    <main style={isCompetitionDisplay ? competitionPageStyle : pageStyle}>
+    <main
+      style={isCompetitionDisplay ? competitionPageStyle : pageStyle}
+      className={`tv-display tv-display--${displayMode}${
+        isCompetitionDisplay ? " tv-display--competition" : ""
+      }`}
+      data-tv-display-mode={displayMode}
+    >
       <div style={backgroundGlowStyle} />
       {!isCompetitionDisplay ? (
-        <header style={headerStyle}>
-          <div style={brandStyle}>
-            <AssociationLogo association={association} size={74} />
+        <header style={headerStyle} className="tv-header">
+          <div style={brandStyle} className="tv-header__brand">
+            <div className="tv-header__logo">
+              <AssociationLogo association={association} size={74} />
+            </div>
             <div style={{ minWidth: 0 }}>
-              <div style={eyebrowStyle}>
+              <div style={eyebrowStyle} className="tv-header__eyebrow">
                 <BilingualText fr="Affichage manège" en="Arena display" />
               </div>
-              <div style={showTitleStyle}>
+              <div style={showTitleStyle} className="tv-header__title">
                 {show?.name || association?.name || ""}
               </div>
-              <div style={showMetaStyle}>
+              <div style={showMetaStyle} className="tv-header__meta">
                 {[association?.name, show?.venue, show?.location]
                   .filter(Boolean)
                   .join(" · ")}
               </div>
             </div>
           </div>
-          <div style={headerActionsStyle}>
+          <div style={headerActionsStyle} className="tv-header__actions">
             {selectedArena ? (
               <div style={arenaBadgeStyle}>
                 <BilingualText fr="Manège" en="Arena" /> · {selectedArena}
@@ -536,13 +545,19 @@ function LivePanel({ liveItem }) {
   const hasUpcomingCards = upcomingCards.length > 0;
 
   return (
-    <section style={liveGridStyle}>
-      <div style={liveHeroStyle}>
+    <section style={liveGridStyle} className="tv-live-grid">
+      <div style={liveHeroStyle} className="tv-live-hero">
         <div style={sectionKickerStyle}>
           <BilingualText fr="En cours" en="Now live" />
         </div>
-        <h1 style={blockTitleStyle}>{title}</h1>
-        {subtitle ? <div style={blockSubtitleStyle}>{subtitle}</div> : null}
+        <h1 style={blockTitleStyle} className="tv-live-title">
+          {title}
+        </h1>
+        {subtitle ? (
+          <div style={blockSubtitleStyle} className="tv-live-subtitle">
+            {subtitle}
+          </div>
+        ) : null}
 
         <ParticipantCard
           labelFr="En piste"
@@ -552,9 +567,15 @@ function LivePanel({ liveItem }) {
         />
       </div>
 
-      <aside style={sideStackStyle(hasUpcomingCards)}>
+      <aside
+        style={sideStackStyle(hasUpcomingCards)}
+        className="tv-live-side"
+      >
         {hasUpcomingCards ? (
-          <div style={upcomingPanelStyle(upcomingCards.length)}>
+          <div
+            style={upcomingPanelStyle(upcomingCards.length)}
+            className="tv-live-panel tv-live-panel--upcoming"
+          >
             <div style={panelTitleStyle}>
               <BilingualText fr="À venir" en="Up next" />
             </div>
@@ -570,11 +591,14 @@ function LivePanel({ liveItem }) {
           </div>
         ) : null}
 
-        <div style={lastPanelStyle}>
+        <div
+          style={lastPanelStyle}
+          className="tv-live-panel tv-live-panel--previous"
+        >
           <div style={panelTitleStyle}>
             <BilingualText fr="Derniers passés" en="Last completed" />
           </div>
-          <div style={previousGridStyle}>
+          <div style={previousGridStyle} className="tv-previous-grid">
             <ParticipantCard
               labelFr="Dernier"
               labelEn="Last"
@@ -600,16 +624,20 @@ function PausePanel({ association, show }) {
   const messages = getPauseMessages(show);
 
   return (
-    <section style={centerPanelStyle}>
-      <div style={centerLogoWrapStyle}>
+    <section style={centerPanelStyle} className="tv-center-panel">
+      <div style={centerLogoWrapStyle} className="tv-center-logo">
         <AssociationLogo association={association} size={148} />
       </div>
       <div style={sectionKickerStyle}>
         <BilingualText fr="Live en pause" en="Live paused" />
       </div>
-      <h1 style={centerTitleStyle}>{messages.fr}</h1>
-      <h2 style={centerSubtitleStyle}>{messages.en}</h2>
-      <div style={centerMetaStyle}>
+      <h1 style={centerTitleStyle} className="tv-center-title">
+        {messages.fr}
+      </h1>
+      <h2 style={centerSubtitleStyle} className="tv-center-subtitle">
+        {messages.en}
+      </h2>
+      <div style={centerMetaStyle} className="tv-center-meta">
         {[association?.name, show?.venue, show?.location]
           .filter(Boolean)
           .join(" · ")}
@@ -624,21 +652,25 @@ function WelcomePanel({ association, show, upcomingScheduleItem }) {
     association?.name && association.name !== showName ? association.name : "";
 
   return (
-    <section style={centerPanelStyle}>
-      <div style={centerLogoWrapStyle}>
+    <section style={centerPanelStyle} className="tv-center-panel">
+      <div style={centerLogoWrapStyle} className="tv-center-logo">
         <AssociationLogo association={association} size={148} />
       </div>
       <div style={sectionKickerStyle}>
         <BilingualText fr="Bienvenue à" en="Welcome to" />
       </div>
-      <h1 style={centerTitleStyle}>{showName}</h1>
+      <h1 style={centerTitleStyle} className="tv-center-title">
+        {showName}
+      </h1>
       {associationName ? (
-        <h2 style={centerSubtitleStyle}>{associationName}</h2>
+        <h2 style={centerSubtitleStyle} className="tv-center-subtitle">
+          {associationName}
+        </h2>
       ) : null}
-      <div style={centerMetaStyle}>
+      <div style={centerMetaStyle} className="tv-center-meta">
         {[show?.venue, show?.location].filter(Boolean).join(" · ")}
       </div>
-      <div style={welcomeNoticeStyle}>
+      <div style={welcomeNoticeStyle} className="tv-welcome-notice">
         {upcomingScheduleItem ? (
           <>
             <strong>
@@ -672,7 +704,12 @@ function ParticipantCard({
   const isDrag = data.type === "drag";
 
   return (
-    <article style={participantCardStyle(variant, compact, isDrag)}>
+    <article
+      style={participantCardStyle(variant, compact, isDrag)}
+      className={`tv-participant-card tv-participant-card--${variant}${
+        compact ? " tv-participant-card--compact" : ""
+      }`}
+    >
       <div style={participantLabelStyle(variant)}>
         <BilingualText fr={labelFr} en={labelEn} />
       </div>
@@ -706,17 +743,27 @@ function SponsorRail({ slide, expanded = false }) {
   return (
     <footer
       style={sponsorRailStyle(expanded)}
+      className={`tv-sponsor-rail${
+        expanded ? " tv-sponsor-rail--expanded" : ""
+      }`}
       data-sponsor-layout={expanded ? "expanded" : "standard"}
     >
-      <div style={sponsorHeadingStyle}>
-        <div style={sponsorTitleStyle} data-sponsor-title>
+      <div style={sponsorHeadingStyle} className="tv-sponsor-heading">
+        <div
+          style={sponsorTitleStyle}
+          className="tv-sponsor-title"
+          data-sponsor-title
+        >
           <BilingualText fr="Commanditaires" en="Sponsors" />
         </div>
         {slide?.groupName ? (
           <CompetitionScrollingText
             style={sponsorLevelStyle(expanded)}
+            dataAttributes={{
+              "data-sponsor-level": "",
+              className: "tv-sponsor-level",
+            }}
             dataLabel="sponsor-level"
-            dataAttributes={{ "data-sponsor-level": "" }}
             scrollPadding={28}
             scrollPixelsPerSecond={65}
             minDurationSeconds={5}
@@ -727,9 +774,13 @@ function SponsorRail({ slide, expanded = false }) {
         ) : null}
       </div>
       {hasSponsors ? (
-        <div style={sponsorGridStyle}>
+        <div style={sponsorGridStyle} className="tv-sponsor-grid">
           {sponsors.map((sponsor) => (
-            <div key={sponsor.id} style={sponsorTileStyle(expanded)}>
+            <div
+              key={sponsor.id}
+              style={sponsorTileStyle(expanded)}
+              className="tv-sponsor-tile"
+            >
               <img
                 src={sponsor.logoDataUrl}
                 alt={sponsor.name || "Sponsor"}
@@ -754,16 +805,20 @@ function PublicShowQrCode({ url }) {
   return (
     <aside
       style={publicShowQrStyle}
+      className="tv-public-qr"
       data-tv-public-qr
       data-tv-public-url={url}
       aria-label="Scannez pour suivre le show sur ShowScore"
     >
-      <div style={publicShowQrCopyStyle}>
+      <div style={publicShowQrCopyStyle} className="tv-public-qr__copy">
         <strong style={publicShowQrTitleStyle}>Scannez pour suivre</strong>
         <span style={publicShowQrSubtitleStyle}>Scan to follow</span>
         <span style={publicShowQrDomainStyle}>showscore.app</span>
       </div>
-      <div style={publicShowQrCodeFrameStyle}>
+      <div
+        style={publicShowQrCodeFrameStyle}
+        className="tv-public-qr__frame"
+      >
         <QRCodeSVG
           value={url}
           size={112}

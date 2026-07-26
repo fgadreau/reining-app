@@ -556,6 +556,69 @@ test.describe("robot de show local", () => {
     await expect(body).not.toContainText("À confirmer");
   });
 
+  test("garde toutes les zones TV separees sur un viewport Fire Stick", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 960, height: 540 });
+    await page.route("**/rest/v1/**", (route) => route.abort());
+    await seedRobotShowOnLastRun(page);
+
+    await page.goto(
+      `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/tv`
+    );
+
+    const header = page.locator(".tv-header");
+    const live = page.locator(".tv-live-grid");
+    const sponsors = page.locator(".tv-sponsor-rail");
+    const qr = page.locator("[data-tv-public-qr]");
+
+    await expect(header).toBeVisible();
+    await expect(live).toBeVisible();
+    await expect(sponsors).toBeVisible();
+    await expect(qr).toBeVisible();
+
+    await expect
+      .poll(async () => {
+        const [headerBox, liveBox, sponsorBox, qrBox, documentSize] =
+          await Promise.all([
+            header.boundingBox(),
+            live.boundingBox(),
+            sponsors.boundingBox(),
+            qr.boundingBox(),
+            page.evaluate(() => ({
+              width: document.documentElement.scrollWidth,
+              height: document.documentElement.scrollHeight,
+            })),
+          ]);
+
+        return {
+          headerBeforeLive:
+            headerBox.y + headerBox.height <= liveBox.y + 1,
+          liveBeforeSponsors:
+            liveBox.y + liveBox.height <= sponsorBox.y + 1,
+          sponsorsInsideViewport:
+            sponsorBox.y + sponsorBox.height <= 540,
+          qrInsideViewport: qrBox.x + qrBox.width <= 960,
+          noHorizontalOverflow: documentSize.width <= 960,
+          noVerticalOverflow: documentSize.height <= 540,
+        };
+      })
+      .toEqual({
+        headerBeforeLive: true,
+        liveBeforeSponsors: true,
+        sponsorsInsideViewport: true,
+        qrInsideViewport: true,
+        noHorizontalOverflow: true,
+        noVerticalOverflow: true,
+      });
+
+    if (process.env.E2E_CAPTURE_TV_FIRESTICK === "1") {
+      await page.screenshot({
+        path: "/tmp/tv-firestick-live-960x540.png",
+      });
+    }
+  });
+
   test("garde la video du manege principal avec les donnees live dessous", async ({
     page,
   }) => {
