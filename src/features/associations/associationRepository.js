@@ -71,12 +71,33 @@ async function upsertAssociationRow(supabase, association) {
 }
 
 async function updateAssociationRow(supabase, association) {
-  const { error } = await supabase
+  const row = toSharedOrganizationRow(association);
+  const { error: rpcError } = await supabase.rpc(
+    "showscore_update_organization_profile",
+    {
+      target_organization_id: row.id,
+      target_name: row.name,
+      target_short_name: row.short_name,
+      target_timezone: row.timezone,
+      target_logo_url: row.logo_url,
+      target_website_url: row.website_url,
+      target_sponsor_logos: row.sponsor_logos,
+      target_is_test_mode: row.is_test_mode,
+    }
+  );
+
+  if (!rpcError) return;
+
+  if (!isUpdateOrganizationProfileRpcMissing(rpcError)) {
+    throw rpcError;
+  }
+
+  const { error: updateError } = await supabase
     .from("organizations")
-    .update(toSharedOrganizationRow(association))
+    .update(row)
     .eq("id", association.id);
 
-  if (error) throw error;
+  if (updateError) throw updateError;
 }
 
 async function deleteAssociationRow(supabase, associationId) {
@@ -266,6 +287,15 @@ export function isDeleteAssociationRpcMissing(error) {
   return (
     error?.code === "PGRST202" ||
     /delete_association_as_admin/i.test(message)
+  );
+}
+
+export function isUpdateOrganizationProfileRpcMissing(error) {
+  const message = String(error?.message || "");
+
+  return (
+    error?.code === "PGRST202" ||
+    /showscore_update_organization_profile/i.test(message)
   );
 }
 

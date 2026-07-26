@@ -18,6 +18,7 @@ import {
   ASSOCIATION_WRITE_ACCESS_DENIED_CODE,
   deleteAssociationRepository,
   isDeleteAssociationRpcMissing,
+  isUpdateOrganizationProfileRpcMissing,
 } from "./features/associations/associationRepository";
 import {
   isRowLevelSecurityError,
@@ -2912,6 +2913,21 @@ test("detects when the association delete RPC is missing", () => {
     })
   ).toBe(true);
   expect(isDeleteAssociationRpcMissing({ code: "42501" })).toBe(false);
+});
+
+test("detects only a missing organization profile update RPC", () => {
+  expect(
+    isUpdateOrganizationProfileRpcMissing({
+      code: "PGRST202",
+      message: "Function was not found",
+    })
+  ).toBe(true);
+  expect(
+    isUpdateOrganizationProfileRpcMissing({
+      message: "Could not find showscore_update_organization_profile",
+    })
+  ).toBe(true);
+  expect(isUpdateOrganizationProfileRpcMissing({ code: "42501" })).toBe(false);
 });
 
 test("refreshes the Supabase session and retries an association RLS write", async () => {
