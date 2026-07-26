@@ -97,7 +97,9 @@ export function buildChampionshipDatasetFromImports({
   status = "draft",
 } = {}) {
   const normalizedCorrections = normalizeChampionshipCorrections(corrections);
-  const normalizedImports = normalizeImportBatches(imports);
+  const normalizedImports = resolveChampionshipImportIdentities(
+    normalizeImportBatches(imports)
+  );
   const importedRows = normalizedImports.flatMap((importBatch, importIndex) =>
     importBatch.rows.map((row) => ({
       ...row,
@@ -270,6 +272,26 @@ export function buildChampionshipTeamKey({
   const horseKey = buildChampionshipHorseKey({ horse, horseNrha, horseId });
 
   return riderKey && horseKey ? `${riderKey}|${horseKey}` : "";
+}
+
+export function normalizeChampionshipRowIdentity(row = {}) {
+  const riderKey = buildChampionshipRiderKey({
+    rider: row.rider,
+    memberNrha: row.memberNrha,
+    riderContactId: row.riderContactId,
+  });
+  const horseKey = buildChampionshipHorseKey({
+    horse: row.horse,
+    horseNrha: row.horseNrha,
+    horseId: row.horseId,
+  });
+
+  return {
+    ...row,
+    riderKey,
+    horseKey,
+    teamKey: riderKey && horseKey ? `${riderKey}|${horseKey}` : "",
+  };
 }
 
 export function buildChampionshipEventKey(row) {
@@ -965,11 +987,13 @@ function normalizeImportBatches(imports) {
       const fileName = importBatch?.fileName || `CSV ${index + 1}`;
       const rows = Array.isArray(importBatch?.rows)
         ? importBatch.rows.map((row) =>
-            stripMoneyFields({
-              ...row,
-              sourceImportId: row.sourceImportId || importId,
-              sourceFileName: row.sourceFileName || fileName,
-            })
+            stripMoneyFields(
+              normalizeChampionshipRowIdentity({
+                ...row,
+                sourceImportId: row.sourceImportId || importId,
+                sourceFileName: row.sourceFileName || fileName,
+              })
+            )
           )
         : [];
 
@@ -984,6 +1008,86 @@ function normalizeImportBatches(imports) {
       };
     })
     .filter((importBatch) => importBatch.rows.length > 0);
+}
+
+function resolveChampionshipImportIdentities(imports) {
+  const riderKeysByName = collectStableIdentityKeys(imports, {
+    getNameKey: (row) => normalizePersonKey(row.rider),
+    getIdentityKey: (row) => row.riderKey,
+    fallbackPrefix: "rider-name:",
+  });
+  const horseKeysByName = collectStableIdentityKeys(imports, {
+    getNameKey: (row) => normalizeHorseKey(row.horse),
+    getIdentityKey: (row) => row.horseKey,
+    fallbackPrefix: "horse-name:",
+  });
+
+  return imports.map((importBatch) => ({
+    ...importBatch,
+    rows: importBatch.rows.map((row) => {
+      const riderKey = resolveIdentityKey({
+        currentKey: row.riderKey,
+        nameKey: normalizePersonKey(row.rider),
+        stableKeysByName: riderKeysByName,
+        fallbackPrefix: "rider-name:",
+      });
+      const horseKey = resolveIdentityKey({
+        currentKey: row.horseKey,
+        nameKey: normalizeHorseKey(row.horse),
+        stableKeysByName: horseKeysByName,
+        fallbackPrefix: "horse-name:",
+      });
+
+      return {
+        ...row,
+        riderKey,
+        horseKey,
+        teamKey: riderKey && horseKey ? `${riderKey}|${horseKey}` : "",
+      };
+    }),
+  }));
+}
+
+function collectStableIdentityKeys(
+  imports,
+  { getNameKey, getIdentityKey, fallbackPrefix }
+) {
+  const keysByName = new Map();
+
+  imports.forEach((importBatch) => {
+    importBatch.rows.forEach((row) => {
+      const nameKey = getNameKey(row);
+      const identityKey = String(getIdentityKey(row) || "").trim();
+      if (!nameKey || !identityKey || identityKey.startsWith(fallbackPrefix)) {
+        return;
+      }
+      if (!keysByName.has(nameKey)) {
+        keysByName.set(nameKey, new Set());
+      }
+      keysByName.get(nameKey).add(identityKey);
+    });
+  });
+
+  return keysByName;
+}
+
+function resolveIdentityKey({
+  currentKey,
+  nameKey,
+  stableKeysByName,
+  fallbackPrefix,
+}) {
+  const sourceKey = String(currentKey || "").trim();
+  if (!nameKey || (sourceKey && !sourceKey.startsWith(fallbackPrefix))) {
+    return sourceKey;
+  }
+
+  const stableKeys = stableKeysByName.get(nameKey);
+  if (stableKeys?.size === 1) {
+    return Array.from(stableKeys)[0];
+  }
+
+  return sourceKey || `${fallbackPrefix}${nameKey}`;
 }
 
 function dedupeImportedRows(rows) {

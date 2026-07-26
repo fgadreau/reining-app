@@ -259,6 +259,7 @@ import {
   buildChampionshipFunFacts,
   ensureChampionshipOccurrenceResults,
   getChampionshipIncludedShows,
+  normalizeChampionshipRowIdentity,
 } from "./features/championship/championshipStandings";
 import { findExistingPublicSeasonId } from "./features/championship/championshipRepository";
 import {
@@ -1802,6 +1803,58 @@ test("adds multiple championship CSV imports without replacing previous imports"
     "july-2",
   ]);
   expect(existingImports).toHaveLength(4);
+});
+
+test("rehydrates legacy championship name keys with stable NRHA identities", () => {
+  const normalized = normalizeChampionshipRowIdentity({
+    rider: "LAVOIE-TREMBLAY,LAURENCE",
+    memberNrha: "520836",
+    riderKey: "laurence lavoie tremblay",
+    horse: "GREAT HOLLY WHIZ",
+    horseNrha: "607373",
+    horseKey: "great holly whiz",
+    teamKey: "laurence lavoie tremblay|great holly whiz",
+  });
+
+  expect(normalized).toMatchObject({
+    riderKey: "member:520836",
+    horseKey: "horse-nrha:607373",
+    teamKey: "member:520836|horse-nrha:607373",
+  });
+});
+
+test("combines legacy and current championship keys for the same NRHA team", () => {
+  const legacyImport = buildChampionshipImportBatchFromCsv({
+    fileName: "june.csv",
+    csvText: [
+      "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+      'S1,JUNE SHOW,Limited Non Pro,1600,,5,5,1,1,GREAT HOLLY WHIZ,,"LAVOIE-TREMBLAY,LAURENCE",,101,1,72,0',
+    ].join("\n"),
+  });
+  legacyImport.rows = legacyImport.rows.map((row) => ({
+    ...row,
+    riderKey: "laurence lavoie tremblay",
+    horseKey: "great holly whiz",
+    teamKey: "laurence lavoie tremblay|great holly whiz",
+  }));
+  const sorelImport = buildChampionshipImportBatchFromCsv({
+    fileName: "sorel.csv",
+    csvText: [
+      "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+      'S2,SOREL SHOW,Limited Non Pro,1600,,5,5,1,1,GREAT HOLLY WHIZ,607373,"LAVOIE-TREMBLAY,LAURENCE",520836,101,2,71.5,0',
+    ].join("\n"),
+  });
+
+  const dataset = buildChampionshipDatasetFromImports({
+    imports: [legacyImport, sorelImport],
+  });
+  const limitedNonPro = dataset.classes.find(
+    (classEntry) => classEntry.id === "nrha-limited-non-pro"
+  );
+
+  expect(limitedNonPro.teams).toHaveLength(1);
+  expect(limitedNonPro.teams[0].details).toHaveLength(2);
+  expect(limitedNonPro.teams[0].totalPoints).toBe(9);
 });
 
 test("reuses the existing public championship season id when private loading was empty", async () => {
