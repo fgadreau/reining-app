@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { useLocation, useParams } from "react-router-dom";
 import AssociationLogo from "../../components/AssociationLogo";
 import {
@@ -28,6 +29,7 @@ function PublicShowTvPage() {
   const [show, setShow] = useState(null);
   const [publicView, setPublicView] = useState(() => getPublicShowView(showId));
   const [sponsorSlideIndex, setSponsorSlideIndex] = useState(0);
+  const publicShowcaseUrl = getPublicShowcaseUrl(associationId, showId);
   const selectedArena = useMemo(
     () => getArenaFromSearch(location.search),
     [location.search]
@@ -178,11 +180,14 @@ function PublicShowTvPage() {
               </div>
             </div>
           </div>
-          {selectedArena ? (
-            <div style={arenaBadgeStyle}>
-              <BilingualText fr="Manège" en="Arena" /> · {selectedArena}
-            </div>
-          ) : null}
+          <div style={headerActionsStyle}>
+            {selectedArena ? (
+              <div style={arenaBadgeStyle}>
+                <BilingualText fr="Manège" en="Arena" /> · {selectedArena}
+              </div>
+            ) : null}
+            <PublicShowQrCode url={publicShowcaseUrl} />
+          </div>
         </header>
       ) : null}
 
@@ -726,6 +731,37 @@ function SponsorRail({ slide, expanded = false }) {
   );
 }
 
+function PublicShowQrCode({ url }) {
+  if (!url) return null;
+
+  return (
+    <aside
+      style={publicShowQrStyle}
+      data-tv-public-qr
+      data-tv-public-url={url}
+      aria-label="Scannez pour suivre le show sur ShowScore"
+    >
+      <div style={publicShowQrCopyStyle}>
+        <strong style={publicShowQrTitleStyle}>Scannez pour suivre</strong>
+        <span style={publicShowQrSubtitleStyle}>Scan to follow</span>
+        <span style={publicShowQrDomainStyle}>showscore.app</span>
+      </div>
+      <div style={publicShowQrCodeFrameStyle}>
+        <QRCodeSVG
+          value={url}
+          size={112}
+          level="M"
+          marginSize={4}
+          bgColor="#ffffff"
+          fgColor="#0f172a"
+          title="Lien vers la vitrine publique de ce show"
+          style={publicShowQrCodeStyle}
+        />
+      </div>
+    </aside>
+  );
+}
+
 function BilingualText({ fr, en }) {
   return (
     <>
@@ -1079,6 +1115,20 @@ function getDisplayModeFromSearch(search) {
   return String(params.get("mode") || "").trim().toLowerCase();
 }
 
+function getPublicShowcaseUrl(associationId, showId) {
+  if (!associationId || !showId) return "";
+
+  const path = `/public/associations/${encodeURIComponent(
+    associationId
+  )}/shows/${encodeURIComponent(showId)}`;
+  const origin =
+    typeof window === "undefined" || !window.location?.origin
+      ? ""
+      : window.location.origin;
+
+  return `${origin}${path}`;
+}
+
 function normalizeArenaName(value) {
   return String(value || "").trim();
 }
@@ -1288,9 +1338,18 @@ const headerStyle = {
 
 const brandStyle = {
   minWidth: 0,
+  flex: 1,
   display: "flex",
   alignItems: "center",
   gap: 16,
+};
+
+const headerActionsStyle = {
+  flexShrink: 0,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  gap: 10,
 };
 
 const eyebrowStyle = {
@@ -1327,6 +1386,59 @@ const arenaBadgeStyle = {
   border: "1px solid rgba(255, 255, 255, 0.2)",
   fontSize: 18,
   fontWeight: 900,
+};
+
+const publicShowQrStyle = {
+  flexShrink: 0,
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  padding: "6px 8px 6px 10px",
+  borderRadius: 10,
+  border: "1px solid rgba(244, 217, 140, 0.5)",
+  background: "rgba(15, 23, 42, 0.72)",
+  boxShadow: "0 10px 26px rgba(0, 0, 0, 0.24)",
+};
+
+const publicShowQrCopyStyle = {
+  width: "clamp(104px, 8vw, 138px)",
+  display: "grid",
+  gap: 2,
+  lineHeight: 1.08,
+  textAlign: "right",
+};
+
+const publicShowQrTitleStyle = {
+  color: "#f4d98c",
+  fontSize: "clamp(12px, 1vw, 16px)",
+  fontWeight: 950,
+};
+
+const publicShowQrSubtitleStyle = {
+  color: "#e2e8f0",
+  fontSize: "clamp(10px, 0.82vw, 13px)",
+  fontWeight: 800,
+};
+
+const publicShowQrDomainStyle = {
+  marginTop: 3,
+  color: "#5eead4",
+  fontSize: "clamp(10px, 0.78vw, 12px)",
+  fontWeight: 900,
+};
+
+const publicShowQrCodeFrameStyle = {
+  flexShrink: 0,
+  lineHeight: 0,
+  borderRadius: 7,
+  overflow: "hidden",
+  background: "#ffffff",
+};
+
+const publicShowQrCodeStyle = {
+  width: "clamp(82px, 6vw, 112px)",
+  height: "auto",
+  display: "block",
 };
 
 const liveGridStyle = {

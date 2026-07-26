@@ -573,6 +573,7 @@ test.describe("robot de show local", () => {
     );
 
     await expect(page.locator('[data-tv-layout="competition-video"]')).toBeVisible();
+    await expect(page.locator("[data-tv-public-qr]")).toHaveCount(0);
     await expect(page.locator("body")).not.toContainText("Live en pause");
     await expect(page.locator("[data-tv-competition-video]")).toHaveAttribute(
       "loop",
@@ -600,6 +601,7 @@ test.describe("robot de show local", () => {
     await expect(
       page.locator('[data-tv-layout="competition-loading"]')
     ).toBeVisible();
+    await expect(page.locator("[data-tv-public-qr]")).toHaveCount(0);
     await expect(page.locator("body")).not.toContainText("Live en pause");
     await expect(page.locator("[data-sponsor-layout]")).toHaveCount(0);
 
@@ -609,6 +611,7 @@ test.describe("robot de show local", () => {
     await expect(page.locator('[data-tv-layout="competition-video"]')).toHaveCount(0);
     await expect(page.locator("body")).toContainText("Live en pause");
     await expect(page.locator("[data-sponsor-layout]")).toBeVisible();
+    await expect(page.locator("[data-tv-public-qr]")).toBeVisible();
   });
 
   test("separe clairement les reglages TV generaux et competition", async ({
@@ -868,8 +871,26 @@ test.describe("robot de show local", () => {
     const sponsorRail = page.locator('[data-sponsor-layout="expanded"]');
     const sponsorTitle = sponsorRail.locator("[data-sponsor-title]");
     const sponsorLevel = sponsorRail.locator("[data-sponsor-level]");
+    const publicShowQr = page.locator("[data-tv-public-qr]");
 
     await expect(sponsorRail).toBeVisible();
+    await expect(publicShowQr).toBeVisible();
+    await expect(publicShowQr).toHaveAttribute(
+      "data-tv-public-url",
+      new RegExp(
+        `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}$`
+      )
+    );
+    await expect(publicShowQr.locator("svg")).toBeVisible();
+    await expect
+      .poll(async () => {
+        const qrBox = await publicShowQr.locator("svg").boundingBox();
+        return {
+          isLargeEnough: qrBox.width >= 82 && qrBox.height >= 82,
+          isSquare: Math.abs(qrBox.width - qrBox.height) < 1,
+        };
+      })
+      .toEqual({ isLargeEnough: true, isSquare: true });
     await expect(
       page.getByRole("heading", { level: 1, name: "Robot Derby local" })
     ).toBeVisible();
