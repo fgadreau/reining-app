@@ -9,6 +9,7 @@ import {
 import {
   applyChampionshipEventLabels,
   appendChampionshipImportBatches,
+  buildChampionshipDisqualificationCatalog,
   buildChampionshipDisqualificationKey,
   buildChampionshipDatasetFromImports,
   buildChampionshipImportBatchFromCsv,
@@ -184,6 +185,10 @@ function AssociationChampionshipPage() {
     () => normalizeChampionshipCorrections(preview?.corrections || {}),
     [preview]
   );
+  const disqualificationClassSummaries = useMemo(() => {
+    const catalog = buildChampionshipDisqualificationCatalog(preview);
+    return Array.isArray(catalog?.classes) ? catalog.classes : [];
+  }, [preview]);
 
   const updateSeasonTitle = (value) => {
     setSeasonTitle(value);
@@ -532,7 +537,9 @@ function AssociationChampionshipPage() {
     if (!preview) return;
 
     const reason = String(dqForm.reason || "").trim();
-    const classEntry = classSummaries.find((item) => item.id === dqForm.classId);
+    const classEntry = disqualificationClassSummaries.find(
+      (item) => item.id === dqForm.classId
+    );
     const event = classEntry?.events.find((item) => item.eventKey === dqForm.eventKey);
     const result = event?.results.find(
       (item) =>
@@ -1250,7 +1257,7 @@ function AssociationChampionshipPage() {
           )}
 
           <ChampionshipDisqualificationPanel
-            classes={classSummaries}
+            classes={disqualificationClassSummaries}
             corrections={championshipCorrections}
             form={dqForm}
             errorMessage={dqErrorMessage}

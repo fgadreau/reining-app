@@ -253,6 +253,7 @@ import {
 import {
   applyChampionshipEventLabels,
   appendChampionshipImportBatches,
+  buildChampionshipDisqualificationCatalog,
   buildChampionshipDatasetFromCsv,
   buildChampionshipDatasetFromImports,
   buildChampionshipImportBatchFromCsv,
@@ -1855,6 +1856,43 @@ test("combines legacy and current championship keys for the same NRHA team", () 
   expect(limitedNonPro.teams).toHaveLength(1);
   expect(limitedNonPro.teams[0].details).toHaveLength(2);
   expect(limitedNonPro.teams[0].totalPoints).toBe(9);
+});
+
+test("builds the disqualification catalog from every stored championship import", () => {
+  const mayImport = buildChampionshipImportBatchFromCsv({
+    fileName: "may.csv",
+    csvText: [
+      "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+      'S1,MAY SHOW,Limited Non Pro,1600,,5,5,1,1,HORSE A,600001,"RIDER, ALICE",500001,101,1,72,0',
+    ].join("\n"),
+  });
+  const sorelImport = buildChampionshipImportBatchFromCsv({
+    fileName: "sorel.csv",
+    csvText: [
+      "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
+      'S2,SOREL SHOW,Limited Non Pro,1600,,5,5,1,1,HORSE A,600001,"RIDER, ALICE",500001,101,2,71,0',
+    ].join("\n"),
+  });
+  const lastImportOnly = buildChampionshipDatasetFromImports({
+    imports: [sorelImport],
+  });
+  const staleSeason = {
+    ...lastImportOnly,
+    imports: [mayImport, sorelImport],
+  };
+
+  const catalog = buildChampionshipDisqualificationCatalog(staleSeason);
+  const limitedNonPro = catalog.classes.find(
+    (classEntry) => classEntry.id === "nrha-limited-non-pro"
+  );
+
+  expect(limitedNonPro.events.map((event) => event.showName)).toEqual([
+    "MAY SHOW",
+    "SOREL SHOW",
+  ]);
+  expect(limitedNonPro.events.every((event) => event.results.length === 1)).toBe(
+    true
+  );
 });
 
 test("reuses the existing public championship season id when private loading was empty", async () => {

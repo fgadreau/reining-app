@@ -467,6 +467,37 @@ export function ensureChampionshipOccurrenceResults(dataset) {
   };
 }
 
+export function buildChampionshipDisqualificationCatalog(dataset) {
+  if (!dataset) return dataset;
+
+  const imports = Array.isArray(dataset.imports) ? dataset.imports : [];
+  if (imports.length === 0) {
+    return ensureChampionshipOccurrenceResults(dataset);
+  }
+
+  const rebuilt = buildChampionshipDatasetFromImports({
+    imports,
+    corrections: dataset.corrections || {},
+    seasonTitle: dataset.title,
+    year: dataset.year,
+    status: dataset.status,
+  });
+
+  return applyChampionshipEventLabels(
+    {
+      ...rebuilt,
+      id: dataset.id || rebuilt.id,
+      associationId: dataset.associationId || rebuilt.associationId,
+      createdAt: dataset.createdAt || rebuilt.createdAt,
+      updatedAt: dataset.updatedAt || rebuilt.updatedAt,
+      publicEventLabels: dataset.publicEventLabels || {},
+      publicEventOrder: dataset.publicEventOrder || {},
+    },
+    dataset.publicEventLabels || {},
+    dataset.publicEventOrder || {}
+  );
+}
+
 export function getChampionshipIncludedShows(dataset) {
   if (Array.isArray(dataset?.shows) && dataset.shows.length > 0) {
     return dataset.shows

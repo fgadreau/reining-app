@@ -310,7 +310,7 @@ export const translations = {
         dqClass: "Classe",
         dqEmpty: "Aucune disqualification saisie.",
         dqHelp:
-          "Marque une équipe disqualifiée sans modifier le CSV source. La ligne reste visible dans le détail, les points sont recalculés et la raison est affichée.",
+          "Toutes les occurrences de la saison sont reconstruites depuis les imports enregistrés. Marque une équipe disqualifiée sans modifier le CSV source; la ligne reste visible et les points sont recalculés.",
         dqOccurrence: "Occurrence",
         dqReason: "Raison obligatoire",
         dqReasonPlaceholder: "Ex. cheval non éligible à la classe",
@@ -2214,7 +2214,7 @@ export const translations = {
         dqClass: "Class",
         dqEmpty: "No disqualification entered.",
         dqHelp:
-          "Mark a team disqualified without changing the source CSV. The row stays visible in the detail, points are recalculated, and the reason is shown.",
+          "All season occurrences are rebuilt from the saved imports. Mark a team disqualified without changing the source CSV; the row stays visible and points are recalculated.",
         dqOccurrence: "Occurrence",
         dqReason: "Required reason",
         dqReasonPlaceholder: "E.g. horse not eligible for the class",
