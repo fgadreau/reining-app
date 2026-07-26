@@ -8,6 +8,7 @@ import {
 } from "../../features/classes/classRepository";
 import {
   applyChampionshipEventLabels,
+  appendChampionshipImportBatches,
   buildChampionshipDisqualificationKey,
   buildChampionshipDatasetFromImports,
   buildChampionshipImportBatchFromCsv,
@@ -64,8 +65,8 @@ function AssociationChampionshipPage() {
   const [csvText, setCsvText] = useState("");
   const [fileName, setFileName] = useState("");
   const [fileInputKey, setFileInputKey] = useState(0);
-  const [resetFiles, setResetFiles] = useState([]);
-  const [resetInputKey, setResetInputKey] = useState(0);
+  const [multipleFiles, setMultipleFiles] = useState([]);
+  const [multipleInputKey, setMultipleInputKey] = useState(0);
   const [preview, setPreview] = useState(null);
   const [showScoreImportPreview, setShowScoreImportPreview] = useState(null);
   const [showScoreExcludedClassKeys, setShowScoreExcludedClassKeys] = useState([]);
@@ -103,7 +104,7 @@ function AssociationChampionshipPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [isReadingReset, setIsReadingReset] = useState(false);
+  const [isReadingMultipleFiles, setIsReadingMultipleFiles] = useState(false);
   const [isLoadingShowScoreImport, setIsLoadingShowScoreImport] = useState(false);
 
   useEffect(() => {
@@ -256,19 +257,20 @@ function AssociationChampionshipPage() {
     }
   };
 
-  const handleResetFilesChange = (event) => {
+  const handleMultipleFilesChange = (event) => {
     const files = Array.from(event.target.files || []).sort((a, b) =>
       a.name.localeCompare(b.name)
     );
-    setResetFiles(files);
+    setMultipleFiles(files);
     setErrorMessage("");
     setSaveMessage("");
   };
 
-  const commitImportBatches = (importBatches, { replace = false } = {}) => {
-    const nextImports = replace
-      ? importBatches
-      : [...getPreviewImports(preview), ...importBatches];
+  const commitImportBatches = (importBatches) => {
+    const nextImports = appendChampionshipImportBatches(
+      getPreviewImports(preview),
+      importBatches
+    );
     const nextEventLabels = sanitizeEventLabels(eventLabels);
     const nextPreview = rebuildPreviewFromImports(
       nextImports,
@@ -286,10 +288,8 @@ function AssociationChampionshipPage() {
       setShowScoreImportPreview(null);
       setShowScoreExcludedClassKeys([]);
     }
-    if (replace) {
-      setResetFiles([]);
-      setResetInputKey((current) => current + 1);
-    }
+    setMultipleFiles([]);
+    setMultipleInputKey((current) => current + 1);
   };
 
   const commitImportBatch = (importBatch) => {
@@ -404,20 +404,17 @@ function AssociationChampionshipPage() {
     commitImportBatch(importBatch);
   };
 
-  const reimportAllCsvFiles = async () => {
-    if (!resetFiles.length) return;
+  const addMultipleCsvFiles = async () => {
+    if (!multipleFiles.length) return;
 
-    const confirmed = window.confirm(t("championship.admin.resetImportConfirm"));
-    if (!confirmed) return;
-
-    setIsReadingReset(true);
+    setIsReadingMultipleFiles(true);
     setErrorMessage("");
     setSaveMessage("");
 
     try {
       const importBatches = [];
 
-      for (const file of resetFiles) {
+      for (const file of multipleFiles) {
         const text = await readFileText(file);
         importBatches.push(
           buildChampionshipImportBatchFromCsv({
@@ -427,22 +424,25 @@ function AssociationChampionshipPage() {
         );
       }
 
-      const duplicates = findDuplicateRowsForImports([], importBatches);
+      const duplicates = findDuplicateRowsForImports(
+        getPreviewImports(preview),
+        importBatches
+      );
 
       if (duplicates.length > 0) {
         setPendingDuplicateImport({
-          mode: "reset",
+          mode: "append",
           importBatches,
           duplicates,
         });
         return;
       }
 
-      commitImportBatches(importBatches, { replace: true });
+      commitImportBatches(importBatches);
     } catch (error) {
       setErrorMessage(error?.message || t("championship.admin.analysisFailed"));
     } finally {
-      setIsReadingReset(false);
+      setIsReadingMultipleFiles(false);
     }
   };
 
@@ -480,15 +480,11 @@ function AssociationChampionshipPage() {
         })
       );
 
-      commitImportBatches(adjustedImports, {
-        replace: pendingDuplicateImport.mode === "reset",
-      });
+      commitImportBatches(adjustedImports);
       return;
     }
 
-    commitImportBatches(pendingDuplicateImport.importBatches, {
-      replace: pendingDuplicateImport.mode === "reset",
-    });
+    commitImportBatches(pendingDuplicateImport.importBatches);
   };
 
   const removeImportBatch = (importId) => {
@@ -1042,27 +1038,27 @@ function AssociationChampionshipPage() {
           </div>
           <div style={fileRowStyle}>
             <input
-              key={resetInputKey}
+              key={multipleInputKey}
               type="file"
               accept=".csv,text/csv"
               multiple
-              onChange={handleResetFilesChange}
+              onChange={handleMultipleFilesChange}
             />
             <button
               type="button"
-              onClick={reimportAllCsvFiles}
+              onClick={addMultipleCsvFiles}
               style={secondaryButtonStyle}
-              disabled={!resetFiles.length || isReadingReset}
+              disabled={!multipleFiles.length || isReadingMultipleFiles}
             >
-              {isReadingReset
+              {isReadingMultipleFiles
                 ? t("championship.admin.resetImportLoading")
                 : t("championship.admin.resetImportAction")}
             </button>
           </div>
-          {resetFiles.length > 0 && (
+          {multipleFiles.length > 0 && (
             <div style={mutedTextStyle}>
               {t("championship.admin.resetImportSelected", {
-                count: resetFiles.length,
+                count: multipleFiles.length,
               })}
             </div>
           )}
@@ -1798,8 +1794,6 @@ function ReportBlock({ title, items }) {
 }
 
 function DuplicateImportModal({ duplicateImport, onResolve, t }) {
-  const isReset = duplicateImport.mode === "reset";
-
   return (
     <div style={modalBackdropStyle} role="dialog" aria-modal="true">
       <div style={modalStyle}>
@@ -1807,9 +1801,7 @@ function DuplicateImportModal({ duplicateImport, onResolve, t }) {
           {t("championship.admin.duplicateModalTitle")}
         </div>
         <div style={mutedTextStyle}>
-          {isReset
-            ? t("championship.admin.duplicateModalResetHelp")
-            : t("championship.admin.duplicateModalAppendHelp")}
+          {t("championship.admin.duplicateModalAppendHelp")}
         </div>
         <div style={duplicateListStyle}>
           {duplicateImport.duplicates.slice(0, 8).map((duplicate) => (
@@ -1843,18 +1835,14 @@ function DuplicateImportModal({ duplicateImport, onResolve, t }) {
             onClick={() => onResolve("replace")}
             style={primaryButtonStyle}
           >
-            {isReset
-              ? t("championship.admin.duplicateUseLast")
-              : t("championship.admin.duplicateUseNew")}
+            {t("championship.admin.duplicateUseNew")}
           </button>
           <button
             type="button"
             onClick={() => onResolve("keep-existing")}
             style={secondaryButtonStyle}
           >
-            {isReset
-              ? t("championship.admin.duplicateKeepFirst")
-              : t("championship.admin.duplicateKeepExisting")}
+            {t("championship.admin.duplicateKeepExisting")}
           </button>
           <button
             type="button"

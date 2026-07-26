@@ -296,7 +296,7 @@ export const translations = {
         duplicateModalAppendHelp:
           "Ces lignes ont le même ShowNum, ClassCode, GoType/GoNum, cavalier et cheval qu’un résultat déjà importé.",
         duplicateModalResetHelp:
-          "Ces lignes reviennent plus d’une fois dans les CSV sélectionnés pour le réimport complet.",
+          "Ces lignes reviennent plus d’une fois dans les CSV sélectionnés.",
         duplicateModalTitle: "Doublons détectés",
         duplicateMore: "{{count}} autres doublons non affichés",
         duplicateNew: "Nouveau résultat",
@@ -356,13 +356,13 @@ export const translations = {
         removeImport: "Retirer",
         removeImportConfirm:
           "Retirer ce CSV du championnat? Le classement sera recalculé sans ce lot.",
-        resetImport: "Réimport complet",
-        resetImportAction: "Réimporter tous les CSV",
+        resetImport: "Ajouter plusieurs CSV",
+        resetImportAction: "Ajouter les CSV sélectionnés",
         resetImportConfirm:
-          "Réimporter tous les CSV sélectionnés? Les imports actuels seront remplacés.",
+          "Ajouter tous les CSV sélectionnés à la saison?",
         resetImportHelp:
-          "Sélectionne tous les CSV de la saison pour reconstruire le championnat à partir de zéro.",
-        resetImportLoading: "Réimport en cours...",
+          "Sélectionne un ou plusieurs nouveaux CSV. Les imports déjà présents seront conservés.",
+        resetImportLoading: "Ajout en cours...",
         resetImportSelected: "{{count}} CSV sélectionnés",
         rowsImported: "Lignes CSV",
         rulesStatement: "Règles du championnat",
@@ -2200,7 +2200,7 @@ export const translations = {
         duplicateModalAppendHelp:
           "These rows have the same ShowNum, ClassCode, GoType/GoNum, rider, and horse as an already imported result.",
         duplicateModalResetHelp:
-          "These rows appear more than once in the CSV files selected for the full reimport.",
+          "These rows appear more than once in the selected CSV files.",
         duplicateModalTitle: "Duplicates detected",
         duplicateMore: "{{count}} other duplicates not shown",
         duplicateNew: "New result",
@@ -2260,13 +2260,13 @@ export const translations = {
         removeImport: "Remove",
         removeImportConfirm:
           "Remove this CSV from the championship? Standings will be recalculated without this batch.",
-        resetImport: "Full reimport",
-        resetImportAction: "Reimport all CSVs",
+        resetImport: "Add multiple CSVs",
+        resetImportAction: "Add selected CSVs",
         resetImportConfirm:
-          "Reimport all selected CSVs? Current imports will be replaced.",
+          "Add all selected CSVs to the season?",
         resetImportHelp:
-          "Select all season CSVs to rebuild the championship from scratch.",
-        resetImportLoading: "Reimporting...",
+          "Select one or more new CSVs. Existing imports will be kept.",
+        resetImportLoading: "Adding...",
         resetImportSelected: "{{count}} CSVs selected",
         rowsImported: "CSV rows",
         rulesStatement: "Championship rules",

@@ -77,17 +77,22 @@ export async function getPublicChampionshipSeasonRepository(associationId) {
 
 export async function saveChampionshipSeasonRepository(season) {
   const now = new Date().toISOString();
+  const supabase = getSupabaseClient();
   const normalizedSeason = stripChampionshipMoneyData(
     ensureChampionshipOccurrenceResults(season)
   );
+  const existingSeasonId =
+    normalizedSeason.id ||
+    (supabase
+      ? await findExistingPublicSeasonId(supabase, normalizedSeason)
+      : "");
   const nextSeason = {
     ...normalizedSeason,
-    id: normalizedSeason.id || createId("championship"),
+    id: existingSeasonId || createId("championship"),
     updatedAt: now,
     createdAt: normalizedSeason.createdAt || now,
   };
   const savedLocal = saveChampionshipSeasonLocally(nextSeason);
-  const supabase = getSupabaseClient();
   let syncStatus = supabase
     ? LOCAL_FIRST_SYNC_STATUSES.SYNCED
     : LOCAL_FIRST_SYNC_STATUSES.LOCAL;
@@ -139,6 +144,37 @@ export async function saveChampionshipSeasonRepository(season) {
     status: syncStatus,
     error: syncError,
   });
+}
+
+export async function findExistingPublicSeasonId(supabase, season) {
+  const associationId = String(season?.associationId || "").trim();
+  const year = String(season?.year || "").trim();
+
+  if (!associationId) return "";
+
+  try {
+    let query = supabase
+      .from(PUBLIC_TABLE)
+      .select("season_id")
+      .eq("organization_id", associationId)
+      .order("updated_at", { ascending: false })
+      .limit(1);
+
+    if (year) {
+      query = query.eq("season_year", year);
+    }
+
+    const { data, error } = await query.maybeSingle();
+    if (error) throw error;
+
+    return String(data?.season_id || "").trim();
+  } catch (error) {
+    console.error(
+      "Erreur recherche saison championnat publique existante:",
+      error
+    );
+    return "";
+  }
 }
 
 function toPrivateRow(season) {

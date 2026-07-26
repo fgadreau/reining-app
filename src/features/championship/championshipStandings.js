@@ -143,6 +143,13 @@ export function buildChampionshipDatasetFromImports({
   };
 }
 
+export function appendChampionshipImportBatches(existingImports, newImports) {
+  return [
+    ...(Array.isArray(existingImports) ? existingImports : []),
+    ...(Array.isArray(newImports) ? newImports : []),
+  ];
+}
+
 export function stripChampionshipMoneyData(dataset) {
   if (!dataset || typeof dataset !== "object") return dataset;
 

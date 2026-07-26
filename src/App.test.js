@@ -252,6 +252,7 @@ import {
 } from "./features/championship/showScoreChampionshipImport";
 import {
   applyChampionshipEventLabels,
+  appendChampionshipImportBatches,
   buildChampionshipDatasetFromCsv,
   buildChampionshipDatasetFromImports,
   buildChampionshipImportBatchFromCsv,
@@ -259,6 +260,7 @@ import {
   ensureChampionshipOccurrenceResults,
   getChampionshipIncludedShows,
 } from "./features/championship/championshipStandings";
+import { findExistingPublicSeasonId } from "./features/championship/championshipRepository";
 import {
   buildChampionshipPdfFileName,
   buildChampionshipPdfTableOfContents,
@@ -1772,6 +1774,64 @@ test("rebuilds championship standings from separate non-cumulative CSV imports",
   expect(openClass.teams[0].details.map((detail) => detail.sourceFileName)).toEqual([
     "mai.csv",
     "juin.csv",
+  ]);
+});
+
+test("adds multiple championship CSV imports without replacing previous imports", () => {
+  const existingImports = [
+    { id: "may-1", fileName: "may-1.csv" },
+    { id: "may-2", fileName: "may-2.csv" },
+    { id: "june-1", fileName: "june-1.csv" },
+    { id: "june-2", fileName: "june-2.csv" },
+  ];
+  const newImports = [
+    { id: "july-1", fileName: "july-1.csv" },
+    { id: "july-2", fileName: "july-2.csv" },
+  ];
+
+  expect(
+    appendChampionshipImportBatches(existingImports, newImports).map(
+      (importBatch) => importBatch.id
+    )
+  ).toEqual([
+    "may-1",
+    "may-2",
+    "june-1",
+    "june-2",
+    "july-1",
+    "july-2",
+  ]);
+  expect(existingImports).toHaveLength(4);
+});
+
+test("reuses the existing public championship season id when private loading was empty", async () => {
+  const filters = [];
+  const query = {
+    select: () => query,
+    eq: (column, value) => {
+      filters.push([column, value]);
+      return query;
+    },
+    order: () => query,
+    limit: () => query,
+    maybeSingle: async () => ({
+      data: { season_id: "existing-season-2026" },
+      error: null,
+    }),
+  };
+  const supabase = {
+    from: () => query,
+  };
+
+  await expect(
+    findExistingPublicSeasonId(supabase, {
+      associationId: "association-1",
+      year: "2026",
+    })
+  ).resolves.toBe("existing-season-2026");
+  expect(filters).toEqual([
+    ["organization_id", "association-1"],
+    ["season_year", "2026"],
   ]);
 });
 
