@@ -10,7 +10,17 @@ import {
   serializeSponsorGroups,
 } from "./sponsorLogos";
 import { getSupabaseClient } from "../cloud/supabaseClient";
+import {
+  retrySupabaseWriteAfterSessionRefresh,
+  SUPABASE_AUTH_SESSION_EXPIRED_CODE,
+  SUPABASE_WRITE_ACCESS_DENIED_CODE,
+} from "../cloud/supabaseSessionRetry";
 import { APP_EVENT_TYPES, trackEvent } from "../analytics/analyticsRepository";
+
+export const ASSOCIATION_AUTH_SESSION_EXPIRED_CODE =
+  SUPABASE_AUTH_SESSION_EXPIRED_CODE;
+export const ASSOCIATION_WRITE_ACCESS_DENIED_CODE =
+  SUPABASE_WRITE_ACCESS_DENIED_CODE;
 
 function toAssociation(row) {
   const hasModulesEnabled =
@@ -169,11 +179,11 @@ export async function saveAssociationRepository(association) {
 
   if (supabase) {
     try {
-      if (isExistingAssociation) {
-        await updateAssociationRow(supabase, normalized);
-      } else {
-        await upsertAssociationRow(supabase, normalized);
-      }
+      await retrySupabaseWriteAfterSessionRefresh(supabase, () =>
+        isExistingAssociation
+          ? updateAssociationRow(supabase, normalized)
+          : upsertAssociationRow(supabase, normalized)
+      );
     } catch (error) {
       console.error("Erreur sauvegarde association Supabase:", error);
       throw error;

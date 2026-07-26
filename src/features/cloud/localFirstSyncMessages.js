@@ -7,8 +7,15 @@ export function formatLocalFirstSyncNotice(value, t) {
   const state = getLocalFirstSyncState(value);
 
   if (state.status === LOCAL_FIRST_SYNC_STATUSES.ERROR) {
+    const translatedError =
+      state.errorCode === "SHOWSCORE_AUTH_SESSION_EXPIRED"
+        ? t("common.authSessionExpired")
+        : state.errorCode === "SHOWSCORE_WRITE_ACCESS_DENIED"
+          ? t("common.associationWriteAccessDenied")
+          : state.errorMessage || "";
+
     return t("common.localFirstSyncError", {
-      message: state.errorMessage || "",
+      message: translatedError,
     });
   }
 

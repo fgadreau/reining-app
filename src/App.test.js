@@ -14,9 +14,15 @@ import {
   parsePositionedPdfPages,
 } from "./features/classes/classSetupImport";
 import {
+  ASSOCIATION_AUTH_SESSION_EXPIRED_CODE,
+  ASSOCIATION_WRITE_ACCESS_DENIED_CODE,
   deleteAssociationRepository,
   isDeleteAssociationRpcMissing,
 } from "./features/associations/associationRepository";
+import {
+  isRowLevelSecurityError,
+  retrySupabaseWriteAfterSessionRefresh,
+} from "./features/cloud/supabaseSessionRetry";
 import { filterAssociationsBySearch } from "./features/associations/associationSearch";
 import {
   loadAssociations,
@@ -53,6 +59,7 @@ import {
   getDateValueInTimeZone,
   normalizeLivestreamUrlsByDate,
 } from "./features/livestream/livestreamSchedule";
+import { doesShowLivestreamMatchRow } from "./features/shows/showRepository";
 import {
   LIVE_DATA_SOURCES,
   LIVE_DISPLAY_MODES,
@@ -2905,6 +2912,115 @@ test("detects when the association delete RPC is missing", () => {
     })
   ).toBe(true);
   expect(isDeleteAssociationRpcMissing({ code: "42501" })).toBe(false);
+});
+
+test("refreshes the Supabase session and retries an association RLS write", async () => {
+  let writeCalls = 0;
+  let refreshCalls = 0;
+  const supabase = {
+    auth: {
+      refreshSession: async () => {
+        refreshCalls += 1;
+        return {
+          data: { session: { access_token: "refreshed-token" } },
+          error: null,
+        };
+      },
+    },
+  };
+  const writeOperation = async () => {
+    writeCalls += 1;
+
+    if (writeCalls === 1) {
+      throw {
+        code: "42501",
+        message: 'new row violates row-level security policy for table "organizations"',
+      };
+    }
+
+    return "saved";
+  };
+
+  await expect(
+    retrySupabaseWriteAfterSessionRefresh(supabase, writeOperation)
+  ).resolves.toBe("saved");
+  expect(writeCalls).toBe(2);
+  expect(refreshCalls).toBe(1);
+});
+
+test("reports an expired session when an association RLS write cannot refresh", async () => {
+  const supabase = {
+    auth: {
+      refreshSession: async () => ({
+        data: { session: null },
+        error: new Error("refresh token is invalid"),
+      }),
+    },
+  };
+
+  await expect(
+    retrySupabaseWriteAfterSessionRefresh(supabase, async () => {
+      throw {
+        code: "42501",
+        message: "new row violates row-level security policy",
+      };
+    })
+  ).rejects.toMatchObject({
+    code: ASSOCIATION_AUTH_SESSION_EXPIRED_CODE,
+  });
+});
+
+test("reports denied association access when RLS still fails after refresh", async () => {
+  const supabase = {
+    auth: {
+      refreshSession: async () => ({
+        data: { session: { access_token: "refreshed-token" } },
+        error: null,
+      }),
+    },
+  };
+  const rlsError = {
+    code: "42501",
+    message: "new row violates row-level security policy",
+  };
+
+  await expect(
+    retrySupabaseWriteAfterSessionRefresh(supabase, async () => {
+      throw rlsError;
+    })
+  ).rejects.toMatchObject({
+    code: ASSOCIATION_WRITE_ACCESS_DENIED_CODE,
+  });
+  expect(isRowLevelSecurityError(rlsError)).toBe(true);
+});
+
+test("confirms that Supabase persisted all daily livestream values", () => {
+  const show = {
+    livestreamUrl: "https://youtu.be/day-one",
+    livestreamUrlsByDate: {
+      "2026-07-28": "https://youtu.be/day-one",
+      "2026-07-29": "https://youtu.be/day-two",
+    },
+    isLivestreamPublic: true,
+  };
+
+  expect(
+    doesShowLivestreamMatchRow(show, {
+      livestream_url: "https://youtu.be/day-one",
+      livestream_urls_by_date: {
+        "2026-07-29": "https://youtu.be/day-two",
+        "2026-07-28": "https://youtu.be/day-one",
+      },
+      is_livestream_public: true,
+    })
+  ).toBe(true);
+  expect(
+    doesShowLivestreamMatchRow(show, {
+      livestream_url: "",
+      livestream_urls_by_date: {},
+      is_livestream_public: false,
+    })
+  ).toBe(false);
 });
 
 test("normalizes association website urls for public links", () => {

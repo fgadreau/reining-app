@@ -141,6 +141,10 @@ export const translations = {
       cloudSynced: "Synchronisé avec Supabase.",
       linkCopied: "Lien copié",
       live: "Live",
+      authSessionExpired:
+        "Votre session Supabase a expiré. Reconnectez-vous à ShowScore, puis réessayez.",
+      associationWriteAccessDenied:
+        "Votre session est active, mais Supabase refuse la modification de cette association. Vérifiez votre rôle administrateur, puis réessayez.",
       localFirstSyncError:
         "Sauvé localement, mais pas confirmé dans Supabase. {{message}}",
       localFirstSyncLocal:
@@ -2037,6 +2041,10 @@ export const translations = {
       cloudSynced: "Synced with Supabase.",
       linkCopied: "Link copied",
       live: "Live",
+      authSessionExpired:
+        "Your Supabase session has expired. Sign in to ShowScore again, then retry.",
+      associationWriteAccessDenied:
+        "Your session is active, but Supabase denied changes to this association. Check your administrator role, then retry.",
       localFirstSyncError:
         "Saved locally, but not confirmed in Supabase. {{message}}",
       localFirstSyncLocal:

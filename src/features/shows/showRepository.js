@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "../cloud/supabaseClient";
+import { retrySupabaseWriteAfterSessionRefresh } from "../cloud/supabaseSessionRetry";
 import {
   LOCAL_FIRST_SYNC_STATUSES,
   withLocalFirstSyncState,
@@ -143,6 +144,56 @@ function isTvDisplaySchemaMissing(error) {
   );
 }
 
+export function doesShowLivestreamMatchRow(show, row) {
+  const expectedUrlsByDate = normalizeLivestreamUrlsByDate(
+    show?.livestreamUrlsByDate
+  );
+  const persistedUrlsByDate = normalizeLivestreamUrlsByDate(
+    row?.livestream_urls_by_date
+  );
+
+  return (
+    String(row?.livestream_url || "").trim() ===
+      String(show?.livestreamUrl || "").trim() &&
+    JSON.stringify(persistedUrlsByDate) === JSON.stringify(expectedUrlsByDate) &&
+    Boolean(row?.is_livestream_public) === Boolean(show?.isLivestreamPublic)
+  );
+}
+
+function createShowWriteNotConfirmedError(message, code = "42501") {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+async function persistShowRow(supabase, row, show) {
+  const { data, error } = await supabase
+    .from("shows")
+    .upsert(row)
+    .select("*")
+    .maybeSingle();
+
+  if (error) throw error;
+
+  if (!data) {
+    throw createShowWriteNotConfirmedError(
+      "Supabase n'a confirmé aucune ligne pour ce show."
+    );
+  }
+
+  if (
+    Object.hasOwn(row, "livestream_urls_by_date") &&
+    !doesShowLivestreamMatchRow(show, data)
+  ) {
+    throw createShowWriteNotConfirmedError(
+      "Supabase a répondu, mais les liens du live relus ne correspondent pas aux valeurs enregistrées.",
+      "SHOWSCORE_SHOW_WRITE_NOT_CONFIRMED"
+    );
+  }
+
+  return data;
+}
+
 function saveShowLocally(show) {
   const current = getShowsByAssociationId(show.associationId);
   const exists = current.some((item) => item.id === show.id);
@@ -223,8 +274,9 @@ export async function saveShowRepository(show) {
 
   if (supabase) {
     try {
-      const { error } = await supabase.from("shows").upsert(toShowRow(show));
-      if (error) throw error;
+      await retrySupabaseWriteAfterSessionRefresh(supabase, () =>
+        persistShowRow(supabase, toShowRow(show), show)
+      );
     } catch (error) {
       if (
         isLivestreamSchemaMissing(error) ||
@@ -238,17 +290,12 @@ export async function saveShowRepository(show) {
             : isScheduleSchemaMissing(error) || isTvDisplaySchemaMissing(error)
               ? toShowRowWithoutTvDisplay(show, { includePublicSchedule })
               : toShowRow(show, { includePublicSchedule: false });
-          const { error: legacyError } = await supabase
-            .from("shows")
-            .upsert(fallbackRow);
-
-          if (legacyError) {
-            throw legacyError;
-          } else {
-            syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
-            syncError =
-              "Certaines colonnes publiques du show ne sont pas disponibles dans Supabase. Le show est sauvegardé localement, mais ces réglages publics ne seront visibles qu'après la migration.";
-          }
+          await retrySupabaseWriteAfterSessionRefresh(supabase, () =>
+            persistShowRow(supabase, fallbackRow, show)
+          );
+          syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
+          syncError =
+            "Certaines colonnes publiques du show ne sont pas disponibles dans Supabase. Le show est sauvegardé localement, mais ces réglages publics ne seront visibles qu'après la migration.";
         } catch (legacyError) {
           console.error("Erreur sauvegarde show Supabase:", legacyError);
           syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;

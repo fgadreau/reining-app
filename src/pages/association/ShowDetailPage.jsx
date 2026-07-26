@@ -6,6 +6,8 @@ import {
 } from "../../features/classes/classRepository";
 import { compareScheduleItemsByStart } from "../../features/classes/classSchedule";
 import {
+  ASSOCIATION_AUTH_SESSION_EXPIRED_CODE,
+  ASSOCIATION_WRITE_ACCESS_DENIED_CODE,
   getAssociationRepository,
   saveAssociationRepository,
 } from "../../features/associations/associationRepository";
@@ -677,10 +679,17 @@ function ShowDetailPage() {
       }
 
       if (sponsorLogoError || videoCleanupError) {
+        const syncError = sponsorLogoError || videoCleanupError;
+        const syncErrorMessage =
+          syncError?.code === ASSOCIATION_AUTH_SESSION_EXPIRED_CODE
+            ? t("common.authSessionExpired")
+            : syncError?.code === ASSOCIATION_WRITE_ACCESS_DENIED_CODE
+              ? t("common.associationWriteAccessDenied")
+              : syncError?.message || "";
+
         setLivestreamMessage(
           t("common.localFirstSyncError", {
-            message:
-              sponsorLogoError?.message || videoCleanupError?.message || "",
+            message: syncErrorMessage,
           })
         );
         setLivestreamMessageTone("warn");

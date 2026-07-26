@@ -9,6 +9,7 @@ const SYNC_STATE_KEY = "_localFirstSync";
 export function buildLocalFirstSyncState({
   status,
   error = null,
+  errorCode = "",
   errorMessage = "",
 } = {}) {
   const normalizedStatus = Object.values(LOCAL_FIRST_SYNC_STATUSES).includes(status)
@@ -17,6 +18,7 @@ export function buildLocalFirstSyncState({
 
   return {
     status: normalizedStatus,
+    errorCode: String(error?.code || errorCode || ""),
     errorMessage: error ? getErrorMessage(error) : String(errorMessage || ""),
   };
 }
