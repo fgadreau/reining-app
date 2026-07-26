@@ -24,6 +24,7 @@ import PublicAssociationShowsPage from "../../pages/public/PublicAssociationShow
 import PublicAssociationChampionshipPage from "../../pages/public/PublicAssociationChampionshipPage";
 import PublicShowOverlayPage from "../../pages/public/PublicShowOverlayPage";
 import PublicShowTvPage from "../../pages/public/PublicShowTvPage";
+import PublicTvShortcutPage from "../../pages/public/PublicTvShortcutPage";
 import PublicShowLivestreamPage from "../../pages/public/PublicShowLivestreamPage";
 import ShowSchedulePreviewPage from "../../pages/association/ShowSchedulePreviewPage";
 import ShowTimeManagementPage from "../../pages/association/ShowTimeManagementPage";
@@ -56,6 +57,8 @@ function AppRouter() {
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/results-notice" element={<ResultsNoticePage />} />
+        <Route path="/tv" element={<PublicTvShortcutPage />} />
+        <Route path="/tv/:code" element={<PublicTvShortcutPage />} />
         <Route path="/public" element={<PublicAssociationsPage />} />
         <Route path="/admin/analytics" element={<PlatformAnalyticsPage />} />
         <Route path="/admin/access" element={<PlatformAccessPage />} />

@@ -794,6 +794,15 @@ test.describe("robot de show local", () => {
     await page.getByRole("button", { name: /Réglages Live/ }).click();
 
     const dialog = page.getByRole("dialog");
+    const tvShortCodeBadge = dialog.locator("[data-tv-short-code]");
+    await expect(tvShortCodeBadge).toBeVisible();
+    const tvShortCode = await tvShortCodeBadge.getAttribute(
+      "data-tv-short-code"
+    );
+    expect(tvShortCode).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
+    await expect(
+      dialog.getByRole("link", { name: "Ouvrir écran TV général" })
+    ).toHaveAttribute("href", `/tv/${tvShortCode}`);
     await dialog.getByRole("button", { name: "+ Ajouter un niveau" }).click();
     const firstSponsorLevelInput = dialog.getByPlaceholder(
       "Nom du niveau (ex. Argent)"
@@ -866,7 +875,12 @@ test.describe("robot de show local", () => {
 
     await navigateSpa(
       page,
-      `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/tv`
+      `/tv/${tvShortCode}`
+    );
+    await expect(page).toHaveURL(
+      new RegExp(
+        `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/tv$`
+      )
     );
     const sponsorRail = page.locator('[data-sponsor-layout="expanded"]');
     const sponsorTitle = sponsorRail.locator("[data-sponsor-title]");
@@ -966,6 +980,16 @@ test.describe("robot de show local", () => {
     await expect(page.locator("body")).toContainText("Bronze", {
       timeout: 12000,
     });
+
+    await navigateSpa(page, "/tv");
+    await expect(page.locator("[data-tv-shortcut-page]")).toBeVisible();
+    await expect(page.locator("body")).toContainText("Robot Derby local");
+    await page.getByRole("button", { name: "Rouvrir / Reopen" }).click();
+    await expect(page).toHaveURL(
+      new RegExp(
+        `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/tv$`
+      )
+    );
 
     await navigateSpa(
       page,

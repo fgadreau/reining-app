@@ -16,6 +16,7 @@ import {
   getAssociationSponsorGroups,
 } from "../../features/associations/sponsorLogos";
 import { getTvDisplayVideoPublicUrl } from "../../features/tvDisplay/tvDisplayVideo";
+import { rememberTvDisplayShortcut } from "../../features/tvDisplay/tvDisplayShortCode";
 import { isScheduledLiveViewCurrent } from "../../features/schedule/liveSchedule";
 
 const TV_REFRESH_MS = 5000;
@@ -146,6 +147,22 @@ function PublicShowTvPage() {
   useEffect(() => {
     setSponsorSlideIndex(0);
   }, [sponsorSlides.length]);
+
+  useEffect(() => {
+    if (!show?.id || !(show.associationId || associationId)) return;
+
+    rememberTvDisplayShortcut({
+      id: show.id,
+      associationId: show.associationId || associationId,
+      name: show.name || association?.name || "",
+    });
+  }, [
+    association?.name,
+    associationId,
+    show?.associationId,
+    show?.id,
+    show?.name,
+  ]);
 
   useEffect(() => {
     if (sponsorSlides.length <= 1) return undefined;

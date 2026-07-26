@@ -57,6 +57,10 @@ import {
   uploadTvDisplayVideo,
   validateTvDisplayVideoFile,
 } from "../../features/tvDisplay/tvDisplayVideo";
+import {
+  buildTvDisplayShortCode,
+  getTvDisplayShortcutPath,
+} from "../../features/tvDisplay/tvDisplayShortCode";
 
 function ShowDetailPage() {
   const { associationId, showId } = useParams();
@@ -110,6 +114,7 @@ function ShowDetailPage() {
     () => buildPublicShowcaseStatus({ show, publicView, t }),
     [publicView, show, t]
   );
+  const tvDisplayShortCode = buildTvDisplayShortCode(showId);
   const competitionTvArena = normalizeArenaName(
     livestreamDraft.tvDisplayVideoArena
   );
@@ -742,14 +747,18 @@ function ShowDetailPage() {
 
   const copyTvDisplayLink = async (arena = "", mode = "") => {
     const normalizedArena = normalizeArenaName(arena);
-    const tvUrl = getAbsoluteTvDisplayUrl(
-      associationId,
-      showId,
-      normalizedArena,
-      mode
-    );
+    const normalizedMode = String(mode || "").trim().toLowerCase();
+    const tvUrl =
+      !normalizedArena && !normalizedMode
+        ? getAbsoluteTvDisplayShortcutUrl(showId)
+        : getAbsoluteTvDisplayUrl(
+            associationId,
+            showId,
+            normalizedArena,
+            normalizedMode
+          );
     const copyKey = `tv:${
-      mode === "competition" ? "competition:" : ""
+      normalizedMode === "competition" ? "competition:" : ""
     }${getOverlayCopyKey(normalizedArena)}`;
 
     try {
@@ -1139,8 +1148,18 @@ function ShowDetailPage() {
                   <span style={arenaOverlayNameStyle}>
                     {t("management.shows.tvDisplayGeneralTitle")}
                   </span>
+                  <span
+                    style={tvDisplayShortCodeStyle}
+                    data-tv-short-code={tvDisplayShortCode}
+                  >
+                    <span>
+                      {t("management.shows.tvDisplayShortCode")} ·{" "}
+                      <strong>{tvDisplayShortCode}</strong>
+                    </span>
+                    <small>showscore.app/tv/{tvDisplayShortCode}</small>
+                  </span>
                   <Link
-                    to={getTvDisplayPath(associationId, showId)}
+                    to={getTvDisplayShortcutPath(showId)}
                     style={linkButtonStyle}
                     target="_blank"
                     rel="noreferrer"
@@ -2199,6 +2218,19 @@ const arenaOverlayNameStyle = {
   fontWeight: 800,
 };
 
+const tvDisplayShortCodeStyle = {
+  display: "grid",
+  gap: 2,
+  padding: "7px 10px",
+  borderRadius: 9,
+  border: "1px solid #99f6e4",
+  background: "#f0fdfa",
+  color: "#115e59",
+  fontSize: 13,
+  fontWeight: 800,
+  letterSpacing: "0.02em",
+};
+
 const overlaySponsorSectionStyle = {
   display: "grid",
   gap: 12,
@@ -2941,6 +2973,16 @@ function getAbsoluteTvDisplayUrl(
   mode = ""
 ) {
   const path = getTvDisplayPath(associationId, showId, arena, mode);
+  const origin =
+    typeof window === "undefined" || !window.location?.origin
+      ? ""
+      : window.location.origin;
+
+  return `${origin}${path}`;
+}
+
+function getAbsoluteTvDisplayShortcutUrl(showId) {
+  const path = getTvDisplayShortcutPath(showId);
   const origin =
     typeof window === "undefined" || !window.location?.origin
       ? ""

@@ -145,6 +145,11 @@ import {
   TV_DISPLAY_VIDEO_MAX_BYTES,
   validateTvDisplayVideoFile,
 } from "./features/tvDisplay/tvDisplayVideo";
+import {
+  buildTvDisplayShortCode,
+  getTvDisplayShortcutPath,
+  normalizeTvDisplayShortCode,
+} from "./features/tvDisplay/tvDisplayShortCode";
 import { buildHspScoredRunRows } from "./features/integrations/hspScoredRunRepository";
 import {
   buildPublicClassView,
@@ -370,6 +375,24 @@ test("fits the scoring table to common iPad landscape viewports", () => {
   expect(
     shouldFitScoringTableToViewport({ width: 1440, height: 900 })
   ).toBe(false);
+});
+
+test("builds a permanent six-character shortcut for a TV display", () => {
+  const code = buildTvDisplayShortCode(
+    "745f4e2c-9f71-4d56-bfd3-152c96a723d3"
+  );
+
+  expect(code).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
+  expect(
+    buildTvDisplayShortCode("745f4e2c-9f71-4d56-bfd3-152c96a723d3")
+  ).toBe(code);
+  expect(
+    buildTvDisplayShortCode("04b478f9-d90c-4589-8466-d3b25ea865df")
+  ).not.toBe(code);
+  expect(normalizeTvDisplayShortCode(` ${code.toLowerCase()}-`)).toBe(code);
+  expect(getTvDisplayShortcutPath("745f4e2c-9f71-4d56-bfd3-152c96a723d3")).toBe(
+    `/tv/${code}`
+  );
 });
 
 test("groups sponsor slides by named level without mixing categories", () => {

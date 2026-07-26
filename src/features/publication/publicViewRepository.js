@@ -10,7 +10,11 @@ import {
   normalizeSponsorGroups,
 } from "../associations/sponsorLogos";
 import { getPublicChampionshipSeasonRepository } from "../championship/championshipRepository";
-import { getShowsByAssociationId, getShowById } from "../shows/showSelectors";
+import {
+  getAllShows,
+  getShowsByAssociationId,
+  getShowById,
+} from "../shows/showSelectors";
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import { getDaysByShowRepository } from "../days/dayRepository";
 import { getDaysByShowId } from "../days/daySelectors";
@@ -87,6 +91,10 @@ import {
   isLivePublicationStatus,
 } from "./publicationRepository";
 import { normalizeLivestreamUrlsByDate } from "../livestream/livestreamSchedule";
+import {
+  buildTvDisplayShortCode,
+  normalizeTvDisplayShortCode,
+} from "../tvDisplay/tvDisplayShortCode";
 
 function toAssociation(row) {
   const sponsorGroups = normalizeSponsorGroups(row.sponsor_logos);
@@ -1089,6 +1097,47 @@ export async function getPublicShowRepository(showId) {
     console.error("Erreur chargement show public Supabase:", error);
     return isShowPubliclyActive(localShow) ? localShow : null;
   }
+}
+
+export async function getPublicShowByTvCodeRepository(value) {
+  const code = normalizeTvDisplayShortCode(value);
+  if (code.length !== 6) return null;
+
+  const localMatch = findShowByTvCode(getAllShows(), code);
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return localMatch;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("shows")
+      .select("*")
+      .limit(500);
+
+    if (error) throw error;
+
+    return findShowByTvCode(
+      Array.isArray(data) ? data.map(toShow) : [],
+      code
+    ) || localMatch;
+  } catch (error) {
+    console.error("Erreur résolution code écran TV:", error);
+    return localMatch;
+  }
+}
+
+function findShowByTvCode(shows, code) {
+  const matches = new Map();
+
+  (Array.isArray(shows) ? shows : []).forEach((show) => {
+    if (buildTvDisplayShortCode(show?.id) === code) {
+      matches.set(show.id, show);
+    }
+  });
+
+  return matches.size === 1 ? [...matches.values()][0] : null;
 }
 
 async function getPublicTvShowContext(showId, supabase) {
