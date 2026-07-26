@@ -642,11 +642,14 @@ function ShowDetailPage() {
 
       if (shouldSaveSponsorGroups) {
         try {
-          savedAssociation = await saveAssociationRepository({
-            ...association,
-            sponsorGroups,
-            sponsorLogos: flattenSponsorGroups(sponsorGroups),
-          });
+          savedAssociation = await saveAssociationRepository(
+            {
+              ...association,
+              sponsorGroups,
+              sponsorLogos: flattenSponsorGroups(sponsorGroups),
+            },
+            { isExisting: true }
+          );
         } catch (error) {
           console.error("Erreur sauvegarde commanditaires association:", error);
           sponsorLogoError = error;

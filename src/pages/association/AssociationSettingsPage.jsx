@@ -104,16 +104,19 @@ function AssociationSettingsPage() {
     setNotice("");
 
     try {
-      const savedAssociation = await saveAssociationRepository({
-        ...association,
-        name,
-        shortName,
-        timezone,
-        logoDataUrl,
-        websiteUrl,
-        sponsorLogos: association.sponsorLogos || [],
-        isTestMode: Boolean(form.isTestMode),
-      });
+      const savedAssociation = await saveAssociationRepository(
+        {
+          ...association,
+          name,
+          shortName,
+          timezone,
+          logoDataUrl,
+          websiteUrl,
+          sponsorLogos: association.sponsorLogos || [],
+          isTestMode: Boolean(form.isTestMode),
+        },
+        { isExisting: true }
+      );
 
       setAssociation(savedAssociation);
       setForm(createForm(detectedTimezone, savedAssociation));

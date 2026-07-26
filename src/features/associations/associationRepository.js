@@ -187,14 +187,15 @@ export async function getAssociationRepository(associationId) {
   return associations.find((item) => item.id === associationId) || null;
 }
 
-export async function saveAssociationRepository(association) {
+export async function saveAssociationRepository(association, options = {}) {
   const normalized = {
     ...association,
     id: association.id || createAssociationId(),
   };
-  const isExistingAssociation = loadAssociations().some(
-    (item) => item.id === normalized.id
-  );
+  const isExistingAssociation =
+    typeof options.isExisting === "boolean"
+      ? options.isExisting
+      : loadAssociations().some((item) => item.id === normalized.id);
 
   const supabase = getSupabaseClient();
 

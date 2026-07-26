@@ -225,7 +225,9 @@ function AssociationsPage() {
           websiteUrl,
         };
 
-        await saveAssociationRepository(nextAssociation);
+        await saveAssociationRepository(nextAssociation, {
+          isExisting: true,
+        });
 
         setAssociations((current) =>
           current.map((association) =>
