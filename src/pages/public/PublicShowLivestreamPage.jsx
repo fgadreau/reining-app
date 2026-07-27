@@ -8,6 +8,7 @@ import { useTranslation } from "../../features/i18n/I18nProvider";
 import { buildLivestreamEmbed } from "../../features/livestream/livestreamEmbed";
 import {
   getCurrentPublicLivestream,
+  getNextPublicLivestream,
   getPreviousPublicLivestreams,
 } from "../../features/livestream/livestreamSchedule";
 import {
@@ -56,6 +57,10 @@ function PublicShowLivestreamPage() {
   });
   const embed = buildLivestreamEmbed(livestream.url);
   const previousLivestreams = getPreviousPublicLivestreams(show, {
+    timezone: association?.timezone,
+    now,
+  });
+  const nextLivestream = getNextPublicLivestream(show, {
     timezone: association?.timezone,
     now,
   });
@@ -237,12 +242,21 @@ function PublicShowLivestreamPage() {
             {t("public.livestream.eyebrow")}
           </div>
           <h2 style={emptyTitleStyle}>
-            {livestream.showDate
-              ? t("public.livestream.noVideoToday")
-              : t("public.livestream.outsideShowDay")}
+            {nextLivestream
+              ? t("public.livestream.nextBroadcast", {
+                  date: formatDayLabel(nextLivestream.date, language),
+                })
+              : livestream.showDate
+                ? t("public.livestream.noVideoToday")
+                : t("public.livestream.outsideShowDay")}
           </h2>
+          {nextLivestream ? (
+            <div style={nextBroadcastDateStyle}>{nextLivestream.date}</div>
+          ) : null}
           <div style={publicMutedTextStyle}>
-            {t("public.livestream.resultsRemainAvailable")}
+            {nextLivestream
+              ? t("public.livestream.nextBroadcastHelp")
+              : t("public.livestream.resultsRemainAvailable")}
           </div>
           <Link to={resultsPath} style={publicPrimaryActionStyle}>
             {t("public.livestream.openResults")}
@@ -533,6 +547,15 @@ const emptyVideoStyle = {
 const emptyTitleStyle = {
   margin: 0,
   color: publicColors.text,
+  textTransform: "capitalize",
+};
+
+const nextBroadcastDateStyle = {
+  padding: "6px 10px",
+  borderRadius: 999,
+  background: publicColors.blueSoft,
+  color: publicColors.blue,
+  fontWeight: 850,
 };
 
 const archiveCardStyle = {

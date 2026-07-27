@@ -58,6 +58,8 @@ import {
 import {
   getCurrentPublicLivestream,
   getDateValueInTimeZone,
+  getLivestreamDateValueInTimeZone,
+  getNextPublicLivestream,
   getPreviousPublicLivestreams,
   normalizeLivestreamUrlsByDate,
 } from "./features/livestream/livestreamSchedule";
@@ -3369,6 +3371,70 @@ test("selects only the current show day livestream in the association timezone",
   ).toBe("");
 });
 
+test("keeps the previous livestream day active until 4 AM association time", () => {
+  const show = {
+    startDate: "2026-07-22",
+    endDate: "2026-07-23",
+    isLivestreamPublic: true,
+    livestreamUrlsByDate: {
+      "2026-07-22": "https://example.com/day-1",
+      "2026-07-23": "https://example.com/day-2",
+    },
+  };
+
+  expect(
+    getLivestreamDateValueInTimeZone(
+      new Date("2026-07-23T07:59:00.000Z"),
+      "America/Toronto"
+    )
+  ).toBe("2026-07-22");
+  expect(
+    getCurrentPublicLivestream(show, {
+      timezone: "America/Toronto",
+      now: new Date("2026-07-23T07:59:00.000Z"),
+    })
+  ).toMatchObject({
+    showDate: "2026-07-22",
+    url: "https://example.com/day-1",
+  });
+  expect(
+    getCurrentPublicLivestream(show, {
+      timezone: "America/Toronto",
+      now: new Date("2026-07-23T08:00:00.000Z"),
+    })
+  ).toMatchObject({
+    showDate: "2026-07-23",
+    url: "https://example.com/day-2",
+  });
+});
+
+test("keeps the final show livestream available after midnight until 4 AM", () => {
+  const show = {
+    startDate: "2026-07-22",
+    endDate: "2026-07-23",
+    isLivestreamPublic: true,
+    livestreamUrlsByDate: {
+      "2026-07-23": "https://example.com/final-day",
+    },
+  };
+
+  expect(
+    getCurrentPublicLivestream(show, {
+      timezone: "America/Toronto",
+      now: new Date("2026-07-24T06:00:00.000Z"),
+    })
+  ).toMatchObject({
+    showDate: "2026-07-23",
+    url: "https://example.com/final-day",
+  });
+  expect(
+    getCurrentPublicLivestream(show, {
+      timezone: "America/Toronto",
+      now: new Date("2026-07-24T08:00:00.000Z"),
+    }).url
+  ).toBe("");
+});
+
 test("normalizes daily livestream links by valid date", () => {
   expect(
     normalizeLivestreamUrlsByDate({
@@ -3411,6 +3477,35 @@ test("lists only previous public livestream days from newest to oldest", () => {
       { now: new Date("2026-07-26T16:00:00.000Z") }
     )
   ).toEqual([]);
+});
+
+test("finds the next configured public livestream day", () => {
+  const show = {
+    startDate: "2026-07-22",
+    endDate: "2026-07-25",
+    isLivestreamPublic: true,
+    livestreamUrlsByDate: {
+      "2026-07-22": "https://example.com/day-1",
+      "2026-07-24": "https://example.com/day-3",
+      "2026-07-25": "https://example.com/day-4",
+    },
+  };
+
+  expect(
+    getNextPublicLivestream(show, {
+      timezone: "America/Toronto",
+      now: new Date("2026-07-23T16:00:00.000Z"),
+    })
+  ).toEqual({
+    date: "2026-07-24",
+    url: "https://example.com/day-3",
+  });
+  expect(
+    getNextPublicLivestream(show, {
+      timezone: "America/Toronto",
+      now: new Date("2026-07-26T16:00:00.000Z"),
+    })
+  ).toBeNull();
 });
 
 test("detects and translates the interface language", () => {

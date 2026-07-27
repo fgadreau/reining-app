@@ -3,6 +3,8 @@ import {
   isValidDateValue,
 } from "../days/dayDateUtils";
 
+export const LIVESTREAM_DAY_ROLLOVER_HOUR = 4;
+
 export function normalizeLivestreamUrlsByDate(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {};
@@ -45,8 +47,58 @@ export function getDateValueInTimeZone(date = new Date(), timezone = "") {
   }
 }
 
+function getHourInTimeZone(date = new Date(), timezone = "") {
+  const safeDate = date instanceof Date ? date : new Date(date);
+
+  if (Number.isNaN(safeDate.getTime())) return null;
+
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: String(timezone || "").trim() || undefined,
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(safeDate);
+    const hour = Number(parts.find((part) => part.type === "hour")?.value);
+
+    return Number.isFinite(hour) ? hour % 24 : null;
+  } catch (error) {
+    if (String(timezone || "").trim()) {
+      return getHourInTimeZone(safeDate, "");
+    }
+
+    return safeDate.getHours();
+  }
+}
+
+function getPreviousDateValue(dateValue) {
+  if (!isValidDateValue(dateValue)) return "";
+
+  const [year, month, day] = dateValue.split("-").map(Number);
+  const previousDate = new Date(Date.UTC(year, month - 1, day - 1));
+
+  return previousDate.toISOString().slice(0, 10);
+}
+
+export function getLivestreamDateValueInTimeZone(
+  date = new Date(),
+  timezone = ""
+) {
+  const currentDate = getDateValueInTimeZone(date, timezone);
+  const currentHour = getHourInTimeZone(date, timezone);
+
+  if (
+    currentDate &&
+    currentHour !== null &&
+    currentHour < LIVESTREAM_DAY_ROLLOVER_HOUR
+  ) {
+    return getPreviousDateValue(currentDate);
+  }
+
+  return currentDate;
+}
+
 export function getCurrentShowDate(show, { timezone = "", now = new Date() } = {}) {
-  const currentDate = getDateValueInTimeZone(now, timezone);
+  const currentDate = getLivestreamDateValueInTimeZone(now, timezone);
   return getShowDateRange(show).includes(currentDate) ? currentDate : "";
 }
 
@@ -97,13 +149,28 @@ export function getPreviousPublicLivestreams(
 ) {
   if (!show?.isLivestreamPublic) return [];
 
-  const currentDate = getDateValueInTimeZone(now, timezone);
+  const currentDate = getLivestreamDateValueInTimeZone(now, timezone);
   const urlsByDate = getLivestreamUrlsForShow(show, { timezone, now });
 
   return Object.entries(urlsByDate)
     .filter(([date]) => date < currentDate)
     .sort(([firstDate], [secondDate]) => secondDate.localeCompare(firstDate))
     .map(([date, url]) => ({ date, url }));
+}
+
+export function getNextPublicLivestream(
+  show,
+  { timezone = "", now = new Date() } = {}
+) {
+  if (!show?.isLivestreamPublic) return null;
+
+  const currentDate = getLivestreamDateValueInTimeZone(now, timezone);
+  const urlsByDate = getLivestreamUrlsForShow(show, { timezone, now });
+  const nextEntry = Object.entries(urlsByDate)
+    .filter(([date]) => date > currentDate)
+    .sort(([firstDate], [secondDate]) => firstDate.localeCompare(secondDate))[0];
+
+  return nextEntry ? { date: nextEntry[0], url: nextEntry[1] } : null;
 }
 
 export function hasConfiguredLivestream(show) {

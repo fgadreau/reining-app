@@ -1926,6 +1926,9 @@ export const translations = {
         liveProgress:
           "Les scores complétés et la run en cours se mettent à jour automatiquement.",
         loading: "Chargement du livestream…",
+        nextBroadcast: "Prochaine diffusion : {{date}}",
+        nextBroadcastHelp:
+          "Le lecteur apparaîtra automatiquement ici pendant cette journée.",
         noLiveBlock: "En attente du prochain bloc en direct.",
         noVideoToday: "Aucune vidéo n’est publiée pour aujourd’hui.",
         openExternal: "Ouvrir le livestream",
@@ -3875,6 +3878,9 @@ export const translations = {
         liveProgress:
           "Completed scores and the current run update automatically.",
         loading: "Loading livestream…",
+        nextBroadcast: "Next broadcast: {{date}}",
+        nextBroadcastHelp:
+          "The player will automatically appear here during that show day.",
         noLiveBlock: "Waiting for the next live block.",
         noVideoToday: "No video is published for today.",
         openExternal: "Open livestream",
