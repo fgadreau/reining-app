@@ -2,12 +2,18 @@ import { createId } from "../../utils/createId";
 import pdfWorkerSrc from "pdfjs-dist/legacy/build/pdf.worker.mjs?url";
 
 const TRACTOR_LINE_PATTERN = /^\s*(tractor|drag)\s*$/i;
-const CLASS_CODE_TOKEN_SOURCE = "-?[A-Z0-9]+(?:[ -][A-Z0-9]+)*";
-const CLASS_CODE_TOKEN_PATTERN = new RegExp(`^${CLASS_CODE_TOKEN_SOURCE}$`);
-const CLASS_CODE_PATTERN = new RegExp(
-  `^${CLASS_CODE_TOKEN_SOURCE}(?:\\s*,\\s*${CLASS_CODE_TOKEN_SOURCE})*\\s*$`
+const CLASS_CODE_TOKEN_SOURCE =
+  "-?[\\p{L}\\p{N}]+(?:[ -][\\p{L}\\p{N}]+)*";
+const CLASS_CODE_TOKEN_PATTERN = new RegExp(
+  `^${CLASS_CODE_TOKEN_SOURCE}$`,
+  "u"
 );
-const CLASS_HEADER_PATTERN = /\[\s*(-?\s*[A-Z0-9][A-Z0-9\s-]*?)\s*\]\s*$/;
+const CLASS_CODE_PATTERN = new RegExp(
+  `^${CLASS_CODE_TOKEN_SOURCE}(?:\\s*,\\s*${CLASS_CODE_TOKEN_SOURCE})*\\s*$`,
+  "u"
+);
+const CLASS_HEADER_PATTERN =
+  /\[\s*(-?\s*[\p{L}\p{N}][\p{L}\p{N}\s-]*?)\s*\]\s*$/u;
 const REO_CLASS_HEADER_PATTERN =
   /Draw for Class\s+(\d+)\s+(.+?)\s+on\b.*?\(Pattern\s+([^)]+)\)/i;
 const REO_SCORE_BOX_PATTERN = /\|\s*_+\s*\|/g;
@@ -21,7 +27,10 @@ function cleanText(value) {
 }
 
 function normalizeClassCode(value) {
-  return cleanText(value).replace(/\s*-\s*/g, "-").toUpperCase();
+  return cleanText(value)
+    .normalize("NFC")
+    .replace(/\s*-\s*/g, "-")
+    .toUpperCase();
 }
 
 function lastItem(values) {
@@ -113,7 +122,7 @@ function getFunwareBlockClassPartsFromCells(cells) {
         cell.x >= 145 &&
         cell.x < 185 &&
         cell.x < classNameCell.x &&
-        /^\d+$/.test(cell.text)
+        /^[A-Z0-9-]+$/i.test(cell.text)
     )
   );
 
@@ -711,9 +720,72 @@ function parseFunwarePositionedPdfPages(pages) {
     return new Set(blockClassesByCode.keys());
   }
 
-  function getClassCodesFromCell(cell) {
-    if (!cell?.text || blockClassesByCode.size === 0) return [];
-    return normalizeClassCodes(cell.text, getAllowedClassCodes());
+  function getClassCodesFromCell(cell, pendingFragment = "") {
+    if (!cell?.text || blockClassesByCode.size === 0) {
+      return {
+        codes: [],
+        pendingFragment,
+        isClassCodeText: false,
+      };
+    }
+
+    const allowedCodes = getAllowedClassCodes();
+    const tokens = cleanText(cell.text)
+      .split(/\s*,\s*/)
+      .map(normalizeClassCode)
+      .filter(Boolean);
+    const codes = [];
+    let nextPendingFragment = normalizeClassCode(pendingFragment);
+    let tokenIndex = 0;
+
+    if (nextPendingFragment && tokens.length > 0) {
+      const joinedCandidates = [
+        `${nextPendingFragment}${tokens[0]}`,
+        `${nextPendingFragment} ${tokens[0]}`,
+      ].map(normalizeClassCode);
+      const completedCode = joinedCandidates.find((code) =>
+        allowedCodes.has(code)
+      );
+      const continuedPrefix = joinedCandidates.find((candidate) =>
+        Array.from(allowedCodes).some((code) => code.startsWith(candidate))
+      );
+
+      if (completedCode) {
+        codes.push(completedCode);
+        nextPendingFragment = "";
+        tokenIndex = 1;
+      } else if (continuedPrefix) {
+        nextPendingFragment = continuedPrefix;
+        tokenIndex = 1;
+      } else {
+        nextPendingFragment = "";
+      }
+    }
+
+    for (; tokenIndex < tokens.length; tokenIndex += 1) {
+      const token = tokens[tokenIndex];
+
+      if (allowedCodes.has(token)) {
+        codes.push(token);
+        continue;
+      }
+
+      const isLastToken = tokenIndex === tokens.length - 1;
+      const isAllowedPrefix =
+        isLastToken &&
+        Array.from(allowedCodes).some((code) => code.startsWith(token));
+
+      if (isAllowedPrefix) {
+        nextPendingFragment = token;
+      }
+    }
+
+    return {
+      codes: Array.from(new Set(codes)),
+      pendingFragment: nextPendingFragment,
+      isClassCodeText:
+        codes.length > 0 || Boolean(nextPendingFragment),
+    };
   }
 
   function finishCurrentRun() {
@@ -805,17 +877,19 @@ function parseFunwarePositionedPdfPages(pages) {
 
       if (drawCell) {
         finishCurrentRun();
-        const ownerClassCodes = getClassCodesFromCell(ownerCell);
+        const ownerClassCodeMatch = getClassCodesFromCell(ownerCell);
         currentRun = {
           order: Number.parseInt(drawCell.text, 10),
           backNumber: "",
           rider: "",
           riderCandidate: "",
           horse: horseCell?.text || "",
-          ownerLines: ownerCell?.text && ownerClassCodes.length === 0
+          ownerLines:
+            ownerCell?.text && !ownerClassCodeMatch.isClassCodeText
             ? [ownerCell.text]
             : [],
-          classCodes: ownerClassCodes,
+          classCodes: ownerClassCodeMatch.codes,
+          pendingClassCodeFragment: ownerClassCodeMatch.pendingFragment,
           blockText: [lineText],
         };
         return;
@@ -833,9 +907,14 @@ function parseFunwarePositionedPdfPages(pages) {
           currentRun.rider = currentRun.riderCandidate;
         }
         if (ownerCell?.text) {
-          const classCodes = getClassCodesFromCell(ownerCell);
-          if (classCodes.length > 0) {
-            currentRun.classCodes.push(...classCodes);
+          const classCodeMatch = getClassCodesFromCell(
+            ownerCell,
+            currentRun.pendingClassCodeFragment
+          );
+          if (classCodeMatch.isClassCodeText) {
+            currentRun.classCodes.push(...classCodeMatch.codes);
+            currentRun.pendingClassCodeFragment =
+              classCodeMatch.pendingFragment;
           } else {
             currentRun.ownerLines.push(ownerCell.text);
           }
@@ -844,9 +923,14 @@ function parseFunwarePositionedPdfPages(pages) {
       }
 
       if (ownerCell?.text) {
-        const classCodes = getClassCodesFromCell(ownerCell);
-        if (classCodes.length > 0) {
-          currentRun.classCodes.push(...classCodes);
+        const classCodeMatch = getClassCodesFromCell(
+          ownerCell,
+          currentRun.pendingClassCodeFragment
+        );
+        if (classCodeMatch.isClassCodeText) {
+          currentRun.classCodes.push(...classCodeMatch.codes);
+          currentRun.pendingClassCodeFragment =
+            classCodeMatch.pendingFragment;
         } else {
           currentRun.ownerLines.push(ownerCell.text);
         }

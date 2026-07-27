@@ -244,6 +244,8 @@ export const translations = {
         draftNotice:
           "Le championnat est encore en brouillon. Publie-le avant d’envoyer une mise à jour aux abonnés.",
         email: "Courriel",
+        exportSubscribers: "Exporter la liste CSV",
+        language: "Langue",
         message: "Message",
         name: "Nom",
         noSubscribers: "Aucun abonné actif pour l’instant.",
@@ -266,6 +268,14 @@ export const translations = {
         subscribeSending: "Inscription...",
         subscribeSuccess:
           "Abonnement confirmé. Les prochaines mises à jour seront envoyées à ce courriel.",
+        subscribedAt: "Inscription",
+        subscriberListEmpty: "Aucune inscription à afficher.",
+        subscriberListHelp:
+          "Liste réservée aux gestionnaires. Les abonnés actifs apparaissent en premier; l’historique des désabonnements est conservé.",
+        subscriberListTitle: "Liste des abonnés",
+        status: "Statut",
+        statusSubscribed: "Actif",
+        statusUnsubscribed: "Désabonné",
         summaryUnavailable:
           "La liste n’est pas encore disponible. Lance le SQL d’abonnement dans Supabase.",
         supabaseUnavailable:
@@ -274,6 +284,7 @@ export const translations = {
         testSending: "Envoi du test...",
         testSent: "Courriel test envoyé.",
         totalSubscribers: "Total historique",
+        unsubscribedAt: "Désabonnement",
         unsubscribeFailed:
           "Impossible de compléter le désabonnement. Le lien est peut-être expiré.",
         unsubscribeSending: "Désabonnement en cours...",
@@ -2159,6 +2170,8 @@ export const translations = {
         draftNotice:
           "The championship is still a draft. Publish it before sending an update to subscribers.",
         email: "Email",
+        exportSubscribers: "Export CSV list",
+        language: "Language",
         message: "Message",
         name: "Name",
         noSubscribers: "There are no active subscribers yet.",
@@ -2181,6 +2194,14 @@ export const translations = {
         subscribeSending: "Subscribing...",
         subscribeSuccess:
           "Subscription confirmed. Future updates will be sent to this email.",
+        subscribedAt: "Subscribed",
+        subscriberListEmpty: "There are no subscriptions to display.",
+        subscriberListHelp:
+          "Managers only. Active subscribers appear first; unsubscribe history is retained.",
+        subscriberListTitle: "Subscriber list",
+        status: "Status",
+        statusSubscribed: "Active",
+        statusUnsubscribed: "Unsubscribed",
         summaryUnavailable:
           "The list is not available yet. Run the subscription SQL in Supabase.",
         supabaseUnavailable:
@@ -2189,6 +2210,7 @@ export const translations = {
         testSending: "Sending test...",
         testSent: "Test email sent.",
         totalSubscribers: "Historical total",
+        unsubscribedAt: "Unsubscribed",
         unsubscribeFailed:
           "Unable to complete the unsubscribe request. The link may be expired.",
         unsubscribeSending: "Unsubscribing...",

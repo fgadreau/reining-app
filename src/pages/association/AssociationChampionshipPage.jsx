@@ -24,6 +24,7 @@ import {
 } from "../../features/championship/championshipRepository";
 import {
   buildDefaultChampionshipUpdateCampaignForm,
+  buildChampionshipUpdateSubscribersCsv,
   getChampionshipUpdateSubscriberSummaryRepository,
   sendChampionshipUpdateCampaignRepository,
   validateChampionshipUpdateCampaignForm,
@@ -88,6 +89,7 @@ function AssociationChampionshipPage() {
     ok: false,
     activeCount: 0,
     totalCount: 0,
+    subscribers: [],
   });
   const [isLoadingSubscriberSummary, setIsLoadingSubscriberSummary] =
     useState(false);
@@ -810,6 +812,35 @@ function AssociationChampionshipPage() {
     setIsLoadingSubscriberSummary(false);
   };
 
+  const exportChampionshipUpdateSubscribers = () => {
+    const subscribers = subscriberSummary?.subscribers || [];
+    if (!subscribers.length) return;
+
+    const csv = buildChampionshipUpdateSubscribersCsv(subscribers);
+    const blob = new Blob([`\uFEFF${csv}`], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const associationPart = String(
+      association?.shortName || association?.name || associationId || "association"
+    )
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .toLowerCase();
+
+    link.href = url;
+    link.download = `showscore-abonnes-championnat-${
+      associationPart || "association"
+    }.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const updateCampaignField = (field, value) => {
     setCampaignForm((current) => ({
       ...current,
@@ -1244,6 +1275,7 @@ function AssociationChampionshipPage() {
         seasonStatus={seasonStatus}
         onChange={updateCampaignField}
         onRefreshSubscribers={refreshSubscriberSummary}
+        onExportSubscribers={exportChampionshipUpdateSubscribers}
         onResetDefaults={resetCampaignDefaults}
         onSendTest={() => sendChampionshipUpdate("test")}
         onSendCampaign={() => sendChampionshipUpdate("campaign")}
@@ -1735,12 +1767,16 @@ function ChampionshipUpdateCampaignPanel({
   seasonStatus,
   onChange,
   onRefreshSubscribers,
+  onExportSubscribers,
   onResetDefaults,
   onSendTest,
   onSendCampaign,
   t,
 }) {
   const activeCount = subscriberSummary?.activeCount || 0;
+  const subscribers = Array.isArray(subscriberSummary?.subscribers)
+    ? subscriberSummary.subscribers
+    : [];
   const isDraft = seasonStatus === "draft";
 
   return (
@@ -1754,16 +1790,28 @@ function ChampionshipUpdateCampaignPanel({
             {t("championship.updates.adminHelp")}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onRefreshSubscribers}
-          style={secondaryButtonStyle}
-          disabled={isLoadingSubscriberSummary || isSending}
-        >
-          {isLoadingSubscriberSummary
-            ? t("championship.updates.refreshing")
-            : t("championship.updates.refreshSubscribers")}
-        </button>
+        <div style={campaignHeaderActionsStyle}>
+          <button
+            type="button"
+            onClick={onExportSubscribers}
+            style={secondaryButtonStyle}
+            disabled={
+              isLoadingSubscriberSummary || isSending || subscribers.length === 0
+            }
+          >
+            {t("championship.updates.exportSubscribers")}
+          </button>
+          <button
+            type="button"
+            onClick={onRefreshSubscribers}
+            style={secondaryButtonStyle}
+            disabled={isLoadingSubscriberSummary || isSending}
+          >
+            {isLoadingSubscriberSummary
+              ? t("championship.updates.refreshing")
+              : t("championship.updates.refreshSubscribers")}
+          </button>
+        </div>
       </div>
 
       <div style={campaignSummaryStyle}>
@@ -1782,6 +1830,82 @@ function ChampionshipUpdateCampaignPanel({
         {!subscriberSummary?.ok && (
           <div style={campaignUnavailableStyle}>
             {t("championship.updates.summaryUnavailable")}
+          </div>
+        )}
+      </div>
+
+      <div style={subscriberListStyle}>
+        <div>
+          <div style={classTitleStyle}>
+            {t("championship.updates.subscriberListTitle")}
+          </div>
+          <div style={mutedTextStyle}>
+            {t("championship.updates.subscriberListHelp")}
+          </div>
+        </div>
+
+        {subscribers.length > 0 ? (
+          <div style={subscriberTableWrapperStyle}>
+            <table style={subscriberTableStyle}>
+              <thead>
+                <tr>
+                  <th style={subscriberThStyle}>
+                    {t("championship.updates.name")}
+                  </th>
+                  <th style={subscriberThStyle}>
+                    {t("championship.updates.email")}
+                  </th>
+                  <th style={subscriberThStyle}>
+                    {t("championship.updates.language")}
+                  </th>
+                  <th style={subscriberThStyle}>
+                    {t("championship.updates.status")}
+                  </th>
+                  <th style={subscriberThStyle}>
+                    {t("championship.updates.subscribedAt")}
+                  </th>
+                  <th style={subscriberThStyle}>
+                    {t("championship.updates.unsubscribedAt")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {subscribers.map((subscriber) => (
+                  <tr key={subscriber.id}>
+                    <td style={subscriberTdStyle}>{subscriber.name || "—"}</td>
+                    <td style={subscriberTdStyle}>
+                      <a href={`mailto:${subscriber.email}`}>
+                        {subscriber.email}
+                      </a>
+                    </td>
+                    <td style={subscriberTdStyle}>
+                      {String(subscriber.language || "fr").toUpperCase()}
+                    </td>
+                    <td style={subscriberTdStyle}>
+                      <span
+                        style={subscriberStatusStyle(
+                          subscriber.status === "subscribed"
+                        )}
+                      >
+                        {subscriber.status === "subscribed"
+                          ? t("championship.updates.statusSubscribed")
+                          : t("championship.updates.statusUnsubscribed")}
+                      </span>
+                    </td>
+                    <td style={subscriberTdStyle}>
+                      {formatSubscriberDate(subscriber.subscribedAt)}
+                    </td>
+                    <td style={subscriberTdStyle}>
+                      {formatSubscriberDate(subscriber.unsubscribedAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div style={mutedTextStyle}>
+            {t("championship.updates.subscriberListEmpty")}
           </div>
         )}
       </div>
@@ -1855,6 +1979,17 @@ function ChampionshipUpdateCampaignPanel({
       </div>
     </section>
   );
+}
+
+function formatSubscriberDate(value) {
+  const date = new Date(value || "");
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function SummaryShowsCard({ label, shows, emptyText, t }) {
@@ -2390,6 +2525,12 @@ const campaignHeaderStyle = {
   flexWrap: "wrap",
 };
 
+const campaignHeaderActionsStyle = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
 const campaignSummaryStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
@@ -2406,6 +2547,58 @@ const campaignUnavailableStyle = {
   color: "#9a3412",
   fontWeight: 800,
 };
+
+const subscriberListStyle = {
+  display: "grid",
+  gap: 10,
+  marginBottom: 16,
+  padding: 12,
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  background: "#f8fafc",
+};
+
+const subscriberTableWrapperStyle = {
+  width: "100%",
+  overflowX: "auto",
+};
+
+const subscriberTableStyle = {
+  width: "100%",
+  minWidth: 680,
+  borderCollapse: "collapse",
+  background: "#ffffff",
+};
+
+const subscriberThStyle = {
+  padding: "9px 10px",
+  borderBottom: "1px solid #cbd5e1",
+  color: "#475569",
+  fontSize: 12,
+  fontWeight: 850,
+  textAlign: "left",
+  whiteSpace: "nowrap",
+};
+
+const subscriberTdStyle = {
+  padding: "9px 10px",
+  borderBottom: "1px solid #e2e8f0",
+  color: "#334155",
+  fontSize: 13,
+  verticalAlign: "top",
+};
+
+const subscriberStatusStyle = (isSubscribed) => ({
+  display: "inline-flex",
+  border: `1px solid ${isSubscribed ? "#86efac" : "#cbd5e1"}`,
+  borderRadius: 999,
+  padding: "3px 7px",
+  background: isSubscribed ? "#f0fdf4" : "#f8fafc",
+  color: isSubscribed ? "#166534" : "#64748b",
+  fontSize: 12,
+  fontWeight: 850,
+  whiteSpace: "nowrap",
+});
 
 const campaignFormStyle = {
   display: "grid",

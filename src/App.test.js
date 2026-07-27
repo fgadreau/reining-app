@@ -281,6 +281,8 @@ import {
 } from "./features/championship/championshipVerificationRequestRepository";
 import {
   buildDefaultChampionshipUpdateCampaignForm,
+  buildChampionshipUpdateSubscribersCsv,
+  normalizeChampionshipUpdateSubscribers,
   validateChampionshipUpdateCampaignForm,
   validateChampionshipUpdateSubscriptionForm,
 } from "./features/championship/championshipUpdateSubscriptionRepository";
@@ -1450,6 +1452,68 @@ test("validates championship update subscription consent and email", () => {
       consentAccepted: true,
     })
   ).toEqual({});
+});
+
+test("normalizes championship update subscribers with active entries first", () => {
+  const subscribers = normalizeChampionshipUpdateSubscribers([
+    {
+      id: "old-unsubscribed",
+      name: "Ancien membre",
+      email: "OLD@EXAMPLE.COM",
+      language: "FR",
+      status: "unsubscribed",
+      subscribed_at: "2026-01-01T12:00:00.000Z",
+      unsubscribed_at: "2026-02-01T12:00:00.000Z",
+    },
+    {
+      id: "active-latest",
+      name: "Émilie",
+      email: "emilie@example.com",
+      language: "fr",
+      status: "subscribed",
+      subscribed_at: "2026-07-20T12:00:00.000Z",
+    },
+    {
+      id: "active-earlier",
+      name: "Alex",
+      email: "alex@example.com",
+      language: "en",
+      status: "subscribed",
+      subscribed_at: "2026-07-10T12:00:00.000Z",
+    },
+  ]);
+
+  expect(subscribers.map((subscriber) => subscriber.id)).toEqual([
+    "active-latest",
+    "active-earlier",
+    "old-unsubscribed",
+  ]);
+  expect(subscribers[2]).toMatchObject({
+    email: "old@example.com",
+    language: "fr",
+    status: "unsubscribed",
+    unsubscribedAt: "2026-02-01T12:00:00.000Z",
+  });
+});
+
+test("exports championship update subscribers as spreadsheet-safe CSV", () => {
+  const csv = buildChampionshipUpdateSubscribersCsv([
+    {
+      id: "subscriber-1",
+      name: '=HYPERLINK("https://example.com")',
+      email: "person@example.com",
+      language: "fr",
+      status: "subscribed",
+      subscribedAt: "2026-07-20T12:00:00.000Z",
+    },
+  ]);
+
+  expect(csv).toContain(
+    '"name","email","language","status","subscribed_at","unsubscribed_at"'
+  );
+  expect(csv).toContain(
+    `"'=HYPERLINK(""https://example.com"")","person@example.com","fr","subscribed"`
+  );
 });
 
 test("builds and validates championship update campaign defaults", () => {
@@ -3765,6 +3829,219 @@ test("parses Funware positioned PDF class codes with spaces and split headers", 
     rider: "ELENA DORE",
     classCodes: ["ROK2", "DEB-II", "ROK 1", "D CLAS"],
   });
+});
+
+test("parses the multi-division AQR Derby Open and Non Pro Funware blocks", () => {
+  const classRow = (classNumber, association, name) => ({
+    cells: [
+      { x: 161, text: classNumber },
+      ...(association ? [{ x: 197, text: association }] : []),
+      { x: 233, text: name },
+    ],
+  });
+  const continuationRow = (text) => ({
+    cells: [{ x: 161, text }],
+  });
+  const drawRow = (draw, horse, owner) => ({
+    cells: [
+      { x: 54, text: String(draw) },
+      { x: 141, text: horse },
+      { x: 317, text: owner },
+    ],
+  });
+  const codeRow = (text) => ({
+    cells: [{ x: 317, text }],
+  });
+  const exhibitorRow = (backNumber, rider) => ({
+    cells: [
+      { x: 108, text: String(backNumber) },
+      { x: 141, text: rider },
+    ],
+  });
+
+  const openBlock = parsePositionedPdfPages([
+    [
+      classRow("6210", "", "NRHA - Level 4 Open-Cat 6 Clsd [600]"),
+      classRow("1100", "NRHA", "Open [O]"),
+      classRow("1110", "NRHA", "Prime Time Open [118]"),
+      classRow("1200", "NRHA", "Intermediate Open [IO]"),
+      classRow("1301", "NRHA", "Limited Open [LO]"),
+      classRow("1350", "NRHA", "Rookie Professional [RP]"),
+      classRow(
+        "2100DA",
+        "NRHA",
+        "Level 4 Open - Aged Event - Derby AQR (311)"
+      ),
+      continuationRow("[OP4AQR]"),
+      classRow(
+        "2300DA",
+        "NRHA",
+        "Level 1 Open - Aged Event - Derby AQR (312) [312]"
+      ),
+      classRow("6110", "NRHA", "Aqr Derby OPEN LEVEL 4 4 Ans [OP4-4A]"),
+      classRow("6120", "NRHA", "Aqr Derby Open LEVEL 1 4 Ans [OP1-4A]"),
+      classRow("6230", "NRHA", "Level 2 Ltd Open-Cat 6 Clsd [601]"),
+      classRow("6231", "NRHA", "Level 1 Open-Cat 6 Clsd [602]"),
+      drawRow(1, "BERNIES CASH BURST", "NICHOLAS DUPUIS"),
+      codeRow("601,602,OP4AQR,312,IO,RP"),
+      exhibitorRow(8992, "NICHOLAS DUPUIS"),
+      drawRow(10, "IDEM CHIC DREAM", "JENNIFER EHRENFELD-POOLE"),
+      codeRow("600,601,602,OP4AQR,312,O,IO,LO,RP"),
+      exhibitorRow(8648, "WYATT MACGREGOR"),
+    ],
+  ]);
+
+  expect(openBlock.blockClasses.map((item) => item.code)).toEqual([
+    "600",
+    "O",
+    "118",
+    "IO",
+    "LO",
+    "RP",
+    "OP4AQR",
+    "312",
+    "OP4-4A",
+    "OP1-4A",
+    "601",
+    "602",
+  ]);
+  expect(openBlock.blockClasses.find((item) => item.code === "OP4AQR"))
+    .toMatchObject({
+      classNumber: "2100DA",
+      name: "Level 4 Open - Aged Event - Derby AQR (311)",
+    });
+  expect(openBlock.runs).toMatchObject([
+    {
+      draw: 1,
+      backNumber: "8992",
+      classCodes: ["601", "602", "OP4AQR", "312", "IO", "RP"],
+    },
+    {
+      draw: 10,
+      backNumber: "8648",
+      classCodes: [
+        "600",
+        "601",
+        "602",
+        "OP4AQR",
+        "312",
+        "O",
+        "IO",
+        "LO",
+        "RP",
+      ],
+    },
+  ]);
+
+  const nonProBlock = parsePositionedPdfPages([
+    [
+      classRow("6240", "", "NRHA - Level 4 Non Pro-Cat 6 Clsd [605]"),
+      classRow("1400", "NRHA", "Non Pro [NP]"),
+      classRow("1500", "NRHA", "Intermediate Non Pro [INP]"),
+      classRow("1600", "NRHA", "Limited Non Pro [LNP]"),
+      classRow("1650", "NRHA", "Prime Time Non Pro [PTNP]"),
+      classRow("1660", "NRHA", "Masters NP - Non Pro Masters 60+ [MASTNP]"),
+      classRow(
+        "2400DA",
+        "NRHA",
+        "Level 4 Non Pro - Aged Event - Derby AQR (314) [314]"
+      ),
+      classRow(
+        "2600DA",
+        "NRHA",
+        "Level 1 Non Pro - Aged Event - Derby AQR (315) [315]"
+      ),
+      classRow("5398", "AQR", "Non Pro Limité/Ltd Non Pro [NPLTÉ]"),
+      classRow("6130", "NRHA", "Aqr Derby NP LEVEL 4 4 Ans [NP4-4A]"),
+      classRow("6140", "NRHA", "Aqr Derby NP Show 4 Ans Level 1 [INP4-4A]"),
+      classRow("6260", "NRHA", "Level 2 Ltd NP-Cat 6 Clsd [606]"),
+      classRow("6261", "NRHA", "Level 1 NP-Cat 6 Clsd [607]"),
+      drawRow(11, "ITS A SMART WHIZ", "MARTIN BRISEBOIS"),
+      codeRow("605,606,607,314,315,NP,INP,PTNP,MA"),
+      codeRow("STNP,LNP,NPL"),
+      codeRow("TÉ"),
+      exhibitorRow(8940, "MARTIN BRISEBOIS"),
+      drawRow(26, "ITS ALL SNOW", "PLUS EQUINE"),
+      codeRow("605,314,NP,PTNP,MASTNP,NP4-4A"),
+      exhibitorRow(2565, "ANDRE DE BELLEFEUILLE"),
+    ],
+  ]);
+
+  expect(nonProBlock.blockClasses.map((item) => item.code)).toEqual([
+    "605",
+    "NP",
+    "INP",
+    "LNP",
+    "PTNP",
+    "MASTNP",
+    "314",
+    "315",
+    "NPLTÉ",
+    "NP4-4A",
+    "INP4-4A",
+    "606",
+    "607",
+  ]);
+  expect(nonProBlock.blockClasses.find((item) => item.code === "314"))
+    .toMatchObject({
+      classNumber: "2400DA",
+    });
+  expect(nonProBlock.runs[0]).toMatchObject({
+    draw: 11,
+    backNumber: "8940",
+    classCodes: [
+      "605",
+      "606",
+      "607",
+      "314",
+      "315",
+      "NP",
+      "INP",
+      "PTNP",
+      "MASTNP",
+      "LNP",
+      "NPLTÉ",
+    ],
+  });
+  expect(nonProBlock.runs[1]).toMatchObject({
+    draw: 26,
+    backNumber: "2565",
+    classCodes: ["605", "314", "NP", "PTNP", "MASTNP", "NP4-4A"],
+  });
+
+  const resultGroups = buildClassResultGroups(
+    {
+      classItem: {
+        id: "aqr-derby-non-pro",
+        name: "Derby Non Pro",
+        classCode: "BLOCK",
+      },
+      setup: nonProBlock,
+    },
+    {
+      sourceRuns: nonProBlock.runs.map((run) => ({
+        ...run,
+        scoreTotal: "70",
+      })),
+    }
+  );
+
+  expect(resultGroups.map((group) => group.code)).toEqual(
+    [
+      "605",
+      "606",
+      "607",
+      "314",
+      "315",
+      "NP",
+      "INP",
+      "PTNP",
+      "MASTNP",
+      "LNP",
+      "NPLTÉ",
+      "NP4-4A",
+    ].sort((left, right) => left.localeCompare(right))
+  );
 });
 
 test("parses Funware split leading-hyphen classes and scratched owners", () => {

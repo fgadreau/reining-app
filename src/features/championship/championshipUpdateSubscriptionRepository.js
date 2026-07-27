@@ -7,6 +7,57 @@ export const CHAMPIONSHIP_UPDATE_CAMPAIGN_FUNCTION =
 
 const SUBSCRIBERS_TABLE = "show_score_championship_update_subscribers";
 
+export function normalizeChampionshipUpdateSubscribers(value) {
+  return (Array.isArray(value) ? value : [])
+    .map((row) => ({
+      id: String(row?.id || "").trim(),
+      name: String(row?.name || "").trim(),
+      email: String(row?.email || "").trim().toLowerCase(),
+      language: String(row?.language || "fr").trim().toLowerCase(),
+      status:
+        String(row?.status || "").trim().toLowerCase() === "subscribed"
+          ? "subscribed"
+          : "unsubscribed",
+      subscribedAt: row?.subscribed_at || row?.subscribedAt || null,
+      unsubscribedAt: row?.unsubscribed_at || row?.unsubscribedAt || null,
+    }))
+    .filter((subscriber) => subscriber.id && isValidEmail(subscriber.email))
+    .sort((left, right) => {
+      if (left.status !== right.status) {
+        return left.status === "subscribed" ? -1 : 1;
+      }
+
+      return (
+        Date.parse(right.subscribedAt || "") -
+        Date.parse(left.subscribedAt || "")
+      );
+    });
+}
+
+export function buildChampionshipUpdateSubscribersCsv(value) {
+  const subscribers = normalizeChampionshipUpdateSubscribers(value);
+  const header = [
+    "name",
+    "email",
+    "language",
+    "status",
+    "subscribed_at",
+    "unsubscribed_at",
+  ];
+  const rows = subscribers.map((subscriber) => [
+    subscriber.name,
+    subscriber.email,
+    subscriber.language,
+    subscriber.status,
+    subscriber.subscribedAt || "",
+    subscriber.unsubscribedAt || "",
+  ]);
+
+  return [header, ...rows]
+    .map((row) => row.map(escapeCsvCell).join(","))
+    .join("\r\n");
+}
+
 export function validateChampionshipUpdateSubscriptionForm(form = {}) {
   const errors = {};
 
@@ -140,23 +191,29 @@ export async function getChampionshipUpdateSubscriberSummaryRepository(
       reason: "supabase_unavailable",
       activeCount: 0,
       totalCount: 0,
+      subscribers: [],
     };
   }
 
   try {
     const { data, error } = await supabase
       .from(SUBSCRIBERS_TABLE)
-      .select("id, status")
+      .select(
+        "id, name, email, language, status, subscribed_at, unsubscribed_at"
+      )
       .eq("organization_id", associationId);
 
     if (error) throw error;
 
-    const rows = Array.isArray(data) ? data : [];
+    const subscribers = normalizeChampionshipUpdateSubscribers(data);
 
     return {
       ok: true,
-      activeCount: rows.filter((row) => row.status === "subscribed").length,
-      totalCount: rows.length,
+      activeCount: subscribers.filter(
+        (subscriber) => subscriber.status === "subscribed"
+      ).length,
+      totalCount: subscribers.length,
+      subscribers,
     };
   } catch (error) {
     console.error("Erreur chargement abonnes championnat:", error);
@@ -166,6 +223,7 @@ export async function getChampionshipUpdateSubscriberSummaryRepository(
       error,
       activeCount: 0,
       totalCount: 0,
+      subscribers: [],
     };
   }
 }
@@ -257,4 +315,11 @@ function formatCampaignMonth(date, language = "fr") {
 function isValidEmail(value) {
   const email = String(value || "").trim();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function escapeCsvCell(value) {
+  const text = String(value ?? "");
+  const spreadsheetSafeText = /^[=+\-@]/.test(text) ? `'${text}` : text;
+
+  return `"${spreadsheetSafeText.replace(/"/g, '""')}"`;
 }
