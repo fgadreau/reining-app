@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import AssociationLogo from "../../components/AssociationLogo";
 import { loadAssociationsRepository } from "../../features/associations/associationRepository";
 import {
   loadIsPlatformAdminRepository,
@@ -227,10 +228,13 @@ function AssociationCard({ association, label, to, action }) {
 
   return (
     <article style={associationCardStyle}>
-      <div>
-        <h3 style={associationNameStyle}>{association.name}</h3>
-        <div style={mutedTextStyle}>
-          {association.shortName || t("common.association")} · {label}
+      <div style={associationIdentityStyle}>
+        <AssociationLogo association={association} size={72} />
+        <div style={associationCopyStyle}>
+          <h3 style={associationNameStyle}>{association.name}</h3>
+          <div style={mutedTextStyle}>
+            {association.shortName || t("common.association")} · {label}
+          </div>
         </div>
       </div>
       <Link to={to} style={secondaryLinkStyle}>
@@ -313,15 +317,30 @@ const associationGridStyle = {
 const associationCardStyle = {
   border: "1px solid #e2e8f0",
   borderRadius: 8,
-  padding: 14,
+  padding: 16,
   display: "grid",
-  gap: 12,
+  gap: 16,
   alignContent: "space-between",
+  background: "#fff",
+  boxShadow: "0 8px 20px rgba(15, 23, 42, 0.05)",
+};
+
+const associationIdentityStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 14,
+  minWidth: 0,
+};
+
+const associationCopyStyle = {
+  minWidth: 0,
 };
 
 const associationNameStyle = {
   margin: 0,
   fontSize: 18,
+  color: "#0f172a",
+  lineHeight: 1.25,
 };
 
 const mutedTextStyle = {
