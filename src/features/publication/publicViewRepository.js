@@ -78,6 +78,10 @@ import {
 import { normalizeResultGroups } from "../results/classResults";
 import { buildLiveClassStandings } from "../results/liveClassStandings";
 import {
+  getLocalScannedScoresheetsForShow,
+  getScannedScoresheetsForShowRepository,
+} from "../results/scannedScoresheetRepository";
+import {
   LIVE_DATA_SOURCES,
   LIVE_DISPLAY_MODES,
   normalizeLiveDisplayMode,
@@ -156,6 +160,7 @@ function buildEmptyPublicShowView() {
     resultSections: [],
     publishedClassCount: 0,
     publishedResultClassCount: 0,
+    scannedScoresheetCount: 0,
     liveClass: null,
     liveClasses: [],
     livePaidWarmup: null,
@@ -165,6 +170,14 @@ function buildEmptyPublicShowView() {
     scheduleItemCount: 0,
     classIds: [],
   };
+}
+
+export function hasPublishedResultsWithoutScoresheets(publicView) {
+  return Boolean(
+    Number(publicView?.publishedResultClassCount || 0) > 0 &&
+      Number(publicView?.publishedClassCount || 0) === 0 &&
+      Number(publicView?.scannedScoresheetCount || 0) === 0
+  );
 }
 
 function toDay(row) {
@@ -370,6 +383,8 @@ export function getPublicShowView(showId) {
   const liveClasses = [];
   const livePaidWarmups = [];
   const classIds = [];
+  const scoresheetDocumentsByClassId =
+    getLocalScannedScoresheetsForShow(showId);
   const timingSections = [];
   const sections = getDaysByShowId(showId).map((day) => {
     const classRows = [];
@@ -388,6 +403,7 @@ export function getPublicShowView(showId) {
         ...buildPublicResultClassViews({
           classItem,
           resultPublication: getClassResultPublication(classItem.id),
+          scoresheetDocument: scoresheetDocumentsByClassId[classItem.id],
         })
       );
 
@@ -431,6 +447,8 @@ export function getPublicShowView(showId) {
     (total, section) => total + section.classes.length,
     0
   );
+  const scannedScoresheetCount =
+    countUniqueResultScoresheetDocuments(resultSections);
   const primaryLiveClasses = findPrimaryLiveClassesByArena(liveClasses);
   const timingByClassId = buildLocalPublicTimingByClassId(
     timingSections,
@@ -451,6 +469,7 @@ export function getPublicShowView(showId) {
     resultSections,
     publishedClassCount,
     publishedResultClassCount,
+    scannedScoresheetCount,
     liveClass: liveState.liveClasses[0] || null,
     liveClasses: liveState.liveClasses,
     livePaidWarmup: liveState.livePaidWarmups[0] || null,
@@ -474,6 +493,8 @@ export async function getPublicShowViewRepository(showId) {
     return buildEmptyPublicShowView();
   }
 
+  const scoresheetDocumentsByClassId =
+    getLocalScannedScoresheetsForShow(showId);
   const sections = await Promise.all(
     (await getDaysByShowRepository(showId)).map(async (day) => {
       const paidWarmups = getPaidWarmupsByDayId(day.id);
@@ -490,6 +511,7 @@ export async function getPublicShowViewRepository(showId) {
           const resultClasses = buildPublicResultClassViews({
             classItem,
             resultPublication: resultPublicationsByClassId[classItem.id],
+            scoresheetDocument: scoresheetDocumentsByClassId[classItem.id],
           });
           const classData = await getClassFullDataRepository(classItem.id);
           const liveClass = buildPublicLiveClassView({
@@ -549,6 +571,8 @@ export async function getPublicShowViewRepository(showId) {
     (total, section) => total + section.classes.length,
     0
   );
+  const scannedScoresheetCount =
+    countUniqueResultScoresheetDocuments(resultSections);
   const primaryLiveClasses = findPrimaryLiveClassesByArena(liveClasses);
   const timingByClassId = buildLocalPublicTimingByClassId(
     timingSections,
@@ -569,6 +593,7 @@ export async function getPublicShowViewRepository(showId) {
     resultSections,
     publishedClassCount,
     publishedResultClassCount,
+    scannedScoresheetCount,
     liveClass: liveState.liveClasses[0] || null,
     liveClasses: liveState.liveClasses,
     livePaidWarmup: liveState.livePaidWarmups[0] || null,
@@ -692,6 +717,8 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
       return buildEmptyPublicShowView();
     }
 
+    const scoresheetDocumentsByClassId =
+      await getScannedScoresheetsForShowRepository(showId);
     const { data: dayRows, error: daysError } = await supabase
       .from("show_days")
       .select("*")
@@ -845,6 +872,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
           const resultClasses = buildPublicResultClassViews({
             classItem,
             resultPublication: resultPublicationsByClassId.get(classItem.id),
+            scoresheetDocument: scoresheetDocumentsByClassId[classItem.id],
           });
           const liveClass = buildPublicLiveClassView({
             classItem,
@@ -916,6 +944,8 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
       (total, section) => total + section.classes.length,
       0
     );
+    const scannedScoresheetCount =
+      countUniqueResultScoresheetDocuments(resultSections);
     const primaryLiveClasses = findPrimaryLiveClassesByArena(liveClasses);
     const liveState = buildResolvedPublicLiveState({
       timingSections,
@@ -932,6 +962,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
       resultSections,
       publishedClassCount,
       publishedResultClassCount,
+      scannedScoresheetCount,
       liveClass: liveState.liveClasses[0] || null,
       liveClasses: liveState.liveClasses,
       livePaidWarmup: liveState.livePaidWarmups[0] || null,
@@ -1397,7 +1428,20 @@ export function buildPublicClassView(classData) {
   };
 }
 
-export function buildPublicResultClassViews({ classItem, resultPublication }) {
+function countUniqueResultScoresheetDocuments(resultSections) {
+  return new Set(
+    (Array.isArray(resultSections) ? resultSections : [])
+      .flatMap((section) => section.classes || [])
+      .map((classView) => classView.scoresheetDocument?.classId)
+      .filter(Boolean)
+  ).size;
+}
+
+export function buildPublicResultClassViews({
+  classItem,
+  resultPublication,
+  scoresheetDocument = null,
+}) {
   if (
     resultPublication?.status !== RESULT_PUBLICATION_STATUSES.PUBLISHED ||
     !Array.isArray(resultPublication.resultGroups)
@@ -1415,6 +1459,7 @@ export function buildPublicResultClassViews({ classItem, resultPublication }) {
       parentClassName: group.parentClassName || classItem?.name || "",
       pattern: group.pattern || "",
       publishedAt: resultPublication.publishedAt,
+      scoresheetDocument: scoresheetDocument || null,
       entries: group.entries,
     }));
 }

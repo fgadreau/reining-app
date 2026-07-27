@@ -1406,6 +1406,18 @@ export const translations = {
         resultsPublishFailed: "Impossible de publier les résultats.",
         resultsPublished: "Publiés · {{count}} classe(s)/division(s)",
         resultsReady: "Prêts à publier",
+        scannedScoresheetAvailable: "Scoresheet scannée disponible",
+        scannedScoresheetDelete: "Retirer",
+        scannedScoresheetDeleteConfirm:
+          "Retirer la scoresheet scannée de ce bloc?",
+        scannedScoresheetDeleteFailed:
+          "Impossible de retirer la scoresheet scannée. {{message}}",
+        scannedScoresheetOpen: "Ouvrir le PDF",
+        scannedScoresheetReplace: "Remplacer",
+        scannedScoresheetUpload: "Téléverser PDF",
+        scannedScoresheetUploadFailed:
+          "Impossible de téléverser la scoresheet. {{message}}",
+        scannedScoresheetUploading: "Téléversement…",
         hideResults: "Masquer résultats",
         scoring: "Scoring",
         scoringCompleted: "Terminé",
@@ -1837,6 +1849,7 @@ export const translations = {
         oneMinute: "Il reste 1 minute",
         openVideo: "Ouvrir la vidéo",
         openLivestream: "Voir le livestream",
+        openScannedScoresheet: "Scoresheet du bloc (PDF)",
         order: "Ordre",
         orderOfGo: "Ordre de passage",
         owner: "Propriétaire",
@@ -1868,6 +1881,9 @@ export const translations = {
         siteTitle: "Feuilles de pointage publiques",
         sourceBlock: "Bloc",
         score: "Score",
+        scoresheetsUnavailableText:
+          "Les feuilles de pointage détaillées (scoresheets) ne sont pas disponibles dans ShowScore pour cette compétition. Pour toute question ou pour obtenir une copie, veuillez vous adresser au secrétariat.",
+        scoresheetsUnavailableTitle: "Scoresheets non disponibles",
         scheduleOnly: "Bloc sans patron pour le suivi de l’horaire.",
         scheduleEyebrow: "Horaire",
         scheduleHelp:
@@ -3359,6 +3375,18 @@ export const translations = {
         resultsPublishFailed: "Unable to publish results.",
         resultsPublished: "Published · {{count}} class(es)/division(s)",
         resultsReady: "Ready to publish",
+        scannedScoresheetAvailable: "Scanned score sheet available",
+        scannedScoresheetDelete: "Remove",
+        scannedScoresheetDeleteConfirm:
+          "Remove the scanned score sheet from this block?",
+        scannedScoresheetDeleteFailed:
+          "Unable to remove the scanned score sheet. {{message}}",
+        scannedScoresheetOpen: "Open PDF",
+        scannedScoresheetReplace: "Replace",
+        scannedScoresheetUpload: "Upload PDF",
+        scannedScoresheetUploadFailed:
+          "Unable to upload the score sheet. {{message}}",
+        scannedScoresheetUploading: "Uploading…",
         hideResults: "Hide results",
         scoring: "Scoring",
         scoringCompleted: "Completed",
@@ -3791,6 +3819,7 @@ export const translations = {
         oneMinute: "1 minute remaining",
         openVideo: "Open video",
         openLivestream: "Watch livestream",
+        openScannedScoresheet: "Block score sheet (PDF)",
         order: "Order",
         orderOfGo: "Order of go",
         owner: "Owner",
@@ -3822,6 +3851,9 @@ export const translations = {
           "Mobile summary: open a participant to review the detailed maneuvers.",
         resultsTitle: "Results",
         score: "Score",
+        scoresheetsUnavailableText:
+          "Detailed score sheets are not available in ShowScore for this competition. For questions or to request a copy, please contact the show office.",
+        scoresheetsUnavailableTitle: "Score sheets unavailable",
         scheduleOnly: "Block without a pattern for schedule tracking.",
         scheduleEyebrow: "Schedule",
         scheduleHelp:

@@ -165,9 +165,17 @@ import { buildHspScoredRunRows } from "./features/integrations/hspScoredRunRepos
 import {
   buildPublicClassView,
   buildPublicLiveClassView,
+  buildPublicResultClassViews,
   getPublicShowView,
+  hasPublishedResultsWithoutScoresheets,
   sortPublicResults,
 } from "./features/publication/publicViewRepository";
+import {
+  SCANNED_SCORESHEET_MAX_BYTES,
+  buildScannedScoresheetPath,
+  formatScannedScoresheetSize,
+  validateScannedScoresheetFile,
+} from "./features/results/scannedScoresheetRepository";
 import {
   buildAnnouncerResultGroups,
   buildClassResultGroups,
@@ -512,6 +520,37 @@ test("validates high-quality MP4 files for the arena display", () => {
       size: TV_DISPLAY_VIDEO_MAX_BYTES + 1,
     })
   ).toThrow(/2 Go/);
+});
+
+test("validates and names scanned block scoresheet PDFs", () => {
+  const validPdf = {
+    name: "bloc-level-4.pdf",
+    type: "application/pdf",
+    size: 8 * 1024 * 1024,
+    lastModified: 123456,
+  };
+
+  expect(validateScannedScoresheetFile(validPdf)).toBe(validPdf);
+  expect(formatScannedScoresheetSize(validPdf.size)).toBe("8.0 Mo");
+  expect(
+    buildScannedScoresheetPath({
+      classId: "class-1",
+      file: validPdf,
+    })
+  ).toMatch(/^class-1\/scoresheet-[a-f0-9]+\.pdf$/);
+  expect(() =>
+    validateScannedScoresheetFile({
+      ...validPdf,
+      name: "bloc.jpg",
+      type: "image/jpeg",
+    })
+  ).toThrow(/PDF/);
+  expect(() =>
+    validateScannedScoresheetFile({
+      ...validPdf,
+      size: SCANNED_SCORESHEET_MAX_BYTES + 1,
+    })
+  ).toThrow(/20 Mo/);
 });
 
 test("reuses the current Supabase session for a TV video upload", async () => {
@@ -3506,6 +3545,67 @@ test("finds the next configured public livestream day", () => {
       now: new Date("2026-07-26T16:00:00.000Z"),
     })
   ).toBeNull();
+});
+
+test("shows the unavailable scoresheet notice only for results-only publication", () => {
+  expect(
+    hasPublishedResultsWithoutScoresheets({
+      publishedResultClassCount: 3,
+      publishedClassCount: 0,
+    })
+  ).toBe(true);
+  expect(
+    hasPublishedResultsWithoutScoresheets({
+      publishedResultClassCount: 3,
+      publishedClassCount: 1,
+    })
+  ).toBe(false);
+  expect(
+    hasPublishedResultsWithoutScoresheets({
+      publishedResultClassCount: 3,
+      publishedClassCount: 0,
+      scannedScoresheetCount: 1,
+    })
+  ).toBe(false);
+  expect(
+    hasPublishedResultsWithoutScoresheets({
+      publishedResultClassCount: 0,
+      publishedClassCount: 0,
+    })
+  ).toBe(false);
+});
+
+test("shares one block scoresheet with every published class division", () => {
+  const scoresheetDocument = {
+    classId: "block-1",
+    fileName: "block-1-scoresheet.pdf",
+    publicUrl: "https://example.com/block-1-scoresheet.pdf",
+  };
+  const classViews = buildPublicResultClassViews({
+    classItem: {
+      id: "block-1",
+      name: "Open Derby",
+      classCode: "600",
+    },
+    resultPublication: {
+      status: "published",
+      publishedAt: "2026-07-27T12:00:00.000Z",
+      resultGroups: [
+        { id: "division-600", code: "600", entries: [{ id: "run-1" }] },
+        { id: "division-601", code: "601", entries: [{ id: "run-2" }] },
+      ],
+    },
+    scoresheetDocument,
+  });
+
+  expect(classViews).toHaveLength(2);
+  expect(
+    classViews.every(
+      (classView) =>
+        classView.sourceClassId === "block-1" &&
+        classView.scoresheetDocument === scoresheetDocument
+    )
+  ).toBe(true);
 });
 
 test("detects and translates the interface language", () => {

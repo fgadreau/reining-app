@@ -8,6 +8,7 @@ import {
   getPublicShowRepository,
   getPublicShowView,
   getPublicShowViewRepository,
+  hasPublishedResultsWithoutScoresheets,
   subscribePublicShowViewRepository,
 } from "../../features/publication/publicViewRepository";
 import {
@@ -96,6 +97,8 @@ function PublicResultsPage() {
     : [];
   const activeLiveCount = liveClasses.length + livePaidWarmups.length;
   const hasLivestreamVideo = hasPublicLivestream(show);
+  const showScoresheetUnavailableNotice =
+    hasPublishedResultsWithoutScoresheets(publicView);
   const canonicalPublicPath = `/public/associations/${associationId}/shows/${showId}`;
   const seo = useMemo(
     () => buildShowPublicSeo({ association, show, t }),
@@ -343,6 +346,22 @@ function PublicResultsPage() {
       {scheduleSections.length > 0 && (
         <PublicScheduleSections sections={scheduleSections} />
       )}
+
+      {showScoresheetUnavailableNotice ? (
+        <section style={scoresheetUnavailableNoticeStyle}>
+          <div style={scoresheetUnavailableIconStyle} aria-hidden="true">
+            i
+          </div>
+          <div>
+            <div style={scoresheetUnavailableTitleStyle}>
+              {t("public.results.scoresheetsUnavailableTitle")}
+            </div>
+            <div style={scoresheetUnavailableTextStyle}>
+              {t("public.results.scoresheetsUnavailableText")}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section style={summaryStyle}>
         <div style={summaryValueStyle}>
@@ -792,6 +811,8 @@ function PublicClassResultStandings({
   classView,
 }) {
   const { t } = useTranslation();
+  const scoresheetDocument = classView.scoresheetDocument || null;
+  const scoresheetPublicUrl = scoresheetDocument?.publicUrl || "";
 
   const downloadClassPdf = () => {
     const pdf = generateClassResultsPdf({
@@ -834,6 +855,17 @@ function PublicClassResultStandings({
         </div>
         <div style={classActionsStyle}>
           <Badge>{t("public.results.resultsBadge")}</Badge>
+          {scoresheetPublicUrl ? (
+            <a
+              href={scoresheetPublicUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={smallButtonStyle}
+              title={scoresheetDocument.fileName || ""}
+            >
+              {t("public.results.openScannedScoresheet")}
+            </a>
+          ) : null}
           <button
             type="button"
             onClick={downloadClassPdf}
@@ -2729,6 +2761,40 @@ const paidWarmupNoticeStyle = {
   color: "#854d0e",
   fontWeight: 800,
   marginBottom: 12,
+};
+
+const scoresheetUnavailableNoticeStyle = {
+  display: "flex",
+  alignItems: "flex-start",
+  gap: 12,
+  margin: "12px 0",
+  padding: 14,
+  border: `1px solid ${publicColors.borderStrong}`,
+  borderRadius: 8,
+  background: publicColors.blueSoft,
+  color: publicColors.text,
+};
+
+const scoresheetUnavailableIconStyle = {
+  display: "grid",
+  placeItems: "center",
+  flex: "0 0 28px",
+  width: 28,
+  height: 28,
+  borderRadius: 999,
+  background: publicColors.blue,
+  color: "#fff",
+  fontWeight: 900,
+};
+
+const scoresheetUnavailableTitleStyle = {
+  marginBottom: 3,
+  fontWeight: 900,
+};
+
+const scoresheetUnavailableTextStyle = {
+  color: publicColors.softText,
+  lineHeight: 1.45,
 };
 
 const nextScheduleItemStyle = {

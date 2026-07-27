@@ -44,6 +44,13 @@ import {
   unpublishClassResultsRepository,
 } from "../../features/results/resultPublicationRepository";
 import {
+  deleteScannedScoresheetRepository,
+  formatScannedScoresheetSize,
+  getScannedScoresheetPublicUrl,
+  getScannedScoresheetsForShowRepository,
+  uploadScannedScoresheetRepository,
+} from "../../features/results/scannedScoresheetRepository";
+import {
   buildAnnouncerResultGroups,
   hasCompletedAnnouncerResults,
   isAnnouncerResultsApproval,
@@ -82,6 +89,9 @@ function SecretariatDashboardPage() {
   const [daySections, setDaySections] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [announcerResultsPreview, setAnnouncerResultsPreview] = useState(null);
+  const [scoresheetBusyClassIds, setScoresheetBusyClassIds] = useState(
+    () => new Set()
+  );
   const access = useAssociationAccess(associationId);
 
   const association = useMemo(() => {
@@ -98,6 +108,8 @@ function SecretariatDashboardPage() {
     async function loadDaySections() {
       setIsLoading(true);
       const days = getDaysByShowId(showId);
+      const scoresheetDocumentsByClassId =
+        await getScannedScoresheetsForShowRepository(showId);
       const nextSections = await Promise.all(
         days.map(async (day) => {
           const classes = await getClassesForDayRepository(day.id);
@@ -124,6 +136,8 @@ function SecretariatDashboardPage() {
                 judgeSessions,
                 resultPublication:
                   await getClassResultPublicationRepository(classItem.id),
+                scoresheetDocument:
+                  scoresheetDocumentsByClassId[classItem.id] || null,
               };
             })
           );
@@ -152,6 +166,66 @@ function SecretariatDashboardPage() {
   const currentClassRows = buildCurrentClassRows(daySections);
 
   const refresh = () => setVersion((value) => value + 1);
+
+  const setScoresheetBusy = (classId, isBusy) => {
+    setScoresheetBusyClassIds((current) => {
+      const next = new Set(current);
+      if (isBusy) {
+        next.add(classId);
+      } else {
+        next.delete(classId);
+      }
+      return next;
+    });
+  };
+
+  const handleUploadScannedScoresheet = async (classData, file) => {
+    const classId = classData?.classItem?.id;
+    if (!classId || !file) return;
+
+    setScoresheetBusy(classId, true);
+    try {
+      await uploadScannedScoresheetRepository({
+        associationId,
+        showId,
+        classId,
+        file,
+      });
+      refresh();
+    } catch (error) {
+      alert(
+        t("management.secretariat.scannedScoresheetUploadFailed", {
+          message: error.message || "",
+        })
+      );
+    } finally {
+      setScoresheetBusy(classId, false);
+    }
+  };
+
+  const handleDeleteScannedScoresheet = async (classData) => {
+    const classId = classData?.classItem?.id;
+    const document = classData?.scoresheetDocument;
+    if (!classId || !document) return;
+
+    if (!window.confirm(t("management.secretariat.scannedScoresheetDeleteConfirm"))) {
+      return;
+    }
+
+    setScoresheetBusy(classId, true);
+    try {
+      await deleteScannedScoresheetRepository(document);
+      refresh();
+    } catch (error) {
+      alert(
+        t("management.secretariat.scannedScoresheetDeleteFailed", {
+          message: error.message || "",
+        })
+      );
+    } finally {
+      setScoresheetBusy(classId, false);
+    }
+  };
 
   const handlePublish = async (classId) => {
     await publishClassRepository(classId, "secretariat");
@@ -495,6 +569,15 @@ function SecretariatDashboardPage() {
                           onUnpublishResults={handleUnpublishResults}
                           onDownloadResultsPdf={handleDownloadResultsPdf}
                           onOpenAnnouncerResults={setAnnouncerResultsPreview}
+                          onUploadScannedScoresheet={
+                            handleUploadScannedScoresheet
+                          }
+                          onDeleteScannedScoresheet={
+                            handleDeleteScannedScoresheet
+                          }
+                          isScoresheetBusy={scoresheetBusyClassIds.has(
+                            classData.classItem?.id
+                          )}
                           canManage={access.canManageAssociation}
                           language={language}
                         />
@@ -606,6 +689,9 @@ function ClassRow({
   onUnpublishResults,
   onDownloadResultsPdf,
   onOpenAnnouncerResults,
+  onUploadScannedScoresheet,
+  onDeleteScannedScoresheet,
+  isScoresheetBusy,
   canManage,
   language,
 }) {
@@ -615,6 +701,9 @@ function ClassRow({
   const official = classData.official;
   const publication = classData.publication;
   const resultPublication = classData.resultPublication;
+  const scoresheetDocument = classData.scoresheetDocument;
+  const scoresheetPublicUrl =
+    getScannedScoresheetPublicUrl(scoresheetDocument);
   const scoringRuns = classData.scoringRuns || [];
   const classId = classItem?.id;
   const judgeSummary = getJudgeSheetSummary(classData);
@@ -815,8 +904,20 @@ function ClassRow({
       </td>
       <td style={tdStyle}>
         <div style={{ display: "grid", gap: 6 }}>
-          <Badge tone={officialPdfReady ? "success" : isSigned ? "warn" : "muted"}>
-            {announcerResultsApproved
+          <Badge
+            tone={
+              scoresheetDocument
+                ? "success"
+                : officialPdfReady
+                  ? "success"
+                  : isSigned
+                    ? "warn"
+                    : "muted"
+            }
+          >
+            {scoresheetDocument
+              ? t("management.secretariat.scannedScoresheetAvailable")
+              : announcerResultsApproved
               ? t("management.secretariat.noScoresheet")
               : isMultiJudge && officialPdfReady
               ? t("management.secretariat.combinedPdfGenerated")
@@ -828,11 +929,69 @@ function ClassRow({
                   ? t("management.secretariat.pdfValidationRequired")
                   : t("management.secretariat.pdfToGenerate")}
           </Badge>
-          {officialPdfReady && finalPdfFileName && (
+          {scoresheetDocument ? (
+            <div style={fileNameStyle} title={scoresheetDocument.fileName}>
+              {scoresheetDocument.fileName || "scoresheet.pdf"}
+              {scoresheetDocument.fileSize
+                ? ` · ${formatScannedScoresheetSize(
+                    scoresheetDocument.fileSize
+                  )}`
+                : ""}
+            </div>
+          ) : officialPdfReady && finalPdfFileName ? (
             <div style={fileNameStyle} title={finalPdfFileName}>
               {finalPdfFileName}
             </div>
-          )}
+          ) : null}
+          {scoresheetDocument && scoresheetPublicUrl ? (
+            <a
+              href={scoresheetPublicUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={tinyLinkButtonStyle}
+            >
+              {t("management.secretariat.scannedScoresheetOpen")}
+            </a>
+          ) : null}
+          {canManage ? (
+            <div style={judgeStatusActionsStyle}>
+              <label
+                style={
+                  isScoresheetBusy
+                    ? disabledUploadLabelStyle
+                    : tinyUploadLabelStyle
+                }
+              >
+                {isScoresheetBusy
+                  ? t("management.secretariat.scannedScoresheetUploading")
+                  : scoresheetDocument
+                    ? t("management.secretariat.scannedScoresheetReplace")
+                    : t("management.secretariat.scannedScoresheetUpload")}
+                {!isScoresheetBusy ? (
+                  <input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    style={hiddenFileInputStyle}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0] || null;
+                      event.target.value = "";
+                      onUploadScannedScoresheet(classData, file);
+                    }}
+                  />
+                ) : null}
+              </label>
+              {scoresheetDocument ? (
+                <button
+                  type="button"
+                  onClick={() => onDeleteScannedScoresheet(classData)}
+                  style={tinyButtonStyle}
+                  disabled={isScoresheetBusy}
+                >
+                  {t("management.secretariat.scannedScoresheetDelete")}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </td>
       <td style={tdStyle}>
@@ -1525,6 +1684,29 @@ const tinyButtonStyle = {
   ...smallButtonStyle,
   padding: "5px 8px",
   fontSize: 12,
+};
+
+const tinyLinkButtonStyle = {
+  ...linkButtonStyle,
+  width: "fit-content",
+  padding: "5px 8px",
+  fontSize: 12,
+};
+
+const tinyUploadLabelStyle = {
+  ...tinyButtonStyle,
+  display: "inline-flex",
+  alignItems: "center",
+};
+
+const disabledUploadLabelStyle = {
+  ...tinyUploadLabelStyle,
+  opacity: 0.6,
+  cursor: "wait",
+};
+
+const hiddenFileInputStyle = {
+  display: "none",
 };
 
 const smallPrimaryButtonStyle = {
