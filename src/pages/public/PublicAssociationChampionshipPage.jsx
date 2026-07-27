@@ -608,6 +608,13 @@ function PublicAssociationChampionshipPage() {
             </section>
           )}
 
+          <ChampionshipRulesPanel
+            isOpen={isRulesOpen}
+            onToggle={() => setIsRulesOpen((value) => !value)}
+            rules={championshipRules}
+            t={t}
+          />
+
           <section style={isMobileLayout ? mobileSearchStyle : searchStyle}>
             <label style={searchLabelStyle} htmlFor="championship-search">
               {t("championship.public.searchLabel")}
@@ -714,12 +721,6 @@ function PublicAssociationChampionshipPage() {
         isOpen={isFunFactsOpen}
         onClose={() => setIsFunFactsOpen(false)}
         funFacts={funFacts}
-        t={t}
-      />
-      <ChampionshipRulesModal
-        isOpen={isRulesOpen}
-        onClose={() => setIsRulesOpen(false)}
-        rules={championshipRules}
         t={t}
       />
       <ChampionshipVerificationRequestPanel
@@ -1177,33 +1178,36 @@ function ChampionshipFunFactsModal({ isOpen, onClose, funFacts, t }) {
   );
 }
 
-function ChampionshipRulesModal({ isOpen, onClose, rules, t }) {
-  if (!isOpen) return null;
-
+function ChampionshipRulesPanel({ isOpen, onToggle, rules, t }) {
   return (
-    <div style={funFactsBackdropStyle} role="presentation" onClick={onClose}>
-      <section
-        style={championshipRulesModalStyle}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="championship-rules-title"
-        onClick={(event) => event.stopPropagation()}
+    <section style={championshipRulesPanelStyle}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        aria-controls="championship-public-rules-content"
+        style={championshipRulesPanelButtonStyle}
       >
-        <div style={funFactsHeaderStyle}>
-          <div>
-            <div style={eyebrowStyle}>
-              {t("championship.public.rulesEyebrow")}
-            </div>
-            <h2 id="championship-rules-title" style={funFactsTitleStyle}>
-              {t("championship.public.rulesTitle")}
-            </h2>
+        <div>
+          <div style={championshipRulesPanelEyebrowStyle}>
+            {t("championship.public.rulesEyebrow")}
           </div>
-          <button type="button" onClick={onClose} style={funFactsCloseButtonStyle}>
-            {t("championship.public.rulesClose")}
-          </button>
+          <div style={championshipRulesPanelTitleStyle}>
+            {t("championship.public.rulesOpen")}
+          </div>
         </div>
+        <span style={championshipRulesPanelToggleStyle}>
+          {isOpen
+            ? t("championship.public.rulesHide")
+            : t("championship.public.rulesView")}
+        </span>
+      </button>
 
-        <div style={championshipRulesContentStyle}>
+      {isOpen && (
+        <div
+          id="championship-public-rules-content"
+          style={championshipRulesPanelContentStyle}
+        >
           {rules.rulesStatement && (
             <section style={championshipRuleSectionStyle}>
               <h3 style={championshipRuleTitleStyle}>
@@ -1224,9 +1228,14 @@ function ChampionshipRulesModal({ isOpen, onClose, rules, t }) {
               </div>
             </section>
           )}
+          {!rules.rulesStatement && !rules.pointsExplanation && (
+            <div style={championshipRulesUnavailableStyle}>
+              {t("championship.public.rulesUnavailable")}
+            </div>
+          )}
         </div>
-      </section>
-    </div>
+      )}
+    </section>
   );
 }
 
@@ -1947,14 +1956,65 @@ const funFactsModalStyle = {
   padding: 16,
 };
 
-const championshipRulesModalStyle = {
-  ...funFactsModalStyle,
-  width: "min(680px, 100%)",
+const championshipRulesPanelStyle = {
+  ...publicCardStyle,
+  padding: 0,
+  marginBottom: 12,
+  overflow: "hidden",
 };
 
-const championshipRulesContentStyle = {
+const championshipRulesPanelButtonStyle = {
+  width: "100%",
+  minHeight: 62,
+  border: 0,
+  padding: "12px 14px",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 12,
+  background: publicColors.surface,
+  color: publicColors.text,
+  cursor: "pointer",
+  textAlign: "left",
+  font: "inherit",
+};
+
+const championshipRulesPanelEyebrowStyle = {
+  color: publicColors.muted,
+  fontSize: 10,
+  fontWeight: 900,
+  textTransform: "uppercase",
+  letterSpacing: "0.06em",
+};
+
+const championshipRulesPanelTitleStyle = {
+  marginTop: 3,
+  color: publicColors.text,
+  fontSize: 16,
+  fontWeight: 900,
+  lineHeight: 1.25,
+};
+
+const championshipRulesPanelToggleStyle = {
+  flexShrink: 0,
+  color: publicColors.accent,
+  fontSize: 12,
+  fontWeight: 900,
+};
+
+const championshipRulesPanelContentStyle = {
   display: "grid",
   gap: 14,
+  padding: "0 14px 14px",
+  borderTop: `1px solid ${publicColors.border}`,
+};
+
+const championshipRulesUnavailableStyle = {
+  paddingTop: 14,
+  color: publicColors.muted,
+  fontSize: 13,
+  fontWeight: 750,
+  lineHeight: 1.45,
 };
 
 const championshipRuleSectionStyle = {

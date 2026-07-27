@@ -1172,7 +1172,7 @@ test("builds a unique classified-rider call list with cutoff ties", () => {
   ).toBe("contact:RIDER1");
 });
 
-test("normalizes optional championship rules for the public modal", () => {
+test("normalizes optional championship rules for the public section", () => {
   const rules = normalizeChampionshipRules({
     rulesStatement: "  Participation à trois shows minimum.  ",
     pointsExplanation: "10 points au premier rang.\n8 points au deuxième.",
