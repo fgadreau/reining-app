@@ -58,6 +58,7 @@ import {
 import {
   getCurrentPublicLivestream,
   getDateValueInTimeZone,
+  getPreviousPublicLivestreams,
   normalizeLivestreamUrlsByDate,
 } from "./features/livestream/livestreamSchedule";
 import { doesShowLivestreamMatchRow } from "./features/shows/showRepository";
@@ -3380,6 +3381,36 @@ test("normalizes daily livestream links by valid date", () => {
     "2026-07-22": "https://example.com/day-1",
     "2026-07-24": "https://example.com/day-3",
   });
+});
+
+test("lists only previous public livestream days from newest to oldest", () => {
+  const show = {
+    startDate: "2026-07-22",
+    endDate: "2026-07-25",
+    isLivestreamPublic: true,
+    livestreamUrlsByDate: {
+      "2026-07-22": "https://example.com/day-1",
+      "2026-07-23": "https://example.com/day-2",
+      "2026-07-24": "https://example.com/day-3",
+      "2026-07-25": "https://example.com/day-4",
+    },
+  };
+
+  expect(
+    getPreviousPublicLivestreams(show, {
+      timezone: "America/Toronto",
+      now: new Date("2026-07-24T16:00:00.000Z"),
+    })
+  ).toEqual([
+    { date: "2026-07-23", url: "https://example.com/day-2" },
+    { date: "2026-07-22", url: "https://example.com/day-1" },
+  ]);
+  expect(
+    getPreviousPublicLivestreams(
+      { ...show, isLivestreamPublic: false },
+      { now: new Date("2026-07-26T16:00:00.000Z") }
+    )
+  ).toEqual([]);
 });
 
 test("detects and translates the interface language", () => {

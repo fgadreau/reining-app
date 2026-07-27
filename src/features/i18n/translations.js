@@ -1911,19 +1911,36 @@ export const translations = {
         returnSoon: "Retour en piste bientôt",
       },
       livestream: {
+        archive: "Diffusions précédentes",
+        archiveHelp:
+          "Les liens des journées passées restent disponibles lorsqu’une diffusion a été publiée.",
+        backNumber: "Back",
+        blockLive: "Ordre de passage en direct",
+        completed: "Complétée",
+        current: "En piste",
+        draw: "Passage",
         eyebrow: "Livestream du show",
         externalOnly:
           "Cette plateforme doit être ouverte dans une nouvelle fenêtre.",
+        horse: "Cheval",
+        liveProgress:
+          "Les scores complétés et la run en cours se mettent à jour automatiquement.",
         loading: "Chargement du livestream…",
+        noLiveBlock: "En attente du prochain bloc en direct.",
         noVideoToday: "Aucune vidéo n’est publiée pour aujourd’hui.",
         openExternal: "Ouvrir le livestream",
         openResults: "Voir le pointage et l’avancement",
+        openReplay: "Voir la diffusion",
         outsideShowDay:
           "Le livestream est disponible uniquement pendant les journées du show.",
+        rider: "Cavalier",
         resultsRemainAvailable:
           "Le pointage, l’horaire et l’avancement demeurent accessibles sans charger de vidéo.",
+        score: "Score",
         seoTitle: "Livestream · {{showName}} | ShowScore",
+        status: "État",
         today: "Diffusion d’aujourd’hui",
+        upcoming: "À venir",
         videoTitle: "Livestream du show",
       },
       status: {
@@ -3844,18 +3861,35 @@ export const translations = {
         viewDetails: "Details",
       },
       livestream: {
+        archive: "Previous broadcasts",
+        archiveHelp:
+          "Links from previous show days remain available when a broadcast was published.",
+        backNumber: "Back",
+        blockLive: "Live order of go",
+        completed: "Completed",
+        current: "On course",
+        draw: "Draw",
         eyebrow: "Show livestream",
         externalOnly: "This platform must be opened in a new window.",
+        horse: "Horse",
+        liveProgress:
+          "Completed scores and the current run update automatically.",
         loading: "Loading livestream…",
+        noLiveBlock: "Waiting for the next live block.",
         noVideoToday: "No video is published for today.",
         openExternal: "Open livestream",
         openResults: "View scoring and progress",
+        openReplay: "Watch broadcast",
         outsideShowDay:
           "The livestream is available only during the show dates.",
+        rider: "Rider",
         resultsRemainAvailable:
           "Scoring, schedule, and progress remain available without loading video.",
+        score: "Score",
         seoTitle: "Livestream · {{showName}} | ShowScore",
+        status: "Status",
         today: "Today’s broadcast",
+        upcoming: "Upcoming",
         videoTitle: "Show livestream",
       },
       status: {

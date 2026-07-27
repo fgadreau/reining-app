@@ -91,6 +91,21 @@ export function getCurrentPublicLivestream(
   };
 }
 
+export function getPreviousPublicLivestreams(
+  show,
+  { timezone = "", now = new Date() } = {}
+) {
+  if (!show?.isLivestreamPublic) return [];
+
+  const currentDate = getDateValueInTimeZone(now, timezone);
+  const urlsByDate = getLivestreamUrlsForShow(show, { timezone, now });
+
+  return Object.entries(urlsByDate)
+    .filter(([date]) => date < currentDate)
+    .sort(([firstDate], [secondDate]) => secondDate.localeCompare(firstDate))
+    .map(([date, url]) => ({ date, url }));
+}
+
 export function hasConfiguredLivestream(show) {
   return Boolean(
     Object.keys(normalizeLivestreamUrlsByDate(show?.livestreamUrlsByDate)).length ||
