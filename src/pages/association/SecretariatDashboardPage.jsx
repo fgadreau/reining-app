@@ -485,19 +485,30 @@ function SecretariatDashboardPage() {
 
       <section style={summaryGridStyle}>
         <SummaryTile label={t("management.secretariat.classes")} value={summary.total} />
-        <SummaryTile label={t("management.classes.statusDraft")} value={summary.draft} tone="muted" />
-        <SummaryTile label={t("management.secretariat.ready")} value={summary.ready} tone="info" />
-        <SummaryTile label={t("management.classes.statusInProgress")} value={summary.inProgress} tone="warn" />
-        <SummaryTile label={t("management.secretariat.signed")} value={summary.signed} tone="warn" />
-        <SummaryTile label={t("management.secretariat.validated")} value={summary.validated} tone="success" />
-        <SummaryTile label={t("management.secretariat.results")} value={summary.resultsPublished} tone="success" />
-        <SummaryTile label={t("management.secretariat.pdf")} value={summary.pdfReady} tone="success" />
-        <SummaryTile label={t("management.secretariat.published")} value={summary.published} tone="success" />
+        <SummaryTile
+          label={t("management.classes.statusInProgress")}
+          value={summary.inProgress}
+          tone={summary.inProgress > 0 ? "warn" : "default"}
+        />
+        <SummaryTile
+          label={t("management.secretariat.signed")}
+          value={summary.signed}
+          tone={summary.signed > 0 ? "warn" : "default"}
+        />
+        <SummaryTile
+          label={t("management.secretariat.validated")}
+          value={summary.validated}
+          tone={summary.validated > 0 ? "success" : "default"}
+        />
+        <SummaryTile
+          label={t("management.secretariat.results")}
+          value={summary.resultsPublished}
+          tone={summary.resultsPublished > 0 ? "success" : "default"}
+        />
       </section>
 
-      {!isLoading && (
+      {!isLoading && currentClassRows.length > 0 && (
         <CurrentClassesPanel
-          associationId={associationId}
           currentClasses={currentClassRows}
         />
       )}
@@ -540,12 +551,10 @@ function SecretariatDashboardPage() {
                     <thead>
                       <tr>
                         <th style={thStyle}>{t("management.secretariat.class")}</th>
-                        <th style={thStyle}>{t("management.secretariat.setup")}</th>
-                        <th style={thStyle}>{t("management.secretariat.scoring")}</th>
+                        <th style={thStyle}>{t("management.secretariat.followUp")}</th>
                         <th style={thStyle}>{t("management.secretariat.official")}</th>
                         <th style={thStyle}>{t("management.secretariat.results")}</th>
-                        <th style={thStyle}>{t("management.secretariat.officialPdf")}</th>
-                        <th style={thStyle}>{t("management.secretariat.publication")}</th>
+                        <th style={thStyle}>{t("management.secretariat.documents")}</th>
                         <th style={thStyle}>{t("management.classSetup.actions")}</th>
                       </tr>
                     </thead>
@@ -604,7 +613,7 @@ function SecretariatDashboardPage() {
   );
 }
 
-function CurrentClassesPanel({ associationId, currentClasses }) {
+function CurrentClassesPanel({ currentClasses }) {
   const { t } = useTranslation();
 
   return (
@@ -655,16 +664,6 @@ function CurrentClassesPanel({ associationId, currentClasses }) {
                   </Badge>
                 </div>
                 <ClassPaceSummary pace={timing} />
-                {classId && (
-                  <div style={currentClassActionsStyle}>
-                    <Link
-                      to={`/associations/${associationId}/scribe/classes/${classId}`}
-                      style={smallLinkButtonStyle}
-                    >
-                      {t("management.secretariat.scoring")}
-                    </Link>
-                  </div>
-                )}
               </div>
             );
           })}
@@ -752,109 +751,120 @@ function ClassRow({
         <div style={metaStyle}>
           {t("public.results.pattern")} {setup?.pattern || classItem?.pattern || "—"}
         </div>
-      </td>
-      <td style={tdStyle}>
-        <Badge tone={setupReady ? "success" : "muted"}>
-          {setupReady
-            ? t("management.secretariat.setupRunCount", {
-                count: setup.runs.length,
-              })
-            : t("management.secretariat.setupIncomplete")}
-        </Badge>
+        <div style={inlineStatusStyle}>
+          <Badge tone={setupReady ? "success" : "muted"}>
+            {setupReady
+              ? t("management.secretariat.setupRunCount", {
+                  count: setup.runs.length,
+                })
+              : t("management.secretariat.setupIncomplete")}
+          </Badge>
+        </div>
       </td>
       <td style={tdStyle}>
         <Badge tone={scoringBadge.tone}>{scoringBadge.label}</Badge>
-        {isMultiJudge && (
-          <div style={judgeStatusListStyle}>
-            <div style={judgeStatusTitleStyle}>
-              {t("management.secretariat.judgeSheets")}
-            </div>
-            {judgeSummary.rows.map((row) => (
-              <div key={row.judge.id} style={judgeStatusRowStyle}>
-                <div style={judgeStatusTextStyle}>
-                  <span style={judgeStatusNameStyle}>{row.displayName}</span>
-                  {row.session?.claimedByEmail && (
-                    <span style={judgeStatusMetaStyle}>
-                      {t("management.secretariat.judgeReservedBy", {
-                        email: row.session.claimedByEmail,
-                      })}
-                    </span>
-                  )}
+        {(isMultiJudge || setApprovalRows.length > 0) && (
+          <details style={compactDetailsStyle}>
+            <summary style={compactSummaryStyle}>
+              {t("management.secretariat.judgeSheetDetails", {
+                count: judgeSummary.rows.length,
+              })}
+            </summary>
+            {isMultiJudge && (
+              <div style={judgeStatusListStyle}>
+                <div style={judgeStatusTitleStyle}>
+                  {t("management.secretariat.judgeSheets")}
                 </div>
-                <div style={judgeStatusActionsStyle}>
-                  <Badge
-                    tone={
-                      row.signed ? "success" : row.started ? "warn" : "muted"
-                    }
-                  >
-                    {row.signed
-                      ? t("management.secretariat.judgeSigned")
-                      : row.started
-                        ? t("management.secretariat.judgeInProgress")
-                        : t("management.secretariat.judgeNotStarted")}
-                  </Badge>
-                  {canManage && row.signed && (
-                    <button
-                      type="button"
-                      onClick={() => onDownloadJudgePdf(classData, row.judge)}
-                      style={tinyButtonStyle}
-                    >
-                      {t("management.secretariat.judgePdf")}
-                    </button>
-                  )}
-                  {canManage &&
-                    row.session?.claimedBy &&
-                    !row.signed && (
-                      <button
-                        type="button"
-                        onClick={() => onReleaseJudgeSession(classData, row.judge)}
-                        style={tinyButtonStyle}
+                {judgeSummary.rows.map((row) => (
+                  <div key={row.judge.id} style={judgeStatusRowStyle}>
+                    <div style={judgeStatusTextStyle}>
+                      <span style={judgeStatusNameStyle}>{row.displayName}</span>
+                      {row.session?.claimedByEmail && (
+                        <span style={judgeStatusMetaStyle}>
+                          {t("management.secretariat.judgeReservedBy", {
+                            email: row.session.claimedByEmail,
+                          })}
+                        </span>
+                      )}
+                    </div>
+                    <div style={judgeStatusActionsStyle}>
+                      <Badge
+                        tone={
+                          row.signed ? "success" : row.started ? "warn" : "muted"
+                        }
                       >
-                        {t("management.secretariat.releaseJudge")}
-                      </button>
-                    )}
-                </div>
+                        {row.signed
+                          ? t("management.secretariat.judgeSigned")
+                          : row.started
+                            ? t("management.secretariat.judgeInProgress")
+                            : t("management.secretariat.judgeNotStarted")}
+                      </Badge>
+                      {canManage && row.signed && (
+                        <button
+                          type="button"
+                          onClick={() => onDownloadJudgePdf(classData, row.judge)}
+                          style={tinyButtonStyle}
+                        >
+                          {t("management.secretariat.judgePdf")}
+                        </button>
+                      )}
+                      {canManage &&
+                        row.session?.claimedBy &&
+                        !row.signed && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onReleaseJudgeSession(classData, row.judge)
+                            }
+                            style={tinyButtonStyle}
+                          >
+                            {t("management.secretariat.releaseJudge")}
+                          </button>
+                        )}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-        {setApprovalRows.length > 0 && (
-          <div style={judgeStatusListStyle}>
-            <div style={judgeStatusTitleStyle}>
-              {t("management.secretariat.setSheets")}
-            </div>
-            {setApprovalRows.map(({ approval, judgeName }) => (
-              <div key={approval.id} style={judgeStatusRowStyle}>
-                <div style={judgeStatusTextStyle}>
-                  <span style={judgeStatusNameStyle}>
-                    {t("management.secretariat.setSheetLabel", {
-                      set: approval.setNumber,
-                      start: approval.startDraw,
-                      end: approval.endDraw,
-                    })}
-                  </span>
-                  <span style={judgeStatusMetaStyle}>
-                    {judgeName} ·{" "}
-                    {formatDateTime(approval.sentAt, language)}
-                  </span>
+            )}
+            {setApprovalRows.length > 0 && (
+              <div style={judgeStatusListStyle}>
+                <div style={judgeStatusTitleStyle}>
+                  {t("management.secretariat.setSheets")}
                 </div>
-                <div style={judgeStatusActionsStyle}>
-                  <Badge tone="success">
-                    {t("management.secretariat.setReceived")}
-                  </Badge>
-                  {canManage && (
-                    <button
-                      type="button"
-                      onClick={() => onDownloadSetPdf(classData, approval)}
-                      style={tinyButtonStyle}
-                    >
-                      {t("management.secretariat.setPdf")}
-                    </button>
-                  )}
-                </div>
+                {setApprovalRows.map(({ approval, judgeName }) => (
+                  <div key={approval.id} style={judgeStatusRowStyle}>
+                    <div style={judgeStatusTextStyle}>
+                      <span style={judgeStatusNameStyle}>
+                        {t("management.secretariat.setSheetLabel", {
+                          set: approval.setNumber,
+                          start: approval.startDraw,
+                          end: approval.endDraw,
+                        })}
+                      </span>
+                      <span style={judgeStatusMetaStyle}>
+                        {judgeName} ·{" "}
+                        {formatDateTime(approval.sentAt, language)}
+                      </span>
+                    </div>
+                    <div style={judgeStatusActionsStyle}>
+                      <Badge tone="success">
+                        {t("management.secretariat.setReceived")}
+                      </Badge>
+                      {canManage && (
+                        <button
+                          type="button"
+                          onClick={() => onDownloadSetPdf(classData, approval)}
+                          style={tinyButtonStyle}
+                        >
+                          {t("management.secretariat.setPdf")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </details>
         )}
       </td>
       <td style={tdStyle}>
@@ -883,7 +893,7 @@ function ClassRow({
         )}
       </td>
       <td style={tdStyle}>
-        <div style={{ display: "grid", gap: 6 }}>
+        <div style={statusStackStyle}>
           <Badge tone={resultsPublished ? "success" : isValidated ? "warn" : "muted"}>
             {resultsPublished
               ? t("management.secretariat.resultsPublished", {
@@ -903,7 +913,7 @@ function ClassRow({
         </div>
       </td>
       <td style={tdStyle}>
-        <div style={{ display: "grid", gap: 6 }}>
+        <div style={statusStackStyle}>
           <Badge
             tone={
               scoresheetDocument
@@ -980,51 +990,30 @@ function ClassRow({
                   />
                 ) : null}
               </label>
-              {scoresheetDocument ? (
-                <button
-                  type="button"
-                  onClick={() => onDeleteScannedScoresheet(classData)}
-                  style={tinyButtonStyle}
-                  disabled={isScoresheetBusy}
-                >
-                  {t("management.secretariat.scannedScoresheetDelete")}
-                </button>
-              ) : null}
             </div>
           ) : null}
+          <div style={documentPublicationStyle}>
+            <span>{t("management.secretariat.publication")}:</span>
+            <Badge
+              tone={
+                publication?.status === PUBLICATION_STATUSES.PUBLISHED
+                  ? "success"
+                  : "muted"
+              }
+            >
+              {getPublicationStatusLabel(
+                publication?.status || PUBLICATION_STATUSES.HIDDEN,
+                t
+              )}
+            </Badge>
+          </div>
         </div>
       </td>
       <td style={tdStyle}>
-        <Badge
-          tone={
-            publication?.status === PUBLICATION_STATUSES.PUBLISHED
-              ? "success"
-              : "muted"
-          }
-        >
-          {getPublicationStatusLabel(
-            publication?.status || PUBLICATION_STATUSES.HIDDEN,
-            t
-          )}
-        </Badge>
-      </td>
-      <td style={tdStyle}>
-        <div style={actionRowStyle}>
-          <Link
-            to={`/associations/${associationId}/classes/${classId}/setup`}
-            style={smallLinkButtonStyle}
-          >
-            {t("management.secretariat.setup")}
-          </Link>
-          <Link
-            to={`/associations/${associationId}/scribe/classes/${classId}`}
-            style={smallLinkButtonStyle}
-          >
-            {t("management.secretariat.scoring")}
-          </Link>
-          {canManage && (
-            <>
-              {isSigned && !isValidated && (
+        <div style={rowActionStackStyle}>
+          {canManage ? (
+            <div>
+              {isSigned && !isValidated ? (
                 <button
                   type="button"
                   onClick={() => onValidateOfficial(classData)}
@@ -1032,18 +1021,49 @@ function ClassRow({
                 >
                   {t("management.secretariat.validateOfficial")}
                 </button>
+              ) : announcerResultsCompleted && !isValidated && !isSigned ? (
+                <button
+                  type="button"
+                  onClick={() => onValidateAnnouncerResults(classData)}
+                  style={smallPrimaryButtonStyle}
+                >
+                  {t("management.secretariat.validateAnnouncerResults")}
+                </button>
+              ) : isValidated && !resultsPublished ? (
+                <button
+                  type="button"
+                  onClick={() => onPublishResults(classData)}
+                  style={smallPrimaryButtonStyle}
+                >
+                  {t("management.secretariat.publishResults")}
+                </button>
+              ) : resultsPublished && announcerResultsApproved ? (
+                <button
+                  type="button"
+                  onClick={() => onPublishResults(classData)}
+                  style={smallPrimaryButtonStyle}
+                >
+                  {t("management.secretariat.updateAnnouncerResults")}
+                </button>
+              ) : (
+                <Badge>
+                  {t("management.secretariat.noActionRequired")}
+                </Badge>
               )}
-              {announcerResultsCompleted &&
-                !isValidated &&
-                !isSigned && (
-                  <button
-                    type="button"
-                    onClick={() => onValidateAnnouncerResults(classData)}
-                    style={smallPrimaryButtonStyle}
-                  >
-                    {t("management.secretariat.validateAnnouncerResults")}
-                  </button>
-                )}
+            </div>
+          ) : null}
+
+          <details style={actionDetailsStyle}>
+            <summary style={actionSummaryStyle}>
+              {t("management.secretariat.moreActions")}
+            </summary>
+            <div style={secondaryActionsPanelStyle}>
+              <Link
+                to={`/associations/${associationId}/classes/${classId}/setup`}
+                style={smallLinkButtonStyle}
+              >
+                {t("management.secretariat.setup")}
+              </Link>
               {hasAnnouncerResults && (
                 <button
                   type="button"
@@ -1053,12 +1073,11 @@ function ClassRow({
                   {t("management.secretariat.viewAnnouncerResults")}
                 </button>
               )}
-              {hasOfficialScoresheet && (
+              {hasOfficialScoresheet && isValidated && (
                 <button
                   type="button"
                   onClick={() => onDownloadOfficialPdf(classData)}
                   style={smallButtonStyle}
-                  disabled={!isValidated}
                 >
                   {isMultiJudge
                     ? t("management.secretariat.combinedPdf")
@@ -1078,17 +1097,8 @@ function ClassRow({
                   {t("management.secretariat.regenerate")}
                 </button>
               )}
-              {resultsPublished ? (
+              {resultsPublished && (
                 <>
-                  {announcerResultsApproved && (
-                    <button
-                      type="button"
-                      onClick={() => onPublishResults(classData)}
-                      style={smallPrimaryButtonStyle}
-                    >
-                      {t("management.secretariat.updateAnnouncerResults")}
-                    </button>
-                  )}
                   <button
                     type="button"
                     onClick={() => onDownloadResultsPdf(classData)}
@@ -1104,15 +1114,6 @@ function ClassRow({
                     {t("management.secretariat.hideResults")}
                   </button>
                 </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => onPublishResults(classData)}
-                  style={smallButtonStyle}
-                  disabled={!isValidated}
-                >
-                  {t("management.secretariat.publishResults")}
-                </button>
               )}
               {publication?.status === PUBLICATION_STATUSES.PUBLISHED ? (
                 <button
@@ -1122,20 +1123,27 @@ function ClassRow({
                 >
                   {t("management.secretariat.hide")}
                 </button>
-              ) : (
+              ) : hasOfficialScoresheet && isValidated && officialPdfReady ? (
                 <button
                   type="button"
                   onClick={() => onPublish(classId)}
                   style={smallButtonStyle}
-                  disabled={
-                    !hasOfficialScoresheet || !isValidated || !officialPdfReady
-                  }
                 >
                   {t("management.secretariat.publish")}
                 </button>
-              )}
-            </>
-          )}
+              ) : null}
+              {scoresheetDocument ? (
+                <button
+                  type="button"
+                  onClick={() => onDeleteScannedScoresheet(classData)}
+                  style={smallButtonStyle}
+                  disabled={isScoresheetBusy}
+                >
+                  {t("management.secretariat.scannedScoresheetDelete")}
+                </button>
+              ) : null}
+            </div>
+          </details>
         </div>
       </td>
     </tr>
@@ -1518,14 +1526,6 @@ const currentClassHeaderStyle = {
   flexWrap: "wrap",
 };
 
-const currentClassActionsStyle = {
-  display: "flex",
-  justifyContent: "flex-end",
-  gap: 8,
-  flexWrap: "wrap",
-  marginTop: 10,
-};
-
 const sectionHeaderStyle = {
   display: "flex",
   justifyContent: "space-between",
@@ -1546,7 +1546,7 @@ const tableWrapStyle = {
 
 const tableStyle = {
   width: "100%",
-  minWidth: 1080,
+  minWidth: 940,
   borderCollapse: "collapse",
 };
 
@@ -1573,6 +1573,22 @@ const metaStyle = {
   color: "#64748b",
   marginTop: 4,
   fontSize: 13,
+};
+
+const inlineStatusStyle = {
+  marginTop: 8,
+};
+
+const compactDetailsStyle = {
+  marginTop: 8,
+};
+
+const compactSummaryStyle = {
+  width: "fit-content",
+  color: "#475569",
+  fontSize: 12,
+  fontWeight: 750,
+  cursor: "pointer",
 };
 
 const judgeStatusListStyle = {
@@ -1636,6 +1652,51 @@ const actionRowStyle = {
   display: "flex",
   gap: 8,
   flexWrap: "wrap",
+};
+
+const documentPublicationStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
+  flexWrap: "wrap",
+  marginTop: 4,
+  color: "#64748b",
+  fontSize: 12,
+};
+
+const statusStackStyle = {
+  display: "grid",
+  justifyItems: "start",
+  gap: 6,
+};
+
+const rowActionStackStyle = {
+  display: "grid",
+  gap: 10,
+  minWidth: 170,
+};
+
+const actionDetailsStyle = {
+  position: "relative",
+};
+
+const actionSummaryStyle = {
+  width: "fit-content",
+  color: "#334155",
+  fontWeight: 750,
+  fontSize: 13,
+  cursor: "pointer",
+};
+
+const secondaryActionsPanelStyle = {
+  display: "flex",
+  gap: 7,
+  flexWrap: "wrap",
+  marginTop: 9,
+  padding: 10,
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  background: "#f8fafc",
 };
 
 const badgeStyle = (tone) => ({
