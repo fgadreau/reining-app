@@ -96,6 +96,21 @@ function AppPresentationPage() {
         </div>
       </section>
 
+      <section style={closingBandStyle}>
+        <div>
+          <h2 style={closingTitleStyle}>{t("presentation.closingTitle")}</h2>
+          <p style={closingTextStyle}>{t("presentation.closingText")}</p>
+        </div>
+        <div style={actionRowStyle}>
+          <Link to="/public" style={primaryLinkStyle}>
+            {t("presentation.publicCta")}
+          </Link>
+          <Link to="/" style={secondaryLinkStyle}>
+            {t("presentation.homeCta")}
+          </Link>
+        </div>
+      </section>
+
       <section style={designerSectionStyle}>
         <div style={designerPortraitFrameStyle}>
           <img
@@ -134,21 +149,6 @@ function AppPresentationPage() {
             {t("presentation.designer.website")}
             <span aria-hidden="true"> ↗</span>
           </a>
-        </div>
-      </section>
-
-      <section style={closingBandStyle}>
-        <div>
-          <h2 style={closingTitleStyle}>{t("presentation.closingTitle")}</h2>
-          <p style={closingTextStyle}>{t("presentation.closingText")}</p>
-        </div>
-        <div style={actionRowStyle}>
-          <Link to="/public" style={primaryLinkStyle}>
-            {t("presentation.publicCta")}
-          </Link>
-          <Link to="/" style={secondaryLinkStyle}>
-            {t("presentation.homeCta")}
-          </Link>
         </div>
       </section>
     </div>
@@ -314,11 +314,10 @@ const disciplinePillStyle = {
 };
 
 const designerSectionStyle = {
-  display: "grid",
-  gridTemplateColumns:
-    "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
+  display: "flex",
+  alignItems: "stretch",
+  flexWrap: "wrap",
   gap: 0,
-  marginBottom: 14,
   overflow: "hidden",
   background:
     "linear-gradient(135deg, #101820 0%, #1f2f35 58%, #172321 100%)",
@@ -328,7 +327,9 @@ const designerSectionStyle = {
 };
 
 const designerPortraitFrameStyle = {
-  minHeight: 390,
+  flex: "0 1 420px",
+  width: "min(100%, 420px)",
+  minHeight: 440,
   background: "#0f172a",
   overflow: "hidden",
 };
@@ -337,13 +338,13 @@ const designerPortraitStyle = {
   display: "block",
   width: "100%",
   height: "100%",
-  minHeight: 390,
-  maxHeight: 560,
+  minHeight: 440,
   objectFit: "cover",
-  objectPosition: "center 38%",
+  objectPosition: "center 18%",
 };
 
 const designerContentStyle = {
+  flex: "1 1 480px",
   display: "grid",
   alignContent: "center",
   gap: 14,
