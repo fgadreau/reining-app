@@ -73,6 +73,8 @@ function PublicShowTvPage() {
       ? "live"
       : "welcome";
 
+  useTvDisplayWakeLock(Boolean(showId));
+
   useEffect(() => {
     let isMounted = true;
 
@@ -253,6 +255,69 @@ function PublicShowTvPage() {
   );
 }
 
+function useTvDisplayWakeLock(enabled) {
+  const wakeLockRef = useRef(null);
+
+  useEffect(() => {
+    let isDisposed = false;
+
+    const requestWakeLock = async () => {
+      if (
+        !enabled ||
+        typeof navigator === "undefined" ||
+        !navigator.wakeLock?.request ||
+        document.visibilityState === "hidden" ||
+        (wakeLockRef.current && !wakeLockRef.current.released)
+      ) {
+        return;
+      }
+
+      try {
+        const wakeLock = await navigator.wakeLock.request("screen");
+        if (isDisposed) {
+          await wakeLock.release();
+          return;
+        }
+
+        wakeLockRef.current = wakeLock;
+        wakeLock.addEventListener?.("release", () => {
+          if (wakeLockRef.current === wakeLock) {
+            wakeLockRef.current = null;
+          }
+        });
+      } catch (error) {
+        // Wake Lock is optional and can be refused by the browser or device.
+      }
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        requestWakeLock();
+      }
+    };
+
+    requestWakeLock();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", requestWakeLock);
+    window.addEventListener("pageshow", requestWakeLock);
+
+    return () => {
+      isDisposed = true;
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+      window.removeEventListener("focus", requestWakeLock);
+      window.removeEventListener("pageshow", requestWakeLock);
+
+      const wakeLock = wakeLockRef.current;
+      wakeLockRef.current = null;
+      if (wakeLock && !wakeLock.released) {
+        wakeLock.release().catch(() => {});
+      }
+    };
+  }, [enabled]);
+}
+
 function CompetitionLoadingPanel({ selectedArena }) {
   return (
     <section
@@ -290,6 +355,7 @@ function CompetitionVideoPanel({
   selectedArena,
   show,
 }) {
+  const videoRef = useRef(null);
   const isWarmup = liveItem?.kind === "paidWarmup";
   const title = liveItem
     ? isWarmup
@@ -316,6 +382,62 @@ function CompetitionVideoPanel({
       )[0] || null
     : null;
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return undefined;
+
+    let retryTimer = null;
+    const ensurePlayback = () => {
+      window.clearTimeout(retryTimer);
+      video.muted = true;
+      video.defaultMuted = true;
+
+      if (!video.paused && !video.ended) return;
+
+      const playback = video.play();
+      if (playback?.catch) {
+        playback.catch(() => {
+          // A browser can temporarily block playback while the page is
+          // suspended. Focus/visibility listeners will retry automatically.
+        });
+      }
+    };
+    const retrySoon = () => {
+      window.clearTimeout(retryTimer);
+      retryTimer = window.setTimeout(ensurePlayback, 500);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        ensurePlayback();
+      }
+    };
+
+    video.addEventListener("pause", retrySoon);
+    video.addEventListener("ended", retrySoon);
+    video.addEventListener("canplay", ensurePlayback);
+    window.addEventListener("focus", ensurePlayback);
+    window.addEventListener("pageshow", ensurePlayback);
+    window.addEventListener("online", ensurePlayback);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    const playbackMonitor = window.setInterval(ensurePlayback, 4000);
+    ensurePlayback();
+
+    return () => {
+      window.clearTimeout(retryTimer);
+      window.clearInterval(playbackMonitor);
+      video.removeEventListener("pause", retrySoon);
+      video.removeEventListener("ended", retrySoon);
+      video.removeEventListener("canplay", ensurePlayback);
+      window.removeEventListener("focus", ensurePlayback);
+      window.removeEventListener("pageshow", ensurePlayback);
+      window.removeEventListener("online", ensurePlayback);
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+    };
+  }, [videoUrl]);
+
   return (
     <section
       style={competitionVideoLayoutStyle}
@@ -323,6 +445,7 @@ function CompetitionVideoPanel({
     >
       <div style={competitionVideoWrapStyle}>
         <video
+          ref={videoRef}
           key={videoUrl}
           src={videoUrl}
           style={competitionVideoStyle}
@@ -331,6 +454,7 @@ function CompetitionVideoPanel({
           loop
           playsInline
           preload="auto"
+          disablePictureInPicture
           data-tv-competition-video
         />
       </div>
@@ -1230,7 +1354,8 @@ const pageStyle = {
 
 const competitionPageStyle = {
   ...pageStyle,
-  display: "block",
+  display: "grid",
+  placeItems: "center",
   padding: 0,
   background: "#000",
 };
@@ -1238,20 +1363,25 @@ const competitionPageStyle = {
 const competitionVideoLayoutStyle = {
   position: "relative",
   zIndex: 1,
-  width: "100%",
-  height: "100%",
+  width: "98%",
+  height: "98%",
   minHeight: 0,
   display: "grid",
   gridTemplateRows: "minmax(0, 1fr) auto",
   background: "#000",
+  border: "2px solid rgba(244, 217, 140, 0.5)",
+  boxShadow: "0 0 20px rgba(244, 217, 140, 0.12)",
+  boxSizing: "border-box",
 };
 
 const competitionLoadingStyle = {
   position: "relative",
   zIndex: 1,
-  width: "100%",
-  height: "100%",
+  width: "98%",
+  height: "98%",
   boxSizing: "border-box",
+  border: "2px solid rgba(244, 217, 140, 0.5)",
+  boxShadow: "0 0 20px rgba(244, 217, 140, 0.12)",
   padding: "clamp(28px, 5vw, 90px)",
   display: "grid",
   placeContent: "center",
