@@ -96,6 +96,47 @@ function AppPresentationPage() {
         </div>
       </section>
 
+      <section style={designerSectionStyle}>
+        <div style={designerPortraitFrameStyle}>
+          <img
+            src="/designer-felix-gadreau-girard.jpg"
+            alt={t("presentation.designer.photoAlt")}
+            style={designerPortraitStyle}
+          />
+        </div>
+        <div style={designerContentStyle}>
+          <div style={designerEyebrowStyle}>
+            {t("presentation.designer.eyebrow")}
+          </div>
+          <div>
+            <h2 style={designerNameStyle}>
+              {t("presentation.designer.name")}
+            </h2>
+            <div style={designerRoleStyle}>
+              {t("presentation.designer.role")}
+            </div>
+          </div>
+          <p style={designerTextStyle}>
+            {t("presentation.designer.introduction")}
+          </p>
+          <p style={designerTextStyle}>
+            {t("presentation.designer.motivation")}
+          </p>
+          <p style={designerTextStyle}>
+            {t("presentation.designer.background")}
+          </p>
+          <a
+            href="https://reiningquebec.com"
+            target="_blank"
+            rel="noreferrer"
+            style={designerWebsiteStyle}
+          >
+            {t("presentation.designer.website")}
+            <span aria-hidden="true"> ↗</span>
+          </a>
+        </div>
+      </section>
+
       <section style={closingBandStyle}>
         <div>
           <h2 style={closingTitleStyle}>{t("presentation.closingTitle")}</h2>
@@ -270,6 +311,89 @@ const disciplinePillStyle = {
   background: "#f8fafc",
   color: "#334155",
   fontWeight: 800,
+};
+
+const designerSectionStyle = {
+  display: "grid",
+  gridTemplateColumns:
+    "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
+  gap: 0,
+  marginBottom: 14,
+  overflow: "hidden",
+  background:
+    "linear-gradient(135deg, #101820 0%, #1f2f35 58%, #172321 100%)",
+  borderRadius: 10,
+  border: "1px solid #334b4d",
+  boxShadow: "0 14px 34px rgba(16, 24, 39, 0.13)",
+};
+
+const designerPortraitFrameStyle = {
+  minHeight: 390,
+  background: "#0f172a",
+  overflow: "hidden",
+};
+
+const designerPortraitStyle = {
+  display: "block",
+  width: "100%",
+  height: "100%",
+  minHeight: 390,
+  maxHeight: 560,
+  objectFit: "cover",
+  objectPosition: "center 38%",
+};
+
+const designerContentStyle = {
+  display: "grid",
+  alignContent: "center",
+  gap: 14,
+  padding: "clamp(24px, 4vw, 48px)",
+};
+
+const designerEyebrowStyle = {
+  color: "#f4d98c",
+  fontSize: 12,
+  fontWeight: 900,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+};
+
+const designerNameStyle = {
+  margin: 0,
+  color: "#ffffff",
+  fontSize: "clamp(26px, 3vw, 38px)",
+  lineHeight: 1.08,
+};
+
+const designerRoleStyle = {
+  marginTop: 7,
+  color: "#99f6e4",
+  fontSize: 16,
+  fontWeight: 800,
+  lineHeight: 1.35,
+};
+
+const designerTextStyle = {
+  margin: 0,
+  maxWidth: 720,
+  color: "#e2e8f0",
+  fontSize: 16,
+  lineHeight: 1.58,
+};
+
+const designerWebsiteStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  justifySelf: "start",
+  minHeight: 42,
+  padding: "9px 14px",
+  borderRadius: 8,
+  border: "1px solid rgba(244, 217, 140, 0.7)",
+  background: "rgba(244, 217, 140, 0.08)",
+  color: "#f4d98c",
+  textDecoration: "none",
+  fontWeight: 850,
 };
 
 const closingBandStyle = {

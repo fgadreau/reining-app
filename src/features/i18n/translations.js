@@ -561,6 +561,20 @@ export const translations = {
       disciplinesText:
         "La base est pensée pour les shows jugés avec ordre de passage, pointage et publication.",
       disciplinesTitle: "Disciplines supportées",
+      designer: {
+        background:
+          "Dans la vie, je suis entraîneur de chevaux de reining. Ce projet réunit mon intérêt pour la technologie, mon souci du détail et surtout ma passion pour l’entraînement des chevaux.",
+        eyebrow: "Derrière ShowScore",
+        introduction:
+          "Passionné avant tout par l’entraînement des chevaux de reining, j’ai créé ShowScore à partir d’un besoin bien concret : rendre le déroulement des shows plus simple, plus fiable et plus facile à suivre pour tout le monde.",
+        motivation:
+          "Mon objectif est de développer un outil réellement adapté à la réalité du terrain — pour les scribes, les secrétariats, les annonceurs, les associations, les compétiteurs et le public. ShowScore évolue grâce aux expériences vécues dans les shows et aux commentaires des personnes qui l’utilisent.",
+        name: "Félix Gadreau-Girard",
+        photoAlt:
+          "Félix Gadreau-Girard, concepteur de ShowScore et entraîneur de chevaux de reining",
+        role: "Concepteur de ShowScore · Entraîneur de chevaux de reining",
+        website: "Visiter ReiningQuebec.com",
+      },
       eyebrow: "Présentation",
       homeCta: "Retour à l’accueil",
       loginCta: "Connexion organisateur",
@@ -2542,6 +2556,20 @@ export const translations = {
       disciplinesText:
         "The base is built for judged shows with an order of go, scoring, and publication.",
       disciplinesTitle: "Supported disciplines",
+      designer: {
+        background:
+          "In everyday life, I train reining horses. This project brings together my interest in technology, my attention to detail, and above all my passion for training horses.",
+        eyebrow: "Behind ShowScore",
+        introduction:
+          "First and foremost passionate about training reining horses, I created ShowScore from a very real need: to make shows simpler, more reliable, and easier for everyone to follow.",
+        motivation:
+          "My goal is to build a tool that truly fits showground realities—for scribes, secretariats, announcers, associations, competitors, and the public. ShowScore continues to grow through real show experiences and feedback from the people who use it.",
+        name: "Félix Gadreau-Girard",
+        photoAlt:
+          "Félix Gadreau-Girard, ShowScore designer and reining horse trainer",
+        role: "ShowScore designer · Reining horse trainer",
+        website: "Visit ReiningQuebec.com",
+      },
       eyebrow: "Presentation",
       homeCta: "Back home",
       loginCta: "Organizer sign in",
