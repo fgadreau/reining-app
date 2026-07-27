@@ -61,8 +61,10 @@ import {
 } from "../../features/tvDisplay/tvDisplayVideo";
 import {
   buildTvDisplayCompetitionShortCode,
+  buildTvDisplayLivestreamShortCode,
   buildTvDisplayShortCode,
   getTvDisplayCompetitionShortcutPath,
+  getTvDisplayLivestreamShortcutPath,
   getTvDisplayShortcutPath,
 } from "../../features/tvDisplay/tvDisplayShortCode";
 
@@ -121,6 +123,8 @@ function ShowDetailPage() {
   const tvDisplayShortCode = buildTvDisplayShortCode(showId);
   const competitionTvDisplayShortCode =
     buildTvDisplayCompetitionShortCode(showId);
+  const livestreamTvDisplayShortCode =
+    buildTvDisplayLivestreamShortCode(showId);
   const competitionTvArena = normalizeArenaName(
     livestreamDraft.tvDisplayVideoArena
   );
@@ -767,6 +771,8 @@ function ShowDetailPage() {
     const tvUrl =
       normalizedMode === "competition"
         ? getAbsoluteTvDisplayCompetitionShortcutUrl(showId)
+        : normalizedMode === "livestream"
+          ? getAbsoluteTvDisplayLivestreamShortcutUrl(showId)
         : !normalizedArena && !normalizedMode
         ? getAbsoluteTvDisplayShortcutUrl(showId)
         : getAbsoluteTvDisplayUrl(
@@ -775,9 +781,12 @@ function ShowDetailPage() {
             normalizedArena,
             normalizedMode
           );
-    const copyKey = `tv:${
-      normalizedMode === "competition" ? "competition:" : ""
-    }${getOverlayCopyKey(normalizedArena)}`;
+    const copyKey =
+      normalizedMode === "livestream"
+        ? "tv:livestream"
+        : `tv:${
+            normalizedMode === "competition" ? "competition:" : ""
+          }${getOverlayCopyKey(normalizedArena)}`;
 
     try {
       if (navigator.clipboard?.writeText) {
@@ -1060,6 +1069,48 @@ function ShowDetailPage() {
                       {t("management.shows.livestreamDatesRequired")}
                     </div>
                   )}
+                </div>
+
+                <div style={livestreamTvLinkStyle}>
+                  <div>
+                    <div style={arenaOverlayNameStyle}>
+                      {t("management.shows.livestreamTvCodeTitle")}
+                    </div>
+                    <div style={helpTextStyle}>
+                      {t("management.shows.livestreamTvCodeHelp")}
+                    </div>
+                  </div>
+                  <span
+                    style={tvDisplayShortCodeStyle}
+                    data-tv-livestream-short-code={
+                      livestreamTvDisplayShortCode
+                    }
+                  >
+                    <span>
+                      {t("management.shows.livestreamTvCode")} ·{" "}
+                      <strong>{livestreamTvDisplayShortCode}</strong>
+                    </span>
+                    <small>
+                      showscore.app/tv/{livestreamTvDisplayShortCode}
+                    </small>
+                  </span>
+                  <Link
+                    to={getTvDisplayLivestreamShortcutPath(showId)}
+                    style={linkButtonStyle}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {t("management.shows.openLivestreamTvCode")}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => copyTvDisplayLink("", "livestream")}
+                    style={secondaryButtonStyle}
+                  >
+                    {copiedOverlayKey === "tv:livestream"
+                      ? t("common.linkCopied")
+                      : t("management.shows.copyLivestreamTvCode")}
+                  </button>
                 </div>
               </section>
 
@@ -2632,6 +2683,17 @@ const livestreamDayDateStyle = {
   textTransform: "capitalize",
 };
 
+const livestreamTvLinkStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  flexWrap: "wrap",
+  padding: 12,
+  border: "1px solid #99f6e4",
+  borderRadius: 10,
+  background: "#f0fdfa",
+};
+
 const checkboxLabelStyle = {
   display: "inline-flex",
   alignItems: "center",
@@ -3020,6 +3082,16 @@ function getAbsoluteTvDisplayShortcutUrl(showId) {
 
 function getAbsoluteTvDisplayCompetitionShortcutUrl(showId) {
   const path = getTvDisplayCompetitionShortcutPath(showId);
+  const origin =
+    typeof window === "undefined" || !window.location?.origin
+      ? ""
+      : window.location.origin;
+
+  return `${origin}${path}`;
+}
+
+function getAbsoluteTvDisplayLivestreamShortcutUrl(showId) {
+  const path = getTvDisplayLivestreamShortcutPath(showId);
   const origin =
     typeof window === "undefined" || !window.location?.origin
       ? ""

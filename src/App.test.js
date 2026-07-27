@@ -157,9 +157,14 @@ import {
   validateTvDisplayVideoFile,
 } from "./features/tvDisplay/tvDisplayVideo";
 import {
+  getLivestreamTvDelayState,
+} from "./pages/public/PublicShowLivestreamTvPage";
+import {
   buildTvDisplayCompetitionShortCode,
+  buildTvDisplayLivestreamShortCode,
   buildTvDisplayShortCode,
   getTvDisplayCompetitionShortcutPath,
+  getTvDisplayLivestreamShortcutPath,
   getTvDisplayShortcutPath,
   normalizeTvDisplayShortCode,
 } from "./features/tvDisplay/tvDisplayShortCode";
@@ -416,14 +421,19 @@ test("builds a permanent six-character shortcut for a TV display", () => {
     showId
   );
   const competitionCode = buildTvDisplayCompetitionShortCode(showId);
+  const livestreamCode = buildTvDisplayLivestreamShortCode(showId);
 
   expect(code).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
   expect(competitionCode).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
+  expect(livestreamCode).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
   expect(competitionCode).not.toBe(code);
+  expect(livestreamCode).not.toBe(code);
+  expect(livestreamCode).not.toBe(competitionCode);
   expect(
     buildTvDisplayShortCode(showId)
   ).toBe(code);
   expect(buildTvDisplayCompetitionShortCode(showId)).toBe(competitionCode);
+  expect(buildTvDisplayLivestreamShortCode(showId)).toBe(livestreamCode);
   expect(
     buildTvDisplayShortCode("04b478f9-d90c-4589-8466-d3b25ea865df")
   ).not.toBe(code);
@@ -434,6 +444,9 @@ test("builds a permanent six-character shortcut for a TV display", () => {
   expect(getTvDisplayCompetitionShortcutPath(showId)).toBe(
     `/tv/${competitionCode}`
   );
+  expect(getTvDisplayLivestreamShortcutPath(showId)).toBe(
+    `/tv/${livestreamCode}`
+  );
 });
 
 test("resolves the competition TV code to the dedicated display mode", async () => {
@@ -443,6 +456,50 @@ test("resolves the competition TV code to the dedicated display mode", async () 
 
   expect(target?.id).toBe("show-1");
   expect(target?.tvDisplayMode).toBe("competition");
+});
+
+test("resolves the livestream TV code to the public livestream mode", async () => {
+  const target = await getPublicShowByTvCodeRepository(
+    buildTvDisplayLivestreamShortCode("show-1")
+  );
+
+  expect(target?.id).toBe("show-1");
+  expect(target?.tvDisplayMode).toBe("livestream");
+});
+
+test("holds the TV livestream until five minutes are buffered", () => {
+  expect(
+    getLivestreamTvDelayState({
+      durationSeconds: 299,
+      currentTimeSeconds: 299,
+    })
+  ).toMatchObject({
+    state: "waiting",
+    hasEnoughBuffer: false,
+    remainingSeconds: 1,
+  });
+  expect(
+    getLivestreamTvDelayState({
+      durationSeconds: 900,
+      currentTimeSeconds: 600,
+    })
+  ).toMatchObject({
+    state: "delayed",
+    hasEnoughBuffer: true,
+    shouldSeek: false,
+    actualDelaySeconds: 300,
+  });
+  expect(
+    getLivestreamTvDelayState({
+      durationSeconds: 900,
+      currentTimeSeconds: 895,
+    })
+  ).toMatchObject({
+    state: "waiting",
+    hasEnoughBuffer: true,
+    shouldSeek: true,
+    targetTimeSeconds: 600,
+  });
 });
 
 test("groups sponsor slides by named level without mixing categories", () => {

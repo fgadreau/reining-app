@@ -1580,6 +1580,10 @@ export const translations = {
         livestreamSettings: "Réglages Live / Vue en direct",
         livestreamSettingsHelp:
           "Centralise ici la vidéo publique, l’horaire public, les liens OBS et les overlays par manège pour ce show.",
+        livestreamTvCode: "Code Livestream",
+        livestreamTvCodeHelp:
+          "Ouvre une vue TV sans interaction avec un différé automatique de cinq minutes. Nécessite un livestream YouTube avec le DVR activé.",
+        livestreamTvCodeTitle: "Lien rapide du Livestream",
         livestreamUrlLabel: "Lien du livestream",
         livestreamVideoTitle: "Livestream public par journée",
         locationLabel: "Lieu",
@@ -1615,6 +1619,7 @@ export const translations = {
         openObsOverlayGeneral: "Ouvrir overlay OBS général",
         openTvDisplayArena: "Ouvrir écran TV",
         openTvDisplayGeneral: "Ouvrir écran TV général",
+        openLivestreamTvCode: "Ouvrir le Livestream",
         publicScheduleHelp:
           "Affiche l’aperçu horaire validé sur la page publique du show. Vérifie le tableau d’horaire avant de l’activer.",
         publicScheduleLabel: "Publier l’horaire sur la vitrine publique",
@@ -1700,6 +1705,7 @@ export const translations = {
           "La vidéo n’a pas été téléversée ni enregistrée. {{message}}",
         tvDisplayVideoWillRemove:
           "La vidéo actuelle sera retirée lors de l’enregistrement.",
+        copyLivestreamTvCode: "Copier le lien Livestream",
         openTvDisplayCompetition: "Ouvrir l’écran de compétition",
         copyTvDisplayCompetition: "Copier le lien dédié",
         unnamedShow: "Show sans nom",
@@ -3568,6 +3574,10 @@ export const translations = {
         livestreamSettings: "Live / Public View settings",
         livestreamSettingsHelp:
           "Keep the public video, public schedule, OBS links, and arena overlays for this show in one place.",
+        livestreamTvCode: "Livestream code",
+        livestreamTvCodeHelp:
+          "Opens a hands-free TV view with an automatic five-minute delay. Requires a YouTube livestream with DVR enabled.",
+        livestreamTvCodeTitle: "Livestream quick link",
         livestreamUrlLabel: "Livestream link",
         livestreamVideoTitle: "Daily public livestream",
         locationLabel: "Location",
@@ -3603,6 +3613,7 @@ export const translations = {
         openObsOverlayGeneral: "Open general OBS overlay",
         openTvDisplayArena: "Open TV display",
         openTvDisplayGeneral: "Open general TV display",
+        openLivestreamTvCode: "Open Livestream",
         publicScheduleHelp:
           "Shows the approved schedule preview on the public show page. Review the schedule table before enabling it.",
         publicScheduleLabel: "Publish the schedule on the public showcase",
@@ -3688,6 +3699,7 @@ export const translations = {
           "The video was not uploaded or saved. {{message}}",
         tvDisplayVideoWillRemove:
           "The current video will be removed when you save.",
+        copyLivestreamTvCode: "Copy Livestream link",
         openTvDisplayCompetition: "Open competition screen",
         copyTvDisplayCompetition: "Copy dedicated link",
         unnamedShow: "Unnamed show",

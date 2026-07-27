@@ -35,6 +35,11 @@ export function buildTvDisplayCompetitionShortCode(showId) {
   return source ? buildTvDisplayShortCode(`competition:${source}`) : "";
 }
 
+export function buildTvDisplayLivestreamShortCode(showId) {
+  const source = String(showId || "").trim();
+  return source ? buildTvDisplayShortCode(`livestream:${source}`) : "";
+}
+
 export function getTvDisplayShortcutPath(showId) {
   const code = buildTvDisplayShortCode(showId);
   return code ? `/tv/${code}` : "/tv";
@@ -45,6 +50,11 @@ export function getTvDisplayCompetitionShortcutPath(showId) {
   return code ? `/tv/${code}` : "/tv";
 }
 
+export function getTvDisplayLivestreamShortcutPath(showId) {
+  const code = buildTvDisplayLivestreamShortCode(showId);
+  return code ? `/tv/${code}` : "/tv";
+}
+
 export function rememberTvDisplayShortcut(show) {
   if (typeof localStorage === "undefined") return;
 
@@ -52,12 +62,12 @@ export function rememberTvDisplayShortcut(show) {
   const associationId = String(
     show?.associationId || show?.organizationId || ""
   ).trim();
-  const mode =
-    String(show?.mode || show?.tvDisplayMode || "")
-      .trim()
-      .toLowerCase() === "competition"
-      ? "competition"
-      : "general";
+  const requestedMode = String(show?.mode || show?.tvDisplayMode || "")
+    .trim()
+    .toLowerCase();
+  const mode = ["competition", "livestream"].includes(requestedMode)
+    ? requestedMode
+    : "general";
   const arena = String(
     show?.arena || show?.tvDisplayArena || show?.tvDisplayVideoArena || ""
   ).trim();
@@ -65,7 +75,9 @@ export function rememberTvDisplayShortcut(show) {
     normalizeTvDisplayShortCode(show?.code) ||
     (mode === "competition"
       ? buildTvDisplayCompetitionShortCode(showId)
-      : buildTvDisplayShortCode(showId));
+      : mode === "livestream"
+        ? buildTvDisplayLivestreamShortCode(showId)
+        : buildTvDisplayShortCode(showId));
 
   if (!showId || !associationId || !code) return;
 
@@ -94,10 +106,10 @@ export function getRememberedTvDisplayShortcut() {
     const code = normalizeTvDisplayShortCode(parsed?.code);
     const showId = String(parsed?.showId || "").trim();
     const associationId = String(parsed?.associationId || "").trim();
-    const mode =
-      String(parsed?.mode || "").trim().toLowerCase() === "competition"
-        ? "competition"
-        : "general";
+    const requestedMode = String(parsed?.mode || "").trim().toLowerCase();
+    const mode = ["competition", "livestream"].includes(requestedMode)
+      ? requestedMode
+      : "general";
 
     if (!code || !showId || !associationId) return null;
 

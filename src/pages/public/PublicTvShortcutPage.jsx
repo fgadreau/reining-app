@@ -40,11 +40,14 @@ function PublicTvShortcutPage() {
       const show = await getPublicShowByTvCodeRepository(normalizedCode);
       const associationId = String(show?.associationId || "").trim();
       const showId = String(show?.id || "").trim();
-      const displayMode =
-        String(show?.tvDisplayMode || "").trim().toLowerCase() ===
-        "competition"
-          ? "competition"
-          : "general";
+      const requestedDisplayMode = String(show?.tvDisplayMode || "")
+        .trim()
+        .toLowerCase();
+      const displayMode = ["competition", "livestream"].includes(
+        requestedDisplayMode
+      )
+        ? requestedDisplayMode
+        : "general";
       const displayArena = String(show?.tvDisplayArena || "").trim();
 
       if (!show || !associationId || !showId) {
@@ -61,9 +64,15 @@ function PublicTvShortcutPage() {
         mode: displayMode,
         arena: displayArena,
       });
-      const displayPath = `/public/associations/${encodeURIComponent(
+      const publicShowPath = `/public/associations/${encodeURIComponent(
         associationId
-      )}/shows/${encodeURIComponent(showId)}/tv`;
+      )}/shows/${encodeURIComponent(showId)}`;
+      if (displayMode === "livestream") {
+        navigate(`${publicShowPath}/livestream/tv`, { replace: true });
+        return;
+      }
+
+      const displayPath = `${publicShowPath}/tv`;
       const params = new URLSearchParams();
       if (displayMode === "competition") {
         params.set("mode", "competition");
