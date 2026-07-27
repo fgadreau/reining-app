@@ -295,6 +295,8 @@ export const translations = {
         classNotesMention: "Mention publique",
         classNotesPlaceholder:
           "Ex. Championnat incomplet pour cette classe.",
+        classNotesRemove: "Retirer la note",
+        classNotesRemoved: "La note de la classe a été retirée.",
         classNotesTitle: "Notes par classe",
         csvPlaceholder:
           "Colle ici un CSV de résultats AQR à ajouter à la saison ou importe un fichier .csv.",
@@ -2208,6 +2210,8 @@ export const translations = {
         classNotesMention: "Public note",
         classNotesPlaceholder:
           "Example: Championship incomplete for this class.",
+        classNotesRemove: "Remove note",
+        classNotesRemoved: "The class note was removed.",
         classNotesTitle: "Class notes",
         csvPlaceholder:
           "Paste an AQR results CSV to add to the season or import a .csv file.",

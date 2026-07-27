@@ -257,6 +257,24 @@ function AssociationChampionshipPage() {
     setSaveMessage("");
   };
 
+  const removeClassNote = async () => {
+    if (!classNoteClassId || !classNotes[classNoteClassId]) return;
+
+    const nextClassNotes = { ...classNotes };
+    delete nextClassNotes[classNoteClassId];
+    setClassNotes(nextClassNotes);
+    setSaveMessage("");
+
+    const saved = await savePreviewSeason({
+      notes: nextClassNotes,
+      successMessage: t("championship.admin.classNotesRemoved"),
+    });
+
+    if (!saved) {
+      setClassNotes(classNotes);
+    }
+  };
+
   const rebuildPreviewFromImports = (
     imports,
     labels = eventLabels,
@@ -724,6 +742,7 @@ function AssociationChampionshipPage() {
     nextStatus = seasonStatus,
     labels = eventLabels,
     order = eventOrder,
+    notes = classNotes,
     successMessage = t("championship.admin.saved"),
     errorSetter = setErrorMessage,
   } = {}) => {
@@ -757,10 +776,11 @@ function AssociationChampionshipPage() {
           rulesStatement,
           pointsExplanation,
         }),
-        classNotes: normalizeChampionshipClassNotes(classNotes),
+        classNotes: normalizeChampionshipClassNotes(notes),
       });
       setSeason(saved);
       setPreview(saved);
+      setClassNotes(normalizeChampionshipClassNotes(saved.classNotes));
       setEventLabels(nextEventLabels);
       setEventOrder(nextEventOrder);
       setSeasonStatus(saved.status || nextStatus);
@@ -1305,6 +1325,8 @@ function AssociationChampionshipPage() {
             selectedClassId={classNoteClassId}
             onSelectClass={setClassNoteClassId}
             onChangeNote={updateClassNote}
+            onRemoveNote={removeClassNote}
+            isSaving={isSaving}
             t={t}
           />
 
@@ -1470,6 +1492,8 @@ function ChampionshipClassNotesPanel({
   selectedClassId,
   onSelectClass,
   onChangeNote,
+  onRemoveNote,
+  isSaving,
   t,
 }) {
   const classOptions = Array.isArray(classes) ? classes : [];
@@ -1522,6 +1546,14 @@ function ChampionshipClassNotesPanel({
               max: CHAMPIONSHIP_CLASS_NOTE_MAX_LENGTH,
             })}
           </span>
+          <button
+            type="button"
+            onClick={onRemoveNote}
+            style={dangerButtonStyle}
+            disabled={!selectedClassId || !note.trim() || isSaving}
+          >
+            {t("championship.admin.classNotesRemove")}
+          </button>
         </label>
       </div>
     </section>
