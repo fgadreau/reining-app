@@ -157,7 +157,9 @@ import {
   validateTvDisplayVideoFile,
 } from "./features/tvDisplay/tvDisplayVideo";
 import {
+  buildTvDisplayCompetitionShortCode,
   buildTvDisplayShortCode,
+  getTvDisplayCompetitionShortcutPath,
   getTvDisplayShortcutPath,
   normalizeTvDisplayShortCode,
 } from "./features/tvDisplay/tvDisplayShortCode";
@@ -166,6 +168,7 @@ import {
   buildPublicClassView,
   buildPublicLiveClassView,
   buildPublicResultClassViews,
+  getPublicShowByTvCodeRepository,
   getPublicShowView,
   hasPublishedResultsWithoutScoresheets,
   sortPublicResults,
@@ -408,21 +411,38 @@ test("fits the scoring table to common iPad landscape viewports", () => {
 });
 
 test("builds a permanent six-character shortcut for a TV display", () => {
+  const showId = "745f4e2c-9f71-4d56-bfd3-152c96a723d3";
   const code = buildTvDisplayShortCode(
-    "745f4e2c-9f71-4d56-bfd3-152c96a723d3"
+    showId
   );
+  const competitionCode = buildTvDisplayCompetitionShortCode(showId);
 
   expect(code).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
+  expect(competitionCode).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
+  expect(competitionCode).not.toBe(code);
   expect(
-    buildTvDisplayShortCode("745f4e2c-9f71-4d56-bfd3-152c96a723d3")
+    buildTvDisplayShortCode(showId)
   ).toBe(code);
+  expect(buildTvDisplayCompetitionShortCode(showId)).toBe(competitionCode);
   expect(
     buildTvDisplayShortCode("04b478f9-d90c-4589-8466-d3b25ea865df")
   ).not.toBe(code);
   expect(normalizeTvDisplayShortCode(` ${code.toLowerCase()}-`)).toBe(code);
-  expect(getTvDisplayShortcutPath("745f4e2c-9f71-4d56-bfd3-152c96a723d3")).toBe(
+  expect(getTvDisplayShortcutPath(showId)).toBe(
     `/tv/${code}`
   );
+  expect(getTvDisplayCompetitionShortcutPath(showId)).toBe(
+    `/tv/${competitionCode}`
+  );
+});
+
+test("resolves the competition TV code to the dedicated display mode", async () => {
+  const target = await getPublicShowByTvCodeRepository(
+    buildTvDisplayCompetitionShortCode("show-1")
+  );
+
+  expect(target?.id).toBe("show-1");
+  expect(target?.tvDisplayMode).toBe("competition");
 });
 
 test("groups sponsor slides by named level without mixing categories", () => {

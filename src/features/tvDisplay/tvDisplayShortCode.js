@@ -30,8 +30,18 @@ export function buildTvDisplayShortCode(showId) {
   return code;
 }
 
+export function buildTvDisplayCompetitionShortCode(showId) {
+  const source = String(showId || "").trim();
+  return source ? buildTvDisplayShortCode(`competition:${source}`) : "";
+}
+
 export function getTvDisplayShortcutPath(showId) {
   const code = buildTvDisplayShortCode(showId);
+  return code ? `/tv/${code}` : "/tv";
+}
+
+export function getTvDisplayCompetitionShortcutPath(showId) {
+  const code = buildTvDisplayCompetitionShortCode(showId);
   return code ? `/tv/${code}` : "/tv";
 }
 
@@ -42,9 +52,20 @@ export function rememberTvDisplayShortcut(show) {
   const associationId = String(
     show?.associationId || show?.organizationId || ""
   ).trim();
+  const mode =
+    String(show?.mode || show?.tvDisplayMode || "")
+      .trim()
+      .toLowerCase() === "competition"
+      ? "competition"
+      : "general";
+  const arena = String(
+    show?.arena || show?.tvDisplayArena || show?.tvDisplayVideoArena || ""
+  ).trim();
   const code =
     normalizeTvDisplayShortCode(show?.code) ||
-    buildTvDisplayShortCode(showId);
+    (mode === "competition"
+      ? buildTvDisplayCompetitionShortCode(showId)
+      : buildTvDisplayShortCode(showId));
 
   if (!showId || !associationId || !code) return;
 
@@ -56,6 +77,8 @@ export function rememberTvDisplayShortcut(show) {
         showId,
         associationId,
         showName: String(show?.name || show?.showName || "").trim(),
+        mode,
+        arena,
       })
     );
   } catch (error) {
@@ -71,6 +94,10 @@ export function getRememberedTvDisplayShortcut() {
     const code = normalizeTvDisplayShortCode(parsed?.code);
     const showId = String(parsed?.showId || "").trim();
     const associationId = String(parsed?.associationId || "").trim();
+    const mode =
+      String(parsed?.mode || "").trim().toLowerCase() === "competition"
+        ? "competition"
+        : "general";
 
     if (!code || !showId || !associationId) return null;
 
@@ -79,9 +106,10 @@ export function getRememberedTvDisplayShortcut() {
       showId,
       associationId,
       showName: String(parsed?.showName || "").trim(),
+      mode,
+      arena: String(parsed?.arena || "").trim(),
     };
   } catch (error) {
     return null;
   }
 }
-

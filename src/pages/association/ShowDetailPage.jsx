@@ -60,7 +60,9 @@ import {
   validateTvDisplayVideoFile,
 } from "../../features/tvDisplay/tvDisplayVideo";
 import {
+  buildTvDisplayCompetitionShortCode,
   buildTvDisplayShortCode,
+  getTvDisplayCompetitionShortcutPath,
   getTvDisplayShortcutPath,
 } from "../../features/tvDisplay/tvDisplayShortCode";
 
@@ -117,6 +119,8 @@ function ShowDetailPage() {
     [publicView, show, t]
   );
   const tvDisplayShortCode = buildTvDisplayShortCode(showId);
+  const competitionTvDisplayShortCode =
+    buildTvDisplayCompetitionShortCode(showId);
   const competitionTvArena = normalizeArenaName(
     livestreamDraft.tvDisplayVideoArena
   );
@@ -761,7 +765,9 @@ function ShowDetailPage() {
     const normalizedArena = normalizeArenaName(arena);
     const normalizedMode = String(mode || "").trim().toLowerCase();
     const tvUrl =
-      !normalizedArena && !normalizedMode
+      normalizedMode === "competition"
+        ? getAbsoluteTvDisplayCompetitionShortcutUrl(showId)
+        : !normalizedArena && !normalizedMode
         ? getAbsoluteTvDisplayShortcutUrl(showId)
         : getAbsoluteTvDisplayUrl(
             associationId,
@@ -1364,13 +1370,22 @@ function ShowDetailPage() {
                         <span style={competitionTvArenaPillStyle}>
                           {competitionTvArena}
                         </span>
+                        <span
+                          style={tvDisplayShortCodeStyle}
+                          data-tv-competition-short-code={
+                            competitionTvDisplayShortCode
+                          }
+                        >
+                          <span>
+                            {t("management.shows.tvDisplayShortCode")} ·{" "}
+                            <strong>{competitionTvDisplayShortCode}</strong>
+                          </span>
+                          <small>
+                            showscore.app/tv/{competitionTvDisplayShortCode}
+                          </small>
+                        </span>
                         <Link
-                          to={getTvDisplayPath(
-                            associationId,
-                            showId,
-                            competitionTvArena,
-                            "competition"
-                          )}
+                          to={getTvDisplayCompetitionShortcutPath(showId)}
                           style={competitionPrimaryLinkStyle}
                           target="_blank"
                           rel="noreferrer"
@@ -2995,6 +3010,16 @@ function getAbsoluteTvDisplayUrl(
 
 function getAbsoluteTvDisplayShortcutUrl(showId) {
   const path = getTvDisplayShortcutPath(showId);
+  const origin =
+    typeof window === "undefined" || !window.location?.origin
+      ? ""
+      : window.location.origin;
+
+  return `${origin}${path}`;
+}
+
+function getAbsoluteTvDisplayCompetitionShortcutUrl(showId) {
+  const path = getTvDisplayCompetitionShortcutPath(showId);
   const origin =
     typeof window === "undefined" || !window.location?.origin
       ? ""

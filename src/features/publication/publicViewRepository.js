@@ -96,6 +96,7 @@ import {
 } from "./publicationRepository";
 import { normalizeLivestreamUrlsByDate } from "../livestream/livestreamSchedule";
 import {
+  buildTvDisplayCompetitionShortCode,
   buildTvDisplayShortCode,
   normalizeTvDisplayShortCode,
 } from "../tvDisplay/tvDisplayShortCode";
@@ -1164,7 +1165,19 @@ function findShowByTvCode(shows, code) {
 
   (Array.isArray(shows) ? shows : []).forEach((show) => {
     if (buildTvDisplayShortCode(show?.id) === code) {
-      matches.set(show.id, show);
+      matches.set(`${show.id}:general`, {
+        ...show,
+        tvDisplayMode: "general",
+        tvDisplayArena: "",
+      });
+    }
+
+    if (buildTvDisplayCompetitionShortCode(show?.id) === code) {
+      matches.set(`${show.id}:competition`, {
+        ...show,
+        tvDisplayMode: "competition",
+        tvDisplayArena: show?.tvDisplayVideoArena || "",
+      });
     }
   });
 

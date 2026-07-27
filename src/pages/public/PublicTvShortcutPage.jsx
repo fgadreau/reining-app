@@ -40,6 +40,12 @@ function PublicTvShortcutPage() {
       const show = await getPublicShowByTvCodeRepository(normalizedCode);
       const associationId = String(show?.associationId || "").trim();
       const showId = String(show?.id || "").trim();
+      const displayMode =
+        String(show?.tvDisplayMode || "").trim().toLowerCase() ===
+        "competition"
+          ? "competition"
+          : "general";
+      const displayArena = String(show?.tvDisplayArena || "").trim();
 
       if (!show || !associationId || !showId) {
         setStatus("error");
@@ -52,13 +58,21 @@ function PublicTvShortcutPage() {
       rememberTvDisplayShortcut({
         ...show,
         code: normalizedCode,
+        mode: displayMode,
+        arena: displayArena,
       });
-      navigate(
-        `/public/associations/${encodeURIComponent(
-          associationId
-        )}/shows/${encodeURIComponent(showId)}/tv`,
-        { replace: true }
-      );
+      const displayPath = `/public/associations/${encodeURIComponent(
+        associationId
+      )}/shows/${encodeURIComponent(showId)}/tv`;
+      const params = new URLSearchParams();
+      if (displayMode === "competition") {
+        params.set("mode", "competition");
+        if (displayArena) params.set("arena", displayArena);
+      }
+      const query = params.toString();
+      navigate(query ? `${displayPath}?${query}` : displayPath, {
+        replace: true,
+      });
     },
     [navigate]
   );
@@ -83,7 +97,7 @@ function PublicTvShortcutPage() {
       <div style={glowStyle} />
       <section style={cardStyle}>
         <div style={brandStyle}>ShowScore</div>
-        <div style={eyebrowStyle}>Écran TV général / General TV display</div>
+        <div style={eyebrowStyle}>Écran TV ShowScore / ShowScore TV display</div>
         <h1 style={titleStyle}>Ouvrir l’écran du show</h1>
         <p style={helpStyle}>
           Entrez le code affiché dans <strong>Réglages Live</strong>.
@@ -324,4 +338,3 @@ const footerStyle = {
 };
 
 export default PublicTvShortcutPage;
-

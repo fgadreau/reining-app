@@ -156,10 +156,14 @@ function PublicShowTvPage() {
       id: show.id,
       associationId: show.associationId || associationId,
       name: show.name || association?.name || "",
+      mode: isCompetitionDisplay ? "competition" : "general",
+      arena: isCompetitionDisplay ? selectedArena : "",
     });
   }, [
     association?.name,
     associationId,
+    isCompetitionDisplay,
+    selectedArena,
     show?.associationId,
     show?.id,
     show?.name,
