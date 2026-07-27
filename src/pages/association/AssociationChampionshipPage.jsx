@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useId, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getAssociationRepository } from "../../features/associations/associationRepository";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
@@ -66,6 +66,7 @@ function AssociationChampionshipPage() {
   const [seasonTitle, setSeasonTitle] = useState("Championnat de saison");
   const [seasonYear, setSeasonYear] = useState(String(new Date().getFullYear()));
   const [seasonStatus, setSeasonStatus] = useState("draft");
+  const [isEditingSeasonSettings, setIsEditingSeasonSettings] = useState(false);
   const [rulesStatement, setRulesStatement] = useState("");
   const [pointsExplanation, setPointsExplanation] = useState("");
   const [classNotes, setClassNotes] = useState({});
@@ -131,6 +132,7 @@ function AssociationChampionshipPage() {
       setAssociation(nextAssociation);
       setSeason(nextSeason);
       setSubscriberSummary(nextSubscriberSummary);
+      setIsEditingSeasonSettings(false);
       if (nextSeason) {
         const nextEventLabels = nextSeason.publicEventLabels || {};
         const nextEventOrder = buildEventOrderSettings(
@@ -1035,76 +1037,151 @@ function AssociationChampionshipPage() {
         </div>
       </div>
 
-      <section style={panelStyle}>
-        <div style={sectionTitleStyle}>{t("championship.admin.seasonSettings")}</div>
-        <div style={formGridStyle}>
-          <label style={fieldStyle}>
-            <span style={labelStyle}>{t("championship.admin.seasonTitle")}</span>
-            <input
+      <section style={seasonOverviewStyle}>
+        <div style={seasonOverviewHeaderStyle}>
+          <div>
+            <div style={sectionTitleStyle}>
+              {t("championship.admin.seasonSettings")}
+            </div>
+            <div style={mutedTextStyle}>
+              {isEditingSeasonSettings
+                ? t("championship.admin.seasonEditingHelp")
+                : t("championship.admin.seasonReadOnlyHelp")}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              setIsEditingSeasonSettings((currentValue) => !currentValue)
+            }
+            style={
+              isEditingSeasonSettings
+                ? primaryButtonStyle
+                : secondaryButtonStyle
+            }
+          >
+            {isEditingSeasonSettings
+              ? t("championship.admin.finishEditing")
+              : t("championship.admin.edit")}
+          </button>
+        </div>
+
+        {isEditingSeasonSettings ? (
+          <>
+            <div style={formGridStyle}>
+              <label style={fieldStyle}>
+                <span style={labelStyle}>
+                  {t("championship.admin.seasonTitle")}
+                </span>
+                <input
+                  value={seasonTitle}
+                  onChange={(event) => updateSeasonTitle(event.target.value)}
+                  style={inputStyle}
+                />
+              </label>
+              <label style={fieldStyle}>
+                <span style={labelStyle}>{t("championship.admin.year")}</span>
+                <input
+                  value={seasonYear}
+                  onChange={(event) => updateSeasonYear(event.target.value)}
+                  style={inputStyle}
+                />
+              </label>
+              <label style={fieldStyle}>
+                <span style={labelStyle}>{t("championship.admin.status")}</span>
+                <select
+                  value={seasonStatus}
+                  onChange={(event) => updateSeasonStatus(event.target.value)}
+                  style={inputStyle}
+                >
+                  <option value="draft">{t("championship.status.draft")}</option>
+                  <option value="published">
+                    {t("championship.status.published")}
+                  </option>
+                  <option value="final">{t("championship.status.final")}</option>
+                </select>
+              </label>
+            </div>
+            <div style={championshipRulesGridStyle}>
+              <label style={fieldStyle}>
+                <span style={labelStyle}>
+                  {t("championship.admin.rulesStatement")}
+                </span>
+                <textarea
+                  value={rulesStatement}
+                  onChange={(event) => updateRulesStatement(event.target.value)}
+                  maxLength={CHAMPIONSHIP_RULE_TEXT_MAX_LENGTH}
+                  placeholder={t(
+                    "championship.admin.rulesStatementPlaceholder"
+                  )}
+                  style={championshipRuleTextareaStyle}
+                />
+                <span style={fieldHelpStyle}>
+                  {t("championship.admin.rulesStatementHelp")}
+                </span>
+              </label>
+              <label style={fieldStyle}>
+                <span style={labelStyle}>
+                  {t("championship.admin.pointsExplanation")}
+                </span>
+                <textarea
+                  value={pointsExplanation}
+                  onChange={(event) =>
+                    updatePointsExplanation(event.target.value)
+                  }
+                  maxLength={CHAMPIONSHIP_RULE_TEXT_MAX_LENGTH}
+                  placeholder={t(
+                    "championship.admin.pointsExplanationPlaceholder"
+                  )}
+                  style={championshipRuleTextareaStyle}
+                />
+                <span style={fieldHelpStyle}>
+                  {t("championship.admin.pointsExplanationHelp")}
+                </span>
+              </label>
+            </div>
+          </>
+        ) : (
+          <div style={seasonOverviewGridStyle}>
+            <SeasonOverviewField
+              label={t("championship.admin.seasonTitle")}
               value={seasonTitle}
-              onChange={(event) => updateSeasonTitle(event.target.value)}
-              style={inputStyle}
+              emptyLabel={t("championship.admin.notProvided")}
             />
-          </label>
-          <label style={fieldStyle}>
-            <span style={labelStyle}>{t("championship.admin.year")}</span>
-            <input
+            <SeasonOverviewField
+              label={t("championship.admin.year")}
               value={seasonYear}
-              onChange={(event) => updateSeasonYear(event.target.value)}
-              style={inputStyle}
+              emptyLabel={t("championship.admin.notProvided")}
             />
-          </label>
-          <label style={fieldStyle}>
-            <span style={labelStyle}>{t("championship.admin.status")}</span>
-            <select
-              value={seasonStatus}
-              onChange={(event) => updateSeasonStatus(event.target.value)}
-              style={inputStyle}
-            >
-              <option value="draft">{t("championship.status.draft")}</option>
-              <option value="published">{t("championship.status.published")}</option>
-              <option value="final">{t("championship.status.final")}</option>
-            </select>
-          </label>
-        </div>
-        <div style={championshipRulesGridStyle}>
-          <label style={fieldStyle}>
-            <span style={labelStyle}>
-              {t("championship.admin.rulesStatement")}
-            </span>
-            <textarea
+            <div style={seasonOverviewFieldStyle}>
+              <div style={seasonOverviewLabelStyle}>
+                {t("championship.admin.status")}
+              </div>
+              <span style={championshipStatusBadgeStyle(seasonStatus)}>
+                {t(`championship.status.${seasonStatus}`)}
+              </span>
+            </div>
+            <SeasonOverviewField
+              label={t("championship.admin.rulesStatement")}
               value={rulesStatement}
-              onChange={(event) => updateRulesStatement(event.target.value)}
-              maxLength={CHAMPIONSHIP_RULE_TEXT_MAX_LENGTH}
-              placeholder={t("championship.admin.rulesStatementPlaceholder")}
-              style={championshipRuleTextareaStyle}
+              emptyLabel={t("championship.admin.notProvided")}
+              wide
             />
-            <span style={fieldHelpStyle}>
-              {t("championship.admin.rulesStatementHelp")}
-            </span>
-          </label>
-          <label style={fieldStyle}>
-            <span style={labelStyle}>
-              {t("championship.admin.pointsExplanation")}
-            </span>
-            <textarea
+            <SeasonOverviewField
+              label={t("championship.admin.pointsExplanation")}
               value={pointsExplanation}
-              onChange={(event) => updatePointsExplanation(event.target.value)}
-              maxLength={CHAMPIONSHIP_RULE_TEXT_MAX_LENGTH}
-              placeholder={t(
-                "championship.admin.pointsExplanationPlaceholder"
-              )}
-              style={championshipRuleTextareaStyle}
+              emptyLabel={t("championship.admin.notProvided")}
+              wide
             />
-            <span style={fieldHelpStyle}>
-              {t("championship.admin.pointsExplanationHelp")}
-            </span>
-          </label>
-        </div>
+          </div>
+        )}
       </section>
 
-      <section style={panelStyle}>
-        <div style={sectionTitleStyle}>{t("championship.admin.importCsv")}</div>
+      <CollapsiblePanel
+        title={t("championship.admin.importCsv")}
+        summary={t("championship.admin.sectionOpenTool")}
+        forceOpen={Boolean(errorMessage || csvText || multipleFiles.length)}
+      >
         <div style={fileRowStyle}>
           <input
             key={fileInputKey}
@@ -1165,12 +1242,13 @@ function AssociationChampionshipPage() {
           )}
         </div>
         {errorMessage && <div style={errorStyle}>{errorMessage}</div>}
-      </section>
+      </CollapsiblePanel>
 
-      <section style={panelStyle}>
-        <div style={sectionTitleStyle}>
-          {t("championship.admin.showScoreImportTitle")}
-        </div>
+      <CollapsiblePanel
+        title={t("championship.admin.showScoreImportTitle")}
+        summary={t("championship.admin.sectionOpenTool")}
+        forceOpen={Boolean(showScoreImportPreview || isLoadingShowScoreImport)}
+      >
         <div style={mutedTextStyle}>
           {t("championship.admin.showScoreImportHelp")}
         </div>
@@ -1263,7 +1341,7 @@ function AssociationChampionshipPage() {
             )}
           </div>
         )}
-      </section>
+      </CollapsiblePanel>
 
       <ChampionshipUpdateCampaignPanel
         subscriberSummary={subscriberSummary}
@@ -1324,8 +1402,12 @@ function AssociationChampionshipPage() {
           {validation && <ValidationReport validation={validation} t={t} />}
 
           {getPreviewImports(preview).length > 0 && (
-            <section style={panelStyle}>
-              <div style={sectionTitleStyle}>{t("championship.admin.importHistory")}</div>
+            <CollapsiblePanel
+              title={t("championship.admin.importHistory")}
+              summary={`${getPreviewImports(preview).length} · ${t(
+                "championship.admin.importedFiles"
+              )}`}
+            >
               <div style={importListStyle}>
                 {getPreviewImports(preview).map((importBatch) => (
                   <div key={importBatch.id} style={importRowStyle}>
@@ -1348,7 +1430,7 @@ function AssociationChampionshipPage() {
                   </div>
                 ))}
               </div>
-            </section>
+            </CollapsiblePanel>
           )}
 
           <ChampionshipClassNotesPanel
@@ -1375,8 +1457,12 @@ function AssociationChampionshipPage() {
           />
 
           {technicalShows.length > 0 && (
-            <section style={panelStyle}>
-              <div style={sectionTitleStyle}>{t("championship.admin.publicLabels")}</div>
+            <CollapsiblePanel
+              title={t("championship.admin.publicLabels")}
+              summary={t("championship.admin.showCount", {
+                count: technicalShows.length,
+              })}
+            >
               <div style={mutedTextStyle}>
                 {t("championship.admin.publicLabelsHelp")}
               </div>
@@ -1424,11 +1510,15 @@ function AssociationChampionshipPage() {
                   </div>
                 ))}
               </div>
-            </section>
+            </CollapsiblePanel>
           )}
 
-          <section style={panelStyle}>
-            <div style={sectionTitleStyle}>{t("championship.admin.preview")}</div>
+          <CollapsiblePanel
+            title={t("championship.admin.preview")}
+            summary={`${classSummaries.length} · ${t(
+              "championship.admin.classes"
+            )}`}
+          >
             <div style={classListStyle}>
               {classSummaries.map((classEntry) => (
                 <div key={classEntry.id} style={classPreviewStyle}>
@@ -1458,9 +1548,9 @@ function AssociationChampionshipPage() {
                 </div>
               ))}
             </div>
-          </section>
+          </CollapsiblePanel>
 
-          <div style={actionRowStyle}>
+          <div style={championshipActionBarStyle}>
             <button
               type="button"
               onClick={exportChampionshipPdf}
@@ -1509,6 +1599,62 @@ function AssociationChampionshipPage() {
   );
 }
 
+function CollapsiblePanel({
+  title,
+  summary = "",
+  defaultOpen = false,
+  forceOpen = false,
+  children,
+}) {
+  const [isOpen, setIsOpen] = useState(Boolean(defaultOpen || forceOpen));
+  const contentId = useId();
+
+  useEffect(() => {
+    if (forceOpen) setIsOpen(true);
+  }, [forceOpen]);
+
+  return (
+    <section style={collapsiblePanelStyle}>
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        aria-controls={contentId}
+        onClick={() => setIsOpen((currentValue) => !currentValue)}
+        style={collapsiblePanelButtonStyle}
+      >
+        <span style={collapsiblePanelTitleStyle}>{title}</span>
+        <span style={collapsiblePanelMetaStyle}>
+          {summary && <span>{summary}</span>}
+          <span aria-hidden="true" style={collapsiblePanelIconStyle(isOpen)}>
+            ›
+          </span>
+        </span>
+      </button>
+      {isOpen && (
+        <div id={contentId} style={collapsiblePanelBodyStyle}>
+          {children}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SeasonOverviewField({ label, value, emptyLabel, wide = false }) {
+  return (
+    <div
+      style={{
+        ...seasonOverviewFieldStyle,
+        ...(wide ? seasonOverviewWideFieldStyle : {}),
+      }}
+    >
+      <div style={seasonOverviewLabelStyle}>{label}</div>
+      <div style={seasonOverviewValueStyle}>
+        {String(value || "").trim() || emptyLabel}
+      </div>
+    </div>
+  );
+}
+
 function SummaryCard({ label, value }) {
   return (
     <div style={summaryCardStyle}>
@@ -1530,12 +1676,15 @@ function ChampionshipClassNotesPanel({
 }) {
   const classOptions = Array.isArray(classes) ? classes : [];
   const note = String(notes?.[selectedClassId] || "");
+  const noteCount = Object.values(notes || {}).filter((value) =>
+    String(value || "").trim()
+  ).length;
 
   return (
-    <section style={panelStyle}>
-      <div style={sectionTitleStyle}>
-        {t("championship.admin.classNotesTitle")}
-      </div>
+    <CollapsiblePanel
+      title={t("championship.admin.classNotesTitle")}
+      summary={`${noteCount} · ${t("championship.admin.notesCountLabel")}`}
+    >
       <div style={mutedTextStyle}>
         {t("championship.admin.classNotesHelp")}
       </div>
@@ -1588,7 +1737,7 @@ function ChampionshipClassNotesPanel({
           </button>
         </label>
       </div>
-    </section>
+    </CollapsiblePanel>
   );
 }
 
@@ -1631,8 +1780,13 @@ function ChampionshipDisqualificationPanel({
   const activeDisqualifications = corrections.disqualifications || [];
 
   return (
-    <section style={panelStyle}>
-      <div style={sectionTitleStyle}>{t("championship.admin.dqTitle")}</div>
+    <CollapsiblePanel
+      title={t("championship.admin.dqTitle")}
+      summary={`${activeDisqualifications.length} · ${t(
+        "championship.admin.dqCountLabel"
+      )}`}
+      forceOpen={Boolean(errorMessage)}
+    >
       <div style={mutedTextStyle}>{t("championship.admin.dqHelp")}</div>
 
       <div style={dqFormGridStyle}>
@@ -1753,7 +1907,7 @@ function ChampionshipDisqualificationPanel({
       ) : (
         <div style={mutedTextStyle}>{t("championship.admin.dqEmpty")}</div>
       )}
-    </section>
+    </CollapsiblePanel>
   );
 }
 
@@ -1780,15 +1934,18 @@ function ChampionshipUpdateCampaignPanel({
   const isDraft = seasonStatus === "draft";
 
   return (
-    <section style={panelStyle}>
+    <CollapsiblePanel
+      title={t("championship.updates.adminTitle")}
+      summary={`${activeCount} · ${t(
+        "championship.updates.activeSubscribers"
+      )}`}
+      forceOpen={Boolean(
+        status.message || isSending || Object.keys(errors || {}).length
+      )}
+    >
       <div style={campaignHeaderStyle}>
-        <div>
-          <div style={sectionTitleStyle}>
-            {t("championship.updates.adminTitle")}
-          </div>
-          <div style={mutedTextStyle}>
-            {t("championship.updates.adminHelp")}
-          </div>
+        <div style={mutedTextStyle}>
+          {t("championship.updates.adminHelp")}
         </div>
         <div style={campaignHeaderActionsStyle}>
           <button
@@ -1977,7 +2134,7 @@ function ChampionshipUpdateCampaignPanel({
             : t("championship.updates.sendCampaign")}
         </button>
       </div>
-    </section>
+    </CollapsiblePanel>
   );
 }
 
@@ -2039,8 +2196,11 @@ function ValidationReport({ validation, t }) {
   }
 
   return (
-    <section style={panelStyle}>
-      <div style={sectionTitleStyle}>{t("championship.admin.importReport")}</div>
+    <CollapsiblePanel
+      title={t("championship.admin.importReport")}
+      summary={t("championship.admin.attentionRequired")}
+      defaultOpen
+    >
       <div style={reportGridStyle}>
         {validation.unmappedClasses.length > 0 && (
           <ReportBlock
@@ -2069,9 +2229,9 @@ function ValidationReport({ validation, t }) {
             title={t("championship.admin.duplicateRows")}
             items={validation.duplicateRows.slice(0, 12).map((item) => item.message)}
           />
-        )}
+          )}
       </div>
-    </section>
+    </CollapsiblePanel>
   );
 }
 
@@ -2444,6 +2604,128 @@ const panelStyle = {
   padding: 16,
   marginBottom: 14,
   boxShadow: "0 8px 18px rgba(15, 23, 42, 0.06)",
+};
+
+const seasonOverviewStyle = {
+  ...panelStyle,
+  borderColor: "#cbd5e1",
+};
+
+const seasonOverviewHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 12,
+  flexWrap: "wrap",
+  marginBottom: 16,
+};
+
+const seasonOverviewGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gap: 10,
+};
+
+const seasonOverviewFieldStyle = {
+  minWidth: 0,
+  padding: 12,
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  background: "#f8fafc",
+};
+
+const seasonOverviewWideFieldStyle = {
+  gridColumn: "1 / -1",
+};
+
+const seasonOverviewLabelStyle = {
+  marginBottom: 5,
+  color: "#64748b",
+  fontSize: 12,
+  fontWeight: 850,
+  textTransform: "uppercase",
+  letterSpacing: "0.04em",
+};
+
+const seasonOverviewValueStyle = {
+  color: "#0f172a",
+  fontSize: 14,
+  fontWeight: 750,
+  lineHeight: 1.45,
+  whiteSpace: "pre-wrap",
+};
+
+const championshipStatusBadgeStyle = (status) => {
+  const colors =
+    status === "final"
+      ? { border: "#86efac", background: "#f0fdf4", color: "#166534" }
+      : status === "published"
+        ? { border: "#93c5fd", background: "#eff6ff", color: "#1d4ed8" }
+        : { border: "#fde68a", background: "#fffbeb", color: "#92400e" };
+
+  return {
+    display: "inline-flex",
+    border: `1px solid ${colors.border}`,
+    borderRadius: 999,
+    padding: "5px 9px",
+    background: colors.background,
+    color: colors.color,
+    fontSize: 12,
+    fontWeight: 900,
+  };
+};
+
+const collapsiblePanelStyle = {
+  ...panelStyle,
+  padding: 0,
+  overflow: "hidden",
+};
+
+const collapsiblePanelButtonStyle = {
+  width: "100%",
+  minHeight: 60,
+  border: 0,
+  padding: "14px 16px",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 12,
+  background: "#ffffff",
+  color: "#0f172a",
+  cursor: "pointer",
+  textAlign: "left",
+};
+
+const collapsiblePanelTitleStyle = {
+  fontSize: 17,
+  fontWeight: 850,
+};
+
+const collapsiblePanelMetaStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  gap: 10,
+  color: "#64748b",
+  fontSize: 12,
+  fontWeight: 800,
+  textAlign: "right",
+};
+
+const collapsiblePanelIconStyle = (isOpen) => ({
+  display: "inline-flex",
+  color: "#475569",
+  fontSize: 25,
+  fontWeight: 500,
+  lineHeight: 1,
+  transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+  transition: "transform 140ms ease",
+});
+
+const collapsiblePanelBodyStyle = {
+  padding: 16,
+  borderTop: "1px solid #e2e8f0",
+  background: "#ffffff",
 };
 
 const okPanelStyle = {
@@ -2848,6 +3130,19 @@ const actionRowStyle = {
   gap: 10,
   flexWrap: "wrap",
   marginBottom: 20,
+};
+
+const championshipActionBarStyle = {
+  ...actionRowStyle,
+  position: "sticky",
+  bottom: 10,
+  zIndex: 20,
+  padding: 12,
+  border: "1px solid #cbd5e1",
+  borderRadius: 10,
+  background: "rgba(255, 255, 255, 0.96)",
+  boxShadow: "0 12px 30px rgba(15, 23, 42, 0.16)",
+  backdropFilter: "blur(8px)",
 };
 
 const summaryGridStyle = {

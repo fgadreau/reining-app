@@ -297,6 +297,7 @@ export const translations = {
         analysisFailed: "Impossible d’analyser le CSV.",
         analyze: "Analyser le CSV",
         anomalies: "Anomalies",
+        attentionRequired: "Attention requise",
         classes: "Classes",
         classNotesChooseClass: "Choisir une classe",
         classNotesClass: "Classe",
@@ -330,6 +331,7 @@ export const translations = {
         dqChooseOccurrence: "Choisir une occurrence",
         dqChooseTeam: "Choisir une équipe",
         dqClass: "Classe",
+        dqCountLabel: "disqualifications",
         dqEmpty: "Aucune disqualification saisie.",
         dqHelp:
           "Toutes les occurrences de la saison sont reconstruites depuis les imports enregistrés. Marque une équipe disqualifiée sans modifier le CSV source; la ligne reste visible et les points sont recalculés.",
@@ -347,10 +349,12 @@ export const translations = {
         dqTitle: "Disqualifications NRHA",
         eventCount: "{{count}} occurrences",
         events: "Occurrences",
+        edit: "Modifier",
         excludedClasses: "Classes exclues",
         exportPdf: "Exporter PDF",
         exportPdfFailed: "Impossible de générer le PDF du championnat.",
         fileReadFailed: "Impossible de lire le fichier.",
+        finishEditing: "Terminer",
         importCsv: "Ajouter des résultats CSV",
         importHistory: "Imports de la saison",
         importMeta: "{{rows}} lignes · {{date}}",
@@ -361,6 +365,8 @@ export const translations = {
         includedShows: "Shows inclus",
         noImportIssues: "Aucune anomalie détectée dans les lignes mappées.",
         noIncludedShows: "Aucun show inclus pour l’instant.",
+        notesCountLabel: "notes publiques",
+        notProvided: "Non renseigné",
         open: "Championnat",
         pointsExplanation: "Calcul des points",
         pointsExplanationHelp:
@@ -394,8 +400,13 @@ export const translations = {
           "Ex. Pour être admissible, un couple cavalier-cheval doit participer à...",
         save: "Enregistrer",
         saved: "Championnat enregistré.",
+        seasonEditingHelp:
+          "Les champs sont modifiables. Utilise ensuite les actions d’enregistrement au bas de la page.",
+        seasonReadOnlyHelp:
+          "Résumé protégé contre les modifications accidentelles.",
         seasonSettings: "Saison",
         seasonTitle: "Titre",
+        sectionOpenTool: "Ouvrir l’outil",
         showScoreImportAction: "Analyser les résultats ShowScore",
         showScoreImportAdd: "Ajouter au championnat",
         showScoreImportClassMeta:
@@ -2223,6 +2234,7 @@ export const translations = {
         analysisFailed: "Unable to analyze the CSV.",
         analyze: "Analyze CSV",
         anomalies: "Anomalies",
+        attentionRequired: "Attention required",
         classes: "Classes",
         classNotesChooseClass: "Choose a class",
         classNotesClass: "Class",
@@ -2256,6 +2268,7 @@ export const translations = {
         dqChooseOccurrence: "Choose an occurrence",
         dqChooseTeam: "Choose a team",
         dqClass: "Class",
+        dqCountLabel: "disqualifications",
         dqEmpty: "No disqualification entered.",
         dqHelp:
           "All season occurrences are rebuilt from the saved imports. Mark a team disqualified without changing the source CSV; the row stays visible and points are recalculated.",
@@ -2273,10 +2286,12 @@ export const translations = {
         dqTitle: "NRHA disqualifications",
         eventCount: "{{count}} occurrences",
         events: "Occurrences",
+        edit: "Edit",
         excludedClasses: "Excluded classes",
         exportPdf: "Export PDF",
         exportPdfFailed: "Unable to generate the championship PDF.",
         fileReadFailed: "Unable to read the file.",
+        finishEditing: "Done",
         importCsv: "Add CSV results",
         importHistory: "Season imports",
         importMeta: "{{rows}} rows · {{date}}",
@@ -2287,6 +2302,8 @@ export const translations = {
         includedShows: "Included shows",
         noImportIssues: "No issue detected in mapped rows.",
         noIncludedShows: "No included show yet.",
+        notesCountLabel: "public notes",
+        notProvided: "Not provided",
         open: "Championship",
         pointsExplanation: "Points calculation",
         pointsExplanationHelp:
@@ -2320,8 +2337,13 @@ export const translations = {
           "Example: To be eligible, a rider-horse team must participate in...",
         save: "Save",
         saved: "Championship saved.",
+        seasonEditingHelp:
+          "The fields are editable. Use the save actions at the bottom of the page afterward.",
+        seasonReadOnlyHelp:
+          "Summary protected from accidental changes.",
         seasonSettings: "Season",
         seasonTitle: "Title",
+        sectionOpenTool: "Open tool",
         showScoreImportAction: "Analyze ShowScore results",
         showScoreImportAdd: "Add to championship",
         showScoreImportClassMeta:
