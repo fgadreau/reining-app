@@ -25,6 +25,40 @@
   place-items: center;
 }
 
+.tv-live-side .tv-participant-card {
+  align-content: center !important;
+  gap: clamp(2px, 0.45vh, 5px) !important;
+  padding: clamp(7px, 1.15vh, 11px) !important;
+}
+
+.tv-live-side .tv-participant-card__label {
+  font-size: clamp(11px, 1.7vh, 14px) !important;
+  line-height: 1 !important;
+}
+
+.tv-live-side .tv-participant-card__meta {
+  font-size: clamp(14px, 2.4vh, 21px) !important;
+  line-height: 1 !important;
+}
+
+.tv-live-side .tv-participant-card__name {
+  font-size: clamp(18px, 3.3vh, 32px) !important;
+  line-height: 1 !important;
+  overflow-wrap: normal !important;
+  word-break: normal;
+}
+
+.tv-live-side .tv-participant-card__secondary-name {
+  font-size: clamp(13px, 2.1vh, 18px) !important;
+  line-height: 1 !important;
+}
+
+.tv-live-side .tv-participant-card__horse {
+  font-size: clamp(13px, 2.1vh, 19px) !important;
+  line-height: 1 !important;
+  -webkit-line-clamp: 1 !important;
+}
+
 @media (max-height: 820px) {
   .tv-display:not(.tv-display--competition) {
     gap: clamp(7px, 1.2vh, 10px) !important;
@@ -183,6 +217,15 @@
     gap: clamp(3px, 0.65vh, 6px) !important;
     border-radius: 9px !important;
   }
+
+  .tv-live-side .tv-participant-card {
+    gap: clamp(2px, 0.4vh, 4px) !important;
+    padding: clamp(6px, 1vh, 9px) !important;
+  }
+
+  .tv-live-side .tv-participant-card__name {
+    font-size: clamp(18px, 3.4vh, 28px) !important;
+  }
 }
 
 @media (max-width: 1100px) {
@@ -283,6 +326,29 @@
 
   .tv-live-title {
     font-size: clamp(28px, 7vh, 40px) !important;
+  }
+
+  .tv-live-side .tv-participant-card {
+    gap: 2px !important;
+    padding: 6px 8px !important;
+  }
+
+  .tv-live-side .tv-participant-card__label {
+    font-size: 11px !important;
+  }
+
+  .tv-live-side .tv-participant-card__meta {
+    font-size: clamp(13px, 2.5vh, 15px) !important;
+  }
+
+  .tv-live-side .tv-participant-card__name {
+    font-size: clamp(18px, 3.6vh, 22px) !important;
+    -webkit-line-clamp: 2 !important;
+  }
+
+  .tv-live-side .tv-participant-card__secondary-name,
+  .tv-live-side .tv-participant-card__horse {
+    display: none !important;
   }
 
   .tv-live-panel--upcoming .tv-participant-card:nth-of-type(n + 3),

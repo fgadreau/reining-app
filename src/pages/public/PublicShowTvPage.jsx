@@ -714,6 +714,7 @@ function LivePanel({ liveItem }) {
                 labelEn={card.labelEn}
                 participant={card.participant}
                 variant={card.variant}
+                scrollNameWhenNeeded
               />
             ))}
           </div>
@@ -733,6 +734,7 @@ function LivePanel({ liveItem }) {
               participant={previous[0]}
               variant="previous"
               compact
+              scrollNameWhenNeeded
             />
             <ParticipantCard
               labelFr="Avant-dernier"
@@ -740,6 +742,7 @@ function LivePanel({ liveItem }) {
               participant={previous[1]}
               variant="previous"
               compact
+              scrollNameWhenNeeded
             />
           </div>
         </div>
@@ -825,6 +828,7 @@ function ParticipantCard({
   participant,
   variant = "next",
   compact = false,
+  scrollNameWhenNeeded = false,
 }) {
   if (!participant && !compact) return null;
 
@@ -838,16 +842,57 @@ function ParticipantCard({
         compact ? " tv-participant-card--compact" : ""
       }`}
     >
-      <div style={participantLabelStyle(variant)}>
+      <div
+        style={participantLabelStyle(variant)}
+        className="tv-participant-card__label"
+      >
         <BilingualText fr={labelFr} en={labelEn} />
       </div>
       {data.meta ? (
-        <div style={participantMetaStyle(compact, variant)}>{data.meta}</div>
+        <div
+          style={participantMetaStyle(compact, variant)}
+          className="tv-participant-card__meta"
+        >
+          {data.meta}
+        </div>
       ) : null}
-      <div style={participantNameStyle(compact, isDrag, variant)}>{data.fr}</div>
-      {data.en ? <div style={participantSecondaryNameStyle}>{data.en}</div> : null}
+      {scrollNameWhenNeeded ? (
+        <CompetitionScrollingText
+          style={participantScrollingNameStyle(compact, isDrag, variant)}
+          dataLabel="participant-name"
+          dataAttributes={{
+            className: "tv-participant-card__name",
+          }}
+          scrollPadding={28}
+          scrollPixelsPerSecond={28}
+          minDurationSeconds={7}
+          maxDurationSeconds={14}
+        >
+          {data.fr}
+        </CompetitionScrollingText>
+      ) : (
+        <div
+          style={participantNameStyle(compact, isDrag, variant)}
+          className="tv-participant-card__name"
+        >
+          {data.fr}
+        </div>
+      )}
+      {data.en ? (
+        <div
+          style={participantSecondaryNameStyle}
+          className="tv-participant-card__secondary-name"
+        >
+          {data.en}
+        </div>
+      ) : null}
       {data.horse ? (
-        <div style={horseStyle(compact, variant)}>{data.horse}</div>
+        <div
+          style={horseStyle(compact, variant)}
+          className="tv-participant-card__horse"
+        >
+          {data.horse}
+        </div>
       ) : null}
       {data.score ? <ScoreBlock participant={data} compact={compact} /> : null}
     </article>
@@ -1821,6 +1866,13 @@ const participantNameStyle = (compact, isDrag, variant) => {
     overflow: "hidden",
   };
 };
+
+const participantScrollingNameStyle = (compact, isDrag, variant) => ({
+  ...participantNameStyle(compact, isDrag, variant),
+  display: "block",
+  WebkitLineClamp: "unset",
+  whiteSpace: "nowrap",
+});
 
 const participantSecondaryNameStyle = {
   color: "#cbd5e1",
