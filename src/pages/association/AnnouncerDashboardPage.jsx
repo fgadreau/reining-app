@@ -1067,9 +1067,9 @@ function PaidWarmupLiveCard({
         onKeyDown={canToggle ? handleCardKeyDown : undefined}
         style={classCardHeaderToggleStyle(isExpanded, canToggle)}
       >
-        <div>
+        <div style={classCardIdentityStyle}>
           <div style={classNameStyle}>{warmup.name}</div>
-          <div style={mutedTextStyle}>
+          <div style={classMetaStyle}>
             {t("management.classes.minutesPerRider", {
               minutes: warmup.durationMinutesPerRider,
             })}{" "}
@@ -1093,9 +1093,11 @@ function PaidWarmupLiveCard({
               : t("public.results.paidWarmup")}
           </Badge>
           {canToggle && (
-            <Badge tone="muted">
-              {isExpanded ? t("public.results.hide") : t("public.results.view")}
-            </Badge>
+            <CardToggleHint
+              isExpanded={isExpanded}
+              viewLabel={t("public.results.view")}
+              hideLabel={t("public.results.hide")}
+            />
           )}
         </div>
       </div>
@@ -1470,12 +1472,12 @@ function ClassLiveCard({
         onKeyDown={canToggle ? handleCardKeyDown : undefined}
         style={classCardHeaderToggleStyle(isExpanded, canToggle)}
       >
-        <div>
+        <div style={classCardIdentityStyle}>
           <div style={classNameStyle}>
             {classView.className}
             {classView.classCode ? ` (${classView.classCode})` : ""}
           </div>
-          <div style={mutedTextStyle}>
+          <div style={classMetaStyle}>
             {classView.arena
               ? `${t("public.results.arena")} ${classView.arena} · `
               : ""}
@@ -1504,9 +1506,11 @@ function ClassLiveCard({
           </Badge>
           <Badge tone={liveState.tone}>{liveState.label}</Badge>
           {canToggle && (
-            <Badge tone="muted">
-              {isExpanded ? t("public.results.hide") : t("public.results.view")}
-            </Badge>
+            <CardToggleHint
+              isExpanded={isExpanded}
+              viewLabel={t("public.results.view")}
+              hideLabel={t("public.results.hide")}
+            />
           )}
         </div>
       </div>
@@ -2938,12 +2942,23 @@ function Badge({ children, tone = "muted" }) {
   return <span style={badgeStyle(tone)}>{children}</span>;
 }
 
+function CardToggleHint({ isExpanded, viewLabel, hideLabel }) {
+  return (
+    <span style={cardToggleHintStyle}>
+      <span>{isExpanded ? hideLabel : viewLabel}</span>
+      <span aria-hidden="true" style={cardToggleChevronStyle(isExpanded)}>
+        ↓
+      </span>
+    </span>
+  );
+}
+
 function LiveFreshnessBadge({ updatedAt, now }) {
   const { t } = useTranslation();
   const freshness = formatLiveDataFreshness(updatedAt, now, t);
 
   return (
-    <span style={badgeStyle(freshness.tone)}>
+    <span style={freshnessBadgeStyle(freshness.tone)}>
       {freshness.label}
     </span>
   );
@@ -3280,6 +3295,9 @@ const announcerPageStyle = {
     "linear-gradient(180deg, #e8f1f2 0%, #f8fafc 38%, #f1f5f9 100%)",
   padding: "clamp(14px, 2vw, 28px)",
   color: "#0f172a",
+  width: "100%",
+  maxWidth: 1760,
+  margin: "0 auto",
 };
 
 const announcerBackRowStyle = {
@@ -3431,10 +3449,10 @@ const recentHeaderStyle = {
 
 const cardStyle = {
   background: "#fff",
-  borderRadius: 18,
-  padding: 18,
-  border: "1px solid rgba(203, 213, 225, 0.72)",
-  boxShadow: "0 12px 32px rgba(15, 23, 42, 0.08)",
+  borderRadius: 20,
+  padding: "clamp(16px, 1.5vw, 22px)",
+  border: "1px solid rgba(203, 213, 225, 0.78)",
+  boxShadow: "0 10px 28px rgba(15, 23, 42, 0.07)",
 };
 
 const sectionHeaderStyle = {
@@ -3448,7 +3466,8 @@ const sectionHeaderStyle = {
 
 const sectionTitleStyle = {
   margin: 0,
-  fontSize: 20,
+  fontSize: 21,
+  letterSpacing: "-0.02em",
 };
 
 const prioritySectionStyle = {
@@ -3479,21 +3498,25 @@ const priorityListStyle = {
 
 const remainingSectionListStyle = {
   display: "grid",
-  gap: 16,
+  gap: 18,
 };
 
 const classListStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-  gap: 12,
+  gridTemplateColumns:
+    "repeat(auto-fit, minmax(min(100%, 360px), 1fr))",
+  gap: 14,
+  alignItems: "stretch",
 };
 
 const classCardStyle = {
   border: "1px solid #dbe4ea",
-  borderRadius: 16,
-  padding: 16,
+  borderRadius: 17,
+  padding: "16px 17px",
   background: "#fff",
-  boxShadow: "0 8px 22px rgba(15, 23, 42, 0.06)",
+  boxShadow: "0 7px 20px rgba(15, 23, 42, 0.055)",
+  minWidth: 0,
+  overflow: "hidden",
 };
 
 const priorityClassCardStyle = {
@@ -3507,11 +3530,11 @@ const priorityClassCardStyle = {
 };
 
 const classCardHeaderStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  gap: 10,
-  alignItems: "flex-start",
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr)",
+  gap: 13,
   marginBottom: 12,
+  minWidth: 0,
 };
 
 const classCardHeaderToggleStyle = (isOpen, canToggle = true) => ({
@@ -3525,14 +3548,31 @@ const badgeStackStyle = {
   display: "flex",
   gap: 8,
   alignItems: "center",
-  justifyContent: "flex-end",
+  justifyContent: "flex-start",
   flexWrap: "wrap",
+  minWidth: 0,
+  paddingTop: 12,
+  borderTop: "1px solid #edf2f7",
+};
+
+const classCardIdentityStyle = {
+  minWidth: 0,
+};
+
+const classMetaStyle = {
+  color: "#64748b",
+  fontSize: 13,
+  lineHeight: 1.4,
+  marginTop: 5,
 };
 
 const classNameStyle = {
   fontWeight: 900,
   color: "#0f172a",
-  fontSize: 18,
+  fontSize: 19,
+  lineHeight: 1.16,
+  letterSpacing: "-0.015em",
+  overflowWrap: "anywhere",
 };
 
 const runGridStyle = {
@@ -3889,6 +3929,40 @@ const badgeStyle = (tone) => ({
   fontWeight: 700,
   fontSize: 13,
   whiteSpace: "nowrap",
+});
+
+const freshnessBadgeStyle = (tone) => ({
+  ...badgeStyle(tone),
+  maxWidth: "100%",
+  whiteSpace: "normal",
+  textAlign: "center",
+  lineHeight: 1.2,
+  overflowWrap: "anywhere",
+});
+
+const cardToggleHintStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 7,
+  minHeight: 28,
+  marginLeft: "auto",
+  padding: "4px 3px 4px 9px",
+  color: "#334155",
+  fontSize: 13,
+  fontWeight: 850,
+  whiteSpace: "nowrap",
+};
+
+const cardToggleChevronStyle = (isExpanded) => ({
+  display: "inline-grid",
+  placeItems: "center",
+  width: 24,
+  height: 24,
+  borderRadius: 999,
+  border: "1px solid #cbd5e1",
+  background: "#f8fafc",
+  transform: isExpanded ? "rotate(180deg)" : "none",
+  transition: "transform 160ms ease",
 });
 
 function getBadgeColors(tone) {
