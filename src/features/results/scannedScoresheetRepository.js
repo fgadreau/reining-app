@@ -1,3 +1,4 @@
+import jsPDF from "jspdf";
 import { getSupabaseClient } from "../cloud/supabaseClient";
 
 const STORAGE_KEY = "showscore_scanned_scoresheets_v1";
@@ -5,6 +6,9 @@ const STORAGE_KEY = "showscore_scanned_scoresheets_v1";
 export const SCANNED_SCORESHEET_BUCKET = "class-scoresheets";
 export const SCANNED_SCORESHEET_DOCUMENT_TYPE = "scoresheet_scan";
 export const SCANNED_SCORESHEET_MAX_BYTES = 20 * 1024 * 1024;
+export const SCANNED_SCORESHEET_IMAGE_MAX_BYTES = 20 * 1024 * 1024;
+
+const SCANNED_SCORESHEET_IMAGE_MAX_DIMENSION = 2400;
 
 function loadLocalDocuments() {
   try {
@@ -93,12 +97,154 @@ export function validateScannedScoresheetFile(file) {
   return file;
 }
 
+export function validateScannedScoresheetImageFile(file) {
+  if (!file) {
+    throw new Error("Aucune photo sélectionnée.");
+  }
+
+  const fileName = String(file.name || "").trim();
+  const mimeType = String(file.type || "").toLowerCase();
+  const isImage =
+    mimeType.startsWith("image/") ||
+    /\.(?:jpe?g|png|webp|heic|heif)$/i.test(fileName);
+
+  if (!isImage) {
+    throw new Error("Le scan doit être une photo.");
+  }
+
+  if (Number(file.size || 0) > SCANNED_SCORESHEET_IMAGE_MAX_BYTES) {
+    throw new Error("La photo doit faire 20 Mo ou moins.");
+  }
+
+  return file;
+}
+
+export async function convertScannedScoresheetImageToPdf(
+  file,
+  { fileName = "scoresheet-scan.pdf" } = {}
+) {
+  validateScannedScoresheetImageFile(file);
+
+  const imageDataUrl = await readFileAsDataUrl(file);
+  const image = await loadImage(imageDataUrl);
+  const jpeg = renderScoresheetImageAsJpeg(image);
+  const isLandscape = jpeg.width > jpeg.height;
+  const pdf = new jsPDF({
+    orientation: isLandscape ? "landscape" : "portrait",
+    unit: "pt",
+    format: "letter",
+    compress: true,
+  });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 18;
+  const scale = Math.min(
+    (pageWidth - margin * 2) / jpeg.width,
+    (pageHeight - margin * 2) / jpeg.height
+  );
+  const renderedWidth = jpeg.width * scale;
+  const renderedHeight = jpeg.height * scale;
+
+  pdf.addImage(
+    jpeg.dataUrl,
+    "JPEG",
+    (pageWidth - renderedWidth) / 2,
+    (pageHeight - renderedHeight) / 2,
+    renderedWidth,
+    renderedHeight,
+    undefined,
+    "MEDIUM"
+  );
+
+  const blob = pdf.output("blob");
+  const normalizedFileName = normalizePdfFileName(fileName);
+  const pdfFile = new File([blob], normalizedFileName, {
+    type: "application/pdf",
+    lastModified: Date.now(),
+  });
+
+  validateScannedScoresheetFile(pdfFile);
+  return pdfFile;
+}
+
 export function formatScannedScoresheetSize(bytes) {
   const size = Number(bytes || 0);
   if (!Number.isFinite(size) || size <= 0) return "";
 
   const precision = size >= 10 * 1024 * 1024 ? 0 : 1;
   return `${(size / (1024 * 1024)).toFixed(precision)} Mo`;
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () =>
+      reject(reader.error || new Error("Impossible de lire la photo."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImage(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+
+    image.onload = () => resolve(image);
+    image.onerror = () =>
+      reject(
+        new Error(
+          "Impossible d’ouvrir cette photo. Essaie une photo JPEG ou PNG."
+        )
+      );
+    image.src = dataUrl;
+  });
+}
+
+function renderScoresheetImageAsJpeg(image) {
+  const sourceWidth = Number(image?.naturalWidth || image?.width || 0);
+  const sourceHeight = Number(image?.naturalHeight || image?.height || 0);
+
+  if (!sourceWidth || !sourceHeight) {
+    throw new Error("La photo sélectionnée est vide.");
+  }
+
+  const scale = Math.min(
+    SCANNED_SCORESHEET_IMAGE_MAX_DIMENSION / Math.max(sourceWidth, sourceHeight),
+    1
+  );
+  const width = Math.max(1, Math.round(sourceWidth * scale));
+  const height = Math.max(1, Math.round(sourceHeight * scale));
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("Le navigateur ne peut pas préparer cette photo.");
+  }
+
+  canvas.width = width;
+  canvas.height = height;
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, width, height);
+  context.drawImage(image, 0, 0, width, height);
+
+  return {
+    dataUrl: canvas.toDataURL("image/jpeg", 0.88),
+    width,
+    height,
+  };
+}
+
+function normalizePdfFileName(value) {
+  const baseName = String(value || "scoresheet-scan.pdf")
+    .trim()
+    .replace(/\.pdf$/i, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return `${baseName || "scoresheet-scan"}.pdf`;
 }
 
 function hashFileFingerprint(file) {

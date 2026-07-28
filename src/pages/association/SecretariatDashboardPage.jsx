@@ -44,6 +44,7 @@ import {
   unpublishClassResultsRepository,
 } from "../../features/results/resultPublicationRepository";
 import {
+  convertScannedScoresheetImageToPdf,
   deleteScannedScoresheetRepository,
   formatScannedScoresheetSize,
   getScannedScoresheetPublicUrl,
@@ -185,11 +186,18 @@ function SecretariatDashboardPage() {
 
     setScoresheetBusy(classId, true);
     try {
+      const uploadFile = isScannedScoresheetImage(file)
+        ? await convertScannedScoresheetImageToPdf(file, {
+            fileName: `${
+              classData?.classItem?.name || "scoresheet"
+            }-scan.pdf`,
+          })
+        : file;
       await uploadScannedScoresheetRepository({
         associationId,
         showId,
         classId,
-        file,
+        file: uploadFile,
       });
       refresh();
     } catch (error) {
@@ -715,6 +723,7 @@ function ClassRow({
   const announcerResultsCompleted = hasCompletedAnnouncerResults(classData);
   const hasAnnouncerResults = hasAnnouncerEnteredResults(classData);
   const announcerResultsApproved = isAnnouncerResultsApproval(classData);
+  const isAnnouncerControlled = setup?.liveDataSource === "announcer";
   const isValidated = isClassResultsSecretariatApproved(classData);
   const hasOfficialScoresheet = isSigned && !announcerResultsApproved;
   const officialPdfReady = hasOfficialScoresheet && isValidated && hasOfficialPdf;
@@ -965,6 +974,36 @@ function ClassRow({
           ) : null}
           {canManage ? (
             <div style={judgeStatusActionsStyle}>
+              {isAnnouncerControlled && (
+                <label
+                  style={
+                    isScoresheetBusy
+                      ? disabledUploadLabelStyle
+                      : tinyCameraLabelStyle
+                  }
+                >
+                  {isScoresheetBusy
+                    ? t("management.secretariat.scannedScoresheetUploading")
+                    : scoresheetDocument
+                      ? t(
+                          "management.secretariat.scannedScoresheetScanReplace"
+                        )
+                      : t("management.secretariat.scannedScoresheetScan")}
+                  {!isScoresheetBusy ? (
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      style={hiddenFileInputStyle}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0] || null;
+                        event.target.value = "";
+                        onUploadScannedScoresheet(classData, file);
+                      }}
+                    />
+                  ) : null}
+                </label>
+              )}
               <label
                 style={
                   isScoresheetBusy
@@ -1217,6 +1256,16 @@ function AnnouncerResultsPreview({ classData, onClose, onDownload }) {
         </div>
       </section>
     </div>
+  );
+}
+
+function isScannedScoresheetImage(file) {
+  const mimeType = String(file?.type || "").toLowerCase();
+  const fileName = String(file?.name || "");
+
+  return (
+    mimeType.startsWith("image/") ||
+    /\.(?:jpe?g|png|webp|heic|heif)$/i.test(fileName)
   );
 }
 
@@ -1758,6 +1807,13 @@ const tinyUploadLabelStyle = {
   ...tinyButtonStyle,
   display: "inline-flex",
   alignItems: "center",
+};
+
+const tinyCameraLabelStyle = {
+  ...tinyUploadLabelStyle,
+  border: "1px solid #0f766e",
+  background: "#ecfdf5",
+  color: "#115e59",
 };
 
 const disabledUploadLabelStyle = {

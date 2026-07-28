@@ -1433,6 +1433,8 @@ export const translations = {
           "Impossible de retirer la scoresheet scannée. {{message}}",
         scannedScoresheetOpen: "Ouvrir le PDF",
         scannedScoresheetReplace: "Remplacer la scoresheet",
+        scannedScoresheetScan: "Scanner avec la caméra",
+        scannedScoresheetScanReplace: "Scanner à nouveau",
         scannedScoresheetUpload: "Téléverser la scoresheet (PDF)",
         scannedScoresheetUploadFailed:
           "Impossible de téléverser la scoresheet. {{message}}",
@@ -3427,6 +3429,8 @@ export const translations = {
           "Unable to remove the scanned score sheet. {{message}}",
         scannedScoresheetOpen: "Open PDF",
         scannedScoresheetReplace: "Replace score sheet",
+        scannedScoresheetScan: "Scan with camera",
+        scannedScoresheetScanReplace: "Scan again",
         scannedScoresheetUpload: "Upload score sheet PDF",
         scannedScoresheetUploadFailed:
           "Unable to upload the score sheet. {{message}}",
