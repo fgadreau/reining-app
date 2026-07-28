@@ -4,6 +4,7 @@ import {
   getClassesForDay,
   getClassesForDayRepository,
 } from "../classes/classRepository";
+import { getUniqueScoringClasses } from "../classes/classScoringGroups";
 import { getDaysByShowRepository } from "../days/dayRepository";
 import { getDaysByShowId } from "../days/daySelectors";
 import { getPaidWarmupsByDayId } from "../paidWarmups/paidWarmupStorage";
@@ -56,7 +57,8 @@ export function getAnnouncerShowView(showId) {
   const days = getDaysByShowId(showId);
 
   const sections = days.map((day) => {
-    const classes = getClassesForDay(day.id).map((classItem) =>
+    const scoringClasses = getUniqueScoringClasses(getClassesForDay(day.id));
+    const classes = scoringClasses.map((classItem) =>
       buildAnnouncerClassView(getClassFullData(classItem.id))
     );
     const paidWarmups = getPaidWarmupsByDayId(day.id).map((warmup) =>
@@ -98,8 +100,9 @@ export async function getAnnouncerShowViewRepository(showId) {
         getClassesForDayRepository(day.id),
         getPaidWarmupsForDayRepository(day.id),
       ]);
+      const scoringClasses = getUniqueScoringClasses(classes);
       const classViews = await Promise.all(
-        classes.map(async (classItem) =>
+        scoringClasses.map(async (classItem) =>
           buildAnnouncerClassView(
             await getClassFullDataRepository(classItem.id)
           )
