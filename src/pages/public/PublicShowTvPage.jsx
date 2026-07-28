@@ -1079,8 +1079,15 @@ function formatTvUpcomingSchedule(scheduleItem) {
           minute: "2-digit",
         }).format(startDate)
       : "";
+  const timeLabel =
+    time && item.scheduleStartMode === "fixed"
+      ? `Début prévu / Scheduled start: ${time}`
+      : time;
 
-  return [dateFr && dateEn ? `${dateFr} / ${dateEn}` : dateFr || dateEn, time]
+  return [
+    dateFr && dateEn ? `${dateFr} / ${dateEn}` : dateFr || dateEn,
+    timeLabel,
+  ]
     .filter(Boolean)
     .join(" · ");
 }

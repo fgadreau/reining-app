@@ -582,10 +582,6 @@ export async function saveArenaCurrentLiveClassRepository({
     });
   }
 
-  await hideOtherArenaLivePaidWarmupsRepository({
-    showId,
-    arena: effectiveArena,
-  });
   await hideOtherArenaLiveClassesRepository({
     showId,
     arena: effectiveArena,
@@ -630,12 +626,6 @@ export async function saveArenaCurrentLivePaidWarmupRepository({
     showId: normalizedShowId,
     arena: effectiveArena,
   });
-  await hideOtherArenaLivePaidWarmupsRepository({
-    showId: normalizedShowId,
-    arena: effectiveArena,
-    paidWarmupId: normalizedPaidWarmupId,
-  });
-
   return savePaidWarmupLiveStateRepository({
     paidWarmupId: normalizedPaidWarmupId,
     isPublicLive: true,
@@ -879,7 +869,6 @@ async function saveArenaCurrentLiveItemRepository({
   }
 
   if (item?.type === LIVE_SCHEDULE_ITEM_TYPES.CLASS) {
-    await hideOtherArenaLivePaidWarmupsRepository({ showId, arena });
     await hideOtherArenaLiveClassesRepository({
       showId,
       arena,

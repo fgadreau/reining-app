@@ -45,6 +45,7 @@ import {
   findScheduleItem,
   getScheduleArenaKey,
   isPaidWarmupScheduleLiveEligible,
+  isScheduledLiveViewCurrent,
   toPublicScheduleItem,
 } from "../schedule/liveSchedule";
 import {
@@ -1832,9 +1833,18 @@ function buildResolvedPublicLiveState({
     scheduleItems,
   });
   const liveClassesByArena = groupPrimaryLiveClassesByArena(liveClasses);
+  const scheduledExplicitWarmups = livePaidWarmups.map((warmup) =>
+    attachNextScheduleItem({
+      view: attachScheduleArenaToWarmup(warmup, scheduleItems),
+      scheduleItems,
+      scheduleRowsByItemKey,
+      type: LIVE_SCHEDULE_ITEM_TYPES.PAID_WARMUP,
+      itemId: warmup.id,
+    })
+  );
   const livePaidWarmupsByArena = groupPrimaryLivePaidWarmupsByArena(
-    livePaidWarmups.map((warmup) =>
-      attachScheduleArenaToWarmup(warmup, scheduleItems)
+    scheduledExplicitWarmups.filter((warmup) =>
+      isScheduledLiveViewCurrent(warmup, new Date())
     )
   );
   const arenaKeys = new Set([
@@ -1842,21 +1852,15 @@ function buildResolvedPublicLiveState({
     ...livePaidWarmupsByArena.keys(),
   ]);
   const resolvedLiveClasses = [];
-  const resolvedLivePaidWarmups = [];
+  const resolvedLivePaidWarmups = scheduledExplicitWarmups.filter(Boolean);
+  const resolvedPaidWarmupIds = new Set(
+    resolvedLivePaidWarmups.map((warmup) => warmup.id).filter(Boolean)
+  );
 
   arenaKeys.forEach((arenaKey) => {
     const explicitWarmup = livePaidWarmupsByArena.get(arenaKey);
 
     if (explicitWarmup) {
-      resolvedLivePaidWarmups.push(
-        attachNextScheduleItem({
-          view: explicitWarmup,
-          scheduleItems,
-          scheduleRowsByItemKey,
-          type: LIVE_SCHEDULE_ITEM_TYPES.PAID_WARMUP,
-          itemId: explicitWarmup.id,
-        })
-      );
       return;
     }
 
@@ -1876,16 +1880,25 @@ function buildResolvedPublicLiveState({
       : null;
 
     if (pendingWarmupView) {
-      resolvedLivePaidWarmups.push(
-        attachNextScheduleItem({
-          view: pendingWarmupView,
-          scheduleItems,
-          scheduleRowsByItemKey,
-          type: LIVE_SCHEDULE_ITEM_TYPES.PAID_WARMUP,
-          itemId: pendingWarmupView.id,
-        })
-      );
-      return;
+      const scheduledPendingWarmup = attachNextScheduleItem({
+        view: pendingWarmupView,
+        scheduleItems,
+        scheduleRowsByItemKey,
+        type: LIVE_SCHEDULE_ITEM_TYPES.PAID_WARMUP,
+        itemId: pendingWarmupView.id,
+      });
+
+      if (
+        scheduledPendingWarmup &&
+        !resolvedPaidWarmupIds.has(scheduledPendingWarmup.id)
+      ) {
+        resolvedLivePaidWarmups.push(scheduledPendingWarmup);
+        resolvedPaidWarmupIds.add(scheduledPendingWarmup.id);
+      }
+
+      if (isScheduledLiveViewCurrent(scheduledPendingWarmup, new Date())) {
+        return;
+      }
     }
 
     resolvedLiveClasses.push(
@@ -1994,6 +2007,7 @@ function attachNextScheduleItem({
     arena: view.arena || scheduleItem?.effectiveArena || "",
     scheduleDayDate: scheduleRow?.dayDate || "",
     scheduleDayLabel: scheduleRow?.dayLabel || "",
+    scheduleStartMode: scheduleRow?.scheduleStartMode || "",
     scheduleStartAt:
       scheduleRow?.plannedStartAt || scheduleRow?.estimatedStartAt || null,
     nextScheduleItem: buildPublicNextScheduleItem({

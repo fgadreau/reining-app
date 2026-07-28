@@ -1,4 +1,5 @@
 import {
+  CLASS_START_MODE_FIXED,
   compareMixedScheduleItemsByStart,
   normalizeClassStartTime,
 } from "../classes/classSchedule";
@@ -46,7 +47,24 @@ export function isScheduledLiveViewCurrent(item, now = new Date()) {
   const scheduleDayDate = String(item?.scheduleDayDate || "").trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(scheduleDayDate)) return true;
 
-  return scheduleDayDate <= formatLocalScheduleDateKey(now);
+  const currentDateKey = formatLocalScheduleDateKey(now);
+
+  if (scheduleDayDate < currentDateKey) return true;
+  if (scheduleDayDate > currentDateKey) return false;
+
+  if (item?.scheduleStartMode !== CLASS_START_MODE_FIXED) {
+    return true;
+  }
+
+  const fixedStartAt = item?.scheduleStartAt
+    ? new Date(item.scheduleStartAt)
+    : null;
+
+  if (!fixedStartAt || Number.isNaN(fixedStartAt.getTime())) {
+    return true;
+  }
+
+  return fixedStartAt.getTime() <= now.getTime();
 }
 
 export function partitionScheduledLiveViews(items, now = new Date()) {

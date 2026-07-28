@@ -5,7 +5,6 @@ import {
   getPaidWarmupRepository,
   savePaidWarmupRepository,
 } from "../../features/paidWarmups/paidWarmupRepository";
-import { saveArenaCurrentLivePaidWarmupRepository } from "../../features/publication/publicationCloudRepository";
 import {
   PAID_WARMUP_STATUSES,
   getPaidWarmupStats,
@@ -177,14 +176,7 @@ function PaidWarmupSetupPage() {
           showId,
           dayId,
         });
-        const liveSaved = saved?.isPublicLive
-          ? await saveArenaCurrentLivePaidWarmupRepository({
-              showId,
-              arena: saved.arena,
-              paidWarmupId: saved.id,
-            })
-          : saved;
-        const nextSavedWarmup = liveSaved ? { ...saved, ...liveSaved } : saved;
+        const nextSavedWarmup = saved;
         const tone = getLocalFirstSyncNoticeTone(saved);
         const syncNotice = formatLocalFirstSyncNotice(saved, t);
         const isLatestSave = saveSequence === saveSequenceRef.current;
