@@ -68,7 +68,7 @@ import ClassPaceSummary from "../../components/ClassPaceSummary";
 
 let paidWarmupAudioContext = null;
 
-const ANNOUNCER_LIVE_FALLBACK_REFRESH_MS = 5000;
+const ANNOUNCER_LIVE_FALLBACK_REFRESH_MS = 15000;
 
 const ANNOUNCER_LIVE_ITEM_TYPES = {
   CLASS: "class",
@@ -172,7 +172,6 @@ function AnnouncerDashboardPage() {
   const access = useAssociationAccess(associationId);
   const show = getShowById(showId);
   const [liveView, setLiveView] = useState(() => getAnnouncerShowView(showId));
-  const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
   const [rankingClass, setRankingClass] = useState(null);
   const [qualifiedRidersClass, setQualifiedRidersClass] = useState(null);
@@ -181,6 +180,9 @@ function AnnouncerDashboardPage() {
   const [paidWarmupUndoSnapshots, setPaidWarmupUndoSnapshots] = useState({});
   const autoCompletedPaidWarmupKeyRef = useRef(null);
   const paidWarmupAudioCueKeysRef = useRef(new Set());
+  const liveViewRefreshGenerationRef = useRef(0);
+  const liveViewRefreshRequestRef = useRef(0);
+  const activeLiveViewRefreshRef = useRef(null);
   const liveClassIdsKey = useMemo(
     () => getLiveViewClassIds(liveView).join("|"),
     [liveView]
@@ -209,9 +211,44 @@ function AnnouncerDashboardPage() {
   }, []);
 
   const refreshLiveViewNow = useCallback(async () => {
-    const nextLiveView = await getAnnouncerShowViewRepository(showId);
-    setLiveView(nextLiveView);
-    setIsLoading(false);
+    const generation = liveViewRefreshGenerationRef.current;
+    const activeRefresh = activeLiveViewRefreshRef.current;
+
+    if (activeRefresh?.generation === generation) {
+      return activeRefresh.promise;
+    }
+
+    const requestId = liveViewRefreshRequestRef.current + 1;
+    liveViewRefreshRequestRef.current = requestId;
+
+    const refreshPromise = getAnnouncerShowViewRepository(showId)
+      .then((nextLiveView) => {
+        const isCurrentRefresh =
+          generation === liveViewRefreshGenerationRef.current &&
+          requestId === liveViewRefreshRequestRef.current;
+
+        if (isCurrentRefresh) {
+          setLiveView(nextLiveView);
+        }
+
+        return nextLiveView;
+      })
+      .catch((error) => {
+        console.error("Erreur actualisation vue annonceur:", error);
+        return null;
+      })
+      .finally(() => {
+        if (activeLiveViewRefreshRef.current?.promise === refreshPromise) {
+          activeLiveViewRefreshRef.current = null;
+        }
+      });
+
+    activeLiveViewRefreshRef.current = {
+      generation,
+      promise: refreshPromise,
+    };
+
+    return refreshPromise;
   }, [showId]);
 
   const savePaidWarmupUpdate = useCallback(async (nextWarmup) => {
@@ -259,7 +296,7 @@ function AnnouncerDashboardPage() {
         return null;
       }
 
-      const saved = await saveAnnouncerLiveSessionRepository(
+      const savePromise = saveAnnouncerLiveSessionRepository(
         classView.classId,
         nextSession,
         {
@@ -271,6 +308,14 @@ function AnnouncerDashboardPage() {
           },
         }
       );
+
+      // The repository saves locally before starting the network request.
+      // Render that local state immediately so weak Wi-Fi never leaves the
+      // previous participant on screen while the background sync is pending.
+      liveViewRefreshGenerationRef.current += 1;
+      setLiveView(getAnnouncerShowView(showId));
+
+      const saved = await savePromise;
       const activationStatus = getAnnouncerLiveActivationStatus({
         session: saved,
         publicationStatus: classView.publicationStatus,
@@ -410,22 +455,8 @@ function AnnouncerDashboardPage() {
   }, [liveView.activePaidWarmup, now, savePaidWarmupUpdate]);
 
   useEffect(() => {
-    let isMounted = true;
-
-    async function loadLiveView() {
-      setIsLoading(true);
-      const nextLiveView = await getAnnouncerShowViewRepository(showId);
-      if (!isMounted) return;
-      setLiveView(nextLiveView);
-      setIsLoading(false);
-    }
-
-    loadLiveView();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [showId]);
+    refreshLiveViewNow();
+  }, [refreshLiveViewNow]);
 
   useEffect(() => {
     let isMounted = true;
@@ -434,10 +465,8 @@ function AnnouncerDashboardPage() {
     const refreshLiveView = () => {
       window.clearTimeout(refreshTimeout);
       refreshTimeout = window.setTimeout(async () => {
-        const nextLiveView = await getAnnouncerShowViewRepository(showId);
         if (!isMounted) return;
-        setLiveView(nextLiveView);
-        setIsLoading(false);
+        await refreshLiveViewNow();
       }, 200);
     };
 
@@ -452,7 +481,7 @@ function AnnouncerDashboardPage() {
       window.clearTimeout(refreshTimeout);
       unsubscribe();
     };
-  }, [showId, liveClassIdsKey]);
+  }, [showId, liveClassIdsKey, refreshLiveViewNow]);
 
   useEffect(() => {
     let isMounted = true;
@@ -461,17 +490,15 @@ function AnnouncerDashboardPage() {
         return;
       }
 
-      const nextLiveView = await getAnnouncerShowViewRepository(showId);
       if (!isMounted) return;
-      setLiveView(nextLiveView);
-      setIsLoading(false);
+      await refreshLiveViewNow();
     }, ANNOUNCER_LIVE_FALLBACK_REFRESH_MS);
 
     return () => {
       isMounted = false;
       window.clearInterval(refreshTimer);
     };
-  }, [showId]);
+  }, [refreshLiveViewNow]);
 
   if (!show) {
     return (
@@ -533,10 +560,6 @@ function AnnouncerDashboardPage() {
           )}
         </div>
       </section>
-
-      {isLoading && (
-        <div style={emptyStateStyle}>{t("management.announcer.loading")}</div>
-      )}
 
       {priorityLiveItems.length > 0 && (
         <section style={prioritySectionStyle}>
@@ -651,8 +674,7 @@ function AnnouncerDashboardPage() {
         ))}
       </div>
 
-      {!isLoading &&
-        priorityLiveItems.length === 0 &&
+      {priorityLiveItems.length === 0 &&
         remainingSections.length === 0 && (
           <div style={softEmptyStyle}>{t("management.classes.emptyDay")}</div>
         )}
