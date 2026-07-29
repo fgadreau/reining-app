@@ -774,6 +774,10 @@ export const translations = {
         scratchNext: "Scratch prochain",
         scratch: "Scratch",
         scratchConfirm: "Marquer le concurrent #{{draw}} scratch ?",
+        scoreInvalid:
+          "Entre un pointage numérique valide pour chaque juge.",
+        scoreKeyboardHint:
+          "Au clavier : entre le pointage, puis appuie sur Entrée pour l’enregistrer.",
         saveScore: "Enregistrer le score",
         savedLocally: "Sauvegardé localement",
         soundAlertsReady: "Sons actifs",
@@ -2772,6 +2776,10 @@ export const translations = {
         scratchNext: "Scratch next",
         scratch: "Scratch",
         scratchConfirm: "Mark competitor #{{draw}} as scratched?",
+        scoreInvalid:
+          "Enter a valid numeric score for every judge.",
+        scoreKeyboardHint:
+          "Keyboard: enter the score, then press Enter to save it.",
         saveScore: "Save score",
         savedLocally: "Saved locally",
         soundAlertsReady: "Sounds active",

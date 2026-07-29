@@ -2075,10 +2075,25 @@ function AnnouncerRunResultModal({
   const hasValidScore =
     scoreResult.isComplete &&
     Number.isFinite(parseScoreTotalValue(scoreResult.scoreTotal));
+  const hasEnteredScore = judgeRows.some((judge) =>
+    String(judgeScoreValues[judge.id] || "").trim()
+  );
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    if (!hasValidScore) return;
+
+    onSave({
+      status: ANNOUNCER_RUN_STATUSES.SCORED,
+      scoreTotal: scoreResult.scoreTotal,
+      judgeScores: scoreResult.judgeScores,
+      note,
+    });
+  }
 
   return (
     <div style={modalBackdropStyle} role="dialog" aria-modal="true">
-      <div style={compactModalStyle}>
+      <form style={compactModalStyle} onSubmit={handleSubmit}>
         <div style={modalHeaderStyle}>
           <div>
             <h2 style={sectionTitleStyle}>
@@ -2117,12 +2132,17 @@ function AnnouncerRunResultModal({
                     [judge.id]: event.target.value,
                   }))
                 }
+                onFocus={(event) => event.currentTarget.select()}
                 placeholder="70"
                 style={scoreInputStyle}
                 autoFocus={index === 0}
               />
             </label>
           ))}
+        </div>
+
+        <div style={scoreKeyboardHintStyle}>
+          {t("management.announcer.scoreKeyboardHint")}
         </div>
 
         {judgeRows.length > 1 && (
@@ -2138,6 +2158,12 @@ function AnnouncerRunResultModal({
           </div>
         )}
 
+        {hasEnteredScore && !hasValidScore && scoreResult.isSupported && (
+          <div style={scoreValidationNoticeStyle} role="alert">
+            {t("management.announcer.scoreInvalid")}
+          </div>
+        )}
+
         <label style={fieldLabelStyle}>
           {t("management.announcer.correctionNote")}
           <input
@@ -2150,17 +2176,9 @@ function AnnouncerRunResultModal({
 
         <div style={actionRowStyle}>
           <button
-            type="button"
+            type="submit"
             disabled={!hasValidScore}
-            onClick={() =>
-              onSave({
-                status: ANNOUNCER_RUN_STATUSES.SCORED,
-                scoreTotal: scoreResult.scoreTotal,
-                judgeScores: scoreResult.judgeScores,
-                note,
-              })
-            }
-            style={primaryButtonStyle}
+            style={scoreSaveButtonStyle(hasValidScore)}
           >
             {t("management.announcer.saveScore")}
           </button>
@@ -2201,7 +2219,7 @@ function AnnouncerRunResultModal({
             {t("management.announcer.scratch")}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
@@ -3222,6 +3240,25 @@ const scoreInputStyle = {
   textAlign: "center",
 };
 
+const scoreKeyboardHintStyle = {
+  marginTop: -4,
+  marginBottom: 12,
+  color: "#64748b",
+  fontSize: 13,
+  fontWeight: 700,
+};
+
+const scoreValidationNoticeStyle = {
+  marginBottom: 12,
+  padding: "9px 11px",
+  border: "1px solid #fecaca",
+  borderRadius: 8,
+  background: "#fff5f5",
+  color: "#991b1b",
+  fontSize: 14,
+  fontWeight: 800,
+};
+
 const judgeScoreInputGridStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
@@ -4021,6 +4058,13 @@ const primaryButtonStyle = {
   fontWeight: 850,
   boxShadow: "0 6px 16px rgba(15, 118, 110, 0.18)",
 };
+
+const scoreSaveButtonStyle = (isEnabled) => ({
+  ...primaryButtonStyle,
+  opacity: isEnabled ? 1 : 0.5,
+  cursor: isEnabled ? "pointer" : "not-allowed",
+  boxShadow: isEnabled ? primaryButtonStyle.boxShadow : "none",
+});
 
 const secondaryButtonStyle = {
   padding: "10px 15px",

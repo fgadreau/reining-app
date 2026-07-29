@@ -208,6 +208,68 @@ async function seedCompletedSimpleAnnouncerShow(page) {
   await seedStorage(page, seed);
 }
 
+async function seedActiveSingleJudgeAnnouncerShow(page) {
+  const seed = buildRobotShowStorageSeed();
+  const setup = seed.json["reining_class_setup_v1"][CLASS_ID];
+  const firstJudge = setup.judges[0];
+  const startedAt = "2026-05-28T15:00:00.000Z";
+  const activeStartedAt = "2026-05-28T15:05:00.000Z";
+
+  setup.pattern = "R16";
+  setup.liveDataSource = "announcer";
+  setup.judges = [firstJudge];
+  setup.judgeName = firstJudge.name;
+  seed.json["reining_classes_v1"].find(
+    (classItem) => classItem.id === CLASS_ID
+  ).pattern = "R16";
+
+  const runs = setup.runs.map((run, index) => ({
+    ...run,
+    status: index < 2 ? "scored" : index === 2 ? "on_course" : "pending",
+    scoreTotal: index === 0 ? "69½" : index === 1 ? "70" : "",
+    judgeScores:
+      index < 2
+        ? [
+            {
+              judgeId: firstJudge.id,
+              judgeName: firstJudge.name,
+              scoreTotal: index === 0 ? "69½" : "70",
+            },
+          ]
+        : [],
+    isActive: index === 2,
+    isComplete: index < 2,
+    startedAt:
+      index < 2
+        ? `2026-05-28T15:0${index}:00.000Z`
+        : index === 2
+          ? activeStartedAt
+          : null,
+    completedAt:
+      index < 2 ? `2026-05-28T15:0${index + 1}:00.000Z` : null,
+  }));
+
+  seed.json["showscore_announcer_live_sessions_v1"] = {
+    [CLASS_ID]: {
+      classId: CLASS_ID,
+      runs,
+      activeManoeuvre: {
+        type: "run",
+        runId: runs[2].id,
+        draw: runs[2].draw,
+        startedAt: activeStartedAt,
+      },
+      startedAt,
+      completedAt: null,
+      completedBy: null,
+      revision: 5,
+      updatedAt: activeStartedAt,
+    },
+  };
+
+  await seedStorage(page, seed);
+}
+
 async function seedDailyLivestreamShow(page) {
   const seed = buildRobotShowStorageSeed();
   const show = seed.json["reining_shows_v1"].find(
@@ -786,7 +848,10 @@ test.describe("robot de show local", () => {
       "Total combiné selon les règles multijuges"
     );
     await expect(page.locator("body")).toContainText("216");
-    await page.getByRole("button", { name: "Enregistrer le score" }).click();
+    await expect(page.locator("body")).toContainText(
+      "appuie sur Entrée pour l’enregistrer"
+    );
+    await page.getByLabel("Juge Echo").press("Enter");
     await expect(
       page.getByRole("button", { name: "Entrer le résultat" })
     ).toBeVisible();
@@ -819,6 +884,58 @@ test.describe("robot de show local", () => {
     await expect(body).not.toContainText("Cheval 3");
     await expect(body).not.toContainText("Back 103");
     await expectNoHorizontalOverflow(page);
+  });
+
+  test("enregistre au clavier un résultat annonceur à un juge sur laptop", async ({
+    page,
+  }) => {
+    await page.route("**/rest/v1/**", (route) => route.abort());
+    await seedActiveSingleJudgeAnnouncerShow(page);
+
+    await page.goto(
+      `/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/announcer`
+    );
+    await page.getByRole("button", { name: "Entrer le résultat" }).click();
+
+    const scoreInput = page.getByLabel("Juge Alpha");
+    await expect(scoreInput).toBeFocused();
+    await scoreInput.fill("score");
+    await expect(page.getByRole("alert")).toContainText(
+      "pointage numérique valide"
+    );
+    await expect(
+      page.getByRole("button", { name: "Enregistrer le score" })
+    ).toBeDisabled();
+    await scoreInput.fill("70,5");
+    await scoreInput.press("Enter");
+
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.locator("body")).toContainText("Proprio 4");
+    await expect(page.locator("body")).toContainText("#3 · 70½");
+    await expect
+      .poll(() =>
+        page.evaluate((classId) => {
+          const sessions = JSON.parse(
+            window.localStorage.getItem(
+              "showscore_announcer_live_sessions_v1"
+            ) || "{}"
+          );
+          const run = sessions[classId]?.runs?.find(
+            (item) => Number(item.draw) === 3
+          );
+          return {
+            status: run?.status || "",
+            scoreTotal: run?.scoreTotal || "",
+            nextActiveDraw:
+              sessions[classId]?.activeManoeuvre?.draw || null,
+          };
+        }, CLASS_ID)
+      )
+      .toEqual({
+        status: "scored",
+        scoreTotal: "70½",
+        nextActiveDraw: 4,
+      });
   });
 
   test("affiche la liste de rappel apres un bloc annonceur simple termine", async ({
