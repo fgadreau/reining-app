@@ -50,6 +50,7 @@ import { getPublicShowViewRepository } from "../../features/publication/publicVi
 import {
   getShowRepository,
   saveShowRepository,
+  SHOW_SAVE_SCOPES,
 } from "../../features/shows/showRepository";
 import { appStyles as styles } from "../../styles/appStyles";
 import { createId } from "../../utils/createId";
@@ -643,7 +644,9 @@ function ShowDetailPage() {
             ? 0
             : Number(show.tvDisplayVideoSize || 0),
       };
-      const savedShow = await saveShowRepository(nextShow);
+      const savedShow = await saveShowRepository(nextShow, {
+        scope: SHOW_SAVE_SCOPES.PUBLIC_SETTINGS,
+      });
       let savedAssociation = null;
       let sponsorLogoError = null;
       let videoCleanupError = null;

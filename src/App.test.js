@@ -63,7 +63,11 @@ import {
   getPreviousPublicLivestreams,
   normalizeLivestreamUrlsByDate,
 } from "./features/livestream/livestreamSchedule";
-import { doesShowLivestreamMatchRow } from "./features/shows/showRepository";
+import {
+  doesShowLivestreamMatchRow,
+  toGeneralShowRow,
+  toPublicSettingsShowRow,
+} from "./features/shows/showRepository";
 import {
   LIVE_DATA_SOURCES,
   LIVE_DISPLAY_MODES,
@@ -3398,6 +3402,60 @@ test("confirms that Supabase persisted all daily livestream values", () => {
       is_livestream_public: false,
     })
   ).toBe(false);
+});
+
+test("keeps general show edits away from persisted livestream settings", () => {
+  const row = toGeneralShowRow({
+    associationId: "association-1",
+    name: "Derby",
+    startDate: "2026-07-28",
+    endDate: "2026-08-02",
+    status: "active",
+    livestreamUrl: "",
+    livestreamUrlsByDate: {},
+    isLivestreamPublic: false,
+    isSchedulePublic: false,
+  });
+
+  expect(row).toMatchObject({
+    organization_id: "association-1",
+    name: "Derby",
+    start_date: "2026-07-28",
+    end_date: "2026-08-02",
+    status: "open",
+  });
+  expect(Object.hasOwn(row, "livestream_url")).toBe(false);
+  expect(Object.hasOwn(row, "livestream_urls_by_date")).toBe(false);
+  expect(Object.hasOwn(row, "is_livestream_public")).toBe(false);
+  expect(Object.hasOwn(row, "show_schedule_public")).toBe(false);
+  expect(Object.hasOwn(row, "tv_display_paused")).toBe(false);
+});
+
+test("updates livestream settings without rewriting general show fields", () => {
+  const row = toPublicSettingsShowRow({
+    name: "Stale show name",
+    startDate: "2026-07-28",
+    livestreamUrl: "https://youtu.be/day-one",
+    livestreamUrlsByDate: {
+      "2026-07-28": "https://youtu.be/day-one",
+      "2026-07-29": "https://youtu.be/day-two",
+    },
+    isLivestreamPublic: true,
+    isSchedulePublic: true,
+  });
+
+  expect(row).toMatchObject({
+    livestream_url: "https://youtu.be/day-one",
+    livestream_urls_by_date: {
+      "2026-07-28": "https://youtu.be/day-one",
+      "2026-07-29": "https://youtu.be/day-two",
+    },
+    is_livestream_public: true,
+    show_schedule_public: true,
+  });
+  expect(Object.hasOwn(row, "name")).toBe(false);
+  expect(Object.hasOwn(row, "start_date")).toBe(false);
+  expect(Object.hasOwn(row, "status")).toBe(false);
 });
 
 test("normalizes association website urls for public links", () => {

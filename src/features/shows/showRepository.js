@@ -18,6 +18,11 @@ import {
 } from "./showStorage";
 import { normalizeLivestreamUrlsByDate } from "../livestream/livestreamSchedule";
 
+export const SHOW_SAVE_SCOPES = {
+  GENERAL: "general",
+  PUBLIC_SETTINGS: "public-settings",
+};
+
 function toShowStatus(hspStatus) {
   if (hspStatus === "open") return "active";
   if (hspStatus === "closed") return "completed";
@@ -118,6 +123,47 @@ function toShowRowWithoutTvDisplay(show, options = {}) {
   return row;
 }
 
+export function toGeneralShowRow(show) {
+  return {
+    organization_id: show.associationId,
+    name: show.name || "",
+    venue: show.venue || "",
+    location: show.location || "",
+    start_date: show.startDate || null,
+    end_date: show.endDate || null,
+    status: toHspShowStatus(show.status),
+  };
+}
+
+export function toPublicSettingsShowRow(show, options = {}) {
+  const includePublicSchedule = options.includePublicSchedule !== false;
+  const includeTvDisplay = options.includeTvDisplay !== false;
+  const row = {
+    livestream_url: show.livestreamUrl || "",
+    livestream_urls_by_date: normalizeLivestreamUrlsByDate(
+      show.livestreamUrlsByDate
+    ),
+    is_livestream_public: Boolean(show.isLivestreamPublic),
+  };
+
+  if (includePublicSchedule) {
+    row.is_public = Boolean(show.isSchedulePublic);
+    row.show_schedule_public = Boolean(show.isSchedulePublic);
+  }
+
+  if (includeTvDisplay) {
+    row.tv_display_paused = Boolean(show.isTvDisplayPaused);
+    row.tv_display_message_fr = show.tvDisplayMessageFr || "";
+    row.tv_display_message_en = show.tvDisplayMessageEn || "";
+    row.tv_display_video_path = show.tvDisplayVideoPath || "";
+    row.tv_display_video_name = show.tvDisplayVideoName || "";
+    row.tv_display_video_size = Number(show.tvDisplayVideoSize || 0);
+    row.tv_display_video_arena = show.tvDisplayVideoArena || "";
+  }
+
+  return row;
+}
+
 function getSupabaseErrorText(error) {
   return [error?.message, error?.details, error?.hint]
     .map((value) => String(value || "").toLowerCase())
@@ -166,12 +212,16 @@ function createShowWriteNotConfirmedError(message, code = "42501") {
   return error;
 }
 
-async function persistShowRow(supabase, row, show) {
-  const { data, error } = await supabase
-    .from("shows")
-    .upsert(row)
-    .select("*")
-    .maybeSingle();
+async function persistShowRow(
+  supabase,
+  row,
+  show,
+  { isExistingShow = false } = {}
+) {
+  const writeQuery = isExistingShow
+    ? supabase.from("shows").update(row).eq("id", show.id)
+    : supabase.from("shows").upsert(row);
+  const { data, error } = await writeQuery.select("*").maybeSingle();
 
   if (error) throw error;
 
@@ -264,42 +314,73 @@ export async function getShowRepository(showId) {
   }
 }
 
-export async function saveShowRepository(show) {
+export async function saveShowRepository(show, options = {}) {
   const supabase = getSupabaseClient();
   const isExistingShow = Boolean(getShowById(show.id));
+  const saveScope =
+    options.scope === SHOW_SAVE_SCOPES.PUBLIC_SETTINGS
+      ? SHOW_SAVE_SCOPES.PUBLIC_SETTINGS
+      : SHOW_SAVE_SCOPES.GENERAL;
   let syncStatus = supabase
     ? LOCAL_FIRST_SYNC_STATUSES.SYNCED
     : LOCAL_FIRST_SYNC_STATUSES.LOCAL;
   let syncError = null;
+  let persistedShow = null;
 
   if (supabase) {
     try {
-      await retrySupabaseWriteAfterSessionRefresh(supabase, () =>
-        persistShowRow(supabase, toShowRow(show), show)
+      const row = !isExistingShow
+        ? toShowRow(show)
+        : saveScope === SHOW_SAVE_SCOPES.PUBLIC_SETTINGS
+          ? toPublicSettingsShowRow(show)
+          : toGeneralShowRow(show);
+      const persistedRow = await retrySupabaseWriteAfterSessionRefresh(
+        supabase,
+        () => persistShowRow(supabase, row, show, { isExistingShow })
       );
+      persistedShow = toShow(persistedRow);
     } catch (error) {
       if (
         isLivestreamSchemaMissing(error) ||
         isScheduleSchemaMissing(error) ||
         isTvDisplaySchemaMissing(error)
       ) {
-        try {
-          const includePublicSchedule = !isScheduleSchemaMissing(error);
-          const fallbackRow = isLivestreamSchemaMissing(error)
-            ? toLegacyShowRow(show)
-            : isScheduleSchemaMissing(error) || isTvDisplaySchemaMissing(error)
-              ? toShowRowWithoutTvDisplay(show, { includePublicSchedule })
-              : toShowRow(show, { includePublicSchedule: false });
-          await retrySupabaseWriteAfterSessionRefresh(supabase, () =>
-            persistShowRow(supabase, fallbackRow, show)
-          );
+        if (
+          saveScope === SHOW_SAVE_SCOPES.PUBLIC_SETTINGS &&
+          isLivestreamSchemaMissing(error)
+        ) {
           syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
           syncError =
-            "Certaines colonnes publiques du show ne sont pas disponibles dans Supabase. Le show est sauvegardé localement, mais ces réglages publics ne seront visibles qu'après la migration.";
-        } catch (legacyError) {
-          console.error("Erreur sauvegarde show Supabase:", legacyError);
-          syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
-          syncError = legacyError;
+            "Supabase n'a pas pu enregistrer les liens du livestream. Les réglages existants en ligne ont été laissés intacts.";
+        } else {
+          try {
+            const includePublicSchedule = !isScheduleSchemaMissing(error);
+            const fallbackRow = !isExistingShow
+              ? isLivestreamSchemaMissing(error)
+                ? toLegacyShowRow(show)
+                : toShowRowWithoutTvDisplay(show, { includePublicSchedule })
+              : saveScope === SHOW_SAVE_SCOPES.PUBLIC_SETTINGS
+                ? toPublicSettingsShowRow(show, {
+                    includePublicSchedule,
+                    includeTvDisplay: !isTvDisplaySchemaMissing(error),
+                  })
+                : toGeneralShowRow(show);
+            const persistedRow = await retrySupabaseWriteAfterSessionRefresh(
+              supabase,
+              () =>
+                persistShowRow(supabase, fallbackRow, show, {
+                  isExistingShow,
+                })
+            );
+            persistedShow = toShow(persistedRow);
+            syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
+            syncError =
+              "Certaines colonnes publiques du show ne sont pas disponibles dans Supabase. Les autres réglages ont été sauvegardés.";
+          } catch (legacyError) {
+            console.error("Erreur sauvegarde show Supabase:", legacyError);
+            syncStatus = LOCAL_FIRST_SYNC_STATUSES.ERROR;
+            syncError = legacyError;
+          }
         }
       } else {
         console.error("Erreur sauvegarde show Supabase:", error);
@@ -309,7 +390,7 @@ export async function saveShowRepository(show) {
     }
   }
 
-  const savedShow = saveShowLocally(show);
+  const savedShow = saveShowLocally(persistedShow || show);
 
   trackEvent({
     eventName: isExistingShow ? "show_updated" : "show_created",
@@ -319,6 +400,11 @@ export async function saveShowRepository(show) {
     metadata: {
       name: savedShow.name,
       status: savedShow.status,
+      saveScope,
+      isLivestreamPublic: Boolean(savedShow.isLivestreamPublic),
+      livestreamDateCount: Object.keys(
+        normalizeLivestreamUrlsByDate(savedShow.livestreamUrlsByDate)
+      ).length,
     },
   });
 
