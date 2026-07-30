@@ -669,39 +669,6 @@ export function subscribePublicShowViewRepository(showId, classIds, onChange) {
     {
       event: "*",
       schema: "public",
-      table: "shows",
-      filter: `id=eq.${showId}`,
-    },
-    onChange
-  );
-
-  channel.on(
-    "postgres_changes",
-    {
-      event: "*",
-      schema: "public",
-      table: "show_days",
-      filter: `show_id=eq.${showId}`,
-    },
-    onChange
-  );
-
-  channel.on(
-    "postgres_changes",
-    {
-      event: "*",
-      schema: "public",
-      table: "classes",
-      filter: `show_id=eq.${showId}`,
-    },
-    onChange
-  );
-
-  channel.on(
-    "postgres_changes",
-    {
-      event: "*",
-      schema: "public",
       table: "show_score_paid_warmups",
       filter: `show_id=eq.${showId}`,
     },
@@ -709,26 +676,16 @@ export function subscribePublicShowViewRepository(showId, classIds, onChange) {
   );
 
   uniqueClassIds.forEach((classId) => {
-    [
-      "show_score_publication_states",
-      "show_score_official_results",
-      "class_result_publications",
-      "show_score_scoring_sessions",
-      "show_score_judge_sessions",
-      "show_score_class_setups",
-      "show_score_announcer_live_sessions",
-    ].forEach((table) => {
-      channel.on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table,
-          filter: `class_id=eq.${classId}`,
-        },
-        onChange
-      );
-    });
+    channel.on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "show_score_announcer_live_sessions",
+        filter: `class_id=eq.${classId}`,
+      },
+      onChange
+    );
   });
 
   channel.subscribe((status) => {

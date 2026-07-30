@@ -9,7 +9,10 @@ vi.mock("../cloud/supabaseClient", () => ({
   isSupabaseConfigured: () => true,
 }));
 
-import { getPublicShowViewRepository } from "./publicViewRepository";
+import {
+  getPublicShowViewRepository,
+  subscribePublicShowViewRepository,
+} from "./publicViewRepository";
 
 function createSupabaseStub(tableRows, rpcRows = {}) {
   const queries = [];
@@ -186,4 +189,53 @@ test("loads a multi-day public show with one query per table", async () => {
       (filter) => filter.column === "show_day_id"
     )
   ).toBe(false);
+});
+
+test("subscribes only to the tables enabled for production realtime", () => {
+  const bindings = [];
+  const channel = {
+    on(event, config, callback) {
+      bindings.push({ event, config, callback });
+      return channel;
+    },
+    subscribe: vi.fn(),
+  };
+  const supabase = {
+    channel: vi.fn(() => channel),
+    removeChannel: vi.fn(),
+  };
+  const onChange = vi.fn();
+  getSupabaseClientMock.mockReturnValue(supabase);
+
+  const unsubscribe = subscribePublicShowViewRepository(
+    "show-1",
+    ["class-1", "class-2", "class-1"],
+    onChange
+  );
+
+  expect(bindings.map(({ config }) => config)).toEqual([
+    {
+      event: "*",
+      schema: "public",
+      table: "show_score_paid_warmups",
+      filter: "show_id=eq.show-1",
+    },
+    {
+      event: "*",
+      schema: "public",
+      table: "show_score_announcer_live_sessions",
+      filter: "class_id=eq.class-1",
+    },
+    {
+      event: "*",
+      schema: "public",
+      table: "show_score_announcer_live_sessions",
+      filter: "class_id=eq.class-2",
+    },
+  ]);
+  expect(channel.subscribe).toHaveBeenCalledOnce();
+
+  unsubscribe();
+
+  expect(supabase.removeChannel).toHaveBeenCalledWith(channel);
 });
