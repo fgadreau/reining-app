@@ -3442,6 +3442,7 @@ test("updates livestream settings without rewriting general show fields", () => 
     },
     isLivestreamPublic: true,
     isSchedulePublic: true,
+    obsOverlayMode: "neutral",
   });
 
   expect(row).toMatchObject({
@@ -3452,6 +3453,7 @@ test("updates livestream settings without rewriting general show fields", () => 
     },
     is_livestream_public: true,
     show_schedule_public: true,
+    obs_overlay_mode: "neutral",
   });
   expect(Object.hasOwn(row, "name")).toBe(false);
   expect(Object.hasOwn(row, "start_date")).toBe(false);

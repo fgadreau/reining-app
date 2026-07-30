@@ -55,10 +55,12 @@ function PublicShowOverlayPage() {
     SPONSOR_LOGOS_PER_SLIDE
   );
   const hasSponsorRail = sponsorSlides.length > 0;
+  const isNeutralOverlay = overlayShow?.obsOverlayMode === "neutral";
   const isDragActive = Boolean(
     liveClass?.activeDragItem || liveClass?.dragBreak?.isActive
   );
-  const isSponsorTakeover = isDragActive && hasSponsorRail;
+  const isSponsorTakeover =
+    !isNeutralOverlay && isDragActive && hasSponsorRail;
   const visibleSponsorSlide =
     sponsorSlides[sponsorSlideIndex % sponsorSlides.length] || null;
   const visibleSponsorLogos = visibleSponsorSlide?.sponsors || [];
@@ -132,7 +134,13 @@ function PublicShowOverlayPage() {
   return (
     <main
       style={overlayPageStyle(isCompactOverlay)}
-      data-overlay-layout={isSponsorTakeover ? "sponsor-takeover" : "live"}
+      data-overlay-layout={
+        isSponsorTakeover
+          ? "sponsor-takeover"
+          : isNeutralOverlay
+            ? "neutral"
+            : "live"
+      }
     >
       {isDemoMode && !isSponsorTakeover && (
         <div style={demoBadgeStyle(isCompactOverlay)}>
@@ -197,49 +205,72 @@ function PublicShowOverlayPage() {
 
       {!isSponsorTakeover && (
         <section
-          style={bottomBarStyle(hasSponsorRail, isCompactOverlay)}
+          style={bottomBarStyle(
+            hasSponsorRail,
+            isCompactOverlay,
+            isNeutralOverlay
+          )}
           data-overlay-bottom-bar
         >
         <div style={bottomBarAccentStyle} />
         <div style={brandBlockStyle(isCompactOverlay)}>
           <AssociationLogo
             association={overlayAssociation}
-            size={isCompactOverlay ? 44 : 58}
+            size={isCompactOverlay ? 44 : isNeutralOverlay ? 72 : 58}
           />
           <div style={brandTextStyle}>
             <div style={eyebrowStyle(isCompactOverlay)}>
-              {overlayShow?.name || t("common.show")}
+              {isNeutralOverlay
+                ? t("public.overlay.nowWatching")
+                : overlayShow?.name || t("common.show")}
             </div>
-            <OverlayScrollingText style={classTitleStyle(isCompactOverlay)}>
-              {liveClass
-                ? `${liveClass.className}${
-                    liveClass.classCode ? ` (${liveClass.classCode})` : ""
-                  }`
-                : t("public.overlay.waitingForLive")}
+            <OverlayScrollingText
+              style={
+                isNeutralOverlay
+                  ? neutralShowTitleStyle(isCompactOverlay)
+                  : classTitleStyle(isCompactOverlay)
+              }
+            >
+              {isNeutralOverlay
+                ? overlayShow?.name || t("common.show")
+                : liveClass
+                  ? `${liveClass.className}${
+                      liveClass.classCode ? ` (${liveClass.classCode})` : ""
+                    }`
+                  : t("public.overlay.waitingForLive")}
             </OverlayScrollingText>
+            {isNeutralOverlay && (
+              <OverlayScrollingText
+                style={neutralAssociationStyle(isCompactOverlay)}
+              >
+                {overlayAssociation?.name || t("common.association")}
+              </OverlayScrollingText>
+            )}
           </div>
         </div>
 
-        <div style={liveCellsStyle(isCompactOverlay)}>
-          <OverlayMetric
-            label={t("public.results.onCourse")}
-            value={liveSummary.active}
-            accent="green"
-            isCompact={isCompactOverlay}
-          />
-          <OverlayMetric
-            label={t("public.results.statusWaiting")}
-            value={liveSummary.waiting}
-            accent="amber"
-            isCompact={isCompactOverlay}
-          />
-          <OverlayMetric
-            label={t("public.overlay.lastScore")}
-            value={liveSummary.lastScore}
-            accent="blue"
-            isCompact={isCompactOverlay}
-          />
-        </div>
+        {!isNeutralOverlay && (
+          <div style={liveCellsStyle(isCompactOverlay)}>
+            <OverlayMetric
+              label={t("public.results.onCourse")}
+              value={liveSummary.active}
+              accent="green"
+              isCompact={isCompactOverlay}
+            />
+            <OverlayMetric
+              label={t("public.results.statusWaiting")}
+              value={liveSummary.waiting}
+              accent="amber"
+              isCompact={isCompactOverlay}
+            />
+            <OverlayMetric
+              label={t("public.overlay.lastScore")}
+              value={liveSummary.lastScore}
+              accent="blue"
+              isCompact={isCompactOverlay}
+            />
+          </div>
+        )}
 
         <div style={poweredBlockStyle(isCompactOverlay)}>
           <span>{t("public.overlay.poweredBy")}</span>
@@ -751,7 +782,7 @@ const sponsorImageStyle = (isCompact, isTakeover) => ({
   objectFit: "contain",
 });
 
-const bottomBarStyle = (hasSponsorRail, isCompact) => ({
+const bottomBarStyle = (hasSponsorRail, isCompact, isNeutral = false) => ({
   position: isCompact ? "relative" : "absolute",
   left: isCompact ? "auto" : 32,
   right: isCompact
@@ -770,7 +801,9 @@ const bottomBarStyle = (hasSponsorRail, isCompact) => ({
   display: "grid",
   gridTemplateColumns: isCompact
     ? "minmax(0, 1fr)"
-    : "minmax(360px, 0.95fr) minmax(620px, 2.15fr) minmax(112px, 0.2fr)",
+    : isNeutral
+      ? "minmax(0, 1fr) minmax(112px, 0.2fr)"
+      : "minmax(360px, 0.95fr) minmax(620px, 2.15fr) minmax(112px, 0.2fr)",
   alignItems: "stretch",
   gap: isCompact ? 12 : 14,
   padding: isCompact ? 12 : 14,
@@ -819,6 +852,23 @@ const classTitleStyle = (isCompact) => ({
   lineHeight: 1.05,
   overflow: "hidden",
   textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+});
+
+const neutralShowTitleStyle = (isCompact) => ({
+  marginTop: 5,
+  fontSize: isCompact ? 24 : 34,
+  fontWeight: 950,
+  lineHeight: 1.02,
+  whiteSpace: "nowrap",
+});
+
+const neutralAssociationStyle = (isCompact) => ({
+  marginTop: isCompact ? 4 : 6,
+  color: "#f6e7bf",
+  fontSize: isCompact ? 15 : 19,
+  fontWeight: 850,
+  lineHeight: 1.05,
   whiteSpace: "nowrap",
 });
 

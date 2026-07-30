@@ -144,6 +144,7 @@ function toShow(row) {
       row.is_public || row.is_schedule_public || row.show_schedule_public
     ),
     isTvDisplayPaused: Boolean(row.tv_display_paused),
+    obsOverlayMode: row.obs_overlay_mode === "neutral" ? "neutral" : "live",
     tvDisplayMessageFr: row.tv_display_message_fr || "",
     tvDisplayMessageEn: row.tv_display_message_en || "",
     tvDisplayVideoPath: row.tv_display_video_path || "",
@@ -663,6 +664,17 @@ export function subscribePublicShowViewRepository(showId, classIds, onChange) {
     new Set((Array.isArray(classIds) ? classIds : []).filter(Boolean))
   );
   const channel = supabase.channel(`public-show:${showId}`);
+
+  channel.on(
+    "postgres_changes",
+    {
+      event: "UPDATE",
+      schema: "public",
+      table: "shows",
+      filter: `id=eq.${showId}`,
+    },
+    onChange
+  );
 
   channel.on(
     "postgres_changes",

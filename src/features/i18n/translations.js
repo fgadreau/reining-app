@@ -1603,6 +1603,10 @@ export const translations = {
           "Liens à utiliser comme source navigateur dans OBS. Le lien général choisit le live actif; les liens par manège forcent une piste précise.",
         obsOverlayNoArena:
           "Aucun manège détecté pour l’instant. Ajoute un manège dans les blocs du show pour créer des liens dédiés.",
+        obsOverlayNeutralHelp:
+          "L’URL OBS ne change pas. Une fois sauvegardé, le bandeau remplace les concurrents et les scores par le nom du show et de l’association.",
+        obsOverlayNeutralLabel:
+          "Activer l’overlay neutre — « Vous regardez »",
         obsOverlayPrompt: "Lien OBS à donner au vidéographe",
         addSponsorLevel: "+ Ajouter un niveau",
         importSponsorLogos: "Importer les logos · {{level}}",
@@ -1814,6 +1818,7 @@ export const translations = {
         demoBadge: "Demo overlay",
         dragSponsorTitle: "Drag en cours · Merci à nos commanditaires",
         lastScore: "Dernier concurrent",
+        nowWatching: "Vous regardez",
         noActiveRun: "En attente du prochain départ",
         noScoreYet: "Aucun score",
         noWaitingRun: "À confirmer",
@@ -3603,6 +3608,10 @@ export const translations = {
           "Use these links as browser sources in OBS. The general link follows the active live feed; arena links force a specific arena.",
         obsOverlayNoArena:
           "No arena detected yet. Add an arena on show blocks to create dedicated overlay links.",
+        obsOverlayNeutralHelp:
+          "The OBS URL stays the same. Once saved, the banner replaces competitors and scores with the show and association names.",
+        obsOverlayNeutralLabel:
+          "Enable the neutral “You’re watching” overlay",
         obsOverlayPrompt: "OBS link to send to the videographer",
         addSponsorLevel: "+ Add level",
         importSponsorLogos: "Import logos · {{level}}",
@@ -3814,6 +3823,7 @@ export const translations = {
         demoBadge: "Demo overlay",
         dragSponsorTitle: "Ground drag · Thank you to our sponsors",
         lastScore: "Last competitor",
+        nowWatching: "You’re watching",
         noActiveRun: "Waiting for the next run",
         noScoreYet: "No score yet",
         noWaitingRun: "To confirm",
