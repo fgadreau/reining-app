@@ -54,6 +54,7 @@ function toShow(row) {
       row.is_public || row.show_schedule_public || row.is_schedule_public
     ),
     isTvDisplayPaused: Boolean(row.tv_display_paused),
+    obsOverlayMode: row.obs_overlay_mode === "neutral" ? "neutral" : "live",
     tvDisplayMessageFr: row.tv_display_message_fr || "",
     tvDisplayMessageEn: row.tv_display_message_en || "",
     tvDisplayVideoPath: row.tv_display_video_path || "",
@@ -80,6 +81,7 @@ function toShowRow(show, options = {}) {
     ),
     is_livestream_public: Boolean(show.isLivestreamPublic),
     tv_display_paused: Boolean(show.isTvDisplayPaused),
+    obs_overlay_mode: show.obsOverlayMode === "neutral" ? "neutral" : "live",
     tv_display_message_fr: show.tvDisplayMessageFr || "",
     tv_display_message_en: show.tvDisplayMessageEn || "",
     tv_display_video_path: show.tvDisplayVideoPath || "",
@@ -102,6 +104,7 @@ function toLegacyShowRow(show) {
   delete row.livestream_urls_by_date;
   delete row.is_livestream_public;
   delete row.tv_display_paused;
+  delete row.obs_overlay_mode;
   delete row.tv_display_message_fr;
   delete row.tv_display_message_en;
   delete row.tv_display_video_path;
@@ -114,6 +117,7 @@ function toLegacyShowRow(show) {
 function toShowRowWithoutTvDisplay(show, options = {}) {
   const row = toShowRow(show, options);
   delete row.tv_display_paused;
+  delete row.obs_overlay_mode;
   delete row.tv_display_message_fr;
   delete row.tv_display_message_en;
   delete row.tv_display_video_path;
@@ -153,6 +157,8 @@ export function toPublicSettingsShowRow(show, options = {}) {
 
   if (includeTvDisplay) {
     row.tv_display_paused = Boolean(show.isTvDisplayPaused);
+    row.obs_overlay_mode =
+      show.obsOverlayMode === "neutral" ? "neutral" : "live";
     row.tv_display_message_fr = show.tvDisplayMessageFr || "";
     row.tv_display_message_en = show.tvDisplayMessageEn || "";
     row.tv_display_video_path = show.tvDisplayVideoPath || "";
@@ -185,7 +191,7 @@ function isScheduleSchemaMissing(error) {
 }
 
 function isTvDisplaySchemaMissing(error) {
-  return /tv_display_paused|tv_display_message_fr|tv_display_message_en|tv_display_video_path|tv_display_video_name|tv_display_video_size|tv_display_video_arena/i.test(
+  return /tv_display_paused|tv_display_message_fr|tv_display_message_en|tv_display_video_path|tv_display_video_name|tv_display_video_size|tv_display_video_arena|obs_overlay_mode/i.test(
     getSupabaseErrorText(error)
   );
 }

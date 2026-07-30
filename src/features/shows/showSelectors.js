@@ -13,6 +13,7 @@ function normalizeShow(show) {
     isLivestreamPublic: Boolean(show?.isLivestreamPublic),
     isSchedulePublic: Boolean(show?.isSchedulePublic),
     isTvDisplayPaused: Boolean(show?.isTvDisplayPaused),
+    obsOverlayMode: show?.obsOverlayMode === "neutral" ? "neutral" : "live",
     tvDisplayMessageFr: show?.tvDisplayMessageFr || "",
     tvDisplayMessageEn: show?.tvDisplayMessageEn || "",
     tvDisplayVideoPath: show?.tvDisplayVideoPath || "",

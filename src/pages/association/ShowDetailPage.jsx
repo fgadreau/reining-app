@@ -93,6 +93,7 @@ function ShowDetailPage() {
     isLivestreamPublic: false,
     livestreamUrlsByDate: {},
     isSchedulePublic: false,
+    obsOverlayMode: "live",
     isTvDisplayPaused: false,
     tvDisplayMessageFr: "",
     tvDisplayMessageEn: "",
@@ -378,6 +379,7 @@ function ShowDetailPage() {
         ])
       ),
       isSchedulePublic: Boolean(show?.isSchedulePublic),
+      obsOverlayMode: show?.obsOverlayMode === "neutral" ? "neutral" : "live",
       isTvDisplayPaused: Boolean(show?.isTvDisplayPaused),
       tvDisplayMessageFr: show?.tvDisplayMessageFr || "",
       tvDisplayMessageEn: show?.tvDisplayMessageEn || "",
@@ -621,6 +623,8 @@ function ShowDetailPage() {
         livestreamUrlsByDate,
         isLivestreamPublic: Boolean(livestreamDraft.isLivestreamPublic),
         isSchedulePublic: Boolean(livestreamDraft.isSchedulePublic),
+        obsOverlayMode:
+          livestreamDraft.obsOverlayMode === "neutral" ? "neutral" : "live",
         isTvDisplayPaused: Boolean(livestreamDraft.isTvDisplayPaused),
         tvDisplayMessageFr: livestreamDraft.tvDisplayMessageFr,
         tvDisplayMessageEn: livestreamDraft.tvDisplayMessageEn,
@@ -1485,6 +1489,28 @@ function ShowDetailPage() {
                   <div style={helpTextStyle}>
                     {t("management.shows.obsOverlayHelp")}
                   </div>
+                </div>
+
+                <label style={checkboxLabelStyle}>
+                  <input
+                    type="checkbox"
+                    checked={livestreamDraft.obsOverlayMode === "neutral"}
+                    onChange={(event) =>
+                      setLivestreamDraft((current) => ({
+                        ...current,
+                        obsOverlayMode: event.target.checked
+                          ? "neutral"
+                          : "live",
+                      }))
+                    }
+                    disabled={!access.canManageAssociation || isSaving}
+                  />
+                  <span>
+                    {t("management.shows.obsOverlayNeutralLabel")}
+                  </span>
+                </label>
+                <div style={helpTextStyle}>
+                  {t("management.shows.obsOverlayNeutralHelp")}
                 </div>
 
                 <div style={arenaOverlayRowStyle}>
