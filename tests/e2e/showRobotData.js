@@ -146,7 +146,7 @@ function buildRobotShowStorageSeed() {
     pattern: "RR1",
     customPattern: null,
     judges,
-    runs: setupRuns,
+    runs: setupRuns.map((run) => ({ ...run })),
     isDrawImported: true,
     startedAt: timestamp,
     dragInterval: "",

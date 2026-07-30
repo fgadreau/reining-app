@@ -216,6 +216,71 @@ export async function getClassSetupRepository(classId) {
   }
 }
 
+export async function getClassSetupsForClassesRepository(classIds) {
+  const uniqueIds = Array.from(
+    new Set((Array.isArray(classIds) ? classIds : []).filter(Boolean))
+  );
+  const supabase = getSupabaseClient();
+
+  if (!supabase || uniqueIds.length === 0) {
+    return uniqueIds.reduce((setups, classId) => {
+      setups[classId] = getClassSetup(classId);
+      return setups;
+    }, {});
+  }
+
+  const pendingIds = uniqueIds.filter(
+    (classId) =>
+      getPendingLiveDataSource(classId) ||
+      getPendingLiveDisplayMode(classId)
+  );
+
+  if (pendingIds.length > 0) {
+    await Promise.all(
+      pendingIds.map((classId) => getClassSetupRepository(classId))
+    );
+  }
+
+  const protectedIds = new Set(
+    uniqueIds.filter(
+      (classId) =>
+        getPendingLiveDataSource(classId) ||
+        getPendingLiveDisplayMode(classId)
+    )
+  );
+  const setups = uniqueIds.reduce((result, classId) => {
+    result[classId] = getClassSetup(classId);
+    return result;
+  }, {});
+  const remoteIds = uniqueIds.filter((classId) => !protectedIds.has(classId));
+
+  if (remoteIds.length === 0) {
+    return setups;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("show_score_class_setups")
+      .select("*")
+      .in("class_id", remoteIds);
+
+    if (error) throw error;
+
+    (Array.isArray(data) ? data : []).forEach((row) => {
+      if (!row?.class_id || protectedIds.has(row.class_id)) return;
+
+      const setup = toSetup(row);
+      saveClassSetup(row.class_id, setup);
+      setups[row.class_id] = setup;
+    });
+
+    return setups;
+  } catch (error) {
+    console.error("Erreur chargement setups Supabase:", error);
+    return setups;
+  }
+}
+
 export async function saveClassLiveDisplayModeRepository(classId, mode) {
   const liveDisplayMode = normalizeLiveDisplayMode(mode);
   const currentSetup = getClassSetup(classId);

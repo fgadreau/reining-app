@@ -1,6 +1,6 @@
 import {
   getClassFullData,
-  getClassFullDataRepository,
+  getClassFullDataForClassesRepository,
   getClassesForDay,
   getClassesForDayRepository,
 } from "../classes/classRepository";
@@ -94,26 +94,36 @@ export function getAnnouncerShowView(showId) {
 export async function getAnnouncerShowViewRepository(showId) {
   const days = await getDaysByShowRepository(showId);
 
-  const sections = await Promise.all(
+  const sourceSections = await Promise.all(
     days.map(async (day) => {
       const [classes, paidWarmups] = await Promise.all([
-        getClassesForDayRepository(day.id),
+        getClassesForDayRepository(day.id, { hydrateDetails: false }),
         getPaidWarmupsForDayRepository(day.id),
       ]);
-      const scoringClasses = getUniqueScoringClasses(classes);
-      const classViews = await Promise.all(
-        scoringClasses.map(async (classItem) =>
-          buildAnnouncerClassView(
-            await getClassFullDataRepository(classItem.id)
-          )
-        )
-      );
 
       return {
         day,
-        classes: classViews,
+        scoringClasses: getUniqueScoringClasses(classes),
         paidWarmups: paidWarmups.map((warmup) => buildPaidWarmupLiveView(warmup)),
       };
+    })
+  );
+  const scoringClasses = Array.from(
+    new Map(
+      sourceSections
+        .flatMap((section) => section.scoringClasses)
+        .map((classItem) => [classItem.id, classItem])
+    ).values()
+  );
+  const classDataById =
+    await getClassFullDataForClassesRepository(scoringClasses);
+  const sections = sourceSections.map(
+    ({ scoringClasses: sectionClasses, ...section }) => ({
+      ...section,
+      classes: sectionClasses
+        .map((classItem) => classDataById[classItem.id])
+        .filter(Boolean)
+        .map(buildAnnouncerClassView),
     })
   );
 

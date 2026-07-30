@@ -159,6 +159,7 @@ function isShowPubliclyActive(show) {
 
 function buildEmptyPublicShowView() {
   return {
+    show: null,
     sections: [],
     resultSections: [],
     publishedClassCount: 0,
@@ -226,12 +227,15 @@ function isEventBlockColumnMissingError(error) {
   return getSupabaseErrorText(error).includes("is_event_block");
 }
 
-async function fetchPublicClassesForDay(supabase, dayId) {
+const PUBLIC_CLASS_ID_CHUNK_SIZE = 100;
+
+async function fetchPublicClassesForShow(supabase, showId) {
   let result = await supabase
     .from("classes")
     .select("*")
-    .eq("show_day_id", dayId)
+    .eq("show_id", showId)
     .eq("is_event_block", false)
+    .order("show_day_id", { ascending: true })
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
 
@@ -239,12 +243,50 @@ async function fetchPublicClassesForDay(supabase, dayId) {
     result = await supabase
       .from("classes")
       .select("*")
-      .eq("show_day_id", dayId)
+      .eq("show_id", showId)
+      .order("show_day_id", { ascending: true })
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
   }
 
   return result;
+}
+
+async function fetchPublicRowsForClasses(supabase, table, classIds) {
+  const uniqueIds = Array.from(
+    new Set((Array.isArray(classIds) ? classIds : []).filter(Boolean))
+  );
+
+  if (uniqueIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  const chunks = [];
+  for (
+    let index = 0;
+    index < uniqueIds.length;
+    index += PUBLIC_CLASS_ID_CHUNK_SIZE
+  ) {
+    chunks.push(uniqueIds.slice(index, index + PUBLIC_CLASS_ID_CHUNK_SIZE));
+  }
+
+  const results = await Promise.all(
+    chunks.map((chunk) =>
+      supabase.from(table).select("*").in("class_id", chunk)
+    )
+  );
+  const failedResult = results.find((result) => result.error);
+
+  if (failedResult) {
+    return { data: [], error: failedResult.error };
+  }
+
+  return {
+    data: results.flatMap((result) =>
+      Array.isArray(result.data) ? result.data : []
+    ),
+    error: null,
+  };
 }
 
 function toPublicationState(row) {
@@ -468,6 +510,7 @@ export function getPublicShowView(showId) {
     : [];
 
   return {
+    show,
     sections: sections.filter((section) => section.classes.length > 0),
     resultSections,
     publishedClassCount,
@@ -592,6 +635,7 @@ export async function getPublicShowViewRepository(showId) {
     : [];
 
   return {
+    show,
     sections: sections.filter((section) => section.classes.length > 0),
     resultSections,
     publishedClassCount,
@@ -664,18 +708,9 @@ export function subscribePublicShowViewRepository(showId, classIds, onChange) {
     onChange
   );
 
-  channel.on(
-    "postgres_changes",
-    {
-      event: "*",
-      schema: "public",
-      table: "show_score_publication_states",
-    },
-    onChange
-  );
-
   uniqueClassIds.forEach((classId) => {
     [
+      "show_score_publication_states",
       "show_score_official_results",
       "class_result_publications",
       "show_score_scoring_sessions",
@@ -720,218 +755,247 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
       return buildEmptyPublicShowView();
     }
 
-    const scoresheetDocumentsByClassId =
-      await getScannedScoresheetsForShowRepository(showId);
-    const { data: dayRows, error: daysError } = await supabase
-      .from("show_days")
-      .select("*")
-      .eq("show_id", showId)
-      .order("sort_order", { ascending: true })
-      .order("day_date", { ascending: true, nullsFirst: false });
+    const [
+      scoresheetDocumentsByClassId,
+      daysResult,
+      timingByClassId,
+      classResult,
+      paidWarmupResult,
+    ] = await Promise.all([
+      getScannedScoresheetsForShowRepository(showId),
+      supabase
+        .from("show_days")
+        .select("*")
+        .eq("show_id", showId)
+        .order("sort_order", { ascending: true })
+        .order("day_date", { ascending: true, nullsFirst: false }),
+      getPublicShowTimingByClassId(showId, supabase),
+      fetchPublicClassesForShow(supabase, showId),
+      supabase
+        .from("show_score_paid_warmups")
+        .select("*")
+        .eq("show_id", showId)
+        .order("show_day_id", { ascending: true })
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true }),
+    ]);
 
+    const { data: dayRows, error: daysError } = daysResult;
     if (daysError) throw daysError;
+    if (classResult.error) throw classResult.error;
+    if (paidWarmupResult.error) {
+      console.error(
+        "Erreur chargement paid warmups publics Supabase:",
+        paidWarmupResult.error
+      );
+    }
 
     const days = Array.isArray(dayRows) ? dayRows.map(toDay) : [];
-    const timingByClassId = await getPublicShowTimingByClassId(showId, supabase);
-    const sections = await Promise.all(
-      days.map(async (day) => {
-        const [classResult, paidWarmupResult] = await Promise.all([
-          fetchPublicClassesForDay(supabase, day.id),
-          supabase
-            .from("show_score_paid_warmups")
-            .select("*")
-            .eq("show_day_id", day.id)
-            .order("sort_order", { ascending: true })
-            .order("name", { ascending: true }),
-        ]);
+    const classes = Array.isArray(classResult.data)
+      ? classResult.data
+          .map(toClass)
+          .filter((classItem) => !classItem.isEventBlock)
+      : [];
+    const paidWarmups = Array.isArray(paidWarmupResult.data)
+      ? paidWarmupResult.data.map(toPaidWarmup)
+      : [];
+    const allClassIds = classes
+      .map((classItem) => classItem.id)
+      .filter(Boolean);
+    const [
+      publicationResult,
+      officialResult,
+      scoringResult,
+      judgeScoringResult,
+      setupResult,
+      announcerLiveResult,
+      resultPublicationsByClassId,
+    ] = await Promise.all([
+      fetchPublicRowsForClasses(
+        supabase,
+        "show_score_publication_states",
+        allClassIds
+      ),
+      fetchPublicRowsForClasses(
+        supabase,
+        "show_score_official_results",
+        allClassIds
+      ),
+      fetchPublicRowsForClasses(
+        supabase,
+        "show_score_scoring_sessions",
+        allClassIds
+      ),
+      fetchPublicRowsForClasses(
+        supabase,
+        "show_score_judge_sessions",
+        allClassIds
+      ),
+      fetchPublicRowsForClasses(
+        supabase,
+        "show_score_class_setups",
+        allClassIds
+      ),
+      fetchPublicRowsForClasses(
+        supabase,
+        "show_score_announcer_live_sessions",
+        allClassIds
+      ),
+      getPublicResultPublicationMap(supabase, allClassIds),
+    ]);
 
-        if (classResult.error) throw classResult.error;
-        if (paidWarmupResult.error) {
-          console.error(
-            "Erreur chargement paid warmups publics Supabase:",
-            paidWarmupResult.error
+    if (publicationResult.error) throw publicationResult.error;
+    if (officialResult.error) throw officialResult.error;
+    if (scoringResult.error) {
+      console.error("Erreur chargement live public Supabase:", scoringResult.error);
+    }
+    if (judgeScoringResult.error) {
+      console.error(
+        "Erreur chargement live juges public Supabase:",
+        judgeScoringResult.error
+      );
+    }
+    if (setupResult.error) {
+      console.error("Erreur chargement setup public Supabase:", setupResult.error);
+    }
+    if (announcerLiveResult.error) {
+      console.error(
+        "Erreur chargement live annonceur public Supabase:",
+        announcerLiveResult.error
+      );
+    }
+
+    const publicationsByClassId = new Map(
+      (publicationResult.data || []).map((row) => [
+        row.class_id,
+        toPublicationState(row),
+      ])
+    );
+    const officialByClassId = new Map(
+      (officialResult.data || []).map((row) => [
+        row.class_id,
+        toOfficialResult(row),
+      ])
+    );
+    const scoringByClassId = new Map(
+      (scoringResult.data || []).map((row) => [
+        row.class_id,
+        toScoringSession(row),
+      ])
+    );
+    const judgeScoringByClassId = new Map();
+    (judgeScoringResult.data || []).forEach((row) => {
+      const current = judgeScoringByClassId.get(row.class_id) || [];
+      current.push(toJudgeScoringSession(row));
+      judgeScoringByClassId.set(row.class_id, current);
+    });
+    const setupByClassId = new Map(
+      (setupResult.data || []).map((row) => [
+        row.class_id,
+        toClassSetup(row),
+      ])
+    );
+    const announcerLiveByClassId = new Map(
+      (announcerLiveResult.data || []).map((row) => [
+        row.class_id,
+        toAnnouncerLiveSession(row),
+      ])
+    );
+    const classesByDayId = new Map();
+    classes.forEach((classItem) => {
+      const current = classesByDayId.get(classItem.dayId) || [];
+      current.push(classItem);
+      classesByDayId.set(classItem.dayId, current);
+    });
+    const paidWarmupsByDayId = new Map();
+    paidWarmups.forEach((warmup) => {
+      const current = paidWarmupsByDayId.get(warmup.dayId) || [];
+      current.push(warmup);
+      paidWarmupsByDayId.set(warmup.dayId, current);
+    });
+
+    const sections = days.map((day) => {
+      const dayClasses = (classesByDayId.get(day.id) || [])
+        .slice()
+        .sort(compareScheduleItemsByStart);
+      const dayPaidWarmups = (paidWarmupsByDayId.get(day.id) || [])
+        .slice()
+        .sort((first, second) => {
+          const sortOrder =
+            Number(first.sortOrder || 0) - Number(second.sortOrder || 0);
+          if (sortOrder !== 0) return sortOrder;
+          return String(first.name || "").localeCompare(
+            String(second.name || "")
           );
-        }
-
-        const paidWarmups = (paidWarmupResult.data || []).map(toPaidWarmup);
-        const livePaidWarmups = paidWarmups
-          .filter(isPaidWarmupScheduleLiveEligible)
-          .map((warmup) => buildPaidWarmupLiveView(warmup));
-
-        const classes = Array.isArray(classResult.data)
-          ? classResult.data
-              .map(toClass)
-              .filter((classItem) => !classItem.isEventBlock)
-              .sort(compareScheduleItemsByStart)
-          : [];
-        const classIds = classes.map((classItem) => classItem.id).filter(Boolean);
-
-        if (!classIds.length) {
-          return {
-            day,
-            classes: [],
-            resultClasses: [],
-            timingSection: { day, classRows: [], paidWarmups },
-            liveClasses: [],
-            livePaidWarmups,
-            classIds,
-          };
-        }
-
-        const [
-          publicationResult,
-          officialResult,
-          scoringResult,
-          judgeScoringResult,
-          setupResult,
-          announcerLiveResult,
-          resultPublicationsByClassId,
-        ] = await Promise.all([
-            supabase
-              .from("show_score_publication_states")
-              .select("*")
-              .in("class_id", classIds),
-            supabase
-              .from("show_score_official_results")
-              .select("*")
-              .in("class_id", classIds),
-            supabase
-              .from("show_score_scoring_sessions")
-              .select("*")
-              .in("class_id", classIds),
-            supabase
-              .from("show_score_judge_sessions")
-              .select("*")
-              .in("class_id", classIds),
-            supabase
-              .from("show_score_class_setups")
-              .select("*")
-              .in("class_id", classIds),
-            supabase
-              .from("show_score_announcer_live_sessions")
-              .select("*")
-              .in("class_id", classIds),
-            getPublicResultPublicationMap(supabase, classIds),
-          ]);
-
-        if (publicationResult.error) throw publicationResult.error;
-        if (officialResult.error) throw officialResult.error;
-        if (scoringResult.error) {
-          console.error("Erreur chargement live public Supabase:", scoringResult.error);
-        }
-        if (judgeScoringResult.error) {
-          console.error(
-            "Erreur chargement live juges public Supabase:",
-            judgeScoringResult.error
-          );
-        }
-        if (setupResult.error) {
-          console.error("Erreur chargement setup public Supabase:", setupResult.error);
-        }
-        if (announcerLiveResult.error) {
-          console.error(
-            "Erreur chargement live annonceur public Supabase:",
-            announcerLiveResult.error
-          );
-        }
-
-        const publicationsByClassId = new Map(
-          (publicationResult.data || []).map((row) => [
-            row.class_id,
-            toPublicationState(row),
-          ])
-        );
-        const officialByClassId = new Map(
-          (officialResult.data || []).map((row) => [
-            row.class_id,
-            toOfficialResult(row),
-          ])
-        );
-        const scoringByClassId = new Map(
-          (scoringResult.data || []).map((row) => [
-            row.class_id,
-            toScoringSession(row),
-          ])
-        );
-        const judgeScoringByClassId = new Map();
-        (judgeScoringResult.data || []).forEach((row) => {
-          const current = judgeScoringByClassId.get(row.class_id) || [];
-          current.push(toJudgeScoringSession(row));
-          judgeScoringByClassId.set(row.class_id, current);
         });
-        const setupByClassId = new Map(
-          (setupResult.data || []).map((row) => [row.class_id, toClassSetup(row)])
-        );
-        const announcerLiveByClassId = new Map(
-          (announcerLiveResult.data || []).map((row) => [
-            row.class_id,
-            toAnnouncerLiveSession(row),
-          ])
-        );
+      const livePaidWarmups = dayPaidWarmups
+        .filter(isPaidWarmupScheduleLiveEligible)
+        .map((warmup) => buildPaidWarmupLiveView(warmup));
+      const classIds = dayClasses
+        .map((classItem) => classItem.id)
+        .filter(Boolean);
+      const classEntries = dayClasses.map((classItem) => {
+        const publication = publicationsByClassId.get(classItem.id);
+        const setup = setupByClassId.get(classItem.id) || null;
+        const resultClasses = buildPublicResultClassViews({
+          classItem,
+          resultPublication: resultPublicationsByClassId.get(classItem.id),
+          scoresheetDocument: scoresheetDocumentsByClassId[classItem.id],
+        });
+        const liveClass = buildPublicLiveClassView({
+          classItem,
+          setup,
+          publication,
+          scoringSession: scoringByClassId.get(classItem.id),
+          judgeSessions: judgeScoringByClassId.get(classItem.id) || [],
+          announcerSession: announcerLiveByClassId.get(classItem.id),
+        });
+        const scoringSession = scoringByClassId.get(classItem.id);
 
-        const classEntries = classes.map((classItem) => {
-          const publication = publicationsByClassId.get(classItem.id);
-          const setup = setupByClassId.get(classItem.id) || null;
-          const resultClasses = buildPublicResultClassViews({
-            classItem,
-            resultPublication: resultPublicationsByClassId.get(classItem.id),
-            scoresheetDocument: scoresheetDocumentsByClassId[classItem.id],
-          });
-          const liveClass = buildPublicLiveClassView({
+        return {
+          classView: buildPublicClassView({
             classItem,
             setup,
             publication,
-            scoringSession: scoringByClassId.get(classItem.id),
-            judgeSessions: judgeScoringByClassId.get(classItem.id) || [],
-            announcerSession: announcerLiveByClassId.get(classItem.id),
-          });
-          const scoringSession = scoringByClassId.get(classItem.id);
+            official: officialByClassId.get(classItem.id),
+            scoringRuns: [],
+          }),
+          resultClasses,
+          liveClass,
+          timingClassRow: {
+            classItem,
+            setup,
+            publication,
+            official: officialByClassId.get(classItem.id),
+            scoringRuns: scoringSession?.runs || [],
+            status: "public",
+          },
+        };
+      });
 
-          return {
-            classView: buildPublicClassView({
-              classItem,
-              setup,
-              publication,
-              official: officialByClassId.get(classItem.id),
-              scoringRuns: [],
-            }),
-            resultClasses,
-            liveClass,
-            timingClassRow: {
-              classItem,
-              setup,
-              publication,
-              official: officialByClassId.get(classItem.id),
-              scoringRuns: scoringSession?.runs || [],
-              status: "public",
-            },
-          };
-        });
-        const timingSection = {
+      return {
+        day,
+        classes: classEntries
+          .map((entry) => entry.classView)
+          .filter(Boolean),
+        resultClasses: classEntries.flatMap((entry) => entry.resultClasses),
+        timingSection: {
           day,
           classRows: classEntries.map((entry) => entry.timingClassRow),
-          paidWarmups,
-        };
-
-        return {
-          day,
-          classes: classEntries.map((entry) => entry.classView).filter(Boolean),
-          resultClasses: classEntries.flatMap((entry) => entry.resultClasses),
-          timingSection,
-          liveClasses: classEntries
-            .map((entry) => entry.liveClass)
-            .filter(Boolean),
-          livePaidWarmups,
-          classIds,
-        };
-      })
-    );
+          paidWarmups: dayPaidWarmups,
+        },
+        liveClasses: classEntries
+          .map((entry) => entry.liveClass)
+          .filter(Boolean),
+        livePaidWarmups,
+        classIds,
+      };
+    });
     const timingSections = sections.map((section) => section.timingSection);
     const liveClasses = sections.flatMap((section) => section.liveClasses || []);
     const livePaidWarmups = sections.flatMap(
       (section) => section.livePaidWarmups || []
     );
-    const allClassIds = sections.flatMap((section) => section.classIds || []);
 
     const resultSections = sections
       .map((section) => ({
@@ -961,6 +1025,7 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
       : [];
 
     return {
+      show,
       sections: sections.filter((section) => section.classes.length > 0),
       resultSections,
       publishedClassCount,
@@ -1004,10 +1069,11 @@ async function getPublicShowTimingByClassId(showId, supabase) {
 
 async function getPublicResultPublicationMap(supabase, classIds) {
   try {
-    const { data, error } = await supabase
-      .from("class_result_publications")
-      .select("*")
-      .in("class_id", classIds);
+    const { data, error } = await fetchPublicRowsForClasses(
+      supabase,
+      "class_result_publications",
+      classIds
+    );
 
     if (error) throw error;
 

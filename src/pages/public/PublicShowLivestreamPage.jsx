@@ -13,11 +13,10 @@ import {
 } from "../../features/livestream/livestreamSchedule";
 import {
   getPublicAssociationRepository,
-  getPublicShowRepository,
   getPublicShowView,
   getPublicShowViewRepository,
-  subscribePublicShowViewRepository,
 } from "../../features/publication/publicViewRepository";
+import { usePublicShowViewUpdates } from "../../features/publication/usePublicShowViewUpdates";
 import { buildShowPublicSeo } from "../../features/seo/publicSeo";
 import { partitionScheduledLiveViews } from "../../features/schedule/liveSchedule";
 import { getShowById } from "../../features/shows/showSelectors";
@@ -35,7 +34,7 @@ import {
   publicTitleStyle,
 } from "../../styles/publicStyles";
 
-const LIVESTREAM_REFRESH_MS = 15000;
+const LIVESTREAM_REFRESH_MS = 30_000;
 
 function PublicShowLivestreamPage() {
   const { associationId, showId } = useParams();
@@ -77,71 +76,36 @@ function PublicShowLivestreamPage() {
     let isMounted = true;
 
     async function load() {
-      const [nextAssociation, nextShow, nextPublicView] = await Promise.all([
+      const [nextAssociation, nextPublicView] = await Promise.all([
         getPublicAssociationRepository(associationId),
-        getPublicShowRepository(showId),
         getPublicShowViewRepository(showId),
       ]);
 
       if (!isMounted) return;
       setAssociation(nextAssociation);
-      setShow(nextShow);
+      setShow(nextPublicView.show);
       setPublicView(nextPublicView);
       setIsLoading(false);
     }
 
     load();
 
-    const timer = window.setInterval(async () => {
-      if (document.visibilityState === "hidden") return;
-
-      const [nextShow, nextPublicView] = await Promise.all([
-        getPublicShowRepository(showId),
-        getPublicShowViewRepository(showId),
-      ]);
-      if (!isMounted) return;
-      setShow(nextShow);
-      setPublicView(nextPublicView);
-      setNow(new Date());
-    }, LIVESTREAM_REFRESH_MS);
-
     return () => {
       isMounted = false;
-      window.clearInterval(timer);
     };
   }, [associationId, showId]);
 
-  useEffect(() => {
-    let refreshTimeout = null;
-    let isMounted = true;
-
-    const refresh = () => {
-      window.clearTimeout(refreshTimeout);
-      refreshTimeout = window.setTimeout(async () => {
-        const [nextShow, nextPublicView] = await Promise.all([
-          getPublicShowRepository(showId),
-          getPublicShowViewRepository(showId),
-        ]);
-
-        if (!isMounted) return;
-        setShow(nextShow);
-        setPublicView(nextPublicView);
-        setNow(new Date());
-      }, 200);
-    };
-
-    const unsubscribe = subscribePublicShowViewRepository(
-      showId,
-      publicClassIdsKey ? publicClassIdsKey.split("|") : [],
-      refresh
-    );
-
-    return () => {
-      isMounted = false;
-      window.clearTimeout(refreshTimeout);
-      unsubscribe();
-    };
-  }, [showId, publicClassIdsKey]);
+  usePublicShowViewUpdates({
+    showId,
+    classIds: publicClassIdsKey ? publicClassIdsKey.split("|") : [],
+    fallbackRefreshMs: LIVESTREAM_REFRESH_MS,
+    load: () => getPublicShowViewRepository(showId),
+    onData: (nextPublicView) => {
+      setShow(nextPublicView.show);
+      setPublicView(nextPublicView);
+      setNow(new Date());
+    },
+  });
 
   const pageTitle = t("public.livestream.seoTitle", {
     showName: show?.name || t("common.show"),

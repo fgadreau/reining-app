@@ -9,6 +9,8 @@ import {
   saveLocalTestSession,
 } from "./localTestAuth";
 
+const userProfileSyncStates = new Map();
+
 export function isAuthAvailable() {
   return isSupabaseConfigured();
 }
@@ -34,17 +36,23 @@ function toSharedUserProfileRow(user) {
   };
 }
 
-export async function saveUserProfile(user) {
-  const supabase = getSupabaseClient();
+function getUserProfileFingerprint(row) {
+  return JSON.stringify([
+    row.user_id || "",
+    row.email || "",
+    row.display_name || "",
+  ]);
+}
 
-  if (!supabase || !user?.id) {
-    return null;
-  }
+function clearUserProfileSyncCache() {
+  userProfileSyncStates.clear();
+}
 
+async function persistUserProfile(supabase, row) {
   try {
     const { data, error } = await supabase
       .from("user_profiles")
-      .upsert(toSharedUserProfileRow(user), { onConflict: "user_id" })
+      .upsert(row, { onConflict: "user_id" })
       .select("*")
       .maybeSingle();
 
@@ -54,6 +62,56 @@ export async function saveUserProfile(user) {
     console.error("Erreur sauvegarde profil Supabase:", error);
     return null;
   }
+}
+
+export function saveUserProfile(user) {
+  const supabase = getSupabaseClient();
+
+  if (!supabase || !user?.id) {
+    return Promise.resolve(null);
+  }
+
+  const row = toSharedUserProfileRow(user);
+  const fingerprint = getUserProfileFingerprint(row);
+  const state = userProfileSyncStates.get(user.id) || {
+    savedFingerprint: null,
+    savedProfile: null,
+    pendingFingerprint: null,
+    pendingPromise: null,
+  };
+  userProfileSyncStates.set(user.id, state);
+
+  if (state.savedFingerprint === fingerprint) {
+    return Promise.resolve(state.savedProfile);
+  }
+
+  if (state.pendingPromise) {
+    if (state.pendingFingerprint === fingerprint) {
+      return state.pendingPromise;
+    }
+
+    return state.pendingPromise.then(() => saveUserProfile(user));
+  }
+
+  const pendingPromise = persistUserProfile(supabase, row)
+    .then((profile) => {
+      if (profile) {
+        state.savedFingerprint = fingerprint;
+        state.savedProfile = profile;
+      }
+
+      return profile;
+    })
+    .finally(() => {
+      if (state.pendingPromise === pendingPromise) {
+        state.pendingFingerprint = null;
+        state.pendingPromise = null;
+      }
+    });
+
+  state.pendingFingerprint = fingerprint;
+  state.pendingPromise = pendingPromise;
+  return pendingPromise;
 }
 
 export async function getAuthSession() {
@@ -209,6 +267,7 @@ export async function updatePassword(password) {
 
 export async function signOut() {
   clearLocalTestSession();
+  clearUserProfileSyncCache();
 
   const supabase = getSupabaseClient();
 
@@ -225,7 +284,11 @@ export async function signOut() {
 
 export function onAuthStateChange(callback) {
   const handleLocalTestAuthChange = () => {
-    callback(loadLocalTestSession()?.user || null);
+    const user = loadLocalTestSession()?.user || null;
+    if (!user) {
+      clearUserProfileSyncCache();
+    }
+    callback(user);
   };
 
   if (typeof window !== "undefined") {
@@ -258,6 +321,8 @@ export function onAuthStateChange(callback) {
 
     if (session?.user) {
       saveUserProfile(session.user);
+    } else if (event === "SIGNED_OUT") {
+      clearUserProfileSyncCache();
     }
 
     callback(session?.user || null, event);

@@ -5,12 +5,11 @@ import SeoMeta from "../../components/SeoMeta";
 import ShareButton from "../../components/ShareButton";
 import {
   getPublicAssociationRepository,
-  getPublicShowRepository,
   getPublicShowView,
   getPublicShowViewRepository,
   hasPublishedResultsWithoutScoresheets,
-  subscribePublicShowViewRepository,
 } from "../../features/publication/publicViewRepository";
+import { usePublicShowViewUpdates } from "../../features/publication/usePublicShowViewUpdates";
 import {
   formatClockTime,
   formatDuration,
@@ -56,7 +55,7 @@ import {
   publicTitleStyle,
 } from "../../styles/publicStyles";
 
-const PUBLIC_LIVE_FALLBACK_REFRESH_MS = 5000;
+const PUBLIC_LIVE_FALLBACK_REFRESH_MS = 30_000;
 
 function PublicResultsPage() {
   const { associationId, showId } = useParams();
@@ -127,14 +126,13 @@ function PublicResultsPage() {
 
     async function loadPublicView() {
       setIsLoading(true);
-      const [nextAssociation, nextShow, nextPublicView] = await Promise.all([
+      const [nextAssociation, nextPublicView] = await Promise.all([
         getPublicAssociationRepository(associationId),
-        getPublicShowRepository(showId),
         getPublicShowViewRepository(showId),
       ]);
       if (!isMounted) return;
       setAssociation(nextAssociation);
-      setShow(nextShow);
+      setShow(nextPublicView.show);
       setPublicView(nextPublicView);
       setIsLoading(false);
     }
@@ -158,56 +156,17 @@ function PublicResultsPage() {
     }
   }, [publicView.sections, openClassId]);
 
-  useEffect(() => {
-    let isMounted = true;
-    let refreshTimeout = null;
-
-    const refreshPublicView = () => {
-      window.clearTimeout(refreshTimeout);
-      refreshTimeout = window.setTimeout(async () => {
-        const [nextShow, nextPublicView] = await Promise.all([
-          getPublicShowRepository(showId),
-          getPublicShowViewRepository(showId),
-        ]);
-
-        if (!isMounted) return;
-        setShow(nextShow);
-        setPublicView(nextPublicView);
-        setIsLoading(false);
-      }, 200);
-    };
-
-    const unsubscribe = subscribePublicShowViewRepository(
-      showId,
-      publicClassIdsKey ? publicClassIdsKey.split("|") : [],
-      refreshPublicView
-    );
-
-    return () => {
-      isMounted = false;
-      window.clearTimeout(refreshTimeout);
-      unsubscribe();
-    };
-  }, [showId, publicClassIdsKey]);
-
-  useEffect(() => {
-    let isMounted = true;
-    const refreshTimer = window.setInterval(async () => {
-      if (document.visibilityState === "hidden") {
-        return;
-      }
-
-      const nextPublicView = await getPublicShowViewRepository(showId);
-
-      if (!isMounted) return;
+  usePublicShowViewUpdates({
+    showId,
+    classIds: publicClassIdsKey ? publicClassIdsKey.split("|") : [],
+    fallbackRefreshMs: PUBLIC_LIVE_FALLBACK_REFRESH_MS,
+    load: () => getPublicShowViewRepository(showId),
+    onData: (nextPublicView) => {
+      setShow(nextPublicView.show);
       setPublicView(nextPublicView);
-    }, PUBLIC_LIVE_FALLBACK_REFRESH_MS);
-
-    return () => {
-      isMounted = false;
-      window.clearInterval(refreshTimer);
-    };
-  }, [showId]);
+      setIsLoading(false);
+    },
+  });
 
   if (!show && !isLoading) {
     return (

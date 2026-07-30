@@ -448,6 +448,101 @@ export async function loadJudgeScoringSessionsForClassRepository(
   }
 }
 
+export async function loadJudgeScoringSessionsForClassesRepository(
+  judgesByClassId
+) {
+  const entries =
+    judgesByClassId instanceof Map
+      ? Array.from(judgesByClassId.entries())
+      : Object.entries(judgesByClassId || {});
+  const normalizedEntries = entries
+    .map(([classId, judges]) => [
+      classId,
+      Array.isArray(judges) ? judges : [],
+    ])
+    .filter(([classId]) => Boolean(classId));
+  const classIds = normalizedEntries.map(([classId]) => classId);
+  const supabase = getSupabaseClient();
+
+  if (
+    supabase &&
+    classIds.some((classId) =>
+      hasPendingJudgeScoringSessionMutation(classId)
+    )
+  ) {
+    await flushJudgeScoringSessionSyncQueue();
+  }
+
+  const protectedIds = new Set(
+    classIds.filter((classId) =>
+      hasPendingJudgeScoringSessionMutation(classId)
+    )
+  );
+  const sessions = normalizedEntries.reduce(
+    (result, [classId, judges]) => {
+      result[classId] = loadJudgeScoringSessionsForClassLocal(
+        classId,
+        judges
+      );
+      return result;
+    },
+    {}
+  );
+  const remoteIds = classIds.filter(
+    (classId) => !protectedIds.has(classId)
+  );
+
+  if (!supabase || remoteIds.length === 0) {
+    return sessions;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("show_score_judge_sessions")
+      .select("*")
+      .in("class_id", remoteIds);
+
+    if (error) throw error;
+
+    const rowsByClassId = new Map();
+    (Array.isArray(data) ? data : []).forEach((row) => {
+      if (!row?.class_id || protectedIds.has(row.class_id)) return;
+
+      const rows = rowsByClassId.get(row.class_id) || [];
+      rows.push(row);
+      rowsByClassId.set(row.class_id, rows);
+    });
+
+    normalizedEntries.forEach(([classId, judges]) => {
+      if (protectedIds.has(classId)) return;
+
+      const localSessions = sessions[classId] || [];
+      const judgeById = new Map(judges.map((judge) => [judge.id, judge]));
+      const sessionsByJudgeId = new Map();
+
+      (rowsByClassId.get(classId) || []).forEach((row) => {
+        const judge = judgeById.get(row.judge_id);
+        const session = toJudgeScoringSession(row, { classId, judge });
+        sessionsByJudgeId.set(session.judgeId, session);
+        saveJudgeScoringSessionLocal(classId, session.judgeId, session);
+      });
+
+      sessions[classId] = judges.map((judge, index) => {
+        return (
+          sessionsByJudgeId.get(judge.id) ||
+          localSessions[index] ||
+          normalizeJudgeScoringSession({}, { classId, judge })
+        );
+      });
+    });
+
+    return sessions;
+  } catch (error) {
+    console.error("Erreur chargement sessions juges Supabase:", error);
+    return sessions;
+  }
+}
+
 export async function claimJudgeScoringSessionRepository({
   classId,
   judge,

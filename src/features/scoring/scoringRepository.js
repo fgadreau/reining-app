@@ -300,6 +300,54 @@ export async function loadScoringSessionRepository(classId) {
   }
 }
 
+export async function loadScoringSessionsForClassesRepository(classIds) {
+  const uniqueIds = Array.from(
+    new Set((Array.isArray(classIds) ? classIds : []).filter(Boolean))
+  );
+  const supabase = getSupabaseClient();
+
+  if (supabase && uniqueIds.some(hasPendingScoringRunsMutation)) {
+    await flushScoringSyncQueue();
+  }
+
+  const protectedIds = new Set(
+    uniqueIds.filter(hasPendingScoringRunsMutation)
+  );
+  const sessions = uniqueIds.reduce((result, classId) => {
+    result[classId] = getLocalScoringSession(classId);
+    return result;
+  }, {});
+  const remoteIds = uniqueIds.filter((classId) => !protectedIds.has(classId));
+
+  if (!supabase || remoteIds.length === 0) {
+    return sessions;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("show_score_scoring_sessions")
+      .select("*")
+      .in("class_id", remoteIds);
+
+    if (error) throw error;
+
+    (Array.isArray(data) ? data : []).forEach((row) => {
+      const classId = row?.class_id;
+      if (!classId || protectedIds.has(classId)) return;
+
+      const session = toScoringSession(row, classId);
+      saveScoringRunsLocal(classId, session.runs);
+      saveActiveManoeuvreLocal(classId, session.activeManoeuvre);
+      sessions[classId] = session;
+    });
+
+    return sessions;
+  } catch (error) {
+    console.error("Erreur chargement scorings Supabase:", error);
+    return sessions;
+  }
+}
+
 export async function loadScoringRunsRepository(classId) {
   const session = await loadScoringSessionRepository(classId);
   return session.runs;

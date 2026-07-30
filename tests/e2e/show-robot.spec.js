@@ -282,7 +282,20 @@ async function seedDailyLivestreamShow(page) {
     day: "2-digit",
   }).formatToParts(new Date());
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  const today = `${values.year}-${values.month}-${values.day}`;
+  const calendarToday = `${values.year}-${values.month}-${values.day}`;
+  const hourParts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Toronto",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const currentHour = Number(
+    hourParts.find((part) => part.type === "hour")?.value
+  );
+  const livestreamDate = new Date(`${calendarToday}T12:00:00.000Z`);
+  if (Number.isFinite(currentHour) && currentHour < 4) {
+    livestreamDate.setUTCDate(livestreamDate.getUTCDate() - 1);
+  }
+  const today = livestreamDate.toISOString().slice(0, 10);
   const tomorrowDate = new Date(`${today}T12:00:00.000Z`);
   tomorrowDate.setUTCDate(tomorrowDate.getUTCDate() + 1);
   const tomorrow = tomorrowDate.toISOString().slice(0, 10);
@@ -772,7 +785,7 @@ test.describe("robot de show local", () => {
       competition.getByRole("link", {
         name: "Ouvrir l’écran de compétition",
       })
-    ).toHaveAttribute("href", /\?mode=competition&arena=Manege\+Robot$/);
+    ).toHaveAttribute("href", /^\/tv\/[A-Z0-9]{6}$/);
     await expect(general.locator("select option")).toHaveText([
       "Manege Annexe",
     ]);

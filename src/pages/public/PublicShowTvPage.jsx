@@ -4,11 +4,10 @@ import { useLocation, useParams } from "react-router-dom";
 import AssociationLogo from "../../components/AssociationLogo";
 import {
   getPublicAssociationRepository,
-  getPublicShowRepository,
   getPublicShowView,
   getPublicShowViewRepository,
-  subscribePublicShowViewRepository,
 } from "../../features/publication/publicViewRepository";
+import { usePublicShowViewUpdates } from "../../features/publication/usePublicShowViewUpdates";
 import { translate } from "../../features/i18n/i18n";
 import { isLiveDragItem } from "../../features/live/liveQueueItems";
 import {
@@ -20,7 +19,7 @@ import { rememberTvDisplayShortcut } from "../../features/tvDisplay/tvDisplaySho
 import { isScheduledLiveViewCurrent } from "../../features/schedule/liveSchedule";
 import "./PublicShowTvPage.css";
 
-const TV_REFRESH_MS = 5000;
+const TV_REFRESH_MS = 30_000;
 const SPONSOR_SLIDE_INTERVAL_MS = 9000;
 const SPONSORS_PER_SLIDE = 5;
 
@@ -79,15 +78,14 @@ function PublicShowTvPage() {
     let isMounted = true;
 
     async function loadTvDisplay() {
-      const [nextAssociation, nextShow, nextPublicView] = await Promise.all([
+      const [nextAssociation, nextPublicView] = await Promise.all([
         getPublicAssociationRepository(associationId),
-        getPublicShowRepository(showId),
         getPublicShowViewRepository(showId),
       ]);
 
       if (!isMounted) return;
       setAssociation(nextAssociation);
-      setShow(nextShow);
+      setShow(nextPublicView.show);
       setPublicView(nextPublicView);
     }
 
@@ -98,54 +96,16 @@ function PublicShowTvPage() {
     };
   }, [associationId, showId]);
 
-  useEffect(() => {
-    let isMounted = true;
-    let refreshTimeout = null;
-
-    const refreshPublicView = () => {
-      window.clearTimeout(refreshTimeout);
-      refreshTimeout = window.setTimeout(async () => {
-        const nextPublicView = await getPublicShowViewRepository(showId);
-        const nextShow = await getPublicShowRepository(showId);
-
-        if (!isMounted) return;
-        setPublicView(nextPublicView);
-        setShow(nextShow);
-      }, 200);
-    };
-
-    const classIds = publicClassIdsKey ? publicClassIdsKey.split("|") : [];
-    const unsubscribe = subscribePublicShowViewRepository(
-      showId,
-      classIds,
-      refreshPublicView
-    );
-
-    return () => {
-      isMounted = false;
-      window.clearTimeout(refreshTimeout);
-      unsubscribe();
-    };
-  }, [showId, publicClassIdsKey]);
-
-  useEffect(() => {
-    let isMounted = true;
-    const refreshTimer = window.setInterval(async () => {
-      const [nextShow, nextPublicView] = await Promise.all([
-        getPublicShowRepository(showId),
-        getPublicShowViewRepository(showId),
-      ]);
-
-      if (!isMounted) return;
-      setShow(nextShow);
+  usePublicShowViewUpdates({
+    showId,
+    classIds: publicClassIdsKey ? publicClassIdsKey.split("|") : [],
+    fallbackRefreshMs: TV_REFRESH_MS,
+    load: () => getPublicShowViewRepository(showId),
+    onData: (nextPublicView) => {
+      setShow(nextPublicView.show);
       setPublicView(nextPublicView);
-    }, TV_REFRESH_MS);
-
-    return () => {
-      isMounted = false;
-      window.clearInterval(refreshTimer);
-    };
-  }, [showId]);
+    },
+  });
 
   useEffect(() => {
     setSponsorSlideIndex(0);

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   deleteClassCompletelyRepository,
-  getClassesForDayRepository,
+  getClassesForDayDataRepository,
   saveClassItemRepository,
   saveSetupForClassRepository,
 } from "../../features/classes/classRepository";
@@ -127,19 +127,13 @@ function DayClassesPage() {
 
     async function load() {
       setIsLoading(true);
-      const [nextClasses, nextPaidWarmups] = await Promise.all([
-        getClassesForDayRepository(dayId),
+      const [classData, nextPaidWarmups] = await Promise.all([
+        getClassesForDayDataRepository(dayId),
         getPaidWarmupsForDayRepository(dayId),
       ]);
-      const setupEntries = await Promise.all(
-        nextClasses.map(async (classItem) => [
-          classItem.id,
-          await getClassSetupRepository(classItem.id),
-        ])
-      );
       if (!isMounted) return;
-      setClasses(nextClasses);
-      setClassSetups(Object.fromEntries(setupEntries));
+      setClasses(classData.classes);
+      setClassSetups(classData.setupsByClassId);
       setPaidWarmups(nextPaidWarmups);
       setIsLoading(false);
     }

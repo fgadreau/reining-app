@@ -11,7 +11,10 @@ import {
 } from "./classStorage";
 import { getClassOfficialData } from "./classOfficialData";
 import { getClassRecord } from "./classRecordStorage";
-import { getOfficialResultRepository } from "./officialResultRepository";
+import {
+  getOfficialResultRepository,
+  getOfficialResultsForClassesRepository,
+} from "./officialResultRepository";
 import {
   getClassSetup,
   saveClassSetup,
@@ -19,18 +22,21 @@ import {
 import {
   deleteClassSetupRepository,
   getClassSetupRepository,
+  getClassSetupsForClassesRepository,
   saveClassSetupRepository,
 } from "./classSetupRepository";
 import { getClassStatus } from "./classStatusSelectors";
 import {
   loadScoringRuns,
   loadScoringSessionRepository,
+  loadScoringSessionsForClassesRepository,
 } from "../scoring/scoringRepository";
 import {
   loadJudgeScoringSessionsForClassLocal,
 } from "../scoring/judgeScoringSessionStorage";
 import {
   loadJudgeScoringSessionsForClassRepository,
+  loadJudgeScoringSessionsForClassesRepository,
 } from "../scoring/judgeScoringSessionRepository";
 import { normalizeClassJudges } from "./classJudges";
 import {
@@ -54,6 +60,7 @@ import { getPatternDisplayName } from "../patterns/patternDefinitions";
 import {
   getAnnouncerLiveSession,
   getAnnouncerLiveSessionRepository,
+  getAnnouncerLiveSessionsForClassesRepository,
 } from "../live/announcerLiveRepository";
 
 function toClass(row) {
@@ -497,6 +504,106 @@ export async function getClassFullDataRepository(classId) {
   };
 }
 
+export async function getClassFullDataForClassesRepository(classItems) {
+  const uniqueClasses = Array.from(
+    new Map(
+      (Array.isArray(classItems) ? classItems : [])
+        .filter((classItem) => classItem?.id)
+        .map((classItem) => [classItem.id, classItem])
+    ).values()
+  );
+  const classIds = uniqueClasses.map((classItem) => classItem.id);
+
+  if (classIds.length === 0) {
+    return {};
+  }
+
+  const [
+    setupsByClassId,
+    publicationsByClassId,
+    officialResultsByClassId,
+    scoringSessionsByClassId,
+  ] = await Promise.all([
+    getClassSetupsForClassesRepository(classIds),
+    getPublicationStatesForClassesRepository(classIds),
+    getOfficialResultsForClassesRepository(classIds),
+    loadScoringSessionsForClassesRepository(classIds),
+  ]);
+  const syncedClasses = await Promise.all(
+    uniqueClasses.map((classItem) =>
+      syncClassScheduleStartFromSetupRepository(
+        classItem,
+        setupsByClassId[classItem.id]
+      )
+    )
+  );
+  saveClasses(mergeClassesById(getAllClasses(), syncedClasses));
+
+  const setupRunsByClassId = classIds.reduce((runs, classId) => {
+    runs[classId] = setupsByClassId[classId]?.runs || [];
+    return runs;
+  }, {});
+  const judgesByClassId = syncedClasses.reduce((judges, classItem) => {
+    const setup = setupsByClassId[classItem.id];
+    const normalizedJudges = normalizeClassJudges({
+      judges: setup?.judges,
+      judgeName: setup?.judgeName || classItem?.judgeName,
+    });
+
+    if (normalizedJudges.length > 1) {
+      judges[classItem.id] = normalizedJudges;
+    }
+
+    return judges;
+  }, {});
+  const [
+    announcerSessionsByClassId,
+    judgeSessionsByClassId,
+  ] = await Promise.all([
+    getAnnouncerLiveSessionsForClassesRepository(
+      classIds,
+      setupRunsByClassId
+    ),
+    loadJudgeScoringSessionsForClassesRepository(judgesByClassId),
+  ]);
+
+  return syncedClasses.reduce((result, classItem) => {
+    const classId = classItem.id;
+    const setup = setupsByClassId[classId];
+    const officialResult = officialResultsByClassId[classId];
+    const official = getClassOfficialData(
+      classId,
+      classItem,
+      officialResult
+    );
+    const scoringSession = scoringSessionsByClassId[classId] || {
+      classId,
+      runs: [],
+      activeManoeuvre: null,
+    };
+    const judges = normalizeClassJudges({
+      judges: setup?.judges,
+      judgeName: setup?.judgeName || classItem?.judgeName,
+    });
+
+    result[classId] = {
+      classItem,
+      setup,
+      record: getClassRecord(classId),
+      official,
+      publication: publicationsByClassId[classId],
+      scoringSession,
+      announcerSession: announcerSessionsByClassId[classId],
+      judges,
+      judgeSessions: judgeSessionsByClassId[classId] || [],
+      scoringRuns: scoringSession.runs,
+      status: official.isFinalized ? "completed" : getClassStatus(classItem),
+    };
+
+    return result;
+  }, {});
+}
+
 function getLatestRunActivityAt(runs) {
   const timestamps = (Array.isArray(runs) ? runs : [])
     .map((run) => run?.completedAt || run?.startedAt || null)
@@ -506,11 +613,25 @@ function getLatestRunActivityAt(runs) {
   return timestamps[timestamps.length - 1] || null;
 }
 
-export async function getClassesForDayRepository(dayId) {
+export async function getClassesForDayDataRepository(
+  dayId,
+  { hydrateDetails = true } = {}
+) {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
-    return getClassesByDayId(dayId);
+    const classes = getClassesByDayId(dayId);
+    const setupsByClassId = classes.reduce((setups, classItem) => {
+      setups[classItem.id] = getClassSetup(classItem.id);
+      return setups;
+    }, {});
+
+    return {
+      classes,
+      setupsByClassId,
+      officialResultsByClassId: {},
+      publicationsByClassId: {},
+    };
   }
 
   try {
@@ -540,34 +661,62 @@ export async function getClassesForDayRepository(dayId) {
       (classItem) => classItem.dayId !== dayId
     );
     saveClasses([...otherLocalClasses, ...classes]);
-    const classesWithSetups = await Promise.all(
-      classes.map(async (classItem) => {
-        const [setup] = await Promise.all([
-          getClassSetupRepository(classItem.id),
-          getOfficialResultRepository(classItem.id),
-        ]);
 
-        return {
-          classItem,
-          setup,
-        };
-      })
-    );
+    if (!hydrateDetails) {
+      return {
+        classes,
+        setupsByClassId: {},
+        officialResultsByClassId: {},
+        publicationsByClassId: {},
+      };
+    }
+
+    const classIds = classes.map((classItem) => classItem.id);
+    const [
+      setupsByClassId,
+      officialResultsByClassId,
+      publicationsByClassId,
+    ] = await Promise.all([
+      getClassSetupsForClassesRepository(classIds),
+      getOfficialResultsForClassesRepository(classIds),
+      getPublicationStatesForClassesRepository(classIds),
+    ]);
     const syncedClasses = await Promise.all(
-      classesWithSetups.map(({ classItem, setup }) =>
-        syncClassScheduleStartFromSetupRepository(classItem, setup)
+      classes.map((classItem) =>
+        syncClassScheduleStartFromSetupRepository(
+          classItem,
+          setupsByClassId[classItem.id]
+        )
       )
     );
     saveClasses([...otherLocalClasses, ...syncedClasses]);
-    await getPublicationStatesForClassesRepository(
-      syncedClasses.map((classItem) => classItem.id)
-    );
 
-    return syncedClasses;
+    return {
+      classes: syncedClasses,
+      setupsByClassId,
+      officialResultsByClassId,
+      publicationsByClassId,
+    };
   } catch (error) {
     console.error("Erreur chargement blocs Supabase:", error);
-    return getClassesByDayId(dayId);
+    const classes = getClassesByDayId(dayId);
+    const setupsByClassId = classes.reduce((setups, classItem) => {
+      setups[classItem.id] = getClassSetup(classItem.id);
+      return setups;
+    }, {});
+
+    return {
+      classes,
+      setupsByClassId,
+      officialResultsByClassId: {},
+      publicationsByClassId: {},
+    };
   }
+}
+
+export async function getClassesForDayRepository(dayId, options) {
+  const data = await getClassesForDayDataRepository(dayId, options);
+  return data.classes;
 }
 
 export function createClassItem(newClass) {

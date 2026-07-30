@@ -75,6 +75,22 @@ function getLocalOfficialResult(classId) {
   };
 }
 
+function saveOfficialResultLocally(classId, result) {
+  saveClassRecord(classId, {
+    official: {
+      judgeName: result.judgeName,
+      judgeSignature: result.judgeSignature,
+      finalized: result.finalized,
+      finalizedAt: result.finalizedAt,
+      judgeSignedAt: result.judgeSignedAt,
+      secretariatValidatedAt: result.secretariatValidatedAt,
+      finalPdfFileName: result.finalPdfFileName,
+      customPattern: result.customPattern,
+      officialRuns: result.officialRuns,
+    },
+  });
+}
+
 export async function getOfficialResultRepository(classId) {
   const localResult = getLocalOfficialResult(classId);
   const supabase = getSupabaseClient();
@@ -94,24 +110,49 @@ export async function getOfficialResultRepository(classId) {
     if (!data) return localResult;
 
     const result = toOfficialResult(data);
-    saveClassRecord(classId, {
-      official: {
-        judgeName: result.judgeName,
-        judgeSignature: result.judgeSignature,
-        finalized: result.finalized,
-        finalizedAt: result.finalizedAt,
-        judgeSignedAt: result.judgeSignedAt,
-        secretariatValidatedAt: result.secretariatValidatedAt,
-        finalPdfFileName: result.finalPdfFileName,
-        customPattern: result.customPattern,
-        officialRuns: result.officialRuns,
-      },
-    });
+    saveOfficialResultLocally(classId, result);
 
     return result;
   } catch (error) {
     console.error("Erreur chargement résultat officiel Supabase:", error);
     return localResult;
+  }
+}
+
+export async function getOfficialResultsForClassesRepository(classIds) {
+  const uniqueIds = Array.from(
+    new Set((Array.isArray(classIds) ? classIds : []).filter(Boolean))
+  );
+  const results = uniqueIds.reduce((items, classId) => {
+    items[classId] = getLocalOfficialResult(classId);
+    return items;
+  }, {});
+  const supabase = getSupabaseClient();
+
+  if (!supabase || uniqueIds.length === 0) {
+    return results;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("show_score_official_results")
+      .select("*")
+      .in("class_id", uniqueIds);
+
+    if (error) throw error;
+
+    (Array.isArray(data) ? data : []).forEach((row) => {
+      if (!row?.class_id) return;
+
+      const result = toOfficialResult(row);
+      saveOfficialResultLocally(row.class_id, result);
+      results[row.class_id] = result;
+    });
+
+    return results;
+  } catch (error) {
+    console.error("Erreur chargement résultats officiels Supabase:", error);
+    return results;
   }
 }
 

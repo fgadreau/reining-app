@@ -202,6 +202,67 @@ export async function getAnnouncerLiveSessionRepository(
   }
 }
 
+export async function getAnnouncerLiveSessionsForClassesRepository(
+  classIds,
+  setupRunsByClassId = {}
+) {
+  const uniqueIds = Array.from(
+    new Set((Array.isArray(classIds) ? classIds : []).filter(Boolean))
+  );
+  const supabase = getSupabaseClient();
+
+  if (supabase && uniqueIds.some(hasPendingAnnouncerLiveMutation)) {
+    await flushAnnouncerLiveSyncQueue();
+  }
+
+  const protectedIds = new Set(
+    uniqueIds.filter(hasPendingAnnouncerLiveMutation)
+  );
+  const getSetupRuns = (classId) => {
+    if (setupRunsByClassId instanceof Map) {
+      return setupRunsByClassId.get(classId) || [];
+    }
+
+    return setupRunsByClassId?.[classId] || [];
+  };
+  const sessions = uniqueIds.reduce((result, classId) => {
+    result[classId] = getAnnouncerLiveSessionLocal(
+      classId,
+      getSetupRuns(classId)
+    );
+    return result;
+  }, {});
+  const remoteIds = uniqueIds.filter((classId) => !protectedIds.has(classId));
+
+  if (!supabase || remoteIds.length === 0) {
+    return sessions;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("show_score_announcer_live_sessions")
+      .select("*")
+      .in("class_id", remoteIds);
+
+    if (error) throw error;
+
+    (Array.isArray(data) ? data : []).forEach((row) => {
+      const classId = row?.class_id;
+      if (!classId || protectedIds.has(classId)) return;
+
+      const setupRuns = getSetupRuns(classId);
+      const session = toAnnouncerLiveSession(row, classId, setupRuns);
+      saveAnnouncerLiveSessionLocal(classId, session, setupRuns);
+      sessions[classId] = session;
+    });
+
+    return sessions;
+  } catch (error) {
+    console.error("Erreur chargement lives annonceur Supabase:", error);
+    return sessions;
+  }
+}
+
 export async function saveAnnouncerLiveSessionRepository(
   classId,
   session,
