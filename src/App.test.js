@@ -4405,6 +4405,94 @@ test("parses the multi-division AQR Derby Open and Non Pro Funware blocks", () =
   );
 });
 
+test("parses Funware Derby classes when the class number and association share a PDF cell", () => {
+  const importedDraw = parsePositionedPdfPages([
+    [
+      {
+        cells: [
+          { x: 161, text: "6240" },
+          {
+            x: 205,
+            text: "NRHA - Level 4 Non Pro-Cat 6 Clsd [605]",
+          },
+        ],
+      },
+      {
+        cells: [
+          { x: 161, text: "2400DA NRHA" },
+          {
+            x: 233,
+            text: "Level 4 Non Pro - Aged Event - Derby AQR (314)",
+          },
+        ],
+      },
+      {
+        cells: [{ x: 161, text: "[314]" }],
+      },
+      {
+        cells: [
+          { x: 161, text: "2600DA NRHA" },
+          {
+            x: 233,
+            text: "Level 1 Non Pro - Aged Event - Derby AQR (315)",
+          },
+        ],
+      },
+      {
+        cells: [{ x: 161, text: "[315]" }],
+      },
+      {
+        cells: [
+          { x: 54, text: "1" },
+          { x: 141, text: "SMART ELECTRIC GUN" },
+          { x: 317, text: "MARTIN BRISEBOIS / ST-" },
+        ],
+      },
+      {
+        cells: [{ x: 317, text: "APOLLINAIRE, QC" }],
+      },
+      {
+        cells: [
+          { x: 108, text: "2587" },
+          { x: 141, text: "LAURIANNE GAGNON DUVAL" },
+        ],
+      },
+      {
+        cells: [{ x: 317, text: "605,606,314,315" }],
+      },
+    ],
+  ]);
+
+  expect(importedDraw.blockClasses).toEqual([
+    {
+      code: "605",
+      name: "Level 4 Non Pro-Cat 6 Clsd",
+      classNumber: "6240",
+      association: "NRHA",
+    },
+    {
+      code: "314",
+      name: "Level 4 Non Pro - Aged Event - Derby AQR (314)",
+      classNumber: "2400DA",
+      association: "NRHA",
+    },
+    {
+      code: "315",
+      name: "Level 1 Non Pro - Aged Event - Derby AQR (315)",
+      classNumber: "2600DA",
+      association: "NRHA",
+    },
+  ]);
+  expect(importedDraw.runs).toMatchObject([
+    {
+      draw: 1,
+      backNumber: "2587",
+      rider: "LAURIANNE GAGNON DUVAL",
+      classCodes: ["605", "314", "315"],
+    },
+  ]);
+});
+
 test("parses Funware split leading-hyphen classes and scratched owners", () => {
   const importedDraw = parsePositionedPdfPages([
     [

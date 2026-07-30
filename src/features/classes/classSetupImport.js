@@ -122,12 +122,15 @@ function getFunwareBlockClassPartsFromCells(cells) {
         cell.x >= 145 &&
         cell.x < 185 &&
         cell.x < classNameCell.x &&
-        /^[A-Z0-9-]+$/i.test(cell.text)
+        /^[A-Z0-9-]+(?:\s+[A-Z]+)?$/i.test(cell.text)
     )
   );
 
   if (!classNumberCell) return null;
 
+  const combinedClassNumberMatch = cleanText(classNumberCell.text).match(
+    /^([A-Z0-9-]+)\s+([A-Z]+)$/i
+  );
   const associationCell = lastItem(
     cells.filter(
       (cell) =>
@@ -145,8 +148,9 @@ function getFunwareBlockClassPartsFromCells(cells) {
   );
 
   return {
-    classNumber: classNumberCell.text,
-    association: associationCell?.text || "",
+    classNumber: combinedClassNumberMatch?.[1] || classNumberCell.text,
+    association:
+      associationCell?.text || combinedClassNumberMatch?.[2] || "",
     classNameText,
   };
 }
