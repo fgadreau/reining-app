@@ -314,11 +314,18 @@ async function seedDailyLivestreamShow(page) {
   await seedStorage(page, seed);
 }
 
-async function seedOverlayDragShow(page) {
+async function seedOverlayDragShow(page, { neutral = false } = {}) {
   const seed = buildRobotShowStorageSeed();
   const association = seed.json["reiningApp.associations"].find(
     (item) => item.id === ASSOCIATION_ID
   );
+  const show = seed.json["reining_shows_v1"].find(
+    (item) => item.id === SHOW_ID
+  );
+
+  if (neutral) {
+    show.obsOverlayMode = "neutral";
+  }
   const makeLogo = (label, color) =>
     `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
       `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="640" height="360" fill="white"/><text x="320" y="205" text-anchor="middle" font-family="Arial" font-size="88" font-weight="700" fill="${color}">${label}</text></svg>`
@@ -612,6 +619,29 @@ test.describe("robot de show local", () => {
       page.locator('[data-overlay-sponsor-mode="rail"]')
     ).toBeVisible();
     await expect(page.locator("[data-overlay-bottom-bar]")).toBeVisible();
+  });
+
+  test("garde l'overlay neutre inchangé pendant un drag", async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await seedOverlayDragShow(page, { neutral: true });
+    await page.goto(
+      `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/overlay`
+    );
+
+    const overlay = page.locator("main");
+    await expect(overlay).toHaveAttribute("data-overlay-layout", "neutral");
+    await expect(
+      page.locator('[data-overlay-sponsor-mode="rail"]')
+    ).toBeVisible();
+    await expect(page.locator("[data-overlay-bottom-bar]")).toBeVisible();
+    await expect(page.locator("body")).toContainText("Vous regardez");
+    await expect(page.locator("body")).toContainText("Robot Derby local");
+    await expect(
+      page.locator('[data-overlay-sponsor-mode="takeover"]')
+    ).toHaveCount(0);
+    await expect(page.locator("body")).not.toContainText(
+      "Drag en cours · Merci à nos commanditaires"
+    );
   });
 
   test("remplace les cartes TV vides par la prochaine classe", async ({
