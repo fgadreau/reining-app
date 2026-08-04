@@ -237,10 +237,9 @@ async function getRemoteShowLiveSchedule(supabase, showId) {
   const classesQuery = supabase
     .from("blocks")
     .select(
-      "id, show_id, show_day_id, name, arena, sort_order, schedule_start_mode, scheduled_time, block_type"
+      "id, show_id, show_day_id, name, arena, sort_order, schedule_start_mode, scheduled_time, follows_block_id, block_type"
     )
-    .eq("show_id", showId)
-    .eq("block_type", "competition");
+    .eq("show_id", showId);
 
   const [classesResult, daysResult, paidWarmupsResult] = await Promise.all([
     classesQuery,
@@ -255,18 +254,24 @@ async function getRemoteShowLiveSchedule(supabase, showId) {
   if (daysResult.error) throw daysResult.error;
   if (paidWarmupsResult.error) throw paidWarmupsResult.error;
 
+  const scheduleBlocks = Array.isArray(classesResult.data) ? classesResult.data : [];
+  const scheduleBlockById = new Map(scheduleBlocks.map((row) => [row.id, row]));
+
   return buildLiveScheduleItems({
-    classes: Array.isArray(classesResult.data)
-      ? classesResult.data
+    classes: scheduleBlocks.length
+      ? scheduleBlocks
           .filter((row) => row?.block_type === "competition")
           .map((row) => ({
           ...row,
           dayId: row.show_day_id,
           scheduleStartTime: row.scheduled_time || "",
+          followsBlockId: row.follows_block_id || "",
         }))
       : [],
     paidWarmups: Array.isArray(paidWarmupsResult.data)
-      ? paidWarmupsResult.data.map((row) => ({
+      ? paidWarmupsResult.data.map((row) => {
+          const scheduleBlock = scheduleBlockById.get(row.block_id || row.id);
+          return {
           id: row.id,
           associationId: row.organization_id,
           showId: row.show_id,
@@ -278,7 +283,9 @@ async function getRemoteShowLiveSchedule(supabase, showId) {
           activeStartedAt: row.active_started_at || null,
           entries: Array.isArray(row.entries) ? row.entries : [],
           sortOrder: row.sort_order || 1,
-        }))
+          followsBlockId: scheduleBlock?.follows_block_id || "",
+        };
+        })
       : [],
     days: Array.isArray(daysResult.data)
       ? daysResult.data.map((row) => ({

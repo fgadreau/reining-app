@@ -90,6 +90,7 @@ function toClass(row) {
         : null,
     scheduleStartMode: scheduleStart.startMode,
     scheduleStartTime: scheduleStart.startTime,
+    followsBlockId: row.follows_block_id || "",
     isEventBlock: row.block_type !== "competition",
     eligibilityRules,
     concurrentClassId:
@@ -141,6 +142,10 @@ function toClassRow(classItem, options = {}) {
     row.schedule_start_mode =
       scheduleStart.startMode || CLASS_START_MODE_AFTER_PREVIOUS;
     row.scheduled_time = scheduleStart.startTime || null;
+    row.follows_block_id =
+      row.schedule_start_mode === CLASS_START_MODE_AFTER_PREVIOUS
+        ? classItem.followsBlockId || null
+        : null;
   }
 
   return row;
@@ -170,6 +175,7 @@ function isScheduleStartColumnMissingError(error) {
     message.includes("schedule_start_mode") ||
     message.includes("schedule_start_time") ||
     message.includes("scheduled_time")
+    || message.includes("follows_block_id")
   );
 }
 

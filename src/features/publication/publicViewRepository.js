@@ -57,6 +57,7 @@ import {
   compareScheduleItemsByStart,
   hasClassScheduleDetails,
   normalizeClassScheduleDetails,
+  sortScheduleItemsByDependencies,
 } from "../classes/classSchedule";
 import { MIN_MEASURED_RUN_SECONDS } from "../classes/classTiming";
 import {
@@ -212,6 +213,7 @@ function toClass(row) {
         : null,
     scheduleStartMode: row.schedule_start_mode || "",
     scheduleStartTime: row.schedule_start_time || row.scheduled_time || "",
+    followsBlockId: row.follows_block_id || "",
     judgeName: row.judge_display_name || "",
     sortOrder: row.sort_order || 1,
     isEventBlock: row.block_type !== "competition",
@@ -868,9 +870,10 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
     });
 
     const sections = days.map((day) => {
-      const dayClasses = (classesByDayId.get(day.id) || [])
-        .slice()
-        .sort(compareScheduleItemsByStart);
+      const dayClasses = sortScheduleItemsByDependencies(
+        classesByDayId.get(day.id) || [],
+        compareScheduleItemsByStart
+      );
       const dayPaidWarmups = (paidWarmupsByDayId.get(day.id) || [])
         .slice()
         .sort((first, second) => {

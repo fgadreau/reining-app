@@ -58,6 +58,30 @@ function getScheduleSortName(item = {}) {
   return String(source?.className || source?.name || item?.className || item?.name || "");
 }
 
+function getScheduleItemId(item = {}) {
+  const source = getScheduleComparableSource(item);
+  return String(
+    item?.itemId ||
+      item?.id ||
+      source?.itemId ||
+      source?.id ||
+      source?.blockId ||
+      source?.block_id ||
+      ""
+  );
+}
+
+function getScheduleFollowsBlockId(item = {}) {
+  const source = getScheduleComparableSource(item);
+  return String(
+    item?.followsBlockId ||
+      item?.follows_block_id ||
+      source?.followsBlockId ||
+      source?.follows_block_id ||
+      ""
+  );
+}
+
 function compareScheduleItemsByOrder(first, second) {
   return (
     getScheduleSortOrder(first) - getScheduleSortOrder(second) ||
@@ -109,6 +133,48 @@ export function compareMixedScheduleItemsByStart(first, second) {
   }
 
   return compareScheduleItemsByOrder(first, second);
+}
+
+export function sortScheduleItemsByDependencies(
+  items,
+  compareItems = compareMixedScheduleItemsByStart
+) {
+  const source = Array.isArray(items) ? [...items] : [];
+  const itemById = new Map(
+    source.map((item) => [getScheduleItemId(item), item]).filter(([id]) => id)
+  );
+  const followersById = new Map();
+
+  source.forEach((item) => {
+    const precedingId = getScheduleFollowsBlockId(item);
+    if (!precedingId || !itemById.has(precedingId)) return;
+    followersById.set(precedingId, [
+      ...(followersById.get(precedingId) || []),
+      item,
+    ]);
+  });
+  followersById.forEach((followers) => followers.sort(compareItems));
+
+  const roots = source
+    .filter((item) => {
+      const precedingId = getScheduleFollowsBlockId(item);
+      return !precedingId || !itemById.has(precedingId);
+    })
+    .sort(compareItems);
+  const ordered = [];
+  const visited = new Set();
+
+  function append(item) {
+    const id = getScheduleItemId(item);
+    if (!id || visited.has(id)) return;
+    visited.add(id);
+    ordered.push(item);
+    (followersById.get(id) || []).forEach(append);
+  }
+
+  roots.forEach(append);
+  source.sort(compareItems).forEach(append);
+  return ordered;
 }
 
 export function normalizeClassScheduleStart(input = {}) {
