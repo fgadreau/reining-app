@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { hasLocalTestSession } from "../auth/localTestAuth";
+import { getSupabaseConfigurationError } from "./deployEnvironment";
 
 const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || "").trim();
 const supabaseKey = (
@@ -7,6 +8,7 @@ const supabaseKey = (
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
   ""
 ).trim();
+const supabaseConfigurationError = getSupabaseConfigurationError();
 
 let client = null;
 
@@ -20,7 +22,12 @@ function isValidSupabaseUrl(value) {
 }
 
 export function isSupabaseConfigured() {
-  return Boolean(supabaseUrl && supabaseKey && isValidSupabaseUrl(supabaseUrl));
+  return Boolean(
+    supabaseUrl &&
+      supabaseKey &&
+      isValidSupabaseUrl(supabaseUrl) &&
+      !supabaseConfigurationError
+  );
 }
 
 export function getSupabaseClient() {

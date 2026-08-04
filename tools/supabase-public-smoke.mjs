@@ -35,39 +35,9 @@ const SHARED_SCHEMA_PROBES = [
     filters: { order: "created_at.desc" },
   },
   {
-    table: "contact_organization_links",
-    columns: "id,created_at",
-    label: "contact_organization_links HSP",
-    filters: { order: "created_at.desc" },
-  },
-  {
     table: "contacts",
     columns: "id,created_at",
     label: "contacts HSP",
-    filters: { order: "created_at.desc" },
-  },
-  {
-    table: "organization_external_membership_requirements",
-    columns: "id,created_at",
-    label: "organization_external_membership_requirements HSP",
-    filters: { order: "created_at.desc" },
-  },
-  {
-    table: "external_organizations",
-    columns: "id,name",
-    label: "external_organizations HSP",
-    filters: { order: "name.asc" },
-  },
-  {
-    table: "contact_external_memberships",
-    columns: "id,created_at",
-    label: "contact_external_memberships HSP",
-    filters: { order: "created_at.desc" },
-  },
-  {
-    table: "horse_health_documents",
-    columns: "id,created_at",
-    label: "horse_health_documents HSP",
     filters: { order: "created_at.desc" },
   },
   {
@@ -83,21 +53,15 @@ const SHARED_SCHEMA_PROBES = [
     filters: { order: "created_at.desc" },
   },
   {
-    table: "horse_organization_links",
-    columns: "id,created_at",
-    label: "horse_organization_links HSP",
-    filters: { order: "created_at.desc" },
+    table: "block_templates",
+    columns: "id,sort_order",
+    label: "block_templates HSP",
+    filters: { order: "sort_order.asc" },
   },
   {
     table: "class_templates",
     columns: "id,sort_order",
     label: "class_templates HSP",
-    filters: { order: "sort_order.asc" },
-  },
-  {
-    table: "class_template_divisions",
-    columns: "id,sort_order",
-    label: "class_template_divisions HSP",
     filters: { order: "sort_order.asc" },
   },
   {
@@ -113,10 +77,10 @@ const SHARED_SCHEMA_PROBES = [
     filters: { order: "created_at.desc" },
   },
   {
-    table: "show_score_class_setups",
+    table: "show_score_block_setups",
     columns:
-      "class_id,block_classes,judge_name,judge_signature,judge_signed_at,final_pdf_file_name",
-    label: "show_score_class_setups compat",
+      "block_id,block_classes,judge_name,judge_signature,judge_signed_at,final_pdf_file_name,live_data_source,live_display_mode",
+    label: "show_score_block_setups",
   },
 ];
 
@@ -442,17 +406,17 @@ function checkPublicationStates({ publicationStates, officialByClassId }) {
     if (PUBLIC_LIVE_STATUSES.has(publication.status)) return;
 
     if (publication.status === "official" || publication.status === "published") {
-      const official = officialByClassId.get(publication.class_id);
+      const official = officialByClassId.get(publication.block_id);
       if (!official) {
         addIssue(
-          `show_score_publication_states: statut ${publication.status} visible sans show_score_official_result public (${publication.class_id})`
+          `show_score_publication_states: statut ${publication.status} visible sans show_score_official_result public (${publication.block_id})`
         );
       }
       return;
     }
 
     addIssue(
-      `show_score_publication_states: statut non public visible en anon (${publication.class_id}: ${publication.status})`
+      `show_score_publication_states: statut non public visible en anon (${publication.block_id}: ${publication.status})`
     );
   });
 
@@ -465,7 +429,7 @@ function checkOfficialResults(officialResults) {
   officialResults.forEach((official) => {
     if (official.finalized !== true || !official.secretariat_validated_at) {
       addIssue(
-        `show_score_official_results: resultat visible sans finalisation/validation secretariat (${official.class_id})`
+        `show_score_official_results: resultat visible sans finalisation/validation secretariat (${official.block_id})`
       );
     }
   });
@@ -483,7 +447,7 @@ function checkResultPublications(resultPublications) {
 
     if (publication.status !== "published" || groups.length === 0) {
       addIssue(
-        `class_result_publications: publication visible sans statut published/groupes (${publication.class_id})`
+        `block_result_publications: publication visible sans statut published/groupes (${publication.block_id})`
       );
     }
   });
@@ -495,13 +459,13 @@ function checkResultPublications(resultPublications) {
 
 function checkScoringSessions({ sessions, publicationByClassId, label }) {
   sessions.forEach((session) => {
-    const publications = publicationByClassId.get(session.class_id) || [];
+    const publications = publicationByClassId.get(session.block_id) || [];
     const hasLivePublication = publications.some((publication) =>
       PUBLIC_LIVE_STATUSES.has(publication.status)
     );
 
     if (!hasLivePublication) {
-      addIssue(`${label}: session visible sans publication live (${session.class_id})`);
+      addIssue(`${label}: session visible sans publication live (${session.block_id})`);
     }
   });
 
@@ -575,20 +539,20 @@ await probeAdminFunction();
 await probeSharedSchema();
 
 const associations = await fetchRows(
-  "associations",
+  "organizations",
   "id,name,short_name",
-  "associations"
+  "organizations"
 ) || [];
 const shows = await fetchRows(
   "shows",
   "id,organization_id,name,status,is_public,show_schedule_public,show_draw_public,show_results_public,is_livestream_public,livestream_url",
   "shows"
 ) || [];
-const days = await fetchRows("days", "id,show_id", "days") || [];
+const days = await fetchRows("show_days", "id,show_id", "show_days") || [];
 const classes = await fetchRows(
-  "classes",
+  "blocks",
   "id,organization_id,show_id,show_day_id",
-  "classes"
+  "blocks"
 ) || [];
 const paidWarmups = await fetchRows(
   "show_score_paid_warmups",
@@ -597,27 +561,27 @@ const paidWarmups = await fetchRows(
 ) || [];
 const publicationStates = await fetchRows(
   "show_score_publication_states",
-  "class_id,status",
+  "block_id,status",
   "show_score_publication_states"
 ) || [];
 const officialResults = await fetchRows(
   "show_score_official_results",
-  "class_id,finalized,secretariat_validated_at",
+  "block_id,finalized,secretariat_validated_at",
   "show_score_official_results"
 ) || [];
 const resultPublications = await fetchRows(
-  "class_result_publications",
-  "class_id,status,result_groups",
-  "class_result_publications"
+  "block_result_publications",
+  "block_id,status,result_groups",
+  "block_result_publications"
 ) || [];
 const scoringSessions = await fetchRows(
   "show_score_scoring_sessions",
-  "class_id",
+  "block_id",
   "show_score_scoring_sessions"
 ) || [];
 const judgeScoringSessions = await fetchRows(
   "show_score_judge_sessions",
-  "class_id",
+  "block_id",
   "show_score_judge_sessions"
 ) || [];
 
@@ -625,21 +589,21 @@ const associationMap = byId(associations);
 const showMap = byId(shows);
 const classMap = byId(classes);
 const officialByClassId = new Map(
-  officialResults.map((official) => [official.class_id, official])
+  officialResults.map((official) => [official.block_id, official])
 );
-const publicationByClassId = groupBy(publicationStates, "class_id");
+const publicationByClassId = groupBy(publicationStates, "block_id");
 
 checkReturnedShows(shows);
 checkChildRowsStayOnPublicShows({
   rows: days,
   showMap,
-  label: "days",
+  label: "show_days",
   getShowId: (row) => row.show_id,
 });
 checkChildRowsStayOnPublicShows({
   rows: classes,
   showMap,
-  label: "classes",
+  label: "blocks",
   getShowId: (row) => row.show_id,
 });
 checkPaidWarmups({ paidWarmups, showMap });
@@ -664,7 +628,7 @@ classes.forEach((classRow) => {
   }
 
   if (!classMap.has(classRow.id)) {
-    addIssue(`classes: classe publique introuvable dans la map locale (${classRow.id})`);
+    addIssue(`blocks: bloc public introuvable dans la map locale (${classRow.id})`);
   }
 });
 
@@ -675,14 +639,14 @@ const samplePath = sampleShow
 
 printReport({
   counts: {
-    associations: associations.length,
+    organizations: associations.length,
     shows: shows.length,
-    days: days.length,
-    classes: classes.length,
+    show_days: days.length,
+    blocks: classes.length,
     show_score_paid_warmups: paidWarmups.length,
     show_score_publication_states: publicationStates.length,
     show_score_official_results: officialResults.length,
-    class_result_publications: resultPublications.length,
+    block_result_publications: resultPublications.length,
     show_score_scoring_sessions: scoringSessions.length,
     show_score_judge_sessions: judgeScoringSessions.length,
   },

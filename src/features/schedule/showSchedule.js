@@ -10,6 +10,7 @@ import {
   CLASS_START_MODE_FIXED,
   compareMixedScheduleItemsByStart,
   normalizeClassStartTime,
+  sortScheduleItemsByDependencies,
 } from "../classes/classSchedule";
 import { calculatePaidWarmupScheduleSummary } from "../paidWarmups/paidWarmupStorage";
 
@@ -46,6 +47,7 @@ export function buildPaidWarmupScheduleRow({ warmup, day, now = new Date() }) {
     startedAt: warmup?.activeStartedAt || null,
     scheduleStartMode: warmup?.scheduleStartMode,
     scheduleStartTime: warmup?.scheduleStartTime,
+    followsBlockId: warmup?.followsBlockId || "",
     plannedStartAt: null,
     estimatedStartAt: null,
     scheduleStartUsesFallback: false,
@@ -84,12 +86,13 @@ export function buildShowScheduleSections({
       itemType: SHOW_SCHEDULE_ITEM_TYPES.CLASS,
       arena: classData?.classItem?.arena || "",
       sortOrder: classData?.classItem?.sortOrder || 1,
+      followsBlockId: classData?.classItem?.followsBlockId || "",
     }));
     const paidWarmupRows = (section.paidWarmups || []).map((warmup) =>
       buildPaidWarmupScheduleRow({ warmup, day, now })
     );
     const rows = buildDayScheduleRows(
-      [...classRows, ...paidWarmupRows].sort(compareScheduleRows),
+      sortScheduleItemsByDependencies([...classRows, ...paidWarmupRows], compareScheduleRows),
       { day, now }
     );
 
@@ -133,6 +136,7 @@ export function buildShowSchedulePreviewSections({
         itemType: SHOW_SCHEDULE_ITEM_TYPES.CLASS,
         arena: classData?.classItem?.arena || "",
         sortOrder: classData?.classItem?.sortOrder || 1,
+        followsBlockId: classData?.classItem?.followsBlockId || "",
         estimatedDurationSeconds: timingRow.remainingSeconds,
       };
     });
@@ -145,7 +149,7 @@ export function buildShowSchedulePreviewSections({
       };
     });
     const rows = buildDaySchedulePreviewRows(
-      [...classRows, ...paidWarmupRows].sort(compareScheduleRows),
+      sortScheduleItemsByDependencies([...classRows, ...paidWarmupRows], compareScheduleRows),
       { day }
     );
 

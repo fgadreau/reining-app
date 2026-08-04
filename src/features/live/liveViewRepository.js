@@ -45,12 +45,12 @@ import {
 import { normalizeClassJudges } from "../classes/classJudges";
 
 const ANNOUNCER_CLASS_REALTIME_TABLES = [
-  "show_score_scoring_sessions",
-  "show_score_judge_sessions",
-  "show_score_class_setups",
-  "show_score_publication_states",
-  "show_score_official_results",
-  "show_score_announcer_live_sessions",
+  { table: "show_score_scoring_sessions", idColumn: "block_id" },
+  { table: "show_score_judge_sessions", idColumn: "block_id" },
+  { table: "show_score_block_setups", idColumn: "block_id" },
+  { table: "show_score_publication_states", idColumn: "block_id" },
+  { table: "show_score_official_results", idColumn: "block_id" },
+  { table: "show_score_announcer_live_sessions", idColumn: "class_id" },
 ];
 
 export function getAnnouncerShowView(showId) {
@@ -190,7 +190,7 @@ export function subscribeAnnouncerShowViewRepository(
     {
       event: "*",
       schema: "public",
-      table: "classes",
+      table: "blocks",
       filter: `show_id=eq.${showId}`,
     },
     onChange
@@ -208,14 +208,14 @@ export function subscribeAnnouncerShowViewRepository(
   );
 
   uniqueClassIds.forEach((classId) => {
-    ANNOUNCER_CLASS_REALTIME_TABLES.forEach((table) => {
+    ANNOUNCER_CLASS_REALTIME_TABLES.forEach(({ table, idColumn }) => {
       channel.on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table,
-          filter: `class_id=eq.${classId}`,
+          filter: `${idColumn}=eq.${classId}`,
         },
         onChange
       );

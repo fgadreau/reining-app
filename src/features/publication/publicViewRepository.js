@@ -57,6 +57,7 @@ import {
   compareScheduleItemsByStart,
   hasClassScheduleDetails,
   normalizeClassScheduleDetails,
+  sortScheduleItemsByDependencies,
 } from "../classes/classSchedule";
 import { MIN_MEASURED_RUN_SECONDS } from "../classes/classTiming";
 import {
@@ -203,7 +204,7 @@ function toClass(row) {
     showId: row.show_id,
     dayId: row.show_day_id || row.day_id,
     name: row.name || "",
-    classCode: row.code || row.class_code || "",
+    classCode: row.display_label || row.name || "",
     arena: row.arena || "",
     pattern: row.pattern || "",
     customPattern:
@@ -212,48 +213,32 @@ function toClass(row) {
         : null,
     scheduleStartMode: row.schedule_start_mode || "",
     scheduleStartTime: row.schedule_start_time || row.scheduled_time || "",
-    judgeName: row.judge_name || "",
+    followsBlockId: row.follows_block_id || "",
+    judgeName: row.judge_display_name || "",
     sortOrder: row.sort_order || 1,
-    isEventBlock: Boolean(row.is_event_block),
+    isEventBlock: row.block_type !== "competition",
   };
-}
-
-function getSupabaseErrorText(error) {
-  return [error?.message, error?.details, error?.hint]
-    .map((value) => String(value || "").toLowerCase())
-    .join(" ");
-}
-
-function isEventBlockColumnMissingError(error) {
-  return getSupabaseErrorText(error).includes("is_event_block");
 }
 
 const PUBLIC_CLASS_ID_CHUNK_SIZE = 100;
 
 async function fetchPublicClassesForShow(supabase, showId) {
-  let result = await supabase
-    .from("classes")
+  return supabase
+    .from("blocks")
     .select("*")
     .eq("show_id", showId)
-    .eq("is_event_block", false)
+    .eq("block_type", "competition")
     .order("show_day_id", { ascending: true })
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
-
-  if (result.error && isEventBlockColumnMissingError(result.error)) {
-    result = await supabase
-      .from("classes")
-      .select("*")
-      .eq("show_id", showId)
-      .order("show_day_id", { ascending: true })
-      .order("sort_order", { ascending: true })
-      .order("name", { ascending: true });
-  }
-
-  return result;
 }
 
-async function fetchPublicRowsForClasses(supabase, table, classIds) {
+async function fetchPublicRowsForClasses(
+  supabase,
+  table,
+  classIds,
+  idColumn = "block_id"
+) {
   const uniqueIds = Array.from(
     new Set((Array.isArray(classIds) ? classIds : []).filter(Boolean))
   );
@@ -273,7 +258,7 @@ async function fetchPublicRowsForClasses(supabase, table, classIds) {
 
   const results = await Promise.all(
     chunks.map((chunk) =>
-      supabase.from(table).select("*").in("class_id", chunk)
+      supabase.from(table).select("*").in(idColumn, chunk)
     )
   );
   const failedResult = results.find((result) => result.error);
@@ -292,7 +277,7 @@ async function fetchPublicRowsForClasses(supabase, table, classIds) {
 
 function toPublicationState(row) {
   return {
-    classId: row.class_id,
+    classId: row.block_id,
     status: row.status || PUBLICATION_STATUSES.HIDDEN,
     publishedAt: row.published_at || null,
     publishedBy: row.published_by || null,
@@ -302,7 +287,7 @@ function toPublicationState(row) {
 
 function toResultPublication(row) {
   return {
-    classId: row.class_id,
+    classId: row.block_id,
     status: row.status || RESULT_PUBLICATION_STATUSES.HIDDEN,
     publishedAt: row.published_at || null,
     publishedBy: row.published_by || null,
@@ -312,7 +297,7 @@ function toResultPublication(row) {
 
 function toOfficialResult(row) {
   return {
-    classId: row.class_id,
+    classId: row.block_id,
     judgeName: row.judge_name || "",
     finalized: Boolean(row.finalized),
     finalizedAt: row.finalized_at || null,
@@ -330,7 +315,7 @@ function toOfficialResult(row) {
 
 function toScoringSession(row) {
   return {
-    classId: row.class_id,
+    classId: row.block_id,
     runs: Array.isArray(row.runs) ? row.runs : [],
     activeManoeuvre:
       row.active_manoeuvre && typeof row.active_manoeuvre === "object"
@@ -342,7 +327,7 @@ function toScoringSession(row) {
 
 function toClassSetup(row) {
   return {
-    classId: row.class_id,
+    classId: row.block_id,
     pattern: row.pattern || "",
     customPattern:
       row.custom_pattern && typeof row.custom_pattern === "object"
@@ -379,7 +364,7 @@ function toAnnouncerLiveSession(row) {
 
 function toJudgeScoringSession(row) {
   return normalizeJudgeScoringSession({
-    classId: row.class_id,
+    classId: row.block_id,
     judgeId: row.judge_id,
     judgeName: row.judge_name || "",
     claimedBy: row.claimed_by || null,
@@ -802,13 +787,14 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
       ),
       fetchPublicRowsForClasses(
         supabase,
-        "show_score_class_setups",
+        "show_score_block_setups",
         allClassIds
       ),
       fetchPublicRowsForClasses(
         supabase,
         "show_score_announcer_live_sessions",
-        allClassIds
+        allClassIds,
+        "class_id"
       ),
       getPublicResultPublicationMap(supabase, allClassIds),
     ]);
@@ -836,31 +822,31 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
 
     const publicationsByClassId = new Map(
       (publicationResult.data || []).map((row) => [
-        row.class_id,
+        row.block_id,
         toPublicationState(row),
       ])
     );
     const officialByClassId = new Map(
       (officialResult.data || []).map((row) => [
-        row.class_id,
+        row.block_id,
         toOfficialResult(row),
       ])
     );
     const scoringByClassId = new Map(
       (scoringResult.data || []).map((row) => [
-        row.class_id,
+        row.block_id,
         toScoringSession(row),
       ])
     );
     const judgeScoringByClassId = new Map();
     (judgeScoringResult.data || []).forEach((row) => {
-      const current = judgeScoringByClassId.get(row.class_id) || [];
+      const current = judgeScoringByClassId.get(row.block_id) || [];
       current.push(toJudgeScoringSession(row));
-      judgeScoringByClassId.set(row.class_id, current);
+      judgeScoringByClassId.set(row.block_id, current);
     });
     const setupByClassId = new Map(
       (setupResult.data || []).map((row) => [
-        row.class_id,
+        row.block_id,
         toClassSetup(row),
       ])
     );
@@ -884,9 +870,10 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
     });
 
     const sections = days.map((day) => {
-      const dayClasses = (classesByDayId.get(day.id) || [])
-        .slice()
-        .sort(compareScheduleItemsByStart);
+      const dayClasses = sortScheduleItemsByDependencies(
+        classesByDayId.get(day.id) || [],
+        compareScheduleItemsByStart
+      );
       const dayPaidWarmups = (paidWarmupsByDayId.get(day.id) || [])
         .slice()
         .sort((first, second) => {
@@ -1040,7 +1027,7 @@ async function getPublicResultPublicationMap(supabase, classIds) {
   try {
     const { data, error } = await fetchPublicRowsForClasses(
       supabase,
-      "class_result_publications",
+      "block_result_publications",
       classIds
     );
 
@@ -1048,7 +1035,7 @@ async function getPublicResultPublicationMap(supabase, classIds) {
 
     return new Map(
       (Array.isArray(data) ? data : []).map((row) => [
-        row.class_id,
+        row.block_id,
         toResultPublication(row),
       ])
     );

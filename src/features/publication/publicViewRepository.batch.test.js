@@ -88,7 +88,7 @@ const classes = days.map((day, index) => ({
   show_day_id: day.id,
   name: `Class ${index + 1}`,
   pattern: `RR${index + 1}`,
-  is_event_block: false,
+  block_type: "competition",
   sort_order: 1,
 }));
 
@@ -111,25 +111,25 @@ test("loads a multi-day public show with one query per table", async () => {
       ],
       show_score_class_documents: [],
       show_days: days,
-      classes,
+      blocks: classes,
       show_score_paid_warmups: [],
       show_score_publication_states: classes.map((classItem) => ({
-        class_id: classItem.id,
+        block_id: classItem.id,
         status: "live",
       })),
       show_score_official_results: [],
       show_score_scoring_sessions: classes.map((classItem) => ({
-        class_id: classItem.id,
+        block_id: classItem.id,
         runs: [],
       })),
       show_score_judge_sessions: [],
-      show_score_class_setups: classes.map((classItem) => ({
-        class_id: classItem.id,
+      show_score_block_setups: classes.map((classItem) => ({
+        block_id: classItem.id,
         pattern: classItem.pattern,
         runs: [],
       })),
       show_score_announcer_live_sessions: [],
-      class_result_publications: [],
+      block_result_publications: [],
     },
     {
       public_show_timing_summary: [],
@@ -156,19 +156,19 @@ test("loads a multi-day public show with one query per table", async () => {
     shows: 1,
     show_score_class_documents: 1,
     show_days: 1,
-    classes: 1,
+    blocks: 1,
     show_score_paid_warmups: 1,
     show_score_publication_states: 1,
     show_score_official_results: 1,
     show_score_scoring_sessions: 1,
     show_score_judge_sessions: 1,
-    show_score_class_setups: 1,
+    show_score_block_setups: 1,
     show_score_announcer_live_sessions: 1,
-    class_result_publications: 1,
+    block_result_publications: 1,
   });
 
   const classQuery = supabase.queries.find(
-    (query) => query.table === "classes"
+    (query) => query.table === "blocks"
   );
   const paidWarmupQuery = supabase.queries.find(
     (query) => query.table === "show_score_paid_warmups"
@@ -214,6 +214,12 @@ test("subscribes only to the tables enabled for production realtime", () => {
   );
 
   expect(bindings.map(({ config }) => config)).toEqual([
+    {
+      event: "UPDATE",
+      schema: "public",
+      table: "shows",
+      filter: "id=eq.show-1",
+    },
     {
       event: "*",
       schema: "public",

@@ -94,12 +94,12 @@ const classRows = classes.map((classItem, index) => ({
   pattern: classItem.pattern,
   schedule_start_mode: classItem.scheduleStartMode,
   schedule_start_time: classItem.scheduleStartTime,
-  is_event_block: false,
+  block_type: "competition",
   sort_order: index + 1,
 }));
 
 const setupRows = classes.map((classItem, index) => ({
-  class_id: classItem.id,
+  block_id: classItem.id,
   pattern: classItem.pattern,
   runs: [],
   schedule_details: {
@@ -122,8 +122,8 @@ beforeEach(() => {
 
 test("hydrates a day with one batched query per related table", async () => {
   const supabase = createSupabaseStub({
-    classes: classRows,
-    show_score_class_setups: setupRows,
+    blocks: classRows,
+    show_score_block_setups: setupRows,
     show_score_official_results: [],
     show_score_publication_states: [],
   });
@@ -136,29 +136,29 @@ test("hydrates a day with one batched query per related table", async () => {
   expect(
     supabase.queries.map((query) => query.table)
   ).toEqual([
-    "classes",
-    "show_score_class_setups",
+    "blocks",
+    "show_score_block_setups",
     "show_score_official_results",
     "show_score_publication_states",
   ]);
   expect(
     supabase.queries
-      .filter((query) => query.table !== "classes")
+      .filter((query) => query.table !== "blocks")
       .flatMap((query) => query.filters)
   ).toEqual([
-    { operator: "in", column: "class_id", value: classes.map(({ id }) => id) },
-    { operator: "in", column: "class_id", value: classes.map(({ id }) => id) },
-    { operator: "in", column: "class_id", value: classes.map(({ id }) => id) },
+    { operator: "in", column: "block_id", value: classes.map(({ id }) => id) },
+    { operator: "in", column: "block_id", value: classes.map(({ id }) => id) },
+    { operator: "in", column: "block_id", value: classes.map(({ id }) => id) },
   ]);
 });
 
 test("hydrates full announcer data in fixed batches instead of per class", async () => {
   const supabase = createSupabaseStub({
-    show_score_class_setups: setupRows,
+    show_score_block_setups: setupRows,
     show_score_official_results: [],
     show_score_publication_states: [],
     show_score_scoring_sessions: classRows.map((row) => ({
-      class_id: row.id,
+      block_id: row.id,
       runs: [],
     })),
     show_score_announcer_live_sessions: [],
@@ -172,7 +172,7 @@ test("hydrates full announcer data in fixed batches instead of per class", async
   expect(
     supabase.queries.map((query) => query.table)
   ).toEqual([
-    "show_score_class_setups",
+    "show_score_block_setups",
     "show_score_publication_states",
     "show_score_official_results",
     "show_score_scoring_sessions",
@@ -182,11 +182,13 @@ test("hydrates full announcer data in fixed batches instead of per class", async
   expect(
     supabase.queries
       .filter((query) => query.table.startsWith("show_score_"))
-      .every((query) =>
-        query.filters.some(
-          (filter) =>
-            filter.operator === "in" && filter.column === "class_id"
-        )
-      )
-  ).toBe(true);
+      .map((query) => query.filters.find((filter) => filter.operator === "in")?.column)
+  ).toEqual([
+    "block_id",
+    "block_id",
+    "block_id",
+    "block_id",
+    "class_id",
+    "block_id",
+  ]);
 });

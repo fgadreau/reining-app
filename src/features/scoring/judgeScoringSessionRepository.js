@@ -22,7 +22,7 @@ const scheduledJudgeSessionQueueFlushes = new Map();
 function toJudgeScoringSession(row, options = {}) {
   return normalizeJudgeScoringSession(
     {
-      classId: row.class_id,
+      classId: row.block_id,
       judgeId: row.judge_id,
       judgeName: row.judge_name || "",
       claimedBy: row.claimed_by || null,
@@ -48,7 +48,7 @@ function toJudgeScoringSessionRow(session) {
   const normalized = normalizeJudgeScoringSession(session);
 
   return {
-    class_id: normalized.classId,
+    block_id: normalized.classId,
     judge_id: normalized.judgeId,
     judge_name: normalized.judgeName || "",
     claimed_by: normalized.claimedBy || null,
@@ -130,7 +130,7 @@ async function fetchRemoteJudgeScoringSession(classId, judge) {
   const { data, error } = await supabase
     .from("show_score_judge_sessions")
     .select("*")
-    .eq("class_id", classId)
+    .eq("block_id", classId)
     .eq("judge_id", judge.id)
     .maybeSingle();
 
@@ -155,7 +155,7 @@ async function saveRemoteJudgeScoringSession(session) {
       ? supabase
           .from("show_score_judge_sessions")
           .update(toJudgeScoringSessionRow(normalized))
-          .eq("class_id", normalized.classId)
+          .eq("block_id", normalized.classId)
           .eq("judge_id", normalized.judgeId)
           .or(`claimed_by.is.null,claimed_by.eq.${normalized.claimedBy}`)
       : supabase
@@ -421,7 +421,7 @@ export async function loadJudgeScoringSessionsForClassRepository(
     const { data, error } = await supabase
       .from("show_score_judge_sessions")
       .select("*")
-      .eq("class_id", classId);
+      .eq("block_id", classId);
 
     if (error) throw error;
 
@@ -500,17 +500,17 @@ export async function loadJudgeScoringSessionsForClassesRepository(
     const { data, error } = await supabase
       .from("show_score_judge_sessions")
       .select("*")
-      .in("class_id", remoteIds);
+      .in("block_id", remoteIds);
 
     if (error) throw error;
 
     const rowsByClassId = new Map();
     (Array.isArray(data) ? data : []).forEach((row) => {
-      if (!row?.class_id || protectedIds.has(row.class_id)) return;
+      if (!row?.block_id || protectedIds.has(row.block_id)) return;
 
-      const rows = rowsByClassId.get(row.class_id) || [];
+      const rows = rowsByClassId.get(row.block_id) || [];
       rows.push(row);
-      rowsByClassId.set(row.class_id, rows);
+      rowsByClassId.set(row.block_id, rows);
     });
 
     normalizedEntries.forEach(([classId, judges]) => {
@@ -603,7 +603,7 @@ export async function claimJudgeScoringSessionRepository({
           ...claimPayload,
           judgeName: remoteSession.judgeName || judge.name || "",
         }))
-        .eq("class_id", classId)
+        .eq("block_id", classId)
         .eq("judge_id", judge.id)
         .or(`claimed_by.is.null,claimed_by.eq.${user.id}`)
         .select("*")

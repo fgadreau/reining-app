@@ -4,6 +4,10 @@ Use separate Supabase projects for development/staging and production. The app
 can be deployed more than once from the same codebase, but each deployment must
 receive the right environment variables.
 
+Production is frozen while the shared HSP block/class rebuild is being made
+data-safe. Do not run ShowScore SQL directly against the shared production
+project. HorseShowPlatform owns the canonical migration chain.
+
 ## Recommended Setup
 
 | Environment | App URL | Supabase project | Purpose |
@@ -63,6 +67,8 @@ Set these variables in the hosting dashboard:
 VITE_DEPLOY_ENV=staging
 VITE_SUPABASE_URL=<Supabase DEV URL>
 VITE_SUPABASE_PUBLISHABLE_KEY=<Supabase DEV publishable key>
+VITE_SUPABASE_PROJECT_REF=<Supabase DEV project ref>
+VITE_PRODUCTION_SUPABASE_PROJECT_REF=<Supabase PROD project ref>
 ```
 
 Production:
@@ -73,9 +79,16 @@ Set these variables in the hosting dashboard:
 VITE_DEPLOY_ENV=production
 VITE_SUPABASE_URL=<Supabase PROD URL>
 VITE_SUPABASE_PUBLISHABLE_KEY=<Supabase PROD publishable key>
+VITE_SUPABASE_PROJECT_REF=<Supabase PROD project ref>
+VITE_PRODUCTION_SUPABASE_PROJECT_REF=<Supabase PROD project ref>
 ```
 
 Do not reuse the DEV Supabase URL in production.
+
+The Vite build rejects a Preview/Production deployment without an explicit
+environment, a URL/project-ref mismatch, staging connected to PROD, or
+production connected to DEV. Non-production builds also show a persistent
+banner on private, public, TV and OBS pages.
 
 ## Hosting Notes
 
@@ -113,13 +126,13 @@ Recommended:
 
 | Branch | Deployment | Supabase |
 | --- | --- | --- |
-| `develop` | Online staging / preview | DEV |
+| `staging` | Online staging / preview | DEV |
 | `main` | Production | PROD |
 
 Typical release flow:
 
 1. Work locally against Supabase DEV.
-2. Push/merge to `develop`.
+2. Push/merge to `staging`.
 3. Test the online staging deployment with real devices.
 4. Merge to `main`.
 5. Confirm the production deployment uses Supabase PROD variables.
