@@ -1925,70 +1925,64 @@ function ShowDetailPage() {
               Boolean(day.date) && !isDateInShowRange(day.date, show);
 
             return (
-              <div key={day.id} style={cardStyle}>
+              <div
+                key={day.id}
+                data-show-day-actions={day.id}
+                style={selectedDayActionsStyle}
+              >
                 {!isEditing ? (
                   <>
-                    <div style={cardHeaderStyle}>
-                      <div>
-                        <div style={cardTitleStyle}>
-                          {day.label || t("management.days.dayFallback")}
-                        </div>
+                    <div style={selectedDayToolbarStyle}>
+                      <div style={actionRowStyleNoMargin}>
+                        {(access.canManageAssociation ||
+                          access.canScoreAssociation) && (
+                          <Link
+                            to={getShowDayQueryPath(
+                              `/associations/${associationId}/shows/${showId}/days/${day.id}`,
+                              day.id
+                            )}
+                            style={linkButtonStyle}
+                          >
+                            {t("management.days.openClasses")}
+                          </Link>
+                        )}
 
-                        <div style={cardMetaStyle}>
-                          {day.date || t("public.results.dateTbd")}
-                        </div>
+                        {access.canManageAssociation && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => startEditDay(day)}
+                              style={secondaryButtonStyle}
+                              disabled={isSaving}
+                            >
+                              {t("management.days.edit")}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => startCopyClasses(day)}
+                              style={secondaryButtonStyle}
+                              disabled={isSaving}
+                            >
+                              {t("management.days.copyClasses")}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDay(day.id)}
+                              style={dangerButtonStyle}
+                              disabled={isSaving}
+                            >
+                              {t("management.days.delete")}
+                            </button>
+                          </>
+                        )}
                       </div>
 
                       {isOutOfRange && (
                         <div style={warningBadgeStyle}>
                           {t("management.days.outOfRange")}
                         </div>
-                      )}
-                    </div>
-
-                    <div style={actionRowStyle}>
-                      {(access.canManageAssociation ||
-                        access.canScoreAssociation) && (
-                        <Link
-                          to={getShowDayQueryPath(
-                            `/associations/${associationId}/shows/${showId}/days/${day.id}`,
-                            day.id
-                          )}
-                          style={linkButtonStyle}
-                        >
-                          {t("management.days.openClasses")}
-                        </Link>
-                      )}
-
-                      {access.canManageAssociation && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => startEditDay(day)}
-                            style={secondaryButtonStyle}
-                            disabled={isSaving}
-                          >
-                            {t("management.days.edit")}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => startCopyClasses(day)}
-                            style={secondaryButtonStyle}
-                            disabled={isSaving}
-                          >
-                            {t("management.days.copyClasses")}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteDay(day.id)}
-                            style={dangerButtonStyle}
-                            disabled={isSaving}
-                          >
-                            {t("management.days.delete")}
-                          </button>
-                        </>
                       )}
                     </div>
 
@@ -2193,6 +2187,22 @@ const cardStyle = {
   borderRadius: 12,
   padding: 16,
   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+};
+
+const selectedDayActionsStyle = {
+  background: "#fff",
+  border: "1px solid #dbe4ee",
+  borderRadius: 10,
+  padding: "10px 12px",
+  boxShadow: "0 1px 4px rgba(15, 23, 42, 0.05)",
+};
+
+const selectedDayToolbarStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 10,
+  flexWrap: "wrap",
 };
 
 const cardHeaderStyle = {
