@@ -68,6 +68,13 @@ import {
   getTvDisplayLivestreamShortcutPath,
   getTvDisplayShortcutPath,
 } from "../../features/tvDisplay/tvDisplayShortCode";
+import ShowDayTabs, {
+  useShowDaySelection,
+} from "../../components/ShowDayTabs";
+import {
+  filterShowDaySections,
+  getShowDayQueryPath,
+} from "../../features/days/showDayNavigation";
 
 function ShowDetailPage() {
   const { associationId, showId } = useParams();
@@ -116,6 +123,11 @@ function ShowDetailPage() {
   const cloudStatus = getCloudSyncStatus(access.user);
   const showDateRange = useMemo(() => getShowDateRange(show), [show]);
   const sortedDays = useMemo(() => sortDaysByDate(days), [days]);
+  const daySelection = useShowDaySelection(sortedDays);
+  const activeDays = filterShowDaySections(
+    sortedDays.map((day) => ({ day })),
+    daySelection.activeDayId
+  ).map((section) => section.day);
   const rangeStartDate = showDateRange[0] || "";
   const rangeEndDate = showDateRange[showDateRange.length - 1] || "";
   const publicShowcaseStatus = useMemo(
@@ -217,12 +229,15 @@ function ShowDetailPage() {
     const currentPath = `/associations/${associationId}/shows/${showId}`;
 
     if (targetPath !== currentPath) {
-      navigate(targetPath, { replace: true });
+      navigate(getShowDayQueryPath(targetPath, daySelection.activeDayId), {
+        replace: true,
+      });
     }
   }, [
     access.associationRoles,
     access.isLoadingAccess,
     associationId,
+    daySelection.activeDayId,
     navigate,
     showId,
   ]);
@@ -944,7 +959,10 @@ function ShowDetailPage() {
             {t("management.shows.livestreamSettings")}
           </button>
           <Link
-            to={`/associations/${associationId}/shows/${showId}/schedule`}
+            to={getShowDayQueryPath(
+              `/associations/${associationId}/shows/${showId}/schedule`,
+              daySelection.activeDayId
+            )}
             style={linkButtonStyle}
           >
             {t("management.shows.showSchedule")}
@@ -1147,7 +1165,10 @@ function ShowDetailPage() {
                 </label>
 
                 <Link
-                  to={`/associations/${associationId}/shows/${showId}/schedule`}
+                  to={getShowDayQueryPath(
+                    `/associations/${associationId}/shows/${showId}/schedule`,
+                    daySelection.activeDayId
+                  )}
                   style={linkButtonStyle}
                   onClick={closeLivestreamSettings}
                 >
@@ -1885,13 +1906,19 @@ function ShowDetailPage() {
         </div>
       )}
 
+      <ShowDayTabs
+        days={daySelection.days}
+        activeDayId={daySelection.activeDayId}
+        onChange={daySelection.selectDay}
+      />
+
       {isLoading ? (
         <div style={emptyStateStyle}>{t("management.days.loading")}</div>
       ) : sortedDays.length === 0 ? (
         <div style={emptyStateStyle}>{t("management.days.empty")}</div>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
-          {sortedDays.map((day) => {
+          {activeDays.map((day) => {
             const isEditing = editingId === day.id;
             const isCopying = copyDraft.sourceDayId === day.id;
             const isOutOfRange =
@@ -1923,7 +1950,10 @@ function ShowDetailPage() {
                       {(access.canManageAssociation ||
                         access.canScoreAssociation) && (
                         <Link
-                          to={`/associations/${associationId}/shows/${showId}/days/${day.id}`}
+                          to={getShowDayQueryPath(
+                            `/associations/${associationId}/shows/${showId}/days/${day.id}`,
+                            day.id
+                          )}
                           style={linkButtonStyle}
                         >
                           {t("management.days.openClasses")}
