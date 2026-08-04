@@ -10,7 +10,7 @@ import { getClassRecord, saveClassRecord } from "./classRecordStorage";
 
 function toOfficialResult(row) {
   return {
-    classId: row.class_id,
+    classId: row.block_id,
     judgeName: row.judge_name || "",
     judgeSignature: row.judge_signature || null,
     finalized: Boolean(row.finalized),
@@ -30,7 +30,7 @@ function toOfficialResult(row) {
 function toOfficialResultRow(classId, official, options = {}) {
   const includeCustomPattern = options.includeCustomPattern !== false;
   const row = {
-    class_id: classId,
+    block_id: classId,
     judge_name: official.judgeName || null,
     judge_signature: official.judgeSignature || null,
     finalized: Boolean(official.finalized),
@@ -103,7 +103,7 @@ export async function getOfficialResultRepository(classId) {
     const { data, error } = await supabase
       .from("show_score_official_results")
       .select("*")
-      .eq("class_id", classId)
+      .eq("block_id", classId)
       .maybeSingle();
 
     if (error) throw error;
@@ -137,16 +137,16 @@ export async function getOfficialResultsForClassesRepository(classIds) {
     const { data, error } = await supabase
       .from("show_score_official_results")
       .select("*")
-      .in("class_id", uniqueIds);
+      .in("block_id", uniqueIds);
 
     if (error) throw error;
 
     (Array.isArray(data) ? data : []).forEach((row) => {
-      if (!row?.class_id) return;
+      if (!row?.block_id) return;
 
       const result = toOfficialResult(row);
-      saveOfficialResultLocally(row.class_id, result);
-      results[row.class_id] = result;
+      saveOfficialResultLocally(row.block_id, result);
+      results[row.block_id] = result;
     });
 
     return results;

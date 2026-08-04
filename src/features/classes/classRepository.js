@@ -81,7 +81,7 @@ function toClass(row) {
     showId: row.show_id,
     dayId: row.show_day_id || row.day_id,
     name: row.name || "",
-    classCode: row.code || row.class_code || "",
+    classCode: row.display_label || row.name || "",
     arena: row.arena || "",
     pattern: row.pattern || "",
     customPattern:
@@ -90,7 +90,7 @@ function toClass(row) {
         : null,
     scheduleStartMode: scheduleStart.startMode,
     scheduleStartTime: scheduleStart.startTime,
-    isEventBlock: Boolean(row.is_event_block),
+    isEventBlock: row.block_type !== "competition",
     eligibilityRules,
     concurrentClassId:
       typeof eligibilityRules.concurrent_class_id === "string"
@@ -105,7 +105,7 @@ function toClass(row) {
       (typeof eligibilityRules.scoring_group_id === "string"
         ? eligibilityRules.scoring_group_id
         : ""),
-    judgeName: row.judge_name || "",
+    judgeName: row.judge_display_name || "",
     sortOrder: row.sort_order || 1,
     updatedAt: row.updated_at || null,
   };
@@ -122,9 +122,10 @@ function toClassRow(classItem, options = {}) {
     show_id: classItem.showId,
     show_day_id: classItem.dayId,
     name: classItem.name || "",
-    code: classItem.classCode || "",
+    display_label: classItem.classCode || classItem.name || "",
+    block_type: classItem.isEventBlock ? "event" : "competition",
     pattern: classItem.pattern || "",
-    judge_name: classItem.judgeName || "",
+    judge_display_name: classItem.judgeName || "",
     sort_order: Number(classItem.sortOrder) || 1,
   };
 
@@ -170,10 +171,6 @@ function isScheduleStartColumnMissingError(error) {
     message.includes("schedule_start_time") ||
     message.includes("scheduled_time")
   );
-}
-
-function isEventBlockColumnMissingError(error) {
-  return getSupabaseErrorText(error).includes("is_event_block");
 }
 
 function saveClassLocally(classItem) {
@@ -233,7 +230,7 @@ async function upsertClassRowWithColumnFallback(supabase, classItem) {
 
   for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
-      const { error } = await supabase.from("classes").upsert(toClassRow(classItem, options));
+      const { error } = await supabase.from("blocks").upsert(toClassRow(classItem, options));
 
       if (error) throw error;
       return;
@@ -353,20 +350,12 @@ export async function getAccessibleClassTimingDataRepository() {
   }
 
   try {
-    let result = await supabase
-      .from("classes")
+    const result = await supabase
+      .from("blocks")
       .select("*")
-      .eq("is_event_block", false)
+      .eq("block_type", "competition")
       .order("pattern", { ascending: true, nullsFirst: false })
       .order("name", { ascending: true });
-
-    if (result.error && isEventBlockColumnMissingError(result.error)) {
-      result = await supabase
-        .from("classes")
-        .select("*")
-        .order("pattern", { ascending: true, nullsFirst: false })
-        .order("name", { ascending: true });
-    }
 
     if (result.error) throw result.error;
 
@@ -635,22 +624,13 @@ export async function getClassesForDayDataRepository(
   }
 
   try {
-    let result = await supabase
-      .from("classes")
+    const result = await supabase
+      .from("blocks")
       .select("*")
       .eq("show_day_id", dayId)
-      .eq("is_event_block", false)
+      .eq("block_type", "competition")
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
-
-    if (result.error && isEventBlockColumnMissingError(result.error)) {
-      result = await supabase
-        .from("classes")
-        .select("*")
-        .eq("show_day_id", dayId)
-        .order("sort_order", { ascending: true })
-        .order("name", { ascending: true });
-    }
 
     if (result.error) throw result.error;
 
@@ -764,7 +744,7 @@ export async function deleteClassCompletelyRepository(classId) {
 
   if (supabase) {
     try {
-      const { error } = await supabase.from("classes").delete().eq("id", classId);
+      const { error } = await supabase.from("blocks").delete().eq("id", classId);
       if (error) throw error;
     } catch (error) {
       console.error("Erreur suppression bloc Supabase:", error);

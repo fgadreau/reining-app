@@ -88,9 +88,9 @@ export async function getClassResultPublicationRepository(classId) {
 
   try {
     const { data, error } = await supabase
-      .from("class_result_publications")
+      .from("block_result_publications")
       .select("*")
-      .eq("class_id", classId)
+      .eq("block_id", classId)
       .maybeSingle();
 
     if (error) throw error;
@@ -119,9 +119,9 @@ export async function getResultPublicationsForClassesRepository(classIds) {
 
   try {
     const { data, error } = await supabase
-      .from("class_result_publications")
+      .from("block_result_publications")
       .select("*")
-      .in("class_id", uniqueIds);
+      .in("block_id", uniqueIds);
 
     if (error) throw error;
 
@@ -198,7 +198,7 @@ export async function saveClassResultPublicationRepository(classId, updates) {
   if (supabase) {
     try {
       const { error } = await supabase
-        .from("class_result_publications")
+        .from("block_result_publications")
         .upsert(toResultPublicationRow(classId, next));
 
       if (error) throw error;
@@ -237,7 +237,7 @@ export async function saveClassResultPublicationRepository(classId, updates) {
 }
 
 function normalizeResultPublication(publication) {
-  const classId = publication?.classId || publication?.class_id || "";
+  const classId = publication?.classId || publication?.block_id || "";
 
   return {
     ...getDefaultResultPublication(classId),
@@ -256,7 +256,7 @@ function normalizeResultPublication(publication) {
 
 function toResultPublication(row) {
   return normalizeResultPublication({
-    classId: row.class_id,
+    classId: row.block_id,
     status: row.status,
     publishedAt: row.published_at,
     publishedBy: row.published_by,
@@ -271,7 +271,7 @@ function toResultPublicationRow(classId, publication) {
   });
 
   return {
-    class_id: classId,
+    block_id: classId,
     status: normalized.status,
     published_at: normalized.publishedAt || null,
     published_by: normalized.publishedBy || null,

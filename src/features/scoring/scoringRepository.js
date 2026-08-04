@@ -51,7 +51,7 @@ async function upsertScoringSession(classId, updates = {}) {
 
   try {
     const row = {
-      class_id: classId,
+      block_id: classId,
     };
 
     if (updates.runs !== undefined) {
@@ -280,7 +280,7 @@ export async function loadScoringSessionRepository(classId) {
     const { data, error } = await supabase
       .from("show_score_scoring_sessions")
       .select("*")
-      .eq("class_id", classId)
+      .eq("block_id", classId)
       .maybeSingle();
 
     if (error) throw error;
@@ -327,12 +327,12 @@ export async function loadScoringSessionsForClassesRepository(classIds) {
     const { data, error } = await supabase
       .from("show_score_scoring_sessions")
       .select("*")
-      .in("class_id", remoteIds);
+      .in("block_id", remoteIds);
 
     if (error) throw error;
 
     (Array.isArray(data) ? data : []).forEach((row) => {
-      const classId = row?.class_id;
+      const classId = row?.block_id;
       if (!classId || protectedIds.has(classId)) return;
 
       const session = toScoringSession(row, classId);
@@ -404,7 +404,7 @@ export async function clearScoringDataRepository(classId) {
       const { error } = await supabase
         .from("show_score_scoring_sessions")
         .delete()
-        .eq("class_id", classId);
+        .eq("block_id", classId);
 
       if (error) throw error;
     } catch (error) {

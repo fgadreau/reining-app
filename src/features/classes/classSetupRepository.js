@@ -134,7 +134,7 @@ function toSetup(row) {
 function toSetupRow(classId, setup) {
   const normalized = normalizeClassSetup(setup);
   const row = {
-    class_id: classId,
+    block_id: classId,
     pattern: normalized.pattern || null,
     runs: normalized.runs,
     is_draw_imported: Boolean(normalized.isDrawImported),
@@ -199,9 +199,9 @@ export async function getClassSetupRepository(classId) {
 
   try {
     const { data, error } = await supabase
-      .from("show_score_class_setups")
+      .from("show_score_block_setups")
       .select("*")
-      .eq("class_id", classId)
+      .eq("block_id", classId)
       .maybeSingle();
 
     if (error) throw error;
@@ -260,18 +260,18 @@ export async function getClassSetupsForClassesRepository(classIds) {
 
   try {
     const { data, error } = await supabase
-      .from("show_score_class_setups")
+      .from("show_score_block_setups")
       .select("*")
-      .in("class_id", remoteIds);
+      .in("block_id", remoteIds);
 
     if (error) throw error;
 
     (Array.isArray(data) ? data : []).forEach((row) => {
-      if (!row?.class_id || protectedIds.has(row.class_id)) return;
+      if (!row?.block_id || protectedIds.has(row.block_id)) return;
 
       const setup = toSetup(row);
-      saveClassSetup(row.class_id, setup);
-      setups[row.class_id] = setup;
+      saveClassSetup(row.block_id, setup);
+      setups[row.block_id] = setup;
     });
 
     return setups;
@@ -320,7 +320,7 @@ export async function saveClassSetupRepository(classId, setup) {
   if (supabase) {
     try {
       const { error } = await supabase
-        .from("show_score_class_setups")
+        .from("show_score_block_setups")
         .upsert(toSetupRow(classId, normalized));
 
       if (error) throw error;
@@ -401,7 +401,7 @@ async function syncClassScheduleStartFields(classId, details) {
 
   try {
     const { error } = await supabase
-      .from("classes")
+      .from("blocks")
       .update({
         schedule_start_mode: scheduleStart.startMode,
         scheduled_time: scheduleStart.startTime || null,
@@ -420,9 +420,9 @@ export async function deleteClassSetupRepository(classId) {
   if (supabase) {
     try {
       const { error } = await supabase
-        .from("show_score_class_setups")
+        .from("show_score_block_setups")
         .delete()
-        .eq("class_id", classId);
+        .eq("block_id", classId);
 
       if (error) throw error;
     } catch (error) {
