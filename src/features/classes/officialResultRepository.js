@@ -271,6 +271,16 @@ export async function validateOfficialResultRepository({
   return officialResult;
 }
 
+export function assertHspScoredRunSync(syncResult) {
+  if (!syncResult?.ok) {
+    throw new Error(
+      `Les résultats ont été approuvés, mais leur synchronisation vers HSP a échoué: ${syncResult?.error || "erreur inconnue"}`
+    );
+  }
+
+  return syncResult;
+}
+
 export async function validateAnnouncerResultsRepository({
   classData,
   validatedAt = new Date().toISOString(),
@@ -324,6 +334,15 @@ export async function validateAnnouncerResultsRepository({
       null,
     officialRuns: announcerRuns,
   });
+
+  const hspSync = await syncHspScoredRunsBatchRepository({
+    classItem: classData.classItem,
+    setup: classData.setup,
+    runs: announcerRuns,
+    scoredAt: officialResult.secretariatValidatedAt || validatedAt,
+  });
+
+  assertHspScoredRunSync(hspSync);
 
   await unpublishClassResultsRepository(classId);
   return officialResult;
