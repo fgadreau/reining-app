@@ -36,6 +36,7 @@ import {
 } from "../../features/classes/classScoringGroups";
 import { buildArenaOptions } from "../../features/classes/arenaOptions";
 import { getDayById } from "../../features/days/daySelectors";
+import { getDaysByShowRepository } from "../../features/days/dayRepository";
 import { getShowById } from "../../features/shows/showSelectors";
 import { loadAssociations } from "../../features/associations/associationsData";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
@@ -58,13 +59,16 @@ import { getClassOfficialData } from "../../features/classes/classOfficialData";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
 import { createId } from "../../utils/createId";
+import ShowDayTabs from "../../components/ShowDayTabs";
+import { getShowDayQueryPath } from "../../features/days/showDayNavigation";
 
 function DayClassesPage() {
   const { associationId, showId, dayId } = useParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const day = getDayById(dayId);
+  const [showDays, setShowDays] = useState([]);
+  const day = showDays.find((item) => item.id === dayId) || getDayById(dayId);
   const show = getShowById(showId);
   const access = useAssociationAccess(associationId);
 
@@ -144,6 +148,28 @@ function DayClassesPage() {
       isMounted = false;
     };
   }, [dayId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getDaysByShowRepository(showId).then((nextDays) => {
+      if (isMounted) setShowDays(nextDays);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [showId]);
+
+  const selectDay = (nextDayId) => {
+    if (!nextDayId || nextDayId === dayId) return;
+    navigate(
+      getShowDayQueryPath(
+        `/associations/${associationId}/shows/${showId}/days/${nextDayId}`,
+        nextDayId
+      )
+    );
+  };
 
   const startCreateClass = async () => {
     const judges = buildJudgesForCount([], 1);
@@ -568,6 +594,12 @@ function DayClassesPage() {
           </div>
         )}
       </div>
+
+      <ShowDayTabs
+        days={showDays}
+        activeDayId={dayId}
+        onChange={selectDay}
+      />
 
       {isLoading ? (
         <div style={emptyStateStyle}>{t("management.classes.loadingDay")}</div>

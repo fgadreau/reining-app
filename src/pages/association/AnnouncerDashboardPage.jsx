@@ -65,6 +65,13 @@ import {
 } from "../../utils/generateResultsPdf";
 import { appStyles as styles } from "../../styles/appStyles";
 import ClassPaceSummary from "../../components/ClassPaceSummary";
+import ShowDayTabs, {
+  useShowDaySelection,
+} from "../../components/ShowDayTabs";
+import {
+  filterShowDaySections,
+  getShowDayQueryPath,
+} from "../../features/days/showDayNavigation";
 
 let paidWarmupAudioContext = null;
 
@@ -183,21 +190,43 @@ function AnnouncerDashboardPage() {
   const liveViewRefreshGenerationRef = useRef(0);
   const liveViewRefreshRequestRef = useRef(0);
   const activeLiveViewRefreshRef = useRef(null);
+  const liveSections = Array.isArray(liveView?.sections)
+    ? liveView.sections
+    : [];
+  const daySelection = useShowDaySelection(
+    liveSections.map((section) => section.day)
+  );
+  const activeLiveView = useMemo(
+    () => ({
+      ...liveView,
+      sections: filterShowDaySections(
+        liveSections,
+        daySelection.activeDayId
+      ),
+    }),
+    [daySelection.activeDayId, liveSections, liveView]
+  );
   const liveClassIdsKey = useMemo(
-    () => getLiveViewClassIds(liveView).join("|"),
-    [liveView]
+    () => getLiveViewClassIds(activeLiveView).join("|"),
+    [activeLiveView]
   );
   const priorityLiveItems = useMemo(
-    () => getPriorityLiveItems(liveView),
-    [liveView]
+    () => getPriorityLiveItems(activeLiveView),
+    [activeLiveView]
   );
   const priorityLiveItemKeys = useMemo(
     () => new Set(priorityLiveItems.map(getLiveItemKey)),
     [priorityLiveItems]
   );
   const remainingSections = useMemo(
-    () => getRemainingLiveSections(liveView, priorityLiveItemKeys),
-    [liveView, priorityLiveItemKeys]
+    () => getRemainingLiveSections(activeLiveView, priorityLiveItemKeys),
+    [activeLiveView, priorityLiveItemKeys]
+  );
+  const itemCountsByDayId = Object.fromEntries(
+    liveSections.map((section) => [
+      section.day.id,
+      (section.classes || []).length + (section.paidWarmups || []).length,
+    ])
   );
 
   useEffect(() => {
@@ -552,7 +581,10 @@ function AnnouncerDashboardPage() {
           </button>
           {access.canManageAssociation && (
             <Link
-              to={`/associations/${associationId}/shows/${showId}/secretariat`}
+              to={getShowDayQueryPath(
+                `/associations/${associationId}/shows/${showId}/secretariat`,
+                daySelection.activeDayId
+              )}
               style={linkButtonStyle}
             >
               {t("nav.secretariat")}
@@ -560,6 +592,13 @@ function AnnouncerDashboardPage() {
           )}
         </div>
       </section>
+
+      <ShowDayTabs
+        days={daySelection.days}
+        activeDayId={daySelection.activeDayId}
+        onChange={daySelection.selectDay}
+        countsByDayId={itemCountsByDayId}
+      />
 
       {priorityLiveItems.length > 0 && (
         <section style={prioritySectionStyle}>

@@ -26,6 +26,13 @@ import { getDaysByShowRepository } from "../../features/days/dayRepository";
 import { getShowRepository } from "../../features/shows/showRepository";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
+import ShowDayTabs, {
+  useShowDaySelection,
+} from "../../components/ShowDayTabs";
+import {
+  filterShowDaySections,
+  getShowDayQueryPath,
+} from "../../features/days/showDayNavigation";
 
 function ShowTimeManagementPage() {
   const { associationId, showId } = useParams();
@@ -137,13 +144,23 @@ function ShowTimeManagementPage() {
       patternAverageByValue,
     });
   }, [daySections, now, patternAverageByValue]);
+  const daySelection = useShowDaySelection(
+    dayTimingSections.map((section) => section.day)
+  );
+  const activeDayTimingSections = filterShowDaySections(
+    dayTimingSections,
+    daySelection.activeDayId
+  );
   const classTimingRows = useMemo(
-    () => dayTimingSections.flatMap((section) => section.rows),
-    [dayTimingSections]
+    () => activeDayTimingSections.flatMap((section) => section.rows),
+    [activeDayTimingSections]
   );
   const remainingRuns = classTimingRows.reduce(
     (total, row) => total + Math.max(row.remainingRuns || 0, 0),
     0
+  );
+  const classCountsByDayId = Object.fromEntries(
+    dayTimingSections.map((section) => [section.day.id, section.rows.length])
   );
 
   useEffect(() => {
@@ -186,12 +203,22 @@ function ShowTimeManagementPage() {
           </div>
         </div>
         <Link
-          to={`/associations/${associationId}/shows/${showId}/secretariat`}
+          to={getShowDayQueryPath(
+            `/associations/${associationId}/shows/${showId}/secretariat`,
+            daySelection.activeDayId
+          )}
           style={linkButtonStyle}
         >
           {t("nav.secretariat")}
         </Link>
       </section>
+
+      <ShowDayTabs
+        days={daySelection.days}
+        activeDayId={daySelection.activeDayId}
+        onChange={daySelection.selectDay}
+        countsByDayId={classCountsByDayId}
+      />
 
       <section style={summaryGridStyle}>
         <SummaryTile
@@ -398,7 +425,7 @@ function ShowTimeManagementPage() {
               </div>
             ) : (
               <div style={dayListStyle}>
-                {dayTimingSections.map((section) => (
+                {activeDayTimingSections.map((section) => (
                   <section key={section.day.id} style={dayBlockStyle}>
                     <div style={dayHeaderStyle}>
                       <div>

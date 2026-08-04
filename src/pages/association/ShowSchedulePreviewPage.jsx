@@ -20,6 +20,13 @@ import {
 import { getShowRepository } from "../../features/shows/showRepository";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
+import ShowDayTabs, {
+  useShowDaySelection,
+} from "../../components/ShowDayTabs";
+import {
+  filterShowDaySections,
+  getShowDayQueryPath,
+} from "../../features/days/showDayNavigation";
 
 function ShowSchedulePreviewPage() {
   const { associationId, showId } = useParams();
@@ -86,7 +93,17 @@ function ShowSchedulePreviewPage() {
       }),
     [daySections, patternAverageByValue]
   );
-  const itemCount = countScheduleItems(scheduleSections);
+  const daySelection = useShowDaySelection(
+    scheduleSections.map((section) => section.day)
+  );
+  const activeScheduleSections = filterShowDaySections(
+    scheduleSections,
+    daySelection.activeDayId
+  );
+  const itemCount = countScheduleItems(activeScheduleSections);
+  const itemCountsByDayId = Object.fromEntries(
+    scheduleSections.map((section) => [section.day.id, section.rows.length])
+  );
 
   if (!access.isLoadingAccess && !access.canManageAssociation) {
     return (
@@ -129,7 +146,10 @@ function ShowSchedulePreviewPage() {
         </div>
         <div style={heroActionsStyle}>
           <Link
-            to={`/associations/${associationId}/shows/${showId}/time`}
+            to={getShowDayQueryPath(
+              `/associations/${associationId}/shows/${showId}/time`,
+              daySelection.activeDayId
+            )}
             style={linkButtonStyle}
           >
             {t("management.secretariat.timeManagement")}
@@ -143,13 +163,20 @@ function ShowSchedulePreviewPage() {
         </div>
       </section>
 
+      <ShowDayTabs
+        days={daySelection.days}
+        activeDayId={daySelection.activeDayId}
+        onChange={daySelection.selectDay}
+        countsByDayId={itemCountsByDayId}
+      />
+
       {isLoading ? (
         <div style={emptyStateStyle}>{t("management.schedulePreview.loading")}</div>
       ) : itemCount === 0 ? (
         <div style={emptyStateStyle}>{t("management.schedulePreview.empty")}</div>
       ) : (
         <div style={{ display: "grid", gap: 16 }}>
-          {scheduleSections.map((section) => (
+          {activeScheduleSections.map((section) => (
             <section key={section.day.id || section.day.date} style={cardStyle}>
               <div style={sectionHeaderStyle}>
                 <div>
