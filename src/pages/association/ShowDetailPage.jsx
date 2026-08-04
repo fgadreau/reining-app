@@ -75,6 +75,7 @@ import {
   filterShowDaySections,
   getShowDayQueryPath,
 } from "../../features/days/showDayNavigation";
+import DayClassesPage from "./DayClassesPage";
 
 function ShowDetailPage() {
   const { associationId, showId } = useParams();
@@ -1925,28 +1926,15 @@ function ShowDetailPage() {
               Boolean(day.date) && !isDateInShowRange(day.date, show);
 
             return (
-              <div
-                key={day.id}
-                data-show-day-actions={day.id}
-                style={selectedDayActionsStyle}
-              >
+              <React.Fragment key={day.id}>
+                <div
+                  data-show-day-actions={day.id}
+                  style={selectedDayActionsStyle}
+                >
                 {!isEditing ? (
                   <>
                     <div style={selectedDayToolbarStyle}>
                       <div style={actionRowStyleNoMargin}>
-                        {(access.canManageAssociation ||
-                          access.canScoreAssociation) && (
-                          <Link
-                            to={getShowDayQueryPath(
-                              `/associations/${associationId}/shows/${showId}/days/${day.id}`,
-                              day.id
-                            )}
-                            style={linkButtonStyle}
-                          >
-                            {t("management.days.openClasses")}
-                          </Link>
-                        )}
-
                         {access.canManageAssociation && (
                           <>
                             <button
@@ -2070,7 +2058,14 @@ function ShowDetailPage() {
                     </div>
                   </>
                 )}
-              </div>
+                </div>
+
+                <DayClassesPage
+                  dayId={day.id}
+                  day={day}
+                  show={show}
+                />
+              </React.Fragment>
             );
           })}
         </div>
