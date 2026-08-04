@@ -4,10 +4,12 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { registerServiceWorker } from './features/pwa/registerServiceWorker';
+import EnvironmentBanner from './components/EnvironmentBanner';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
+    <EnvironmentBanner />
     <App />
   </React.StrictMode>
 );
