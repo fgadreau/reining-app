@@ -13,7 +13,7 @@ project. HorseShowPlatform owns the canonical migration chain.
 | Environment | App URL | Supabase project | Purpose |
 | --- | --- | --- | --- |
 | Local dev | `http://localhost:3001` | Supabase DEV | Daily development and testing |
-| Online staging | staging URL | Supabase DEV | Real-device testing before production |
+| Online preproduction | stable `preprod` URL | Supabase PREPROD | Real-device testing before production |
 | Production | production URL | Supabase PROD | Real show data only |
 
 Keep test shows and training data out of Supabase PROD.
@@ -59,7 +59,7 @@ Local development:
 2. Fill it with Supabase DEV values.
 3. Run `npm start`.
 
-Online staging:
+Online preproduction:
 
 Set these variables in the hosting dashboard:
 
@@ -126,16 +126,19 @@ Recommended:
 
 | Branch | Deployment | Supabase |
 | --- | --- | --- |
-| `staging` | Online staging / preview | DEV |
+| `preprod` | Online preproduction | PREPROD |
 | `main` | Production | PROD |
 
 Typical release flow:
 
 1. Work locally against Supabase DEV.
-2. Push/merge to `staging`.
-3. Test the online staging deployment with real devices.
+2. Open a pull request and merge to `preprod`.
+3. Test the stable preproduction deployment with real devices and the cross-app robot.
 4. Merge to `main`.
 5. Confirm the production deployment uses Supabase PROD variables.
+
+The controlled cross-app order and rollback procedure are documented in
+[production-promotion.md](production-promotion.md).
 
 ## Pre-Production Checklist
 

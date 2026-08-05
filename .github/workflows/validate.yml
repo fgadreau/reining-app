@@ -5,12 +5,22 @@ on:
   push:
     branches:
       - main
+      - preprod
       - staging
 
 permissions:
   contents: read
 
 jobs:
+  promotion-source:
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require preprod as the production source
+        env:
+          SOURCE_BRANCH: ${{ github.head_ref }}
+        run: test "$SOURCE_BRANCH" = "preprod"
+
   application:
     runs-on: ubuntu-latest
     steps:
