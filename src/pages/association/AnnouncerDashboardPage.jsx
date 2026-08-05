@@ -1119,7 +1119,10 @@ function PaidWarmupLiveCard({
   }
 
   return (
-    <div style={isPriority ? priorityClassCardStyle : classCardStyle}>
+    <div
+      style={isPriority ? priorityClassCardStyle : classCardStyle}
+      data-announcer-warmup-id={warmup.id}
+    >
       <div
         role={canToggle ? "button" : undefined}
         tabIndex={canToggle ? 0 : undefined}

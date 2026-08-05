@@ -11,6 +11,12 @@ import { usePublicShowViewUpdates } from "../../features/publication/usePublicSh
 import { translate } from "../../features/i18n/i18n";
 import { isLiveDragItem } from "../../features/live/liveQueueItems";
 import {
+  formatPaidWarmupTimer,
+  getPaidWarmupDragRemainingSeconds,
+  getPaidWarmupRemainingSeconds,
+  getPaidWarmupTimerCueType,
+} from "../../features/paidWarmups/paidWarmupLive";
+import {
   buildSponsorLevelSlides,
   getAssociationSponsorGroups,
 } from "../../features/associations/sponsorLogos";
@@ -445,6 +451,7 @@ function CompetitionVideoPanel({
               labelFr="En piste"
               labelEn="On course"
               participant={current}
+              timerWarmup={isWarmup ? liveItem.item : null}
               active
             />
             <CompetitionStripParticipant
@@ -479,6 +486,7 @@ function CompetitionStripParticipant({
   labelFr,
   labelEn,
   participant,
+  timerWarmup = null,
   active = false,
 }) {
   return (
@@ -486,6 +494,9 @@ function CompetitionStripParticipant({
       <div style={competitionParticipantLabelStyle}>
         <BilingualText fr={labelFr} en={labelEn} />
       </div>
+      {timerWarmup ? (
+        <WarmupTimer warmup={timerWarmup} variant="competition" />
+      ) : null}
       <CompetitionScrollingText
         style={competitionParticipantNameStyle}
         dataLabel="participant-name"
@@ -651,6 +662,7 @@ function LivePanel({ liveItem }) {
           labelFr="En piste"
           labelEn="On course"
           participant={current}
+          timerWarmup={isWarmup ? liveItem.item : null}
           variant="active"
         />
       </div>
@@ -786,6 +798,7 @@ function ParticipantCard({
   labelFr,
   labelEn,
   participant,
+  timerWarmup = null,
   variant = "next",
   compact = false,
   scrollNameWhenNeeded = false,
@@ -816,6 +829,7 @@ function ParticipantCard({
           {data.meta}
         </div>
       ) : null}
+      {timerWarmup ? <WarmupTimer warmup={timerWarmup} /> : null}
       {scrollNameWhenNeeded ? (
         <CompetitionScrollingText
           style={participantScrollingNameStyle(compact, isDrag, variant)}
@@ -857,6 +871,82 @@ function ParticipantCard({
       {data.score ? <ScoreBlock participant={data} compact={compact} /> : null}
     </article>
   );
+}
+
+function WarmupTimer({ warmup, variant = "general" }) {
+  const timer = useWarmupTimer(warmup);
+
+  if (!timer) return null;
+
+  return (
+    <div
+      style={warmupTimerStyle(timer.cue, variant)}
+      className={`tv-warmup-timer tv-warmup-timer--${variant}`}
+      data-tv-warmup-timer
+      data-tv-warmup-timer-kind={timer.kind}
+      data-tv-warmup-timer-cue={timer.cue || "running"}
+      data-tv-warmup-remaining-seconds={timer.remainingSeconds}
+      role="timer"
+      aria-live="off"
+    >
+      <span style={warmupTimerLabelStyle(variant)}>
+        {timer.kind === "drag" ? (
+          <BilingualText fr="Hersage" en="Drag" />
+        ) : (
+          <BilingualText fr="Chrono warm-up" en="Warm-up timer" />
+        )}
+      </span>
+      <strong style={warmupTimerValueStyle(variant)}>{timer.formatted}</strong>
+    </div>
+  );
+}
+
+function useWarmupTimer(warmup) {
+  const [now, setNow] = useState(() => new Date());
+  const isRunning = Boolean(
+    warmup?.activeStartedAt &&
+      (warmup?.activeEntry || warmup?.activeDragItem || warmup?.activeEntryId)
+  );
+
+  useEffect(() => {
+    setNow(new Date());
+    if (!isRunning) return undefined;
+
+    const interval = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(interval);
+  }, [isRunning, warmup?.activeStartedAt]);
+
+  return getTvWarmupTimerState(warmup, now);
+}
+
+export function getTvWarmupTimerState(warmup, now = new Date()) {
+  if (!warmup?.activeStartedAt) return null;
+
+  const isDrag = Boolean(warmup.activeDragItem);
+  const remainingSeconds = isDrag
+    ? getPaidWarmupDragRemainingSeconds(warmup, now)
+    : warmup.activeEntry || warmup.activeEntryId
+      ? getPaidWarmupRemainingSeconds(warmup, now)
+      : null;
+
+  if (remainingSeconds == null) return null;
+
+  return {
+    kind: isDrag ? "drag" : "rider",
+    remainingSeconds,
+    formatted: formatPaidWarmupTimer(remainingSeconds),
+    cue: getPaidWarmupTimerCueType(
+      isDrag
+        ? {
+            ...warmup,
+            durationSeconds:
+              Number(warmup.dragDurationSeconds) ||
+              Number(warmup.dragDurationMinutes || 0) * 60,
+          }
+        : warmup,
+      remainingSeconds
+    ),
+  };
 }
 
 function ScoreBlock({ participant, compact }) {
@@ -1525,6 +1615,55 @@ const competitionParticipantScoreStyle = {
   fontSize: "clamp(15px, 1vw, 20px)",
   fontWeight: 950,
 };
+
+const warmupTimerStyle = (cue, variant) => {
+  const colors = {
+    finished: ["#fecaca", "rgba(220, 38, 38, 0.38)", "#ef4444"],
+    one_minute: ["#fef3c7", "rgba(217, 119, 6, 0.38)", "#f59e0b"],
+    half_time: ["#ccfbf1", "rgba(13, 148, 136, 0.34)", "#2dd4bf"],
+  };
+  const [color, background, border] = colors[cue] || [
+    "#dcfce7",
+    "rgba(22, 163, 74, 0.28)",
+    "#22c55e",
+  ];
+
+  return {
+    width: variant === "competition" ? "fit-content" : "min(100%, 520px)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: variant === "competition" ? 10 : 18,
+    padding: variant === "competition" ? "5px 10px" : "9px 16px",
+    border: `2px solid ${border}`,
+    borderRadius: variant === "competition" ? 8 : 12,
+    background,
+    color,
+    boxShadow: `0 0 24px ${background}`,
+    boxSizing: "border-box",
+  };
+};
+
+const warmupTimerLabelStyle = (variant) => ({
+  fontSize:
+    variant === "competition"
+      ? "clamp(11px, 0.8vw, 16px)"
+      : "clamp(15px, 1.2vw, 22px)",
+  fontWeight: 950,
+  textTransform: "uppercase",
+  whiteSpace: "nowrap",
+});
+
+const warmupTimerValueStyle = (variant) => ({
+  fontSize:
+    variant === "competition"
+      ? "clamp(25px, 2.1vw, 42px)"
+      : "clamp(44px, 4.8vw, 82px)",
+  fontVariantNumeric: "tabular-nums",
+  fontWeight: 1000,
+  letterSpacing: "0.03em",
+  lineHeight: 0.9,
+});
 
 const competitionWaitingStyle = {
   gridColumn: "span 3",
