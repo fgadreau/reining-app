@@ -4042,6 +4042,75 @@ test("parses imported draw class codes when a code column is present", () => {
   expect(importedDraw.runs[1].classCodes).toEqual(["NHNP", "NONP"]);
 });
 
+test("ignores exact duplicate pages in positioned PDF draws", () => {
+  const firstPage = [
+    {
+      cells: [
+        { x: 36, text: "Showbill #:" },
+        { x: 92, text: "121" },
+        { x: 128, text: "Class:" },
+        { x: 161, text: "3100" },
+        { x: 205, text: "NRHA - Youth 13 & Under [Y13]" },
+      ],
+    },
+    {
+      cells: [
+        { x: 54, text: "1" },
+        { x: 141, text: "SMART GENUINE SPARK" },
+        { x: 317, text: "DALI OUELLETTE" },
+      ],
+    },
+    {
+      cells: [
+        { x: 108, text: "2630" },
+        { x: 141, text: "MAVRIC OUELLETTE" },
+      ],
+    },
+    {
+      cells: [{ x: 317, text: "Y13" }],
+    },
+  ];
+  const secondPage = [
+    {
+      cells: [
+        { x: 54, text: "2" },
+        { x: 141, text: "ELECTRIC BLACK JAC" },
+        { x: 317, text: "WILLIAM TZOURNAVELIS" },
+      ],
+    },
+    {
+      cells: [
+        { x: 108, text: "8793" },
+        { x: 141, text: "WILLIAM TZOURNAVELIS" },
+      ],
+    },
+    {
+      cells: [{ x: 317, text: "Y13" }],
+    },
+  ];
+
+  const importedDraw = parsePositionedPdfPages([
+    firstPage,
+    secondPage,
+    firstPage,
+    secondPage,
+  ]);
+
+  expect(importedDraw.runs).toHaveLength(2);
+  expect(importedDraw.runs).toMatchObject([
+    {
+      draw: 1,
+      backNumber: "2630",
+      rider: "MAVRIC OUELLETTE",
+    },
+    {
+      draw: 2,
+      backNumber: "8793",
+      rider: "WILLIAM TZOURNAVELIS",
+    },
+  ]);
+});
+
 test("parses Funware positioned PDF class codes with spaces and split headers", () => {
   const importedDraw = parsePositionedPdfPages([
     [
