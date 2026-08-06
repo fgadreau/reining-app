@@ -93,6 +93,7 @@ function PublicShowOverlayPage() {
   usePublicShowViewUpdates({
     showId,
     classIds: publicClassIdsKey ? publicClassIdsKey.split("|") : [],
+    data: publicView,
     enabled: !isDemoMode,
     load: async () => {
       const nextPublicView = await getPublicShowViewRepository(showId);

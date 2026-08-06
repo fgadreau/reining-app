@@ -1,6 +1,9 @@
 import { useEffect, useRef } from "react";
 import { getSupabaseClient } from "../cloud/supabaseClient";
-import { subscribePublicShowViewRepository } from "./publicViewRepository";
+import {
+  applyPublicShowViewRealtimeChange,
+  subscribePublicShowViewRepository,
+} from "./publicViewRepository";
 
 const DEFAULT_FALLBACK_REFRESH_MS = 5 * 60_000;
 const LOCAL_FALLBACK_REFRESH_MS = 5_000;
@@ -84,6 +87,7 @@ export function createRefreshCoordinator({ load, onData, onError }) {
 export function usePublicShowViewUpdates({
   showId,
   classIds,
+  data,
   load,
   onData,
   onDisplayRefreshStateChange,
@@ -91,6 +95,7 @@ export function usePublicShowViewUpdates({
   fallbackRefreshMs = DEFAULT_FALLBACK_REFRESH_MS,
 }) {
   const loadRef = useRef(load);
+  const dataRef = useRef(data);
   const onDataRef = useRef(onData);
   const onDisplayRefreshStateChangeRef = useRef(onDisplayRefreshStateChange);
   const classIdsKey = Array.from(
@@ -100,6 +105,10 @@ export function usePublicShowViewUpdates({
   useEffect(() => {
     loadRef.current = load;
   }, [load]);
+
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
 
   useEffect(() => {
     onDataRef.current = onData;
@@ -123,13 +132,29 @@ export function usePublicShowViewUpdates({
     const hasRealtime = Boolean(getSupabaseClient());
     const coordinator = createRefreshCoordinator({
       load: () => loadRef.current(),
-      onData: (data) => onDataRef.current(data),
+      onData: (nextData) => {
+        dataRef.current = nextData;
+        onDataRef.current(nextData);
+      },
       onError: (error) => {
         console.error("Erreur actualisation vue publique:", error);
       },
     });
 
-    const requestRealtimeRefresh = () => {
+    const requestRealtimeRefresh = (payload) => {
+      if (payload) {
+        const nextData = applyPublicShowViewRealtimeChange(
+          dataRef.current,
+          payload
+        );
+
+        if (nextData) {
+          dataRef.current = nextData;
+          onDataRef.current(nextData);
+          return;
+        }
+      }
+
       window.clearTimeout(realtimeRefreshTimer);
       realtimeRefreshTimer = window.setTimeout(() => {
         void coordinator.run();

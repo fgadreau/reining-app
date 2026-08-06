@@ -104,6 +104,7 @@ function PublicShowTvPage() {
   usePublicShowViewUpdates({
     showId,
     classIds: publicClassIdsKey ? publicClassIdsKey.split("|") : [],
+    data: publicView,
     load: () => getPublicShowViewRepository(showId),
     onData: (nextPublicView) => {
       setShow(nextPublicView.show);

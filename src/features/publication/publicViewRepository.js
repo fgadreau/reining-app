@@ -408,6 +408,270 @@ function toPaidWarmup(row) {
   };
 }
 
+const PUBLIC_SHOW_REALTIME_STATE = Symbol("public-show-realtime-state");
+
+function attachPublicShowRealtimeState(publicView, sourceState) {
+  Object.defineProperty(publicView, PUBLIC_SHOW_REALTIME_STATE, {
+    value: sourceState,
+    enumerable: false,
+  });
+
+  return publicView;
+}
+
+function buildPublicShowViewFromSourceState(sourceState) {
+  const {
+    show,
+    days,
+    classes,
+    paidWarmups,
+    scoresheetDocumentsByClassId,
+    publicationsByClassId,
+    officialByClassId,
+    scoringByClassId,
+    judgeScoringByClassId,
+    setupByClassId,
+    announcerLiveByClassId,
+    resultPublicationsByClassId,
+  } = sourceState;
+
+  if (!isShowPubliclyActive(show)) {
+    return attachPublicShowRealtimeState(buildEmptyPublicShowView(), sourceState);
+  }
+
+  const classesByDayId = new Map();
+  classes.forEach((classItem) => {
+    const current = classesByDayId.get(classItem.dayId) || [];
+    current.push(classItem);
+    classesByDayId.set(classItem.dayId, current);
+  });
+  const paidWarmupsByDayId = new Map();
+  paidWarmups.forEach((warmup) => {
+    const current = paidWarmupsByDayId.get(warmup.dayId) || [];
+    current.push(warmup);
+    paidWarmupsByDayId.set(warmup.dayId, current);
+  });
+
+  const sections = days.map((day) => {
+    const dayClasses = sortScheduleItemsByDependencies(
+      classesByDayId.get(day.id) || [],
+      compareScheduleItemsByStart
+    );
+    const dayPaidWarmups = (paidWarmupsByDayId.get(day.id) || [])
+      .slice()
+      .sort((first, second) => {
+        const sortOrder =
+          Number(first.sortOrder || 0) - Number(second.sortOrder || 0);
+        if (sortOrder !== 0) return sortOrder;
+        return String(first.name || "").localeCompare(String(second.name || ""));
+      });
+    const livePaidWarmups = dayPaidWarmups
+      .filter(isPaidWarmupScheduleLiveEligible)
+      .map((warmup) => buildPaidWarmupLiveView(warmup));
+    const classIds = dayClasses.map((classItem) => classItem.id).filter(Boolean);
+    const classEntries = dayClasses.map((classItem) => {
+      const publication = publicationsByClassId.get(classItem.id);
+      const setup = setupByClassId.get(classItem.id) || null;
+      const resultClasses = buildPublicResultClassViews({
+        classItem,
+        resultPublication: resultPublicationsByClassId.get(classItem.id),
+        scoresheetDocument: scoresheetDocumentsByClassId[classItem.id],
+      });
+      const liveClass = buildPublicLiveClassView({
+        classItem,
+        setup,
+        publication,
+        scoringSession: scoringByClassId.get(classItem.id),
+        judgeSessions: judgeScoringByClassId.get(classItem.id) || [],
+        announcerSession: announcerLiveByClassId.get(classItem.id),
+      });
+      const scoringSession = scoringByClassId.get(classItem.id);
+
+      return {
+        classView: buildPublicClassView({
+          classItem,
+          setup,
+          publication,
+          official: officialByClassId.get(classItem.id),
+          scoringRuns: [],
+        }),
+        resultClasses,
+        liveClass,
+        timingClassRow: {
+          classItem,
+          setup,
+          publication,
+          official: officialByClassId.get(classItem.id),
+          scoringRuns: scoringSession?.runs || [],
+          status: "public",
+        },
+      };
+    });
+
+    return {
+      day,
+      classes: classEntries.map((entry) => entry.classView).filter(Boolean),
+      resultClasses: classEntries.flatMap((entry) => entry.resultClasses),
+      timingSection: {
+        day,
+        classRows: classEntries.map((entry) => entry.timingClassRow),
+        paidWarmups: dayPaidWarmups,
+      },
+      liveClasses: classEntries.map((entry) => entry.liveClass).filter(Boolean),
+      livePaidWarmups,
+      classIds,
+    };
+  });
+  const timingSections = sections.map((section) => section.timingSection);
+  const liveClasses = sections.flatMap((section) => section.liveClasses || []);
+  const livePaidWarmups = sections.flatMap(
+    (section) => section.livePaidWarmups || []
+  );
+  const resultSections = sections
+    .map((section) => ({
+      day: section.day,
+      classes: section.resultClasses,
+    }))
+    .filter((section) => section.classes.length > 0);
+  const publishedClassCount = sections.reduce(
+    (total, section) => total + section.classes.length,
+    0
+  );
+  const publishedResultClassCount = resultSections.reduce(
+    (total, section) => total + section.classes.length,
+    0
+  );
+  const scannedScoresheetCount =
+    countUniqueResultScoresheetDocuments(resultSections);
+  const primaryLiveClasses = findPrimaryLiveClassesByArena(liveClasses);
+  const timingByClassId =
+    sourceState.timingByClassId instanceof Map
+      ? sourceState.timingByClassId
+      : buildLocalPublicTimingByClassId(timingSections, primaryLiveClasses);
+  const liveState = buildResolvedPublicLiveState({
+    timingSections,
+    liveClasses: primaryLiveClasses,
+    livePaidWarmups,
+    timingByClassId,
+  });
+  const scheduleSections = show?.isSchedulePublic
+    ? buildShowSchedulePreviewSections({ daySections: timingSections })
+    : [];
+  const allClassIds = classes.map((classItem) => classItem.id).filter(Boolean);
+
+  return attachPublicShowRealtimeState(
+    {
+      show,
+      sections: sections.filter((section) => section.classes.length > 0),
+      resultSections,
+      publishedClassCount,
+      publishedResultClassCount,
+      scannedScoresheetCount,
+      liveClass: liveState.liveClasses[0] || null,
+      liveClasses: liveState.liveClasses,
+      livePaidWarmup: liveState.livePaidWarmups[0] || null,
+      livePaidWarmups: liveState.livePaidWarmups,
+      liveClassCount:
+        liveState.liveClasses.length + liveState.livePaidWarmups.length,
+      scheduleSections,
+      scheduleItemCount: countScheduleItems(scheduleSections),
+      classIds: allClassIds,
+    },
+    sourceState
+  );
+}
+
+function replaceRealtimeMapEntry(map, key, value, isDelete) {
+  const nextMap = new Map(map);
+
+  if (isDelete) {
+    nextMap.delete(key);
+  } else {
+    nextMap.set(key, value);
+  }
+
+  return nextMap;
+}
+
+export function applyPublicShowViewRealtimeChange(publicView, payload) {
+  const sourceState = publicView?.[PUBLIC_SHOW_REALTIME_STATE];
+  const table = payload?.table;
+  const eventType = String(payload?.eventType || "").toUpperCase();
+  const isDelete = eventType === "DELETE";
+  const row = isDelete ? payload?.old : payload?.new;
+
+  if (!sourceState || !table || !row || typeof row !== "object") {
+    return null;
+  }
+
+  const nextSourceState = {
+    ...sourceState,
+    timingByClassId: null,
+  };
+
+  if (table === "shows") {
+    if (isDelete || row.id !== sourceState.show?.id) return null;
+    nextSourceState.show = toShow(row);
+  } else if (table === "show_score_paid_warmups") {
+    if (!row.id) return null;
+    const nextPaidWarmups = sourceState.paidWarmups.filter(
+      (warmup) => warmup.id !== row.id
+    );
+    if (!isDelete) nextPaidWarmups.push(toPaidWarmup(row));
+    nextSourceState.paidWarmups = nextPaidWarmups;
+  } else if (table === "show_score_judge_sessions") {
+    const classId = row.block_id;
+    const judgeId = row.judge_id;
+    if (!classId || !judgeId) return null;
+    const nextSessions = (sourceState.judgeScoringByClassId.get(classId) || [])
+      .filter((session) => session.judgeId !== judgeId);
+    if (!isDelete) nextSessions.push(toJudgeScoringSession(row));
+    nextSourceState.judgeScoringByClassId = replaceRealtimeMapEntry(
+      sourceState.judgeScoringByClassId,
+      classId,
+      nextSessions,
+      isDelete && nextSessions.length === 0
+    );
+  } else {
+    const tableConfig = {
+      show_score_scoring_sessions: [
+        "scoringByClassId",
+        "block_id",
+        toScoringSession,
+      ],
+      show_score_block_setups: ["setupByClassId", "block_id", toClassSetup],
+      show_score_publication_states: [
+        "publicationsByClassId",
+        "block_id",
+        toPublicationState,
+      ],
+      show_score_official_results: [
+        "officialByClassId",
+        "block_id",
+        toOfficialResult,
+      ],
+      show_score_announcer_live_sessions: [
+        "announcerLiveByClassId",
+        "class_id",
+        toAnnouncerLiveSession,
+      ],
+    }[table];
+
+    if (!tableConfig) return null;
+    const [stateKey, idColumn, transform] = tableConfig;
+    const classId = row[idColumn];
+    if (!classId) return null;
+    nextSourceState[stateKey] = replaceRealtimeMapEntry(
+      sourceState[stateKey],
+      classId,
+      isDelete ? null : transform(row),
+      isDelete
+    );
+  }
+
+  return buildPublicShowViewFromSourceState(nextSourceState);
+}
+
 export function getPublicShowView(showId) {
   const show = getShowById(showId);
   if (!isShowPubliclyActive(show)) {
@@ -879,146 +1143,22 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
         toAnnouncerLiveSession(row),
       ])
     );
-    const classesByDayId = new Map();
-    classes.forEach((classItem) => {
-      const current = classesByDayId.get(classItem.dayId) || [];
-      current.push(classItem);
-      classesByDayId.set(classItem.dayId, current);
-    });
-    const paidWarmupsByDayId = new Map();
-    paidWarmups.forEach((warmup) => {
-      const current = paidWarmupsByDayId.get(warmup.dayId) || [];
-      current.push(warmup);
-      paidWarmupsByDayId.set(warmup.dayId, current);
-    });
 
-    const sections = days.map((day) => {
-      const dayClasses = sortScheduleItemsByDependencies(
-        classesByDayId.get(day.id) || [],
-        compareScheduleItemsByStart
-      );
-      const dayPaidWarmups = (paidWarmupsByDayId.get(day.id) || [])
-        .slice()
-        .sort((first, second) => {
-          const sortOrder =
-            Number(first.sortOrder || 0) - Number(second.sortOrder || 0);
-          if (sortOrder !== 0) return sortOrder;
-          return String(first.name || "").localeCompare(
-            String(second.name || "")
-          );
-        });
-      const livePaidWarmups = dayPaidWarmups
-        .filter(isPaidWarmupScheduleLiveEligible)
-        .map((warmup) => buildPaidWarmupLiveView(warmup));
-      const classIds = dayClasses
-        .map((classItem) => classItem.id)
-        .filter(Boolean);
-      const classEntries = dayClasses.map((classItem) => {
-        const publication = publicationsByClassId.get(classItem.id);
-        const setup = setupByClassId.get(classItem.id) || null;
-        const resultClasses = buildPublicResultClassViews({
-          classItem,
-          resultPublication: resultPublicationsByClassId.get(classItem.id),
-          scoresheetDocument: scoresheetDocumentsByClassId[classItem.id],
-        });
-        const liveClass = buildPublicLiveClassView({
-          classItem,
-          setup,
-          publication,
-          scoringSession: scoringByClassId.get(classItem.id),
-          judgeSessions: judgeScoringByClassId.get(classItem.id) || [],
-          announcerSession: announcerLiveByClassId.get(classItem.id),
-        });
-        const scoringSession = scoringByClassId.get(classItem.id);
-
-        return {
-          classView: buildPublicClassView({
-            classItem,
-            setup,
-            publication,
-            official: officialByClassId.get(classItem.id),
-            scoringRuns: [],
-          }),
-          resultClasses,
-          liveClass,
-          timingClassRow: {
-            classItem,
-            setup,
-            publication,
-            official: officialByClassId.get(classItem.id),
-            scoringRuns: scoringSession?.runs || [],
-            status: "public",
-          },
-        };
-      });
-
-      return {
-        day,
-        classes: classEntries
-          .map((entry) => entry.classView)
-          .filter(Boolean),
-        resultClasses: classEntries.flatMap((entry) => entry.resultClasses),
-        timingSection: {
-          day,
-          classRows: classEntries.map((entry) => entry.timingClassRow),
-          paidWarmups: dayPaidWarmups,
-        },
-        liveClasses: classEntries
-          .map((entry) => entry.liveClass)
-          .filter(Boolean),
-        livePaidWarmups,
-        classIds,
-      };
-    });
-    const timingSections = sections.map((section) => section.timingSection);
-    const liveClasses = sections.flatMap((section) => section.liveClasses || []);
-    const livePaidWarmups = sections.flatMap(
-      (section) => section.livePaidWarmups || []
-    );
-
-    const resultSections = sections
-      .map((section) => ({
-        day: section.day,
-        classes: section.resultClasses,
-      }))
-      .filter((section) => section.classes.length > 0);
-    const publishedClassCount = sections.reduce(
-      (total, section) => total + section.classes.length,
-      0
-    );
-    const publishedResultClassCount = resultSections.reduce(
-      (total, section) => total + section.classes.length,
-      0
-    );
-    const scannedScoresheetCount =
-      countUniqueResultScoresheetDocuments(resultSections);
-    const primaryLiveClasses = findPrimaryLiveClassesByArena(liveClasses);
-    const liveState = buildResolvedPublicLiveState({
-      timingSections,
-      liveClasses: primaryLiveClasses,
-      livePaidWarmups,
+    return buildPublicShowViewFromSourceState({
+      show,
+      days,
+      classes,
+      paidWarmups,
+      scoresheetDocumentsByClassId,
+      publicationsByClassId,
+      officialByClassId,
+      scoringByClassId,
+      judgeScoringByClassId,
+      setupByClassId,
+      announcerLiveByClassId,
+      resultPublicationsByClassId,
       timingByClassId,
     });
-    const scheduleSections = show?.isSchedulePublic
-      ? buildShowSchedulePreviewSections({ daySections: timingSections })
-      : [];
-
-    return {
-      show,
-      sections: sections.filter((section) => section.classes.length > 0),
-      resultSections,
-      publishedClassCount,
-      publishedResultClassCount,
-      scannedScoresheetCount,
-      liveClass: liveState.liveClasses[0] || null,
-      liveClasses: liveState.liveClasses,
-      livePaidWarmup: liveState.livePaidWarmups[0] || null,
-      livePaidWarmups: liveState.livePaidWarmups,
-      liveClassCount: liveState.liveClasses.length + liveState.livePaidWarmups.length,
-      scheduleSections,
-      scheduleItemCount: countScheduleItems(scheduleSections),
-      classIds: allClassIds,
-    };
   } catch (error) {
     console.error("Erreur chargement résultats publics Supabase:", error);
     return getPublicShowView(showId);

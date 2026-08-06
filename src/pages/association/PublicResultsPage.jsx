@@ -160,6 +160,7 @@ function PublicResultsPage() {
   usePublicShowViewUpdates({
     showId,
     classIds: publicClassIdsKey ? publicClassIdsKey.split("|") : [],
+    data: publicView,
     onDisplayRefreshStateChange: setIsDisplayRefreshPending,
     load: () => getPublicShowViewRepository(showId),
     onData: (nextPublicView) => {
