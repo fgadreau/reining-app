@@ -114,10 +114,22 @@ export function usePublicShowViewUpdates({
 
       void coordinator.run();
     }, effectiveFallbackRefreshMs);
+    const refreshWhenDisplayReturns = () => {
+      if (document.visibilityState !== "hidden") {
+        void coordinator.run();
+      }
+    };
+
+    window.addEventListener("focus", refreshWhenDisplayReturns);
+    window.addEventListener("online", refreshWhenDisplayReturns);
+    document.addEventListener("visibilitychange", refreshWhenDisplayReturns);
 
     return () => {
       window.clearTimeout(realtimeRefreshTimer);
       window.clearInterval(refreshTimer);
+      window.removeEventListener("focus", refreshWhenDisplayReturns);
+      window.removeEventListener("online", refreshWhenDisplayReturns);
+      document.removeEventListener("visibilitychange", refreshWhenDisplayReturns);
       coordinator.stop();
       unsubscribe();
     };

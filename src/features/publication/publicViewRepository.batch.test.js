@@ -191,7 +191,7 @@ test("loads a multi-day public show with one query per table", async () => {
   ).toBe(false);
 });
 
-test("subscribes only to the tables enabled for production realtime", () => {
+test("subscribes public displays to every table that can change live output", () => {
   const bindings = [];
   const channel = {
     on(event, config, callback) {
@@ -213,7 +213,7 @@ test("subscribes only to the tables enabled for production realtime", () => {
     onChange
   );
 
-  expect(bindings.map(({ config }) => config)).toEqual([
+  expect(bindings.map(({ config }) => config).slice(0, 2)).toEqual([
     {
       event: "UPDATE",
       schema: "public",
@@ -226,19 +226,19 @@ test("subscribes only to the tables enabled for production realtime", () => {
       table: "show_score_paid_warmups",
       filter: "show_id=eq.show-1",
     },
-    {
-      event: "*",
-      schema: "public",
-      table: "show_score_announcer_live_sessions",
-      filter: "class_id=eq.class-1",
-    },
-    {
-      event: "*",
-      schema: "public",
-      table: "show_score_announcer_live_sessions",
-      filter: "class_id=eq.class-2",
-    },
   ]);
+  expect(
+    bindings.slice(2).map(({ config }) => [config.table, config.filter])
+  ).toEqual(
+    ["class-1", "class-2"].flatMap((classId) => [
+      ["show_score_scoring_sessions", `block_id=eq.${classId}`],
+      ["show_score_judge_sessions", `block_id=eq.${classId}`],
+      ["show_score_block_setups", `block_id=eq.${classId}`],
+      ["show_score_publication_states", `block_id=eq.${classId}`],
+      ["show_score_official_results", `block_id=eq.${classId}`],
+      ["show_score_announcer_live_sessions", `class_id=eq.${classId}`],
+    ])
+  );
   expect(channel.subscribe).toHaveBeenCalledOnce();
 
   unsubscribe();

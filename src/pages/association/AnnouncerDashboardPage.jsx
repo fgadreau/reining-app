@@ -1089,6 +1089,7 @@ function PaidWarmupLiveCard({
 }) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
+  const [pendingDragAction, setPendingDragAction] = useState("");
   const remainingSeconds = getPaidWarmupRemainingSeconds(warmup, now);
   const activeEntry = warmup.activeEntry;
   const stagedEntry = warmup.stagedEntry;
@@ -1116,6 +1117,17 @@ function PaidWarmupLiveCard({
     if (!canToggle || (event.key !== "Enter" && event.key !== " ")) return;
     event.preventDefault();
     toggleCard();
+  }
+
+  async function runDragAction(action, callback) {
+    if (pendingDragAction) return;
+    setPendingDragAction(action);
+
+    try {
+      await callback();
+    } finally {
+      setPendingDragAction("");
+    }
   }
 
   return (
@@ -1173,6 +1185,14 @@ function PaidWarmupLiveCard({
               {t("public.results.dragInProgress", {
                 minutes: warmup.dragDurationMinutes,
               })}
+            </div>
+          )}
+
+          {pendingDragAction && (
+            <div role="status" aria-live="polite" style={manualPendingNoticeStyle}>
+              {pendingDragAction === "start"
+                ? t("management.announcer.startingDrag")
+                : t("management.announcer.endingDrag")}
             </div>
           )}
 
@@ -1245,20 +1265,30 @@ function PaidWarmupLiveCard({
             {plannedDragItem && (
               <button
                 type="button"
-                onClick={() => onStartDrag(warmup)}
+                disabled={Boolean(pendingDragAction)}
+                onClick={() =>
+                  runDragAction("start", () => onStartDrag(warmup))
+                }
                 style={secondaryButtonStyle}
               >
-                {t("management.announcer.startDrag")}
+                {pendingDragAction === "start"
+                  ? t("management.announcer.startingDrag")
+                  : t("management.announcer.startDrag")}
               </button>
             )}
 
             {isActiveDrag && (
               <button
                 type="button"
-                onClick={() => onStopDrag(warmup)}
+                disabled={Boolean(pendingDragAction)}
+                onClick={() =>
+                  runDragAction("stop", () => onStopDrag(warmup))
+                }
                 style={secondaryButtonStyle}
               >
-                {t("management.announcer.stopDrag")}
+                {pendingDragAction === "stop"
+                  ? t("management.announcer.endingDrag")
+                  : t("management.announcer.stopDrag")}
               </button>
             )}
 
@@ -1764,6 +1794,7 @@ function AnnouncerManualLiveControls({
   const { t } = useTranslation();
   const [editingRun, setEditingRun] = useState(null);
   const [completionError, setCompletionError] = useState(null);
+  const [pendingAction, setPendingAction] = useState("");
   const session = classView.announcerSession || { runs: [] };
   const activeRun = classView.activeRun;
   const plannedDrag =
@@ -1785,15 +1816,22 @@ function AnnouncerManualLiveControls({
     .slice(-6)
     .reverse();
 
-  function save(nextSession) {
+  async function save(nextSession, action = "save") {
+    if (pendingAction) return null;
     setCompletionError(null);
-    return onSaveSession(nextSession);
+    setPendingAction(action);
+
+    try {
+      return await onSaveSession(nextSession);
+    } finally {
+      setPendingAction("");
+    }
   }
 
   function handleStartNext() {
     const nextRun = classView.nextRun;
     if (!nextRun?.id) return;
-    save(startAnnouncerRun(session, nextRun.id));
+    save(startAnnouncerRun(session, nextRun.id), "start-next");
   }
 
   function handleScratch(run) {
@@ -1818,7 +1856,8 @@ function AnnouncerManualLiveControls({
           waitForDrag: Boolean(plannedDrag),
           updatedBy,
         }
-      )
+      ),
+      "save-result"
     );
   }
 
@@ -1844,16 +1883,15 @@ function AnnouncerManualLiveControls({
           waitForDrag: Boolean(plannedDrag),
           updatedBy,
         }
-      )
+      ),
+      "save-result"
     );
   }
 
   function handleStopDrag() {
     save(
-      stopAnnouncerDragAndAdvance(
-        session,
-        classView.nextRun?.id
-      )
+      stopAnnouncerDragAndAdvance(session, classView.nextRun?.id),
+      "stop-drag"
     );
   }
 
@@ -1870,7 +1908,7 @@ function AnnouncerManualLiveControls({
       return;
     }
 
-    save(result.session);
+    save(result.session, "complete");
   }
 
   return (
@@ -1888,6 +1926,12 @@ function AnnouncerManualLiveControls({
           {getAnnouncerSyncStatusLabel(syncStatus, t)}
         </Badge>
       </div>
+
+      {pendingAction && (
+        <div role="status" aria-live="assertive" style={manualPendingNoticeStyle}>
+          {getAnnouncerPendingActionLabel(pendingAction, t)}
+        </div>
+      )}
 
       <div style={manualControlBodyStyle}>
         <div style={manualPrimaryActionStyle}>
@@ -1920,15 +1964,19 @@ function AnnouncerManualLiveControls({
             {classView.activeDragItem ? (
               <button
                 type="button"
+                disabled={Boolean(pendingAction)}
                 onClick={handleStopDrag}
                 style={manualDragButtonStyle}
               >
-                {t("management.announcer.stopDrag")}
+                {pendingAction === "stop-drag"
+                  ? t("management.announcer.endingDrag")
+                  : t("management.announcer.stopDrag")}
               </button>
             ) : activeRun ? (
               <>
                 <button
                   type="button"
+                  disabled={Boolean(pendingAction)}
                   onClick={() => setEditingRun(activeRun)}
                   style={manualPrimaryButtonStyle}
                 >
@@ -1936,6 +1984,7 @@ function AnnouncerManualLiveControls({
                 </button>
                 <button
                   type="button"
+                  disabled={Boolean(pendingAction)}
                   onClick={() => handleScratch(activeRun)}
                   style={manualDangerButtonStyle}
                 >
@@ -1943,6 +1992,7 @@ function AnnouncerManualLiveControls({
                 </button>
                 <button
                   type="button"
+                  disabled={Boolean(pendingAction)}
                   onClick={() => handleNoScore(activeRun)}
                   style={manualNoScoreButtonStyle}
                 >
@@ -1952,15 +2002,21 @@ function AnnouncerManualLiveControls({
             ) : plannedDrag ? (
               <button
                 type="button"
-                onClick={() => save(startAnnouncerDrag(session, plannedDrag))}
+                disabled={Boolean(pendingAction)}
+                onClick={() =>
+                  save(startAnnouncerDrag(session, plannedDrag), "start-drag")
+                }
                 style={manualDragButtonStyle}
               >
-                {t("management.announcer.startDrag")}
+                {pendingAction === "start-drag"
+                  ? t("management.announcer.startingDrag")
+                  : t("management.announcer.startDrag")}
               </button>
             ) : !session.completedAt && classView.nextRun ? (
               <>
                 <button
                   type="button"
+                  disabled={Boolean(pendingAction)}
                   onClick={handleStartNext}
                   style={manualPrimaryButtonStyle}
                 >
@@ -1968,6 +2024,7 @@ function AnnouncerManualLiveControls({
                 </button>
                 <button
                   type="button"
+                  disabled={Boolean(pendingAction)}
                   onClick={() => handleScratch(classView.nextRun)}
                   style={manualDangerButtonStyle}
                 >
@@ -1975,6 +2032,7 @@ function AnnouncerManualLiveControls({
                 </button>
                 <button
                   type="button"
+                  disabled={Boolean(pendingAction)}
                   onClick={() => handleNoScore(classView.nextRun)}
                   style={manualNoScoreButtonStyle}
                 >
@@ -2045,6 +2103,7 @@ function AnnouncerManualLiveControls({
         {!session.completedAt ? (
           <button
             type="button"
+            disabled={Boolean(pendingAction)}
             onClick={handleComplete}
             style={manualCompleteButtonStyle}
           >
@@ -2057,7 +2116,10 @@ function AnnouncerManualLiveControls({
             </Badge>
             <button
               type="button"
-              onClick={() => save(reopenAnnouncerLiveSession(session))}
+              disabled={Boolean(pendingAction)}
+              onClick={() =>
+                save(reopenAnnouncerLiveSession(session), "reopen")
+              }
               style={secondaryButtonStyle}
             >
               {t("management.announcer.reopenClass")}
@@ -2085,7 +2147,7 @@ function AnnouncerManualLiveControls({
               }
             );
             setEditingRun(null);
-            save(nextSession);
+            save(nextSession, "save-result");
           }}
         />
       )}
@@ -2298,6 +2360,21 @@ function getAnnouncerSyncStatusLabel(status, t) {
       return t("management.announcer.synced");
     default:
       return t("management.announcer.savedLocally");
+  }
+}
+
+function getAnnouncerPendingActionLabel(action, t) {
+  switch (action) {
+    case "start-drag":
+      return t("management.announcer.startingDrag");
+    case "stop-drag":
+      return t("management.announcer.endingDrag");
+    case "start-next":
+      return t("management.announcer.startingNext");
+    case "complete":
+      return t("management.announcer.completingClass");
+    default:
+      return t("management.announcer.savingAction");
   }
 }
 
@@ -3098,6 +3175,17 @@ const manualLiveHeaderStyle = {
   alignItems: "flex-start",
   gap: 12,
   flexWrap: "wrap",
+};
+
+const manualPendingNoticeStyle = {
+  padding: "13px 16px",
+  border: "2px solid #f59e0b",
+  borderRadius: 14,
+  background: "#fffbeb",
+  color: "#92400e",
+  fontSize: 16,
+  fontWeight: 900,
+  boxShadow: "0 0 0 4px rgba(245, 158, 11, 0.14)",
 };
 
 const qualifiedRidersShortcutStyle = {

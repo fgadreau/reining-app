@@ -25,7 +25,7 @@ import { rememberTvDisplayShortcut } from "../../features/tvDisplay/tvDisplaySho
 import { isScheduledLiveViewCurrent } from "../../features/schedule/liveSchedule";
 import "./PublicShowTvPage.css";
 
-const TV_REFRESH_MS = 30_000;
+const TV_REFRESH_MS = 5_000;
 const SPONSOR_SLIDE_INTERVAL_MS = 9000;
 const SPONSORS_PER_SLIDE = 5;
 
