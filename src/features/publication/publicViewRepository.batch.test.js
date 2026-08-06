@@ -10,6 +10,7 @@ vi.mock("../cloud/supabaseClient", () => ({
 }));
 
 import {
+  applyPublicShowViewRealtimeChange,
   getPublicShowViewRepository,
   subscribePublicShowViewRepository,
 } from "./publicViewRepository";
@@ -191,6 +192,77 @@ test("loads a multi-day public show with one query per table", async () => {
   ).toBe(false);
 });
 
+test("applies a live scoring event without issuing another public read", async () => {
+  const supabase = createSupabaseStub(
+    {
+      shows: [
+        {
+          id: "show-1",
+          organization_id: "organization-1",
+          name: "Summer Show",
+          status: "active",
+          is_public: true,
+        },
+      ],
+      show_score_class_documents: [],
+      show_days: [days[0]],
+      blocks: [classes[0]],
+      show_score_paid_warmups: [],
+      show_score_publication_states: [
+        { block_id: "class-1", status: "live" },
+      ],
+      show_score_official_results: [],
+      show_score_scoring_sessions: [
+        { block_id: "class-1", runs: [], updated_at: "2026-08-05T12:00:00Z" },
+      ],
+      show_score_judge_sessions: [],
+      show_score_block_setups: [
+        { block_id: "class-1", pattern: "RR1", runs: [] },
+      ],
+      show_score_announcer_live_sessions: [],
+      block_result_publications: [],
+    },
+    { public_show_timing_summary: [] }
+  );
+  getSupabaseClientMock.mockReturnValue(supabase.client);
+
+  const view = await getPublicShowViewRepository("show-1");
+  const readCount = supabase.queries.length;
+  const nextView = applyPublicShowViewRealtimeChange(view, {
+    table: "show_score_scoring_sessions",
+    eventType: "UPDATE",
+    new: {
+      block_id: "class-1",
+      runs: [
+        {
+          id: "run-1",
+          draw: 1,
+          rider: "Realtime Rider",
+          horse: "Realtime Horse",
+          scoreTotal: "70",
+          status: "completed",
+          isComplete: true,
+          completedAt: "2026-08-05T12:00:05Z",
+        },
+      ],
+      updated_at: "2026-08-05T12:00:05Z",
+    },
+  });
+
+  expect(nextView).not.toBeNull();
+  expect(nextView.liveClass).toMatchObject({
+    classId: "class-1",
+    liveUpdatedAt: "2026-08-05T12:00:05Z",
+    latestScore: {
+      rider: "Realtime Rider",
+      horse: "Realtime Horse",
+      scoreTotal: "70",
+    },
+  });
+  expect(supabase.queries).toHaveLength(readCount);
+  expect(supabase.rpcCalls).toHaveLength(1);
+});
+
 test("subscribes public displays to every table that can change live output", () => {
   const bindings = [];
   const channel = {
@@ -205,12 +277,14 @@ test("subscribes public displays to every table that can change live output", ()
     removeChannel: vi.fn(),
   };
   const onChange = vi.fn();
+  const onStatus = vi.fn();
   getSupabaseClientMock.mockReturnValue(supabase);
 
   const unsubscribe = subscribePublicShowViewRepository(
     "show-1",
     ["class-1", "class-2", "class-1"],
-    onChange
+    onChange,
+    onStatus
   );
 
   expect(bindings.map(({ config }) => config).slice(0, 2)).toEqual([
@@ -241,7 +315,15 @@ test("subscribes public displays to every table that can change live output", ()
   );
   expect(channel.subscribe).toHaveBeenCalledOnce();
 
+  const statusCallback = channel.subscribe.mock.calls[0][0];
+  statusCallback("SUBSCRIBED");
+  expect(onStatus).toHaveBeenCalledWith("SUBSCRIBED");
+  expect(onChange).toHaveBeenCalledOnce();
+
   unsubscribe();
 
+  statusCallback("CLOSED");
+
   expect(supabase.removeChannel).toHaveBeenCalledWith(channel);
+  expect(onStatus).toHaveBeenCalledTimes(1);
 });

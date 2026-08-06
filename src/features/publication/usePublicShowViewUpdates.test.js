@@ -1,5 +1,8 @@
 import { expect, test, vi } from "vitest";
-import { createRefreshCoordinator } from "./usePublicShowViewUpdates";
+import {
+  createRefreshCoordinator,
+  getFallbackRefreshDelay,
+} from "./usePublicShowViewUpdates";
 
 function createDeferred() {
   let resolve;
@@ -68,4 +71,49 @@ test("does not publish data or run a queued refresh after stop", async () => {
   expect(load).toHaveBeenCalledTimes(1);
   expect(onData).not.toHaveBeenCalled();
   expect(onError).not.toHaveBeenCalled();
+});
+
+test("keeps the healthy realtime safety refresh sparse and jittered", () => {
+  expect(
+    getFallbackRefreshDelay({
+      fallbackRefreshMs: 300_000,
+      hasRealtime: true,
+      isRealtimeSubscribed: true,
+      random: () => 0,
+    })
+  ).toBe(240_000);
+  expect(
+    getFallbackRefreshDelay({
+      fallbackRefreshMs: 300_000,
+      hasRealtime: true,
+      isRealtimeSubscribed: true,
+      random: () => 1,
+    })
+  ).toBe(360_000);
+});
+
+test("backs off disconnected fallback reads and keeps local mode responsive", () => {
+  expect(
+    getFallbackRefreshDelay({
+      hasRealtime: true,
+      isRealtimeSubscribed: false,
+      reconnectAttempt: 1,
+      random: () => 0.5,
+    })
+  ).toBe(5_000);
+  expect(
+    getFallbackRefreshDelay({
+      hasRealtime: true,
+      isRealtimeSubscribed: false,
+      reconnectAttempt: 5,
+      random: () => 0.5,
+    })
+  ).toBe(60_000);
+  expect(
+    getFallbackRefreshDelay({
+      hasRealtime: false,
+      reconnectAttempt: 10,
+      random: () => 1,
+    })
+  ).toBe(5_000);
 });

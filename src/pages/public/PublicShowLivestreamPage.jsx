@@ -34,8 +34,6 @@ import {
   publicTitleStyle,
 } from "../../styles/publicStyles";
 
-const LIVESTREAM_REFRESH_MS = 5_000;
-
 function PublicShowLivestreamPage() {
   const { associationId, showId } = useParams();
   const { t, language } = useTranslation();
@@ -98,7 +96,7 @@ function PublicShowLivestreamPage() {
   usePublicShowViewUpdates({
     showId,
     classIds: publicClassIdsKey ? publicClassIdsKey.split("|") : [],
-    fallbackRefreshMs: LIVESTREAM_REFRESH_MS,
+    data: publicView,
     load: () => getPublicShowViewRepository(showId),
     onData: (nextPublicView) => {
       setShow(nextPublicView.show);

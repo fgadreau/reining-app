@@ -25,7 +25,6 @@ import { rememberTvDisplayShortcut } from "../../features/tvDisplay/tvDisplaySho
 import { isScheduledLiveViewCurrent } from "../../features/schedule/liveSchedule";
 import "./PublicShowTvPage.css";
 
-const TV_REFRESH_MS = 5_000;
 const SPONSOR_SLIDE_INTERVAL_MS = 9000;
 const SPONSORS_PER_SLIDE = 5;
 
@@ -105,7 +104,7 @@ function PublicShowTvPage() {
   usePublicShowViewUpdates({
     showId,
     classIds: publicClassIdsKey ? publicClassIdsKey.split("|") : [],
-    fallbackRefreshMs: TV_REFRESH_MS,
+    data: publicView,
     load: () => getPublicShowViewRepository(showId),
     onData: (nextPublicView) => {
       setShow(nextPublicView.show);

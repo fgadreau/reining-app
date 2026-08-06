@@ -16,7 +16,6 @@ import {
 
 const SPONSOR_LOGOS_PER_SLIDE = 4;
 const SPONSOR_SLIDE_INTERVAL_MS = 8000;
-const PUBLIC_OVERLAY_FALLBACK_REFRESH_MS = 5_000;
 const OVERLAY_DEMO_QUERY_PARAM = "demo";
 const DEMO_OVERLAY_CLASS_ID = "overlay-demo-open-derby";
 
@@ -94,8 +93,8 @@ function PublicShowOverlayPage() {
   usePublicShowViewUpdates({
     showId,
     classIds: publicClassIdsKey ? publicClassIdsKey.split("|") : [],
+    data: publicView,
     enabled: !isDemoMode,
-    fallbackRefreshMs: PUBLIC_OVERLAY_FALLBACK_REFRESH_MS,
     load: async () => {
       const nextPublicView = await getPublicShowViewRepository(showId);
 

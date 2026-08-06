@@ -57,8 +57,6 @@ import {
   publicTitleStyle,
 } from "../../styles/publicStyles";
 
-const PUBLIC_LIVE_FALLBACK_REFRESH_MS = 5_000;
-
 function PublicResultsPage() {
   const { associationId, showId } = useParams();
   const navigate = useNavigate();
@@ -162,7 +160,7 @@ function PublicResultsPage() {
   usePublicShowViewUpdates({
     showId,
     classIds: publicClassIdsKey ? publicClassIdsKey.split("|") : [],
-    fallbackRefreshMs: PUBLIC_LIVE_FALLBACK_REFRESH_MS,
+    data: publicView,
     onDisplayRefreshStateChange: setIsDisplayRefreshPending,
     load: () => getPublicShowViewRepository(showId),
     onData: (nextPublicView) => {
