@@ -1954,6 +1954,7 @@ export const translations = {
         paidWarmupStatusScratch: "Scratch",
         halfTime: "Moitié du temps",
         timeOver: "Temps terminé",
+        timerUpdating: "Mise à jour en cours…",
         timingNote:
           "Estimation ajustée selon les temps réels enregistrés et les drags prévus.",
         totalPenalties: "Pén. totales",
@@ -3967,6 +3968,7 @@ export const translations = {
         statusUpcoming: "Upcoming",
         statusWaiting: "In the hole",
         timeOver: "Time is up",
+        timerUpdating: "Updating…",
         timingNote:
           "Estimate adjusted from recorded real times and planned drags.",
         totalPenalties: "Total penalties",

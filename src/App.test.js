@@ -217,6 +217,7 @@ import { buildAnnouncerClassView } from "./features/live/liveViewRepository";
 import {
   PAID_WARMUP_TIMER_CUES,
   buildPaidWarmupLiveView,
+  clampPaidWarmupTimerSeconds,
   getPaidWarmupTimerCueType,
   setPaidWarmupEntryStatus,
   startPaidWarmupDrag,
@@ -9249,6 +9250,23 @@ test("normalizes the judge set approval mode without changing the legacy default
   expect(normalizeClassSetup({}).setApprovalMode).toBe(
     SET_APPROVAL_MODES.CLASS_END
   );
+});
+
+test("defaults new block setups to announcer live and six classified riders", () => {
+  expect(normalizeClassSetup({})).toMatchObject({
+    liveDataSource: LIVE_DATA_SOURCES.ANNOUNCER,
+    qualifiedRiderCount: 6,
+  });
+  expect(
+    normalizeClassSetup({ qualifiedRiderCount: "" }).qualifiedRiderCount
+  ).toBeNull();
+});
+
+test("keeps the public paid warmup countdown at zero without overtime", () => {
+  expect(clampPaidWarmupTimerSeconds(61.4)).toBe(61);
+  expect(clampPaidWarmupTimerSeconds(0)).toBe(0);
+  expect(clampPaidWarmupTimerSeconds(-1_014)).toBe(0);
+  expect(clampPaidWarmupTimerSeconds(null)).toBeNull();
 });
 
 test("builds consecutive signed set snapshots and locks their runs", () => {

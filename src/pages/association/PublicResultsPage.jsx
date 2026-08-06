@@ -15,6 +15,7 @@ import {
   formatDuration,
 } from "../../features/classes/classTiming";
 import {
+  clampPaidWarmupTimerSeconds,
   formatPaidWarmupTimer,
   getPaidWarmupDragRemainingSeconds,
   getPaidWarmupRemainingSeconds,
@@ -67,6 +68,7 @@ function PublicResultsPage() {
   const [show, setShow] = useState(() => getShowById(showId));
   const [publicView, setPublicView] = useState(() => getPublicShowView(showId));
   const [isLoading, setIsLoading] = useState(true);
+  const [isDisplayRefreshPending, setIsDisplayRefreshPending] = useState(false);
   const [openClassId, setOpenClassId] = useState(null);
   const [now, setNow] = useState(() => new Date());
   const { t } = useTranslation();
@@ -161,6 +163,7 @@ function PublicResultsPage() {
     showId,
     classIds: publicClassIdsKey ? publicClassIdsKey.split("|") : [],
     fallbackRefreshMs: PUBLIC_LIVE_FALLBACK_REFRESH_MS,
+    onDisplayRefreshStateChange: setIsDisplayRefreshPending,
     load: () => getPublicShowViewRepository(showId),
     onData: (nextPublicView) => {
       setShow(nextPublicView.show);
@@ -260,6 +263,7 @@ function PublicResultsPage() {
               key={warmup.id}
               warmup={warmup}
               now={now}
+              isDisplayRefreshPending={isDisplayRefreshPending}
             />
           ))}
         </div>
@@ -1153,10 +1157,6 @@ function PublicLivePanel({ classView, now, isUpcoming = false }) {
           )}
 
           {!isScheduleOnly && (
-            <PublicNextScheduleItem item={classView.nextScheduleItem} />
-          )}
-
-          {!isScheduleOnly && (
             <PublicLiveOrderTable
               runs={classView.orderRuns || []}
               blockClasses={classView.blockClasses || []}
@@ -1166,6 +1166,10 @@ function PublicLivePanel({ classView, now, isUpcoming = false }) {
                 classView.classId || classView.classCode || "class"
               )}
             />
+          )}
+
+          {!isScheduleOnly && (
+            <PublicNextScheduleItem item={classView.nextScheduleItem} />
           )}
         </div>
       )}
@@ -1352,7 +1356,12 @@ function ScheduleOnlyLiveDetails({ classView }) {
   );
 }
 
-function PublicPaidWarmupLivePanel({ warmup, now, isUpcoming = false }) {
+function PublicPaidWarmupLivePanel({
+  warmup,
+  now,
+  isUpcoming = false,
+  isDisplayRefreshPending = false,
+}) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const remainingSeconds = getPaidWarmupRemainingSeconds(warmup, now);
@@ -1360,6 +1369,10 @@ function PublicPaidWarmupLivePanel({ warmup, now, isUpcoming = false }) {
   const dragRemainingSeconds = isDragDue
     ? getPaidWarmupDragRemainingSeconds(warmup, now)
     : null;
+  const isEntryTimerUpdating =
+    !isUpcoming && isDisplayRefreshPending && remainingSeconds != null;
+  const isDragTimerUpdating =
+    !isUpcoming && isDisplayRefreshPending && dragRemainingSeconds != null;
   const onCourseEntry = warmup.onCourseEntry || warmup.activeEntry || null;
   const nextLiveItem = warmup.nextLiveItem || warmup.nextEntry || null;
   const secondNextLiveItem =
@@ -1446,12 +1459,16 @@ function PublicPaidWarmupLivePanel({ warmup, now, isUpcoming = false }) {
             <div style={liveBlockStyle}>
               <div style={runLabelStyle}>{t("public.results.onCourse")}</div>
               {isDragDue ? (
-                <PublicDragCard remainingSeconds={dragRemainingSeconds} />
+                <PublicDragCard
+                  remainingSeconds={dragRemainingSeconds}
+                  isTimerUpdating={isDragTimerUpdating}
+                />
               ) : onCourseEntry ? (
                 <PublicPaidWarmupEntry
                   entry={onCourseEntry}
                   remainingSeconds={remainingSeconds}
                   warmup={warmup}
+                  isTimerUpdating={isEntryTimerUpdating}
                 />
               ) : (
                 <div style={mutedTextStyle}>—</div>
@@ -1486,8 +1503,6 @@ function PublicPaidWarmupLivePanel({ warmup, now, isUpcoming = false }) {
             </div>
           </div>
 
-          <PublicNextScheduleItem item={warmup.nextScheduleItem} />
-
           <PublicPaidWarmupOrderTable
             entries={warmup.orderItems || warmup.entries || []}
             warmup={warmup}
@@ -1496,6 +1511,8 @@ function PublicPaidWarmupLivePanel({ warmup, now, isUpcoming = false }) {
               warmup.id || "warmup"
             )}
           />
+
+          <PublicNextScheduleItem item={warmup.nextScheduleItem} />
         </div>
       )}
     </section>
@@ -1599,16 +1616,19 @@ function PublicPaidWarmupEntryBlock({ label, entry, statusLabel, status }) {
   );
 }
 
-function PublicDragCard({ remainingSeconds }) {
+function PublicDragCard({ remainingSeconds, isTimerUpdating = false }) {
   const { t } = useTranslation();
-  const displaySeconds =
-    remainingSeconds == null ? null : Math.max(Math.round(remainingSeconds), 0);
+  const displaySeconds = clampPaidWarmupTimerSeconds(remainingSeconds);
 
   return (
     <div>
       <div style={runTitleStyle}>{t("public.results.dragSurface")}</div>
       <div style={mutedTextStyle}>{t("public.results.trackPrep")}</div>
-      {displaySeconds != null && (
+      {isTimerUpdating ? (
+        <div style={timerUpdatingStyle}>
+          {t("public.results.timerUpdating")}
+        </div>
+      ) : displaySeconds != null && (
         <>
           <div style={paidWarmupTimerStyle}>
             {formatPaidWarmupTimer(displaySeconds)}
@@ -1628,8 +1648,14 @@ function PublicDragCard({ remainingSeconds }) {
   );
 }
 
-function PublicPaidWarmupEntry({ entry, remainingSeconds, warmup }) {
+function PublicPaidWarmupEntry({
+  entry,
+  remainingSeconds,
+  warmup,
+  isTimerUpdating = false,
+}) {
   const { t } = useTranslation();
+  const displaySeconds = clampPaidWarmupTimerSeconds(remainingSeconds);
 
   return (
     <div>
@@ -1642,10 +1668,14 @@ function PublicPaidWarmupEntry({ entry, remainingSeconds, warmup }) {
           {getPaidWarmupStatusLabel(entry.status, t)}
         </div>
       )}
-      {remainingSeconds != null && (
+      {isTimerUpdating ? (
+        <div style={timerUpdatingStyle}>
+          {t("public.results.timerUpdating")}
+        </div>
+      ) : displaySeconds != null && (
         <>
           <div style={paidWarmupTimerStyle}>
-            {formatPaidWarmupTimer(remainingSeconds)}
+            {formatPaidWarmupTimer(displaySeconds)}
           </div>
           {remainingSeconds <= 0 ? (
             <div style={paidWarmupCueStyle("danger")}>
@@ -2744,6 +2774,13 @@ const paidWarmupTimerStyle = {
   fontSize: 30,
   fontWeight: 900,
   marginTop: 8,
+};
+
+const timerUpdatingStyle = {
+  marginTop: 14,
+  color: publicColors.muted,
+  fontSize: 18,
+  fontWeight: 850,
 };
 
 const paidWarmupNoticeStyle = {

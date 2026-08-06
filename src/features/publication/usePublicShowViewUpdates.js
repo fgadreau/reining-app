@@ -61,11 +61,13 @@ export function usePublicShowViewUpdates({
   classIds,
   load,
   onData,
+  onDisplayRefreshStateChange,
   enabled = true,
   fallbackRefreshMs = DEFAULT_FALLBACK_REFRESH_MS,
 }) {
   const loadRef = useRef(load);
   const onDataRef = useRef(onData);
+  const onDisplayRefreshStateChangeRef = useRef(onDisplayRefreshStateChange);
   const classIdsKey = Array.from(
     new Set((Array.isArray(classIds) ? classIds : []).filter(Boolean))
   ).join("|");
@@ -79,11 +81,17 @@ export function usePublicShowViewUpdates({
   }, [onData]);
 
   useEffect(() => {
+    onDisplayRefreshStateChangeRef.current = onDisplayRefreshStateChange;
+  }, [onDisplayRefreshStateChange]);
+
+  useEffect(() => {
     if (!enabled || !showId) {
       return undefined;
     }
 
     let realtimeRefreshTimer = null;
+    let isEffectActive = true;
+    let displayRefreshCount = 0;
     const coordinator = createRefreshCoordinator({
       load: () => loadRef.current(),
       onData: (data) => onDataRef.current(data),
@@ -115,9 +123,16 @@ export function usePublicShowViewUpdates({
       void coordinator.run();
     }, effectiveFallbackRefreshMs);
     const refreshWhenDisplayReturns = () => {
-      if (document.visibilityState !== "hidden") {
-        void coordinator.run();
-      }
+      if (document.visibilityState === "hidden") return;
+
+      displayRefreshCount += 1;
+      onDisplayRefreshStateChangeRef.current?.(true);
+      void coordinator.run().finally(() => {
+        displayRefreshCount = Math.max(displayRefreshCount - 1, 0);
+        if (isEffectActive && displayRefreshCount === 0) {
+          onDisplayRefreshStateChangeRef.current?.(false);
+        }
+      });
     };
 
     window.addEventListener("focus", refreshWhenDisplayReturns);
@@ -125,6 +140,7 @@ export function usePublicShowViewUpdates({
     document.addEventListener("visibilitychange", refreshWhenDisplayReturns);
 
     return () => {
+      isEffectActive = false;
       window.clearTimeout(realtimeRefreshTimer);
       window.clearInterval(refreshTimer);
       window.removeEventListener("focus", refreshWhenDisplayReturns);
