@@ -649,6 +649,20 @@ test.describe("robot de show local", () => {
     );
   });
 
+  test("fait defiler le classement du bloc actif sur la TV", async ({ page }) => {
+    await page.route("**/rest/v1/**", (route) => route.abort());
+    await seedActiveSingleJudgeAnnouncerShow(page);
+    await page.goto(
+      `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/tv?mode=standings`
+    );
+
+    await expect(page.locator('[data-tv-layout="standings"]')).toBeVisible();
+    await expect(page.locator('[role="table"] [role="row"]')).toHaveCount(3);
+    await expect(page.locator('[role="table"]')).toContainText("Cavalier 2");
+    await expect(page.locator('[role="table"]')).toContainText("70");
+    await expect(page.locator('[role="table"]')).toContainText("69½");
+  });
+
   test("remplace les cartes TV vides par la prochaine classe", async ({
     page,
   }) => {

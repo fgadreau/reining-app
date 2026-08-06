@@ -51,6 +51,7 @@ import {
 } from "../../features/live/announcerLiveRepository";
 import { buildQualifiedRiderList } from "../../features/results/qualifiedRiders";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
+import { loadAssociations } from "../../features/associations/associationsData";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
 import { getShowById } from "../../features/shows/showSelectors";
@@ -65,6 +66,7 @@ import {
 } from "../../utils/generateResultsPdf";
 import { appStyles as styles } from "../../styles/appStyles";
 import ClassPaceSummary from "../../components/ClassPaceSummary";
+import LocalNetworkStatusPanel from "../../components/LocalNetworkStatusPanel";
 import ShowDayTabs, {
   useShowDaySelection,
 } from "../../components/ShowDayTabs";
@@ -72,6 +74,8 @@ import {
   filterShowDaySections,
   getShowDayQueryPath,
 } from "../../features/days/showDayNavigation";
+import { buildLocalDisplaySnapshot } from "../../features/localRelay/localDisplaySnapshot";
+import { publishLocalRelaySnapshot } from "../../features/localRelay/localRelayClient";
 
 let paidWarmupAudioContext = null;
 
@@ -183,6 +187,9 @@ function AnnouncerDashboardPage() {
   const [rankingClass, setRankingClass] = useState(null);
   const [qualifiedRidersClass, setQualifiedRidersClass] = useState(null);
   const [announcerSyncStatuses, setAnnouncerSyncStatuses] = useState({});
+  const [supabaseStatus, setSupabaseStatus] = useState(() =>
+    navigator.onLine ? "CONNECTING" : "CLOSED"
+  );
   const [isPaidWarmupAudioReady, setIsPaidWarmupAudioReady] = useState(false);
   const [paidWarmupUndoSnapshots, setPaidWarmupUndoSnapshots] = useState({});
   const autoCompletedPaidWarmupKeyRef = useRef(null);
@@ -488,6 +495,19 @@ function AnnouncerDashboardPage() {
   }, [refreshLiveViewNow]);
 
   useEffect(() => {
+    const association =
+      loadAssociations().find((item) => item.id === associationId) || null;
+
+    publishLocalRelaySnapshot(
+      buildLocalDisplaySnapshot({
+        association,
+        show: getShowById(showId),
+        liveView,
+      })
+    );
+  }, [associationId, showId, liveView]);
+
+  useEffect(() => {
     let isMounted = true;
     let refreshTimeout = null;
 
@@ -502,7 +522,8 @@ function AnnouncerDashboardPage() {
     const unsubscribe = subscribeAnnouncerShowViewRepository(
       showId,
       liveClassIdsKey ? liveClassIdsKey.split("|") : [],
-      refreshLiveView
+      refreshLiveView,
+      setSupabaseStatus
     );
 
     return () => {
@@ -592,6 +613,8 @@ function AnnouncerDashboardPage() {
           )}
         </div>
       </section>
+
+      <LocalNetworkStatusPanel supabaseStatus={supabaseStatus} t={t} />
 
       <ShowDayTabs
         days={daySelection.days}

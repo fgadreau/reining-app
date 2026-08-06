@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ShowScore Local Overlay</title>
+    <link rel="stylesheet" href="/overlay.css" />
+  </head>
+  <body>
+    <main id="overlay" class="overlay" data-mode="waiting">
+      <section id="sponsor-takeover" class="takeover" hidden>
+        <div class="takeover__eyebrow">Drag en cours</div>
+        <h1 id="takeover-title" class="takeover__title">Merci à nos commanditaires</h1>
+        <div id="takeover-list" class="takeover__list"></div>
+        <div class="takeover__powered">ShowScore.app</div>
+      </section>
+
+      <section id="bar" class="bar">
+        <div class="bar__accent"></div>
+        <div class="brand">
+          <div id="association-logo" class="brand__logo">SS</div>
+          <div class="brand__copy">
+            <div id="eyebrow" class="eyebrow">ShowScore local</div>
+            <div id="class-name" class="class-name">En attente du tableau annonceur…</div>
+            <div id="association-name" class="association-name"></div>
+          </div>
+        </div>
+
+        <div id="metrics" class="metrics">
+          <article class="metric metric--green">
+            <div class="metric__label">En piste</div>
+            <div id="active" class="metric__value">—</div>
+          </article>
+          <article class="metric metric--amber">
+            <div class="metric__label">Prochain</div>
+            <div id="waiting" class="metric__value">—</div>
+          </article>
+          <article class="metric metric--blue">
+            <div class="metric__label">Dernier pointage</div>
+            <div id="last-score" class="metric__value">—</div>
+          </article>
+        </div>
+
+        <div class="powered"><span>Propulsé par</span><strong>ShowScore.app</strong></div>
+      </section>
+    </main>
+    <script src="/overlay.js"></script>
+  </body>
+</html>

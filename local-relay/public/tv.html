@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ShowScore TV locale</title>
+    <link rel="stylesheet" href="/tv.css" />
+  </head>
+  <body data-tv-mode="general" data-tv-state="waiting">
+    <main class="tv-shell">
+      <header class="tv-header">
+        <div class="brand">
+          <div id="association-logo" class="brand__logo">SS</div>
+          <div class="brand__copy">
+            <div class="eyebrow">Affichage manège / Arena display</div>
+            <h1 id="show-name">ShowScore local</h1>
+            <div id="show-meta" class="show-meta"></div>
+          </div>
+        </div>
+        <div id="arena-badge" class="arena-badge" hidden></div>
+      </header>
+
+      <section id="center-panel" class="center-panel">
+        <div id="center-logo" class="center-logo">SS</div>
+        <div id="center-kicker" class="section-kicker">Bienvenue à / Welcome to</div>
+        <div id="center-title" class="center-title">ShowScore local</div>
+        <div id="center-subtitle" class="center-subtitle"></div>
+        <div id="center-meta" class="center-meta"></div>
+      </section>
+
+      <section id="live-panel" class="live-grid" hidden>
+        <div class="live-hero">
+          <div class="section-kicker">En cours / Now live</div>
+          <h2 id="class-title" class="class-title">—</h2>
+          <div id="class-subtitle" class="class-subtitle"></div>
+          <article class="participant participant--active">
+            <div class="participant__label">En piste / On course</div>
+            <div id="current-meta" class="participant__meta"></div>
+            <div id="current-timer" class="timer" hidden></div>
+            <div id="current-name" class="participant__name">—</div>
+            <div id="current-details" class="participant__details"></div>
+            <div id="current-score" class="score" hidden></div>
+          </article>
+        </div>
+
+        <aside class="side-stack">
+          <section class="side-panel side-panel--next">
+            <h3>À venir / Up next</h3>
+            <article class="participant participant--next">
+              <div class="participant__label">Prochain / Next</div>
+              <div id="next-meta" class="participant__meta"></div>
+              <div id="next-name" class="participant__name">—</div>
+              <div id="next-details" class="participant__details"></div>
+            </article>
+            <article class="participant participant--waiting">
+              <div class="participant__label">2e prochain / Second next</div>
+              <div id="second-meta" class="participant__meta"></div>
+              <div id="second-name" class="participant__name">—</div>
+              <div id="second-details" class="participant__details"></div>
+            </article>
+          </section>
+          <section class="side-panel side-panel--last">
+            <h3>Derniers passés / Last completed</h3>
+            <div id="previous-list" class="previous-list"></div>
+          </section>
+        </aside>
+      </section>
+
+      <section id="standings-panel" class="standings" hidden>
+        <div class="standings__header">
+          <div>
+            <div id="standings-kicker" class="section-kicker">Classement en direct / Live standings</div>
+            <h2 id="standings-title" class="standings__title">Classements / Standings</h2>
+            <div id="standings-block" class="standings__block"></div>
+          </div>
+          <div id="standings-progress" class="standings__progress">—</div>
+        </div>
+        <div id="standings-table" class="standings__table">
+          <div class="standings__table-header">
+            <span>Pos.</span>
+            <span>Cavalier et cheval / Rider and horse</span>
+            <span>Dossard / Back</span>
+            <span>Score</span>
+          </div>
+          <div id="standings-rows" class="standings__rows"></div>
+        </div>
+        <div id="standings-empty" class="standings__empty" hidden>
+          <strong>Aucun pointage pour le moment.</strong>
+          <span>No scores yet.</span>
+        </div>
+        <div class="standings__footer">Rotation automatique des classes et des pages · Automatic class and page rotation</div>
+      </section>
+
+      <section id="competition-panel" class="competition" hidden>
+        <div class="competition__stage">
+          <div id="competition-logo" class="competition__logo">SS</div>
+          <div class="section-kicker">Affichage local de compétition / Local competition display</div>
+          <div id="competition-show" class="competition__show">ShowScore</div>
+          <div id="competition-arena" class="competition__arena"></div>
+        </div>
+        <div class="competition__strip">
+          <div class="strip-block strip-block--title">
+            <span id="competition-status">En attente / Waiting</span>
+            <strong id="competition-title">—</strong>
+          </div>
+          <div class="strip-block strip-block--current">
+            <span>En piste / On course</span>
+            <strong id="competition-current">—</strong>
+            <small id="competition-current-details"></small>
+          </div>
+          <div class="strip-block">
+            <span>Prochain / Next</span>
+            <strong id="competition-next">—</strong>
+            <small id="competition-next-details"></small>
+          </div>
+          <div class="strip-block">
+            <span>Dernier / Last</span>
+            <strong id="competition-last">—</strong>
+            <small id="competition-last-details"></small>
+          </div>
+        </div>
+      </section>
+
+      <footer id="sponsor-rail" class="sponsor-rail">
+        <div class="sponsor-heading">
+          <strong>Commanditaires / Sponsors</strong>
+          <span id="sponsor-level"></span>
+        </div>
+        <div id="sponsor-list" class="sponsor-list"></div>
+      </footer>
+    </main>
+    <script src="/tv.js"></script>
+  </body>
+</html>

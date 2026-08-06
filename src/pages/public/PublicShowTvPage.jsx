@@ -27,6 +27,8 @@ import "./PublicShowTvPage.css";
 
 const SPONSOR_SLIDE_INTERVAL_MS = 9000;
 const SPONSORS_PER_SLIDE = 5;
+const STANDINGS_SLIDE_INTERVAL_MS = 10000;
+const STANDINGS_ENTRIES_PER_SLIDE = 7;
 
 function PublicShowTvPage() {
   const { associationId, showId } = useParams();
@@ -35,15 +37,18 @@ function PublicShowTvPage() {
   const [show, setShow] = useState(null);
   const [publicView, setPublicView] = useState(() => getPublicShowView(showId));
   const [sponsorSlideIndex, setSponsorSlideIndex] = useState(0);
+  const [standingsSlideIndex, setStandingsSlideIndex] = useState(0);
   const publicShowcaseUrl = getPublicShowcaseUrl(associationId, showId);
   const selectedArena = useMemo(
     () => getArenaFromSearch(location.search),
     [location.search]
   );
-  const isCompetitionDisplay = useMemo(
-    () => getDisplayModeFromSearch(location.search) === "competition",
+  const requestedDisplayMode = useMemo(
+    () => getDisplayModeFromSearch(location.search),
     [location.search]
   );
+  const isCompetitionDisplay = requestedDisplayMode === "competition";
+  const isStandingsDisplay = requestedDisplayMode === "standings";
   const sponsorGroups = getAssociationSponsorGroups(association);
   const sponsorSlides = buildSponsorLevelSlides(
     sponsorGroups,
@@ -55,6 +60,20 @@ function PublicShowTvPage() {
     () => pickTvLiveItem(publicView, selectedArena, new Date()),
     [publicView, selectedArena]
   );
+  const standingsClass = useMemo(
+    () => pickTvStandingsClass(publicView, selectedArena, new Date()),
+    [publicView, selectedArena]
+  );
+  const standingsSlides = useMemo(
+    () =>
+      buildTvStandingsSlides(
+        standingsClass?.classStandings,
+        STANDINGS_ENTRIES_PER_SLIDE
+      ),
+    [standingsClass]
+  );
+  const visibleStandingsSlide =
+    standingsSlides[standingsSlideIndex % standingsSlides.length] || null;
   const upcomingScheduleItem = useMemo(
     () => pickTvUpcomingItem(publicView, selectedArena, new Date()),
     [publicView, selectedArena]
@@ -67,7 +86,9 @@ function PublicShowTvPage() {
         normalizeArenaName(selectedArena).toLowerCase()
   );
   const publicClassIdsKey = (publicView?.classIds || []).join("|");
-  const displayMode = isCompetitionDisplay
+  const displayMode = isStandingsDisplay
+    ? "standings"
+    : isCompetitionDisplay
     ? isCompetitionVideoReady
       ? "competition-video"
       : "competition-loading"
@@ -123,13 +144,18 @@ function PublicShowTvPage() {
       id: show.id,
       associationId: show.associationId || associationId,
       name: show.name || association?.name || "",
-      mode: isCompetitionDisplay ? "competition" : "general",
-      arena: isCompetitionDisplay ? selectedArena : "",
+      mode: isCompetitionDisplay
+        ? "competition"
+        : isStandingsDisplay
+          ? "standings"
+          : "general",
+      arena: isCompetitionDisplay || isStandingsDisplay ? selectedArena : "",
     });
   }, [
     association?.name,
     associationId,
     isCompetitionDisplay,
+    isStandingsDisplay,
     selectedArena,
     show?.associationId,
     show?.id,
@@ -147,6 +173,22 @@ function PublicShowTvPage() {
 
     return () => window.clearInterval(timer);
   }, [sponsorSlides.length]);
+
+  useEffect(() => {
+    setStandingsSlideIndex(0);
+  }, [standingsClass?.classId, standingsSlides.length]);
+
+  useEffect(() => {
+    if (!isStandingsDisplay || standingsSlides.length <= 1) return undefined;
+
+    const timer = window.setInterval(() => {
+      setStandingsSlideIndex(
+        (currentIndex) => (currentIndex + 1) % standingsSlides.length
+      );
+    }, STANDINGS_SLIDE_INTERVAL_MS);
+
+    return () => window.clearInterval(timer);
+  }, [isStandingsDisplay, standingsSlides.length]);
 
   return (
     <main
@@ -188,7 +230,15 @@ function PublicShowTvPage() {
         </header>
       ) : null}
 
-      {displayMode === "competition-video" ? (
+      {displayMode === "standings" ? (
+        <StandingsPanel
+          classView={standingsClass}
+          slide={visibleStandingsSlide}
+          slideIndex={standingsSlideIndex}
+          slideCount={standingsSlides.length}
+          selectedArena={selectedArena}
+        />
+      ) : displayMode === "competition-video" ? (
         <CompetitionVideoPanel
           videoUrl={tvVideoUrl}
           liveItem={liveItem}
@@ -608,6 +658,70 @@ function CompetitionScrollingText({
         {text}
       </span>
     </div>
+  );
+}
+
+function StandingsPanel({
+  classView,
+  slide,
+  slideIndex,
+  slideCount,
+  selectedArena,
+}) {
+  const entries = Array.isArray(slide?.entries) ? slide.entries : [];
+  const title = slide
+    ? [slide.classCode, slide.className].filter(Boolean).join(" — ")
+    : classView?.className || "Classements / Standings";
+
+  return (
+    <section style={standingsPanelStyle} data-tv-layout="standings">
+      <div style={standingsHeaderStyle}>
+        <div>
+          <div style={sectionKickerStyle}>
+            <BilingualText fr="Classement en direct" en="Live standings" />
+            {selectedArena ? ` · ${selectedArena}` : ""}
+          </div>
+          <h1 style={standingsTitleStyle}>{title}</h1>
+          {classView?.className && classView.className !== slide?.className ? (
+            <div style={standingsBlockStyle}>{classView.className}</div>
+          ) : null}
+        </div>
+        <div style={standingsProgressStyle}>
+          {slideCount > 0 ? `${(slideIndex % slideCount) + 1} / ${slideCount}` : "—"}
+        </div>
+      </div>
+
+      {entries.length ? (
+        <div style={standingsTableStyle} role="table">
+          <div style={standingsTableHeaderStyle} role="row">
+            <span>Pos.</span>
+            <span>Cavalier et cheval / Rider and horse</span>
+            <span>Dossard / Back</span>
+            <span>Score</span>
+          </div>
+          {entries.map((entry) => (
+            <div key={`${slide.id}-${entry.id}`} style={standingsRowStyle} role="row">
+              <strong style={standingsRankStyle}>{entry.rank || "—"}</strong>
+              <div style={standingsIdentityStyle}>
+                <strong>{entry.rider || "Cavalier / Rider"}</strong>
+                <span>{entry.horse || "—"}</span>
+              </div>
+              <span style={standingsBackStyle}>{entry.backNumber || "—"}</span>
+              <strong style={standingsScoreStyle}>{entry.scoreTotal || "—"}</strong>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={standingsEmptyStyle}>
+          <strong>Aucun pointage pour le moment.</strong>
+          <span>No scores yet.</span>
+        </div>
+      )}
+
+      <div style={standingsFooterStyle}>
+        Rotation automatique des classes et des pages · Automatic class and page rotation
+      </div>
+    </section>
   );
 }
 
@@ -1101,6 +1215,44 @@ export function pickTvLiveItem(publicView, arena = "", now = new Date()) {
   return null;
 }
 
+export function pickTvStandingsClass(publicView, arena = "", now = new Date()) {
+  const classes = filterByArena(publicView?.liveClasses, arena).filter(
+    (item) => isScheduledLiveViewCurrent(item, now)
+  );
+
+  return (
+    classes.find(
+      (item) => item.activeDragItem || item.dragBreak?.isActive || item.activeRun
+    ) ||
+    classes.find((item) => item.nextRun && item.classStandings?.length) ||
+    classes.find((item) => item.classStandings?.length) ||
+    classes[0] ||
+    null
+  );
+}
+
+export function buildTvStandingsSlides(groups, entriesPerSlide = 7) {
+  const pageSize = Math.max(1, Number.parseInt(entriesPerSlide, 10) || 7);
+
+  return (Array.isArray(groups) ? groups : []).flatMap((group, groupIndex) => {
+    const entries = Array.isArray(group?.entries) ? group.entries : [];
+    if (!entries.length) return [];
+
+    const slides = [];
+    for (let index = 0; index < entries.length; index += pageSize) {
+      slides.push({
+        id: `${group?.id || `standing-${groupIndex + 1}`}-page-${Math.floor(index / pageSize) + 1}`,
+        classCode: group?.classCode || group?.code || "",
+        className: group?.className || "Classe / Class",
+        page: Math.floor(index / pageSize) + 1,
+        pageCount: Math.ceil(entries.length / pageSize),
+        entries: entries.slice(index, index + pageSize),
+      });
+    }
+    return slides;
+  });
+}
+
 export function pickTvUpcomingItem(
   publicView,
   arena = "",
@@ -1433,6 +1585,116 @@ function getPublicShowcaseUrl(associationId, showId) {
 function normalizeArenaName(value) {
   return String(value || "").trim();
 }
+
+const standingsPanelStyle = {
+  minHeight: 0,
+  display: "grid",
+  gridTemplateRows: "auto minmax(0, 1fr) auto",
+  gap: "clamp(14px, 1.8vh, 24px)",
+  padding: "clamp(22px, 2.6vw, 44px)",
+  border: "1px solid rgba(148, 163, 184, 0.28)",
+  borderRadius: 22,
+  background:
+    "linear-gradient(145deg, rgba(15, 31, 48, 0.97), rgba(15, 23, 42, 0.95))",
+  boxShadow: "0 24px 70px rgba(0, 0, 0, 0.28)",
+  overflow: "hidden",
+};
+const standingsHeaderStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 24,
+};
+const standingsTitleStyle = {
+  margin: "8px 0 0",
+  color: "#fff",
+  fontSize: "clamp(34px, 3.4vw, 62px)",
+  lineHeight: 1,
+};
+const standingsBlockStyle = {
+  marginTop: 8,
+  color: "#cbd5e1",
+  fontSize: "clamp(15px, 1.2vw, 22px)",
+  fontWeight: 750,
+};
+const standingsProgressStyle = {
+  flex: "0 0 auto",
+  padding: "12px 17px",
+  border: "1px solid rgba(94, 234, 212, 0.4)",
+  borderRadius: 999,
+  color: "#ccfbf1",
+  background: "rgba(15, 118, 110, 0.24)",
+  fontSize: "clamp(16px, 1.25vw, 22px)",
+  fontWeight: 900,
+};
+const standingsTableStyle = {
+  minHeight: 0,
+  display: "grid",
+  gridTemplateRows: "auto repeat(7, minmax(0, 1fr))",
+  border: "1px solid rgba(148, 163, 184, 0.28)",
+  borderRadius: 16,
+  overflow: "hidden",
+};
+const standingsTableHeaderStyle = {
+  display: "grid",
+  gridTemplateColumns: "90px minmax(0, 1fr) 170px 170px",
+  alignItems: "center",
+  gap: 16,
+  padding: "11px 20px",
+  color: "#94a3b8",
+  background: "rgba(2, 6, 23, 0.72)",
+  fontSize: "clamp(12px, 0.95vw, 17px)",
+  fontWeight: 900,
+  letterSpacing: ".06em",
+  textTransform: "uppercase",
+};
+const standingsRowStyle = {
+  minHeight: 0,
+  display: "grid",
+  gridTemplateColumns: "90px minmax(0, 1fr) 170px 170px",
+  alignItems: "center",
+  gap: 16,
+  padding: "9px 20px",
+  borderTop: "1px solid rgba(148, 163, 184, 0.2)",
+  background: "rgba(15, 23, 42, 0.52)",
+};
+const standingsRankStyle = {
+  color: "#5eead4",
+  fontSize: "clamp(24px, 2vw, 38px)",
+  textAlign: "center",
+};
+const standingsIdentityStyle = {
+  minWidth: 0,
+  display: "grid",
+  gap: 3,
+  overflow: "hidden",
+  fontSize: "clamp(17px, 1.45vw, 28px)",
+};
+const standingsBackStyle = {
+  color: "#dbeafe",
+  fontSize: "clamp(18px, 1.45vw, 27px)",
+  fontWeight: 800,
+  textAlign: "center",
+};
+const standingsScoreStyle = {
+  color: "#fef3c7",
+  fontSize: "clamp(25px, 2.2vw, 42px)",
+  textAlign: "right",
+};
+const standingsEmptyStyle = {
+  display: "grid",
+  placeContent: "center",
+  gap: 12,
+  color: "#cbd5e1",
+  fontSize: "clamp(23px, 2.2vw, 40px)",
+  textAlign: "center",
+};
+const standingsFooterStyle = {
+  color: "#94a3b8",
+  fontSize: "clamp(12px, 1vw, 18px)",
+  fontWeight: 750,
+  textAlign: "center",
+};
 
 const pageStyle = {
   position: "fixed",

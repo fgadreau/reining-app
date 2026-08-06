@@ -103,6 +103,7 @@ import { normalizeLivestreamUrlsByDate } from "../livestream/livestreamSchedule"
 import {
   buildTvDisplayCompetitionShortCode,
   buildTvDisplayLivestreamShortCode,
+  buildTvDisplayStandingsShortCode,
   buildTvDisplayShortCode,
   normalizeTvDisplayShortCode,
 } from "../tvDisplay/tvDisplayShortCode";
@@ -1371,6 +1372,14 @@ function findShowByTvCode(shows, code) {
       matches.set(`${show.id}:livestream`, {
         ...show,
         tvDisplayMode: "livestream",
+        tvDisplayArena: "",
+      });
+    }
+
+    if (buildTvDisplayStandingsShortCode(show?.id) === code) {
+      matches.set(`${show.id}:standings`, {
+        ...show,
+        tvDisplayMode: "standings",
         tvDisplayArena: "",
       });
     }

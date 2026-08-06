@@ -63,9 +63,11 @@ import {
 import {
   buildTvDisplayCompetitionShortCode,
   buildTvDisplayLivestreamShortCode,
+  buildTvDisplayStandingsShortCode,
   buildTvDisplayShortCode,
   getTvDisplayCompetitionShortcutPath,
   getTvDisplayLivestreamShortcutPath,
+  getTvDisplayStandingsShortcutPath,
   getTvDisplayShortcutPath,
 } from "../../features/tvDisplay/tvDisplayShortCode";
 import ShowDayTabs, {
@@ -140,6 +142,8 @@ function ShowDetailPage() {
     buildTvDisplayCompetitionShortCode(showId);
   const livestreamTvDisplayShortCode =
     buildTvDisplayLivestreamShortCode(showId);
+  const standingsTvDisplayShortCode =
+    buildTvDisplayStandingsShortCode(showId);
   const competitionTvArena = normalizeArenaName(
     livestreamDraft.tvDisplayVideoArena
   );
@@ -796,6 +800,8 @@ function ShowDetailPage() {
         ? getAbsoluteTvDisplayCompetitionShortcutUrl(showId)
         : normalizedMode === "livestream"
           ? getAbsoluteTvDisplayLivestreamShortcutUrl(showId)
+          : normalizedMode === "standings"
+            ? getAbsoluteTvDisplayStandingsShortcutUrl(showId)
         : !normalizedArena && !normalizedMode
         ? getAbsoluteTvDisplayShortcutUrl(showId)
         : getAbsoluteTvDisplayUrl(
@@ -807,6 +813,8 @@ function ShowDetailPage() {
     const copyKey =
       normalizedMode === "livestream"
         ? "tv:livestream"
+        : normalizedMode === "standings"
+          ? "tv:standings"
         : `tv:${
             normalizedMode === "competition" ? "competition:" : ""
           }${getOverlayCopyKey(normalizedArena)}`;
@@ -1272,6 +1280,39 @@ function ShowDetailPage() {
                     {copiedOverlayKey === "tv:general"
                       ? t("common.linkCopied")
                       : t("management.shows.copyTvDisplayLink")}
+                  </button>
+                </div>
+
+                <div style={arenaOverlayRowStyle} data-tv-settings="standings">
+                  <span style={arenaOverlayNameStyle}>
+                    {t("management.shows.tvDisplayStandingsTitle")}
+                  </span>
+                  <span
+                    style={tvDisplayShortCodeStyle}
+                    data-tv-standings-short-code={standingsTvDisplayShortCode}
+                  >
+                    <span>
+                      {t("management.shows.tvDisplayShortCode")} ·{" "}
+                      <strong>{standingsTvDisplayShortCode}</strong>
+                    </span>
+                    <small>showscore.app/tv/{standingsTvDisplayShortCode}</small>
+                  </span>
+                  <Link
+                    to={getTvDisplayStandingsShortcutPath(showId)}
+                    style={linkButtonStyle}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {t("management.shows.openTvDisplayStandings")}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => copyTvDisplayLink("", "standings")}
+                    style={secondaryButtonStyle}
+                  >
+                    {copiedOverlayKey === "tv:standings"
+                      ? t("common.linkCopied")
+                      : t("management.shows.copyTvDisplayStandings")}
                   </button>
                 </div>
 
@@ -3156,6 +3197,16 @@ function getAbsoluteTvDisplayCompetitionShortcutUrl(showId) {
 
 function getAbsoluteTvDisplayLivestreamShortcutUrl(showId) {
   const path = getTvDisplayLivestreamShortcutPath(showId);
+  const origin =
+    typeof window === "undefined" || !window.location?.origin
+      ? ""
+      : window.location.origin;
+
+  return `${origin}${path}`;
+}
+
+function getAbsoluteTvDisplayStandingsShortcutUrl(showId) {
+  const path = getTvDisplayStandingsShortcutPath(showId);
   const origin =
     typeof window === "undefined" || !window.location?.origin
       ? ""
