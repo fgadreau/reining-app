@@ -14,7 +14,7 @@ import {
   getAssociationSponsorGroups,
 } from "../../features/associations/sponsorLogos";
 
-const SPONSOR_LOGOS_PER_SLIDE = 4;
+const SPONSOR_LOGOS_PER_SLIDE = 2;
 const SPONSOR_SLIDE_INTERVAL_MS = 8000;
 const OVERLAY_DEMO_QUERY_PARAM = "demo";
 const DEMO_OVERLAY_CLASS_ID = "overlay-demo-open-derby";
@@ -178,14 +178,12 @@ function PublicShowOverlayPage() {
               visibleSponsorLogos.length
             )}
           >
-            {visibleSponsorLogos.map((sponsor, index) => (
+            {visibleSponsorLogos.map((sponsor) => (
               <div
                 key={sponsor.id}
                 style={sponsorTileStyle(
                   isCompactOverlay,
-                  isSponsorTakeover,
-                  index,
-                  visibleSponsorLogos.length
+                  isSponsorTakeover
                 )}
               >
                 <img
@@ -696,7 +694,7 @@ const sponsorRailStyle = (isCompact, isTakeover) => ({
   right: isTakeover ? 0 : isCompact ? "auto" : 32,
   bottom: isTakeover ? 0 : isCompact ? "auto" : 158,
   left: isTakeover ? 0 : "auto",
-  width: isTakeover ? "100%" : isCompact ? "100%" : "clamp(150px, 11vw, 228px)",
+  width: isTakeover ? "100%" : isCompact ? "100%" : "clamp(220px, 16vw, 340px)",
   height: isTakeover ? "100%" : "auto",
   borderRadius: isTakeover ? 0 : 8,
   background:
@@ -748,22 +746,21 @@ const sponsorListStyle = (isCompact, isTakeover, sponsorCount) => ({
       ? "repeat(auto-fit, minmax(94px, 1fr))"
       : undefined,
   gridTemplateRows:
-    isTakeover && sponsorCount > 2
-      ? "repeat(2, minmax(0, 1fr))"
-      : undefined,
+    isTakeover
+      ? undefined
+      : isCompact
+        ? undefined
+        : `repeat(${Math.max(sponsorCount, 1)}, minmax(0, 1fr))`,
   gap: isTakeover ? "clamp(16px, 2.2vw, 34px)" : isCompact ? 8 : 10,
-  alignContent: isTakeover ? "stretch" : "start",
+  alignContent: isTakeover || !isCompact ? "stretch" : "start",
 });
 
 const sponsorTileStyle = (
   isCompact,
-  isTakeover,
-  sponsorIndex,
-  sponsorCount
+  isTakeover
 ) => ({
-  minHeight: isTakeover ? 0 : isCompact ? 72 : "clamp(58px, 6vh, 104px)",
-  gridColumn:
-    isTakeover && sponsorCount === 3 && sponsorIndex === 2 ? "1 / -1" : "auto",
+  minHeight: isTakeover ? 0 : isCompact ? 82 : "clamp(130px, 19vh, 210px)",
+  gridColumn: "auto",
   borderRadius: 8,
   background:
     "linear-gradient(145deg, rgba(255,255,255,0.98), rgba(242,238,229,0.94))",
@@ -776,8 +773,8 @@ const sponsorTileStyle = (
 });
 
 const sponsorImageStyle = (isCompact, isTakeover) => ({
-  maxWidth: isTakeover ? "88%" : "100%",
-  maxHeight: isTakeover ? "82%" : isCompact ? 54 : "clamp(44px, 5vh, 84px)",
+  maxWidth: isTakeover ? "90%" : isCompact ? "100%" : "92%",
+  maxHeight: isTakeover ? "86%" : isCompact ? 64 : "clamp(110px, 17vh, 190px)",
   objectFit: "contain",
 });
 
@@ -787,7 +784,7 @@ const bottomBarStyle = (hasSponsorRail, isCompact, isNeutral = false) => ({
   right: isCompact
     ? "auto"
     : hasSponsorRail
-      ? "calc(clamp(150px, 11vw, 228px) + 72px)"
+      ? "calc(clamp(220px, 16vw, 340px) + 72px)"
       : 32,
   bottom: isCompact ? "auto" : 28,
   width: isCompact ? "100%" : "auto",

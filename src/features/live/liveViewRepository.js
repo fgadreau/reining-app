@@ -149,11 +149,13 @@ export async function getAnnouncerShowViewRepository(showId) {
 export function subscribeAnnouncerShowViewRepository(
   showId,
   classIds,
-  onChange
+  onChange,
+  onStatusChange
 ) {
   const supabase = getSupabaseClient();
 
   if (!supabase || typeof onChange !== "function") {
+    onStatusChange?.("LOCAL");
     return () => {};
   }
 
@@ -223,6 +225,7 @@ export function subscribeAnnouncerShowViewRepository(
   });
 
   channel.subscribe((status) => {
+    onStatusChange?.(status);
     if (status === "CHANNEL_ERROR") {
       console.error("Erreur abonnement temps réel annonceur Supabase.");
     }

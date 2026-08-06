@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ShowScore Local Relay</title>
+    <link rel="stylesheet" href="/status.css" />
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">Réseau local</p>
+      <h1>ShowScore Local Relay</h1>
+      <p>Le relais doit rester ouvert pendant le show. Le code de jumelage est affiché dans le terminal Linux.</p>
+      <section class="grid">
+        <article><span>ShowScore</span><strong id="producer">—</strong></article>
+        <article><span>OBS connectés</span><strong id="overlay-viewers">0</strong></article>
+        <article><span>TV connectées</span><strong id="tv-viewers">0</strong></article>
+        <article><span>Dernière mise à jour</span><strong id="updated">—</strong></article>
+      </section>
+      <h2>Adresses OBS</h2>
+      <div id="urls" class="urls"></div>
+      <h2>Adresses TV locales</h2>
+      <div id="tv-urls" class="urls"></div>
+    </main>
+    <script src="/status.js"></script>
+  </body>
+</html>

@@ -40,6 +40,11 @@ export function buildTvDisplayLivestreamShortCode(showId) {
   return source ? buildTvDisplayShortCode(`livestream:${source}`) : "";
 }
 
+export function buildTvDisplayStandingsShortCode(showId) {
+  const source = String(showId || "").trim();
+  return source ? buildTvDisplayShortCode(`standings:${source}`) : "";
+}
+
 export function getTvDisplayShortcutPath(showId) {
   const code = buildTvDisplayShortCode(showId);
   return code ? `/tv/${code}` : "/tv";
@@ -55,6 +60,11 @@ export function getTvDisplayLivestreamShortcutPath(showId) {
   return code ? `/tv/${code}` : "/tv";
 }
 
+export function getTvDisplayStandingsShortcutPath(showId) {
+  const code = buildTvDisplayStandingsShortCode(showId);
+  return code ? `/tv/${code}` : "/tv";
+}
+
 export function rememberTvDisplayShortcut(show) {
   if (typeof localStorage === "undefined") return;
 
@@ -65,7 +75,7 @@ export function rememberTvDisplayShortcut(show) {
   const requestedMode = String(show?.mode || show?.tvDisplayMode || "")
     .trim()
     .toLowerCase();
-  const mode = ["competition", "livestream"].includes(requestedMode)
+  const mode = ["competition", "livestream", "standings"].includes(requestedMode)
     ? requestedMode
     : "general";
   const arena = String(
@@ -77,6 +87,8 @@ export function rememberTvDisplayShortcut(show) {
       ? buildTvDisplayCompetitionShortCode(showId)
       : mode === "livestream"
         ? buildTvDisplayLivestreamShortCode(showId)
+        : mode === "standings"
+          ? buildTvDisplayStandingsShortCode(showId)
         : buildTvDisplayShortCode(showId));
 
   if (!showId || !associationId || !code) return;
@@ -107,7 +119,7 @@ export function getRememberedTvDisplayShortcut() {
     const showId = String(parsed?.showId || "").trim();
     const associationId = String(parsed?.associationId || "").trim();
     const requestedMode = String(parsed?.mode || "").trim().toLowerCase();
-    const mode = ["competition", "livestream"].includes(requestedMode)
+    const mode = ["competition", "livestream", "standings"].includes(requestedMode)
       ? requestedMode
       : "general";
 

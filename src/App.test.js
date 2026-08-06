@@ -149,6 +149,7 @@ import {
 } from "./features/scoring/scoringTestMode";
 import { canOpenClassForScribe } from "./pages/association/ShowScribePage";
 import {
+  buildTvStandingsSlides,
   buildTvUpcomingCards,
   pickTvLiveItem,
   pickTvUpcomingItem,
@@ -166,9 +167,11 @@ import {
 import {
   buildTvDisplayCompetitionShortCode,
   buildTvDisplayLivestreamShortCode,
+  buildTvDisplayStandingsShortCode,
   buildTvDisplayShortCode,
   getTvDisplayCompetitionShortcutPath,
   getTvDisplayLivestreamShortcutPath,
+  getTvDisplayStandingsShortcutPath,
   getTvDisplayShortcutPath,
   normalizeTvDisplayShortCode,
 } from "./features/tvDisplay/tvDisplayShortCode";
@@ -430,18 +433,24 @@ test("builds a permanent six-character shortcut for a TV display", () => {
   );
   const competitionCode = buildTvDisplayCompetitionShortCode(showId);
   const livestreamCode = buildTvDisplayLivestreamShortCode(showId);
+  const standingsCode = buildTvDisplayStandingsShortCode(showId);
 
   expect(code).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
   expect(competitionCode).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
   expect(livestreamCode).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
+  expect(standingsCode).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
   expect(competitionCode).not.toBe(code);
   expect(livestreamCode).not.toBe(code);
   expect(livestreamCode).not.toBe(competitionCode);
+  expect(standingsCode).not.toBe(code);
+  expect(standingsCode).not.toBe(competitionCode);
+  expect(standingsCode).not.toBe(livestreamCode);
   expect(
     buildTvDisplayShortCode(showId)
   ).toBe(code);
   expect(buildTvDisplayCompetitionShortCode(showId)).toBe(competitionCode);
   expect(buildTvDisplayLivestreamShortCode(showId)).toBe(livestreamCode);
+  expect(buildTvDisplayStandingsShortCode(showId)).toBe(standingsCode);
   expect(
     buildTvDisplayShortCode("04b478f9-d90c-4589-8466-d3b25ea865df")
   ).not.toBe(code);
@@ -454,6 +463,9 @@ test("builds a permanent six-character shortcut for a TV display", () => {
   );
   expect(getTvDisplayLivestreamShortcutPath(showId)).toBe(
     `/tv/${livestreamCode}`
+  );
+  expect(getTvDisplayStandingsShortcutPath(showId)).toBe(
+    `/tv/${standingsCode}`
   );
 });
 
@@ -473,6 +485,47 @@ test("resolves the livestream TV code to the public livestream mode", async () =
 
   expect(target?.id).toBe("show-1");
   expect(target?.tvDisplayMode).toBe("livestream");
+});
+
+test("resolves the standings TV code to the rotating standings mode", async () => {
+  const target = await getPublicShowByTvCodeRepository(
+    buildTvDisplayStandingsShortCode("show-1")
+  );
+
+  expect(target?.id).toBe("show-1");
+  expect(target?.tvDisplayMode).toBe("standings");
+});
+
+test("paginates every class standing in display order", () => {
+  const slides = buildTvStandingsSlides(
+    [
+      {
+        id: "open",
+        classCode: "OPEN",
+        className: "Open",
+        entries: Array.from({ length: 9 }, (_, index) => ({
+          id: `open-${index + 1}`,
+          rank: index + 1,
+          rider: `Rider ${index + 1}`,
+          scoreTotal: String(75 - index),
+        })),
+      },
+      {
+        id: "np",
+        classCode: "NP",
+        className: "Non Pro",
+        entries: [{ id: "np-1", rank: 1, rider: "Leader", scoreTotal: "72" }],
+      },
+    ],
+    7
+  );
+
+  expect(slides).toHaveLength(3);
+  expect(slides.map((slide) => [slide.classCode, slide.entries.length])).toEqual([
+    ["OPEN", 7],
+    ["OPEN", 2],
+    ["NP", 1],
+  ]);
 });
 
 test("holds the TV livestream until five minutes are buffered", () => {

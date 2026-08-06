@@ -43,7 +43,7 @@ function PublicTvShortcutPage() {
       const requestedDisplayMode = String(show?.tvDisplayMode || "")
         .trim()
         .toLowerCase();
-      const displayMode = ["competition", "livestream"].includes(
+      const displayMode = ["competition", "livestream", "standings"].includes(
         requestedDisplayMode
       )
         ? requestedDisplayMode
@@ -77,6 +77,8 @@ function PublicTvShortcutPage() {
       if (displayMode === "competition") {
         params.set("mode", "competition");
         if (displayArena) params.set("arena", displayArena);
+      } else if (displayMode === "standings") {
+        params.set("mode", "standings");
       }
       const query = params.toString();
       navigate(query ? `${displayPath}?${query}` : displayPath, {
