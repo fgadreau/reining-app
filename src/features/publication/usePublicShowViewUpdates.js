@@ -5,7 +5,7 @@ import {
   subscribePublicShowViewRepository,
 } from "./publicViewRepository";
 
-const DEFAULT_FALLBACK_REFRESH_MS = 5 * 60_000;
+const DEFAULT_FALLBACK_REFRESH_MS = 10 * 60_000;
 const LOCAL_FALLBACK_REFRESH_MS = 5_000;
 const DISCONNECTED_FALLBACK_REFRESH_MS = 5_000;
 const MAX_DISCONNECTED_FALLBACK_REFRESH_MS = 60_000;
