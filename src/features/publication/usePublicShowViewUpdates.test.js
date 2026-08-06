@@ -1,71 +1,1 @@
-import { expect, test, vi } from "vitest";
-import { createRefreshCoordinator } from "./usePublicShowViewUpdates";
-
-function createDeferred() {
-  let resolve;
-  const promise = new Promise((nextResolve) => {
-    resolve = nextResolve;
-  });
-
-  return { promise, resolve };
-}
-
-test("serializes refreshes and keeps only one trailing refresh", async () => {
-  const first = createDeferred();
-  const second = createDeferred();
-  const loads = [first, second];
-  let activeLoadCount = 0;
-  let maxActiveLoadCount = 0;
-  const load = vi.fn(async () => {
-    const deferred = loads[load.mock.calls.length - 1];
-    activeLoadCount += 1;
-    maxActiveLoadCount = Math.max(maxActiveLoadCount, activeLoadCount);
-    const value = await deferred.promise;
-    activeLoadCount -= 1;
-    return value;
-  });
-  const onData = vi.fn();
-  const onError = vi.fn();
-  const coordinator = createRefreshCoordinator({ load, onData, onError });
-
-  const activeRefresh = coordinator.run();
-  coordinator.run();
-  coordinator.run();
-
-  await Promise.resolve();
-  expect(load).toHaveBeenCalledTimes(1);
-
-  first.resolve("first");
-  await activeRefresh;
-  await vi.waitFor(() => {
-    expect(load).toHaveBeenCalledTimes(2);
-  });
-
-  second.resolve("second");
-  await vi.waitFor(() => {
-    expect(onData).toHaveBeenCalledTimes(2);
-  });
-
-  expect(maxActiveLoadCount).toBe(1);
-  expect(onData).toHaveBeenNthCalledWith(1, "first");
-  expect(onData).toHaveBeenNthCalledWith(2, "second");
-  expect(onError).not.toHaveBeenCalled();
-});
-
-test("does not publish data or run a queued refresh after stop", async () => {
-  const deferred = createDeferred();
-  const load = vi.fn(() => deferred.promise);
-  const onData = vi.fn();
-  const onError = vi.fn();
-  const coordinator = createRefreshCoordinator({ load, onData, onError });
-
-  const activeRefresh = coordinator.run();
-  coordinator.run();
-  coordinator.stop();
-  deferred.resolve("ignored");
-  await activeRefresh;
-
-  expect(load).toHaveBeenCalledTimes(1);
-  expect(onData).not.toHaveBeenCalled();
-  expect(onError).not.toHaveBeenCalled();
-});
+¨¥yÛhr‰çyËm¡»¬:—«jØ¨žz-¥êæŠÛ^u¥µÁ½ÉÐì•áÁ•Ð°Ñ•ÍÐ°Ù¤ô™É½´€‰Ù¥Ñ•ÍÐˆì)¥µÁ½ÉÐì(€É•…Ñ•I•™É•Í¡½½É‘¥¹…Ñ½È°(€•Ñ…±±‰…­I•™É•Í¡•±…ä°)ô™É½´€ˆ¸½ÕÍ•AÕ‰±¥M¡½ÝY¥•ÝUÁ‘…Ñ•Ìˆì()™Õ¹Ñ¥½¸É•…Ñ••™•ÉÉ• ¤ì(€±•ÐÉ•Í½±Ù”ì(€½¹ÍÐÁÉ½µ¥Í”€ô¹•ÜAÉ½µ¥Í” ¡¹•áÑI•Í½±Ù”¤€ôøì(€€€É•Í½±Ù”€ô¹•áÑI•Í½±Ù”ì(€ô¤ì((€É•ÑÕÉ¸ìÁÉ½µ¥Í”°É•Í½±Ù”ôì)ô()Ñ•ÍÐ ‰Í•É¥…±¥é•ÌÉ•™É•Í¡•Ì…¹­••ÁÌ½¹±ä½¹”ÑÉ…¥±¥¹œÉ•™É•Í ˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐ™¥ÉÍÐ€ôÉ•…Ñ••™•ÉÉ• ¤ì(€½¹ÍÐÍ•½¹€ôÉ•…Ñ••™•ÉÉ• ¤ì(€½¹ÍÐ±½…‘Ì€ôm™¥ÉÍÐ°Í•½¹‘tì(€±•Ð…Ñ¥Ù•1½…‘½Õ¹Ð€ô€Àì(€±•Ðµ…áÑ¥Ù•1½…‘½Õ¹Ð€ô€Àì(€½¹ÍÐ±½…€ôÙ¤¹™¸¡…Íå¹Œ€ ¤€ôøì(€€€½¹ÍÐ‘•™•ÉÉ•€ô±½…‘Ím±½…¹µ½¬¹…±±Ì¹±•¹Ñ €´€Åtì(€€€…Ñ¥Ù•1½…‘½Õ¹Ð€¬ô€Äì(€€€µ…áÑ¥Ù•1½…‘½Õ¹Ð€ô5…Ñ ¹µ…à¡µ…áÑ¥Ù•1½…‘½Õ¹Ð°…Ñ¥Ù•1½…‘½Õ¹Ð¤ì(€€€½¹ÍÐÙ…±Õ”€ô…Ý…¥Ð‘•™•ÉÉ•¹ÁÉ½µ¥Í”ì(€€€…Ñ¥Ù•1½…‘½Õ¹Ð€´ô€Äì(€€€É•ÑÕÉ¸Ù…±Õ”ì(€ô¤ì(€½¹ÍÐ½¹…Ñ„€ôÙ¤¹™¸ ¤ì(€½¹ÍÐ½¹ÉÉ½È€ôÙ¤¹™¸ ¤ì(€½¹ÍÐ½½É‘¥¹…Ñ½È€ôÉ•…Ñ•I•™É•Í¡½½É‘¥¹…Ñ½È¡ì±½…°½¹…Ñ„°½¹ÉÉ½Èô¤ì((€½¹ÍÐ…Ñ¥Ù•I•™É•Í €ô½½É‘¥¹…Ñ½È¹ÉÕ¸ ¤ì(€½½É‘¥¹…Ñ½È¹ÉÕ¸ ¤ì(€½½É‘¥¹…Ñ½È¹ÉÕ¸ ¤ì((€…Ý…¥ÐAÉ½µ¥Í”¹É•Í½±Ù” ¤ì(€•áÁ•Ð¡±½…¤¹Ñ½!…Ù•	••¹…±±•‘Q¥µ•Ì Ä¤ì((€™¥ÉÍÐ¹É•Í½±Ù” ‰™¥ÉÍÐˆ¤ì(€…Ý…¥Ð…Ñ¥Ù•I•™É•Í ì(€…Ý…¥ÐÙ¤¹Ý…¥Ñ½È  ¤€ôøì(€€€•áÁ•Ð¡±½…¤¹Ñ½!…Ù•	••¹…±±•‘Q¥µ•Ì È¤ì(€ô¤ì((€Í•½¹¹É•Í½±Ù” ‰Í•½¹ˆ¤ì(€…Ý…¥ÐÙ¤¹Ý…¥Ñ½È  ¤€ôøì(€€€•áÁ•Ð¡½¹…Ñ„¤¹Ñ½!…Ù•	••¹…±±•‘Q¥µ•Ì È¤ì(€ô¤ì((€•áÁ•Ð¡µ…áÑ¥Ù•1½…‘½Õ¹Ð¤¹Ñ½	” Ä¤ì(€•áÁ•Ð¡½¹…Ñ„¤¹Ñ½!…Ù•	••¹9Ñ¡…±±•‘]¥Ñ  Ä°€‰™¥ÉÍÐˆ¤ì(€•áÁ•Ð¡½¹…Ñ„¤¹Ñ½!…Ù•	••¹9Ñ¡…±±•‘]¥Ñ  È°€‰Í•½¹ˆ¤ì(€•áÁ•Ð¡½¹ÉÉ½È¤¹¹½Ð¹Ñ½!…Ù•	••¹…±±• ¤ì)ô¤ì()Ñ•ÍÐ ‰‘½•Ì¹½ÐÁÕ‰±¥Í ‘…Ñ„½ÈÉÕ¸„ÅÕ•Õ•É•™É•Í …™Ñ•ÈÍÑ½Àˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐ‘•™•ÉÉ•€ôÉ•…Ñ••™•ÉÉ• ¤ì(€½¹ÍÐ±½…€ôÙ¤¹™¸  ¤€ôø‘•™•ÉÉ•¹ÁÉ½µ¥Í”¤ì(€½¹ÍÐ½¹…Ñ„€ôÙ¤¹™¸ ¤ì(€½¹ÍÐ½¹ÉÉ½È€ôÙ¤¹™¸ ¤ì(€½¹ÍÐ½½É‘¥¹…Ñ½È€ôÉ•…Ñ•I•™É•Í¡½½É‘¥¹…Ñ½È¡ì±½…°½¹…Ñ„°½¹ÉÉ½Èô¤ì((€½¹ÍÐ…Ñ¥Ù•I•™É•Í €ô½½É‘¥¹…Ñ½È¹ÉÕ¸ ¤ì(€½½É‘¥¹…Ñ½È¹ÉÕ¸ ¤ì(€½½É‘¥¹…Ñ½È¹ÍÑ½À ¤ì(€‘•™•ÉÉ•¹É•Í½±Ù” ‰¥¹½É•ˆ¤ì(€…Ý…¥Ð…Ñ¥Ù•I•™É•Í ì((€•áÁ•Ð¡±½…¤¹Ñ½!…Ù•	••¹…±±•‘Q¥µ•Ì Ä¤ì(€•áÁ•Ð¡½¹…Ñ„¤¹¹½Ð¹Ñ½!…Ù•	••¹…±±• ¤ì(€•áÁ•Ð¡½¹ÉÉ½È¤¹¹½Ð¹Ñ½!…Ù•	••¹…±±• ¤ì)ô¤ì()Ñ•ÍÐ ‰­••ÁÌÑ¡”¡•…±Ñ¡äÉ•…±Ñ¥µ”Í…™•ÑäÉ•™É•Í ÍÁ…ÉÍ”…¹©¥ÑÑ•É•ˆ°€ ¤€ôøì(€•áÁ•Ð (€€€•Ñ…±±‰…­I•™É•Í¡•±…ä¡ì(€€€€€™…±±‰…­I•™É•Í¡5Ìè€ÌÀÁ|ÀÀÀ°(€€€€€¡…ÍI•…±Ñ¥µ”èÑÉÕ”°(€€€€€¥ÍI•…±Ñ¥µ•MÕ‰ÍÉ¥‰•èÑÉÕ”°(€€€€€É…¹‘½´è€ ¤€ôø€À°(€€€ô¤(€€¤¹Ñ½	” ÈÐÁ|ÀÀÀ¤ì(€•áÁ•Ð (€€€•Ñ…±±‰…­I•™É•Í¡•±…ä¡ì(€€€€€™…±±‰…­I•™É•Í¡5Ìè€ÌÀÁ|ÀÀÀ°(€€€€€¡…ÍI•…±Ñ¥µ”èÑÉÕ”°(€€€€€¥ÍI•…±Ñ¥µ•MÕ‰ÍÉ¥‰•èÑÉÕ”°(€€€€€É…¹‘½´è€ ¤€ôø€Ä°(€€€ô¤(€€¤¹Ñ½	” ÌØÁ|ÀÀÀ¤ì)ô¤ì()Ñ•ÍÐ ‰‰…­Ì½™˜‘¥Í½¹¹•Ñ•™…±±‰…¬É•…‘Ì…¹­••ÁÌ±½…°µ½‘”É•ÍÁ½¹Í¥Ù”ˆ°€ ¤€ôøì(€•áÁ•Ð (€€€•Ñ…±±‰…­I•™É•Í¡•±…ä¡ì(€€€€€¡…ÍI•…±Ñ¥µ”èÑÉÕ”°(€€€€€¥ÍI•…±Ñ¥µ•MÕ‰ÍÉ¥‰•è™…±Í”°(€€€€€É•½¹¹•ÑÑÑ•µÁÐè€Ä°(€€€€€É…¹‘½´è€ ¤€ôø€À¸Ô°(€€€ô¤(€€¤¹Ñ½	” Õ|ÀÀÀ¤ì(€•áÁ•Ð (€€€•Ñ…±±‰…­I•™É•Í¡•±…ä¡ì(€€€€€¡…ÍI•…±Ñ¥µ”èÑÉÕ”°(€€€€€¥ÍI•…±Ñ¥µ•MÕ‰ÍÉ¥‰•è™…±Í”°(€€€€€É•½¹¹•ÑÑÑ•µÁÐè€Ô°(€€€€€É…¹‘½´è€ ¤€ôø€À¸Ô°(€€€ô¤(€€¤¹Ñ½	” ØÁ|ÀÀÀ¤ì(€•áÁ•Ð (€€€•Ñ…±±‰…­I•™É•Í¡•±…ä¡ì(€€€€€¡…ÍI•…±Ñ¥µ”è™…±Í”°(€€€€€É•½¹¹•ÑÑÑ•µÁÐè€ÄÀ°(€€€€€É…¹‘½´è€ ¤€ôø€Ä°(€€€ô¤(€€¤¹Ñ½	” Õ|ÀÀÀ¤ì)ô¤ì(

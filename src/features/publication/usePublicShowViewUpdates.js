@@ -1,153 +1,1 @@
-import { useEffect, useRef } from "react";
-import { getSupabaseClient } from "../cloud/supabaseClient";
-import { subscribePublicShowViewRepository } from "./publicViewRepository";
-
-const DEFAULT_FALLBACK_REFRESH_MS = 30_000;
-const LOCAL_FALLBACK_REFRESH_MS = 5_000;
-const REALTIME_REFRESH_DEBOUNCE_MS = 300;
-
-export function createRefreshCoordinator({ load, onData, onError }) {
-  let activePromise = null;
-  let isQueued = false;
-  let isStopped = false;
-
-  const run = () => {
-    if (isStopped) {
-      return Promise.resolve(null);
-    }
-
-    if (activePromise) {
-      isQueued = true;
-      return activePromise;
-    }
-
-    activePromise = Promise.resolve()
-      .then(load)
-      .then((data) => {
-        if (!isStopped) {
-          onData(data);
-        }
-        return data;
-      })
-      .catch((error) => {
-        if (!isStopped) {
-          onError(error);
-        }
-        return null;
-      })
-      .finally(() => {
-        activePromise = null;
-
-        if (!isStopped && isQueued) {
-          isQueued = false;
-          void run();
-        }
-      });
-
-    return activePromise;
-  };
-
-  return {
-    run,
-    stop() {
-      isStopped = true;
-      isQueued = false;
-    },
-  };
-}
-
-export function usePublicShowViewUpdates({
-  showId,
-  classIds,
-  load,
-  onData,
-  onDisplayRefreshStateChange,
-  enabled = true,
-  fallbackRefreshMs = DEFAULT_FALLBACK_REFRESH_MS,
-}) {
-  const loadRef = useRef(load);
-  const onDataRef = useRef(onData);
-  const onDisplayRefreshStateChangeRef = useRef(onDisplayRefreshStateChange);
-  const classIdsKey = Array.from(
-    new Set((Array.isArray(classIds) ? classIds : []).filter(Boolean))
-  ).join("|");
-
-  useEffect(() => {
-    loadRef.current = load;
-  }, [load]);
-
-  useEffect(() => {
-    onDataRef.current = onData;
-  }, [onData]);
-
-  useEffect(() => {
-    onDisplayRefreshStateChangeRef.current = onDisplayRefreshStateChange;
-  }, [onDisplayRefreshStateChange]);
-
-  useEffect(() => {
-    if (!enabled || !showId) {
-      return undefined;
-    }
-
-    let realtimeRefreshTimer = null;
-    let isEffectActive = true;
-    let displayRefreshCount = 0;
-    const coordinator = createRefreshCoordinator({
-      load: () => loadRef.current(),
-      onData: (data) => onDataRef.current(data),
-      onError: (error) => {
-        console.error("Erreur actualisation vue publique:", error);
-      },
-    });
-
-    const requestRealtimeRefresh = () => {
-      window.clearTimeout(realtimeRefreshTimer);
-      realtimeRefreshTimer = window.setTimeout(() => {
-        void coordinator.run();
-      }, REALTIME_REFRESH_DEBOUNCE_MS);
-    };
-
-    const unsubscribe = subscribePublicShowViewRepository(
-      showId,
-      classIdsKey ? classIdsKey.split("|") : [],
-      requestRealtimeRefresh
-    );
-    const effectiveFallbackRefreshMs = getSupabaseClient()
-      ? fallbackRefreshMs
-      : LOCAL_FALLBACK_REFRESH_MS;
-    const refreshTimer = window.setInterval(() => {
-      if (document.visibilityState === "hidden") {
-        return;
-      }
-
-      void coordinator.run();
-    }, effectiveFallbackRefreshMs);
-    const refreshWhenDisplayReturns = () => {
-      if (document.visibilityState === "hidden") return;
-
-      displayRefreshCount += 1;
-      onDisplayRefreshStateChangeRef.current?.(true);
-      void coordinator.run().finally(() => {
-        displayRefreshCount = Math.max(displayRefreshCount - 1, 0);
-        if (isEffectActive && displayRefreshCount === 0) {
-          onDisplayRefreshStateChangeRef.current?.(false);
-        }
-      });
-    };
-
-    window.addEventListener("focus", refreshWhenDisplayReturns);
-    window.addEventListener("online", refreshWhenDisplayReturns);
-    document.addEventListener("visibilitychange", refreshWhenDisplayReturns);
-
-    return () => {
-      isEffectActive = false;
-      window.clearTimeout(realtimeRefreshTimer);
-      window.clearInterval(refreshTimer);
-      window.removeEventListener("focus", refreshWhenDisplayReturns);
-      window.removeEventListener("online", refreshWhenDisplayReturns);
-      document.removeEventListener("visibilitychange", refreshWhenDisplayReturns);
-      coordinator.stop();
-      unsubscribe();
-    };
-  }, [classIdsKey, enabled, fallbackRefreshMs, showId]);
-}
+¨¥yÛhr‰çyËm¡»¬:—«jØ¨z-¥êæŠÛ^u¥µÁ½ÉĞìÕÍ•™™•Ğ°ÕÍ•I•˜ô™É½´€‰É•…Ğˆì)¥µÁ½ÉĞì•ÑMÕÁ…‰…Í•±¥•¹Ğô™É½´€ˆ¸¸½±½Õ½ÍÕÁ…‰…Í•±¥•¹Ğˆì)¥µÁ½ÉĞìÍÕ‰ÍÉ¥‰•AÕ‰±¥M¡½İY¥•İI•Á½Í¥Ñ½Éäô™É½´€ˆ¸½ÁÕ‰±¥Y¥•İI•Á½Í¥Ñ½Éäˆì()½¹ÍĞU1Q}11	-}IIM!}5L€ô€Ô€¨€ØÁ|ÀÀÀì)½¹ÍĞ1=1}11	-}IIM!}5L€ô€Õ|ÀÀÀì)½¹ÍĞ%M=99Q}11	-}IIM!}5L€ô€Õ|ÀÀÀì)½¹ÍĞ5a}%M=99Q}11	-}IIM!}5L€ô€ØÁ|ÀÀÀì)½¹ÍĞ11	-})%QQI}IQ%<€ô€À¸Èì)½¹ÍĞI1Q%5}IIM!}	=U9}5L€ô€ÌÀÀì()•áÁ½ÉĞ™Õ¹Ñ¥½¸•Ñ…±±‰…­I•™É•Í¡•±…ä¡ì(€™…±±‰…­I•™É•Í¡5Ì€ôU1Q}11	-}IIM!}5L°(€¡…ÍI•…±Ñ¥µ”€ôÑÉÕ”°(€¥ÍI•…±Ñ¥µ•MÕ‰ÍÉ¥‰•€ô™…±Í”°(€É•½¹¹•ÑÑÑ•µÁĞ€ô€À°(€É…¹‘½´€ô5…Ñ ¹É…¹‘½´°)ô¤ì(€¥˜€ …¡…ÍI•…±Ñ¥µ”¤É•ÑÕÉ¸1=1}11	-}IIM!}5Lì((€½¹ÍĞ‰…Í••±…ä€ô¥ÍI•…±Ñ¥µ•MÕ‰ÍÉ¥‰•(€€€€ü™…±±‰…­I•™É•Í¡5Ì(€€€€è5…Ñ ¹µ¥¸ (€€€€€€€%M=99Q}11	-}IIM!}5L€¨€È€¨¨5…Ñ ¹µ…à¡É•½¹¹•ÑÑÑ•µÁĞ€´€Ä°€À¤°(€€€€€€€5a}%M=99Q}11	-}IIM!}5L(€€€€€€¤ì(€½¹ÍĞ‰½Õ¹‘•‘I…¹‘½´€ô5…Ñ ¹µ¥¸¡5…Ñ ¹µ…à¡9Õµ‰•È¡É…¹‘½´ ¤¤ñğ€À°€À¤°€Ä¤ì(€½¹ÍĞ©¥ÑÑ•É5Õ±Ñ¥Á±¥•È€ô(€€€€Ä€´11	-})%QQI}IQ%<€¬‰½Õ¹‘•‘I…¹‘½´€¨11	-})%QQI}IQ%<€¨€Èì((€É•ÑÕÉ¸5…Ñ ¹É½Õ¹¡‰…Í••±…ä€¨©¥ÑÑ•É5Õ±Ñ¥Á±¥•È¤ì)ô()•áÁ½ÉĞ™Õ¹Ñ¥½¸É•…Ñ•I•™É•Í¡½½É‘¥¹…Ñ½È¡ì±½…°½¹…Ñ„°½¹ÉÉ½Èô¤ì(€±•Ğ…Ñ¥Ù•AÉ½µ¥Í”€ô¹Õ±°ì(€±•Ğ¥ÍEÕ•Õ•€ô™…±Í”ì(€±•Ğ¥ÍMÑ½ÁÁ•€ô™…±Í”ì((€½¹ÍĞÉÕ¸€ô€ ¤€ôøì(€€€¥˜€¡¥ÍMÑ½ÁÁ•¤ì(€€€€€É•ÑÕÉ¸AÉ½µ¥Í”¹É•Í½±Ù”¡¹Õ±°¤ì(€€€ô((€€€¥˜€¡…Ñ¥Ù•AÉ½µ¥Í”¤ì(€€€€€¥ÍEÕ•Õ•€ôÑÉÕ”ì(€€€€€É•ÑÕÉ¸…Ñ¥Ù•AÉ½µ¥Í”ì(€€€ô((€€€…Ñ¥Ù•AÉ½µ¥Í”€ôAÉ½µ¥Í”¹É•Í½±Ù” ¤(€€€€€€¹Ñ¡•¸¡±½…¤(€€€€€€¹Ñ¡•¸ ¡‘…Ñ„¤€ôøì(€€€€€€€¥˜€ …¥ÍMÑ½ÁÁ•¤ì(€€€€€€€€€½¹…Ñ„¡‘…Ñ„¤ì(€€€€€€€ô(€€€€€€€É•ÑÕÉ¸‘…Ñ„ì(€€€€€ô¤(€€€€€€¹…Ñ  ¡•ÉÉ½È¤€ôøì(€€€€€€€¥˜€ …¥ÍMÑ½ÁÁ•¤ì(€€€€€€€€€½¹ÉÉ½È¡•ÉÉ½È¤ì(€€€€€€€ô(€€€€€€€É•ÑÕÉ¸¹Õ±°ì(€€€€€ô¤(€€€€€€¹™¥¹…±±ä  ¤€ôøì(€€€€€€€…Ñ¥Ù•AÉ½µ¥Í”€ô¹Õ±°ì((€€€€€€€¥˜€ …¥ÍMÑ½ÁÁ•€˜˜¥ÍEÕ•Õ•¤ì(€€€€€€€€€¥ÍEÕ•Õ•€ô™…±Í”ì(€€€€€€€€€Ù½¥ÉÕ¸ ¤ì(€€€€€€€ô(€€€€€ô¤ì((€€€É•ÑÕÉ¸…Ñ¥Ù•AÉ½µ¥Í”ì(€ôì((€É•ÑÕÉ¸ì(€€€ÉÕ¸°(€€€ÍÑ½À ¤ì(€€€€€¥ÍMÑ½ÁÁ•€ôÑÉÕ”ì(€€€€€¥ÍEÕ•Õ•€ô™…±Í”ì(€€€ô°(€ôì)ô()•áÁ½ÉĞ™Õ¹Ñ¥½¸ÕÍ•AÕ‰±¥M¡½İY¥•İUÁ‘…Ñ•Ì¡ì(€Í¡½İ%°(€±…ÍÍ%‘Ì°(€±½…°(€½¹…Ñ„°(€½¹¥ÍÁ±…åI•™É•Í¡MÑ…Ñ•¡…¹”°(€•¹…‰±•€ôÑÉÕ”°(€™…±±‰…­I•™É•Í¡5Ì€ôU1Q}11	-}IIM!}5L°)ô¤ì(€½¹ÍĞ±½…‘I•˜€ôÕÍ•I•˜¡±½…¤ì(€½¹ÍĞ½¹…Ñ…I•˜€ôÕÍ•I•˜¡½¹…Ñ„¤ì(€½¹ÍĞ½¹¥ÍÁ±…åI•™É•Í¡MÑ…Ñ•¡…¹•I•˜€ôÕÍ•I•˜¡½¹¥ÍÁ±…åI•™É•Í¡MÑ…Ñ•¡…¹”¤ì(€½¹ÍĞ±…ÍÍ%‘Í-•ä€ôÉÉ…ä¹™É½´ (€€€¹•ÜM•Ğ ¡ÉÉ…ä¹¥ÍÉÉ…ä¡±…ÍÍ%‘Ì¤€ü±…ÍÍ%‘Ì€èmt¤¹™¥±Ñ•È¡	½½±•…¸¤¤(€€¤¹©½¥¸ ‰ğˆ¤ì((€ÕÍ•™™•Ğ  ¤€ôøì(€€€±½…‘I•˜¹ÕÉÉ•¹Ğ€ô±½…ì(€ô°m±½…‘t¤ì((€ÕÍ•™™•Ğ  ¤€ôøì(€€€½¹…Ñ…I•˜¹ÕÉÉ•¹Ğ€ô½¹…Ñ„ì(€ô°m½¹…Ñ…t¤ì((€ÕÍ•™™•Ğ  ¤€ôøì(€€€½¹¥ÍÁ±…åI•™É•Í¡MÑ…Ñ•¡…¹•I•˜¹ÕÉÉ•¹Ğ€ô½¹¥ÍÁ±…åI•™É•Í¡MÑ…Ñ•¡…¹”ì(€ô°m½¹¥ÍÁ±…åI•™É•Í¡MÑ…Ñ•¡…¹•t¤ì((€ÕÍ•™™•Ğ  ¤€ôøì(€€€¥˜€ …•¹…‰±•ñğ€…Í¡½İ%¤ì(€€€€€É•ÑÕÉ¸Õ¹‘•™¥¹•ì(€€€ô((€€€±•ĞÉ•…±Ñ¥µ•I•™É•Í¡Q¥µ•È€ô¹Õ±°ì(€€€±•Ğ™…±±‰…­I•™É•Í¡Q¥µ•È€ô¹Õ±°ì(€€€±•Ğ‘¥ÍÁ±…åI•ÑÕÉ¹I•™É•Í¡Q¥µ•È€ô¹Õ±°ì(€€€±•Ğ¥Í™™•ÑÑ¥Ù”€ôÑÉÕ”ì(€€€±•Ğ¥ÍI•…±Ñ¥µ•MÕ‰ÍÉ¥‰•€ô™…±Í”ì(€€€±•ĞÉ•½¹¹•ÑÑÑ•µÁĞ€ô€Àì(€€€½¹ÍĞ¡…ÍI•…±Ñ¥µ”€ô	½½±•…¸¡•ÑMÕÁ…‰…Í•±¥•¹Ğ ¤¤ì(€€€½¹ÍĞ½½É‘¥¹…Ñ½È€ôÉ•…Ñ•I•™É•Í¡½½É‘¥¹…Ñ½È¡ì(€€€€€±½…è€ ¤€ôø±½…‘I•˜¹ÕÉÉ•¹Ğ ¤°(€€€€€½¹…Ñ„è€¡‘…Ñ„¤€ôø½¹…Ñ…I•˜¹ÕÉÉ•¹Ğ¡‘…Ñ„¤°(€€€€€½¹ÉÉ½Èè€¡•ÉÉ½È¤€ôøì(€€€€€€€½¹Í½±”¹•ÉÉ½È ‰ÉÉ•ÕÈ…ÑÕ…±¥Í…Ñ¥½¸ÙÕ”ÁÕ‰±¥ÅÕ”èˆ°•ÉÉ½È¤ì(€€€€€ô°(€€€ô¤ì((€€€½¹ÍĞÉ•ÅÕ•ÍÑI•…±Ñ¥µ•I•™É•Í €ô€ ¤€ôøì(€€€€€İ¥¹‘½Ü¹±•…ÉQ¥µ•½ÕĞ¡É•…±Ñ¥µ•I•™É•Í¡Q¥µ•È¤ì(€€€€€É•…±Ñ¥µ•I•™É•Í¡Q¥µ•È€ôİ¥¹‘½Ü¹Í•ÑQ¥µ•½ÕĞ  ¤€ôøì(€€€€€€€Ù½¥½½É‘¥¹…Ñ½È¹ÉÕ¸ ¤ì(€€€€€ô°I1Q%5}IIM!}	=U9}5L¤ì(€€€ôì((€€€½¹ÍĞÍ¡•‘Õ±•…±±‰…­I•™É•Í €ô€ ¤€ôøì(€€€€€İ¥¹‘½Ü¹±•…ÉQ¥µ•½ÕĞ¡™…±±‰…­I•™É•Í¡Q¥µ•È¤ì(€€€€€™…±±‰…­I•™É•Í¡Q¥µ•È€ôİ¥¹‘½Ü¹Í•ÑQ¥µ•½ÕĞ¡…Íå¹Œ€ ¤€ôøì(€€€€€€€¥˜€¡‘½Õµ•¹Ğ¹Ù¥Í¥‰¥±¥ÑåMÑ…Ñ”€„ôô€‰¡¥‘‘•¸ˆ¤ì(€€€€€€€€€…İ…¥Ğ½½É‘¥¹…Ñ½È¹ÉÕ¸ ¤ì(€€€€€€€ô(€€€€€€€¥˜€¡¥Í™™•ÑÑ¥Ù”¤Í¡•‘Õ±•…±±‰…­I•™É•Í  ¤ì(€€€€€ô°•Ñ…±±‰…­I•™É•Í¡•±…ä¡ì(€€€€€€€™…±±‰…­I•™É•Í¡5Ì°(€€€€€€€¡…ÍI•…±Ñ¥µ”°(€€€€€€€¥ÍI•…±Ñ¥µ•MÕ‰ÍÉ¥‰•°(€€€€€€€É•½¹¹•ÑÑÑ•µÁĞ°(€€€€€ô¤¤ì(€€€ôì(€€€½¹ÍĞ¡…¹‘±•I•…±Ñ¥µ•MÑ…ÑÕÌ€ô€¡ÍÑ…ÑÕÌ¤€ôøì(€€€€€¥˜€¡ÍÑ…ÑÕÌ€ôôô€‰MU	MI%	ˆ¤ì(€€€€€€€¥ÍI•…±Ñ¥µ•MÕ‰ÍÉ¥‰•€ôÑÉÕ”ì(€€€€€€€É•½¹¹•ÑÑÑ•µÁĞ€ô€Àì(€€€€€ô•±Í”¥˜€¡l‰!991}II=Hˆ°€‰Q%5}=UPˆ°€‰1=M‰t¹¥¹±Õ‘•Ì¡ÍÑ…ÑÕÌ¤¤ì(€€€€€€€¥ÍI•…±Ñ¥µ•MÕ‰ÍÉ¥‰•€ô™…±Í”ì(€€€€€€€É•½¹¹•ÑÑÑ•µÁĞ€¬ô€Äì(€€€€€ô(€€€€€Í¡•‘Õ±•…±±‰…­I•™É•Í  ¤ì(€€€ôì(€€€½¹ÍĞÕ¹ÍÕ‰ÍÉ¥‰”€ôÍÕ‰ÍÉ¥‰•AÕ‰±¥M¡½İY¥•İI•Á½Í¥Ñ½Éä (€€€€€Í¡½İ%°(€€€€€±…ÍÍ%‘Í-•ä€ü±…ÍÍ%‘Í-•ä¹ÍÁ±¥Ğ ‰ğˆ¤€èmt°(€€€€€É•ÅÕ•ÍÑI•…±Ñ¥µ•I•™É•Í °(€€€€€¡…¹‘±•I•…±Ñ¥µ•MÑ…ÑÕÌ(€€€€¤ì(€€€Í¡•‘Õ±•…±±‰…­I•™É•Í  ¤ì(€€€½¹ÍĞÉ•™É•Í¡]¡•¹¥ÍÁ±…åI•ÑÕÉ¹Ì€ô€ ¤€ôøì(€€€€€¥˜€¡‘½Õµ•¹Ğ¹Ù¥Í¥‰¥±¥ÑåMÑ…Ñ”€ôôô€‰¡¥‘‘•¸ˆ¤É•ÑÕÉ¸ì((€€€€€İ¥¹‘½Ü¹±•…ÉQ¥µ•½ÕĞ¡‘¥ÍÁ±…åI•ÑÕÉ¹I•™É•Í¡Q¥µ•È¤ì(€€€€€½¹¥ÍÁ±…åI•™É•Í¡MÑ…Ñ•¡…¹•I•˜¹ÕÉÉ•¹Ğü¸¡ÑÉÕ”¤ì(€€€€€‘¥ÍÁ±…åI•ÑÕÉ¹I•™É•Í¡Q¥µ•È€ôİ¥¹‘½Ü¹Í•ÑQ¥µ•½ÕĞ  ¤€ôøì(€€€€€€€Ù½¥½½É‘¥¹…Ñ½È¹ÉÕ¸ ¤¹™¥¹…±±ä  ¤€ôøì(€€€€€€€€€¥˜€¡¥Í™™•ÑÑ¥Ù”¤½¹¥ÍÁ±…åI•™É•Í¡MÑ…Ñ•¡…¹•I•˜¹ÕÉÉ•¹Ğü¸¡™…±Í”¤ì(€€€€€€€ô¤ì(€€€€€ô°I1Q%5}IIM!}	=U9}5L¤ì(€€€ôì((€€€İ¥¹‘½Ü¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰™½ÕÌˆ°É•™É•Í¡]¡•¹¥ÍÁ±…åI•ÑÕÉ¹Ì¤ì(€€€İ¥¹‘½Ü¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰½¹±¥¹”ˆ°É•™É•Í¡]¡•¹¥ÍÁ±…åI•ÑÕÉ¹Ì¤ì(€€€‘½Õµ•¹Ğ¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰Ù¥Í¥‰¥±¥Ñå¡…¹”ˆ°É•™É•Í¡]¡•¹¥ÍÁ±…åI•ÑÕÉ¹Ì¤ì((€€€É•ÑÕÉ¸€ ¤€ôøì(€€€€€¥Í™™•ÑÑ¥Ù”€ô™…±Í”ì(€€€€€İ¥¹‘½Ü¹±•…ÉQ¥µ•½ÕĞ¡É•…±Ñ¥µ•I•™É•Í¡Q¥µ•È¤ì(€€€€€İ¥¹‘½Ü¹±•…ÉQ¥µ•½ÕĞ¡™…±±‰…­I•™É•Í¡Q¥µ•È¤ì(€€€€€İ¥¹‘½Ü¹±•…ÉQ¥µ•½ÕĞ¡‘¥ÍÁ±…åI•ÑÕÉ¹I•™É•Í¡Q¥µ•È¤ì(€€€€€İ¥¹‘½Ü¹É•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰™½ÕÌˆ°É•™É•Í¡]¡•¹¥ÍÁ±…åI•ÑÕÉ¹Ì¤ì(€€€€€İ¥¹‘½Ü¹É•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰½¹±¥¹”ˆ°É•™É•Í¡]¡•¹¥ÍÁ±…åI•ÑÕÉ¹Ì¤ì(€€€€€‘½Õµ•¹Ğ¹É•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰Ù¥Í¥‰¥±¥Ñå¡…¹”ˆ°É•™É•Í¡]¡•¹¥ÍÁ±…åI•ÑÕÉ¹Ì¤ì(€€€€€½½É‘¥¹…Ñ½È¹ÍÑ½À ¤ì(€€€€€Õ¹ÍÕ‰ÍÉ¥‰” ¤ì(€€€ôì(€ô°m±…ÍÍ%‘Í-•ä°•¹…‰±•°™…±±‰…­I•™É•Í¡5Ì°Í¡½İ%‘t¤ì)ô

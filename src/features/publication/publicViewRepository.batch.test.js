@@ -1,247 +1,1 @@
-import { beforeEach, expect, test, vi } from "vitest";
-
-const { getSupabaseClientMock } = vi.hoisted(() => ({
-  getSupabaseClientMock: vi.fn(),
-}));
-
-vi.mock("../cloud/supabaseClient", () => ({
-  getSupabaseClient: getSupabaseClientMock,
-  isSupabaseConfigured: () => true,
-}));
-
-import {
-  getPublicShowViewRepository,
-  subscribePublicShowViewRepository,
-} from "./publicViewRepository";
-
-function createSupabaseStub(tableRows, rpcRows = {}) {
-  const queries = [];
-  const rpcCalls = [];
-
-  return {
-    queries,
-    rpcCalls,
-    client: {
-      from(table) {
-        const query = {
-          table,
-          filters: [],
-        };
-        queries.push(query);
-
-        const response = () => ({
-          data: tableRows[table] || [],
-          error: null,
-        });
-        const builder = {
-          select() {
-            return builder;
-          },
-          eq(column, value) {
-            query.filters.push({ operator: "eq", column, value });
-            return builder;
-          },
-          in(column, value) {
-            query.filters.push({ operator: "in", column, value });
-            return builder;
-          },
-          order() {
-            return builder;
-          },
-          maybeSingle() {
-            const rows = tableRows[table] || [];
-            return Promise.resolve({
-              data: Array.isArray(rows) ? rows[0] || null : rows,
-              error: null,
-            });
-          },
-          then(resolve, reject) {
-            return Promise.resolve(response()).then(resolve, reject);
-          },
-        };
-
-        return builder;
-      },
-      rpc(name, parameters) {
-        rpcCalls.push({ name, parameters });
-        return Promise.resolve({
-          data: rpcRows[name] || [],
-          error: null,
-        });
-      },
-    },
-  };
-}
-
-const days = ["day-1", "day-2", "day-3"].map((id, index) => ({
-  id,
-  organization_id: "organization-1",
-  show_id: "show-1",
-  day_name: `Day ${index + 1}`,
-  day_date: `2026-07-${30 + index}`,
-  sort_order: index + 1,
-}));
-const classes = days.map((day, index) => ({
-  id: `class-${index + 1}`,
-  organization_id: "organization-1",
-  show_id: "show-1",
-  show_day_id: day.id,
-  name: `Class ${index + 1}`,
-  pattern: `RR${index + 1}`,
-  block_type: "competition",
-  sort_order: 1,
-}));
-
-beforeEach(() => {
-  localStorage.clear();
-  getSupabaseClientMock.mockReset();
-});
-
-test("loads a multi-day public show with one query per table", async () => {
-  const supabase = createSupabaseStub(
-    {
-      shows: [
-        {
-          id: "show-1",
-          organization_id: "organization-1",
-          name: "Summer Show",
-          status: "active",
-          is_public: true,
-        },
-      ],
-      show_score_class_documents: [],
-      show_days: days,
-      blocks: classes,
-      show_score_paid_warmups: [],
-      show_score_publication_states: classes.map((classItem) => ({
-        block_id: classItem.id,
-        status: "live",
-      })),
-      show_score_official_results: [],
-      show_score_scoring_sessions: classes.map((classItem) => ({
-        block_id: classItem.id,
-        runs: [],
-      })),
-      show_score_judge_sessions: [],
-      show_score_block_setups: classes.map((classItem) => ({
-        block_id: classItem.id,
-        pattern: classItem.pattern,
-        runs: [],
-      })),
-      show_score_announcer_live_sessions: [],
-      block_result_publications: [],
-    },
-    {
-      public_show_timing_summary: [],
-    }
-  );
-  getSupabaseClientMock.mockReturnValue(supabase.client);
-
-  const view = await getPublicShowViewRepository("show-1");
-
-  expect(view.show).toMatchObject({
-    id: "show-1",
-    name: "Summer Show",
-  });
-  expect(view.classIds).toEqual(classes.map(({ id }) => id));
-  expect(supabase.rpcCalls).toHaveLength(1);
-  expect(supabase.queries).toHaveLength(12);
-
-  const queryCountByTable = supabase.queries.reduce((counts, query) => {
-    counts[query.table] = (counts[query.table] || 0) + 1;
-    return counts;
-  }, {});
-
-  expect(queryCountByTable).toEqual({
-    shows: 1,
-    show_score_class_documents: 1,
-    show_days: 1,
-    blocks: 1,
-    show_score_paid_warmups: 1,
-    show_score_publication_states: 1,
-    show_score_official_results: 1,
-    show_score_scoring_sessions: 1,
-    show_score_judge_sessions: 1,
-    show_score_block_setups: 1,
-    show_score_announcer_live_sessions: 1,
-    block_result_publications: 1,
-  });
-
-  const classQuery = supabase.queries.find(
-    (query) => query.table === "blocks"
-  );
-  const paidWarmupQuery = supabase.queries.find(
-    (query) => query.table === "show_score_paid_warmups"
-  );
-
-  expect(classQuery.filters).toContainEqual({
-    operator: "eq",
-    column: "show_id",
-    value: "show-1",
-  });
-  expect(paidWarmupQuery.filters).toContainEqual({
-    operator: "eq",
-    column: "show_id",
-    value: "show-1",
-  });
-  expect(
-    [...classQuery.filters, ...paidWarmupQuery.filters].some(
-      (filter) => filter.column === "show_day_id"
-    )
-  ).toBe(false);
-});
-
-test("subscribes public displays to every table that can change live output", () => {
-  const bindings = [];
-  const channel = {
-    on(event, config, callback) {
-      bindings.push({ event, config, callback });
-      return channel;
-    },
-    subscribe: vi.fn(),
-  };
-  const supabase = {
-    channel: vi.fn(() => channel),
-    removeChannel: vi.fn(),
-  };
-  const onChange = vi.fn();
-  getSupabaseClientMock.mockReturnValue(supabase);
-
-  const unsubscribe = subscribePublicShowViewRepository(
-    "show-1",
-    ["class-1", "class-2", "class-1"],
-    onChange
-  );
-
-  expect(bindings.map(({ config }) => config).slice(0, 2)).toEqual([
-    {
-      event: "UPDATE",
-      schema: "public",
-      table: "shows",
-      filter: "id=eq.show-1",
-    },
-    {
-      event: "*",
-      schema: "public",
-      table: "show_score_paid_warmups",
-      filter: "show_id=eq.show-1",
-    },
-  ]);
-  expect(
-    bindings.slice(2).map(({ config }) => [config.table, config.filter])
-  ).toEqual(
-    ["class-1", "class-2"].flatMap((classId) => [
-      ["show_score_scoring_sessions", `block_id=eq.${classId}`],
-      ["show_score_judge_sessions", `block_id=eq.${classId}`],
-      ["show_score_block_setups", `block_id=eq.${classId}`],
-      ["show_score_publication_states", `block_id=eq.${classId}`],
-      ["show_score_official_results", `block_id=eq.${classId}`],
-      ["show_score_announcer_live_sessions", `class_id=eq.${classId}`],
-    ])
-  );
-  expect(channel.subscribe).toHaveBeenCalledOnce();
-
-  unsubscribe();
-
-  expect(supabase.removeChannel).toHaveBeenCalledWith(channel);
-});
+¨¥yÛhr‰çyËm¡»¬:—«jØ¨žz-¥êæŠÛ^u¥µÁ½ÉÐì‰•™½É•… °•áÁ•Ð°Ñ•ÍÐ°Ù¤ô™É½´€‰Ù¥Ñ•ÍÐˆì()½¹ÍÐì•ÑMÕÁ…‰…Í•±¥•¹Ñ5½¬ô€ôÙ¤¹¡½¥ÍÑ•  ¤€ôø€¡ì(€•ÑMÕÁ…‰…Í•±¥•¹Ñ5½¬èÙ¤¹™¸ ¤°)ô¤¤ì()Ù¤¹µ½¬ ˆ¸¸½±½Õ½ÍÕÁ…‰…Í•±¥•¹Ðˆ°€ ¤€ôø€¡ì(€•ÑMÕÁ…‰…Í•±¥•¹Ðè•ÑMÕÁ…‰…Í•±¥•¹Ñ5½¬°(€¥ÍMÕÁ…‰…Í•½¹™¥ÕÉ•è€ ¤€ôøÑÉÕ”°)ô¤¤ì()¥µÁ½ÉÐì(€•ÑAÕ‰±¥M¡½ÝY¥•ÝI•Á½Í¥Ñ½Éä°(€ÍÕ‰ÍÉ¥‰•AÕ‰±¥M¡½ÝY¥•ÝI•Á½Í¥Ñ½Éä°)ô™É½´€ˆ¸½ÁÕ‰±¥Y¥•ÝI•Á½Í¥Ñ½Éäˆì()™Õ¹Ñ¥½¸É•…Ñ•MÕÁ…‰…Í•MÑÕˆ¡Ñ…‰±•I½ÝÌ°ÉÁI½ÝÌ€ôíô¤ì(€½¹ÍÐÅÕ•É¥•Ì€ômtì(€½¹ÍÐÉÁ…±±Ì€ômtì((€É•ÑÕÉ¸ì(€€€ÅÕ•É¥•Ì°(€€€ÉÁ…±±Ì°(€€€±¥•¹Ðèì(€€€€€™É½´¡Ñ…‰±”¤ì(€€€€€€€½¹ÍÐÅÕ•Éä€ôì(€€€€€€€€€Ñ…‰±”°(€€€€€€€€€™¥±Ñ•ÉÌèmt°(€€€€€€€ôì(€€€€€€€ÅÕ•É¥•Ì¹ÁÕÍ ¡ÅÕ•Éä¤ì((€€€€€€€½¹ÍÐÉ•ÍÁ½¹Í”€ô€ ¤€ôø€¡ì(€€€€€€€€€‘…Ñ„èÑ…‰±•I½ÝÍmÑ…‰±•tñðmt°(€€€€€€€€€•ÉÉ½Èè¹Õ±°°(€€€€€€€ô¤ì(€€€€€€€½¹ÍÐ‰Õ¥±‘•È€ôì(€€€€€€€€€Í•±•Ð ¤ì(€€€€€€€€€€€É•ÑÕÉ¸‰Õ¥±‘•Èì(€€€€€€€€€ô°(€€€€€€€€€•Ä¡½±Õµ¸°Ù…±Õ”¤ì(€€€€€€€€€€€ÅÕ•Éä¹™¥±Ñ•ÉÌ¹ÁÕÍ ¡ì½Á•É…Ñ½Èè€‰•Äˆ°½±Õµ¸°Ù…±Õ”ô¤ì(€€€€€€€€€€€É•ÑÕÉ¸‰Õ¥±‘•Èì(€€€€€€€€€ô°(€€€€€€€€€¥¸¡½±Õµ¸°Ù…±Õ”¤ì(€€€€€€€€€€€ÅÕ•Éä¹™¥±Ñ•ÉÌ¹ÁÕÍ ¡ì½Á•É…Ñ½Èè€‰¥¸ˆ°½±Õµ¸°Ù…±Õ”ô¤ì(€€€€€€€€€€€É•ÑÕÉ¸‰Õ¥±‘•Èì(€€€€€€€€€ô°(€€€€€€€€€½É‘•È ¤ì(€€€€€€€€€€€É•ÑÕÉ¸‰Õ¥±‘•Èì(€€€€€€€€€ô°(€€€€€€€€€µ…å‰•M¥¹±” ¤ì(€€€€€€€€€€€½¹ÍÐÉ½ÝÌ€ôÑ…‰±•I½ÝÍmÑ…‰±•tñðmtì(€€€€€€€€€€€É•ÑÕÉ¸AÉ½µ¥Í”¹É•Í½±Ù”¡ì(€€€€€€€€€€€€€‘…Ñ„èÉÉ…ä¹¥ÍÉÉ…ä¡É½ÝÌ¤€üÉ½ÝÍlÁtñð¹Õ±°€èÉ½ÝÌ°(€€€€€€€€€€€€€•ÉÉ½Èè¹Õ±°°(€€€€€€€€€€€ô¤ì(€€€€€€€€€ô°(€€€€€€€€€Ñ¡•¸¡É•Í½±Ù”°É•©•Ð¤ì(€€€€€€€€€€€É•ÑÕÉ¸AÉ½µ¥Í”¹É•Í½±Ù”¡É•ÍÁ½¹Í” ¤¤¹Ñ¡•¸¡É•Í½±Ù”°É•©•Ð¤ì(€€€€€€€€€ô°(€€€€€€€ôì((€€€€€€€É•ÑÕÉ¸‰Õ¥±‘•Èì(€€€€€ô°(€€€€€ÉÁŒ¡¹…µ”°Á…É…µ•Ñ•ÉÌ¤ì(€€€€€€€ÉÁ…±±Ì¹ÁÕÍ ¡ì¹…µ”°Á…É…µ•Ñ•ÉÌô¤ì(€€€€€€€É•ÑÕÉ¸AÉ½µ¥Í”¹É•Í½±Ù”¡ì(€€€€€€€€€‘…Ñ„èÉÁI½ÝÍm¹…µ•tñðmt°(€€€€€€€€€•ÉÉ½Èè¹Õ±°°(€€€€€€€ô¤ì(€€€€€ô°(€€€ô°(€ôì)ô()½¹ÍÐ‘…åÌ€ôl‰‘…ä´Äˆ°€‰‘…ä´Èˆ°€‰‘…ä´Ì‰t¹µ…À ¡¥°¥¹‘•à¤€ôø€¡ì(€¥°(€½É…¹¥é…Ñ¥½¹}¥è€‰½É…¹¥é…Ñ¥½¸´Äˆ°(€Í¡½Ý}¥è€‰Í¡½Ü´Äˆ°(€‘…å}¹…µ”è…ä€‘í¥¹‘•à€¬€Åõ€°(€‘…å}‘…Ñ”è€ÈÀÈØ´ÀÜ´‘ìÌÀ€¬¥¹‘•áõ€°(€Í½ÉÑ}½É‘•Èè¥¹‘•à€¬€Ä°)ô¤¤ì)½¹ÍÐ±…ÍÍ•Ì€ô‘…åÌ¹µ…À ¡‘…ä°¥¹‘•à¤€ôø€¡ì(€¥è±…ÍÌ´‘í¥¹‘•à€¬€Åõ€°(€½É…¹¥é…Ñ¥½¹}¥è€‰½É…¹¥é…Ñ¥½¸´Äˆ°(€Í¡½Ý}¥è€‰Í¡½Ü´Äˆ°(€Í¡½Ý}‘…å}¥è‘…ä¹¥°(€¹…µ”è±…ÍÌ€‘í¥¹‘•à€¬€Åõ€°(€Á…ÑÑ•É¸èIH‘í¥¹‘•à€¬€Åõ€°(€‰±½­}ÑåÁ”è€‰½µÁ•Ñ¥Ñ¥½¸ˆ°(€Í½ÉÑ}½É‘•Èè€Ä°)ô¤¤ì()‰•™½É•…   ¤€ôøì(€±½…±MÑ½É…”¹±•…È ¤ì(€•ÑMÕÁ…‰…Í•±¥•¹Ñ5½¬¹µ½­I•Í•Ð ¤ì)ô¤ì()Ñ•ÍÐ ‰±½…‘Ì„µÕ±Ñ¤µ‘…äÁÕ‰±¥ŒÍ¡½ÜÝ¥Ñ ½¹”ÅÕ•ÉäÁ•ÈÑ…‰±”ˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐÍÕÁ…‰…Í”€ôÉ•…Ñ•MÕÁ…‰…Í•MÑÕˆ (€€€ì(€€€€€Í¡½ÝÌèl(€€€€€€€ì(€€€€€€€€€¥è€‰Í¡½Ü´Äˆ°(€€€€€€€€€½É…¹¥é…Ñ¥½¹}¥è€‰½É…¹¥é…Ñ¥½¸´Äˆ°(€€€€€€€€€¹…µ”è€‰MÕµµ•ÈM¡½Üˆ°(€€€€€€€€€ÍÑ…ÑÕÌè€‰…Ñ¥Ù”ˆ°(€€€€€€€€€¥Í}ÁÕ‰±¥ŒèÑÉÕ”°(€€€€€€€ô°(€€€€€t°(€€€€€Í¡½Ý}Í½É•}±…ÍÍ}‘½Õµ•¹ÑÌèmt°(€€€€€Í¡½Ý}‘…åÌè‘…åÌ°(€€€€€‰±½­Ìè±…ÍÍ•Ì°(€€€€€Í¡½Ý}Í½É•}Á…¥‘}Ý…ÉµÕÁÌèmt°(€€€€€Í¡½Ý}Í½É•}ÁÕ‰±¥…Ñ¥½¹}ÍÑ…Ñ•Ìè±…ÍÍ•Ì¹µ…À ¡±…ÍÍ%Ñ•´¤€ôø€¡ì(€€€€€€€‰±½­}¥è±…ÍÍ%Ñ•´¹¥°(€€€€€€€ÍÑ…ÑÕÌè€‰±¥Ù”ˆ°(€€€€€ô¤¤°(€€€€€Í¡½Ý}Í½É•}½™™¥¥…±}É•ÍÕ±ÑÌèmt°(€€€€€Í¡½Ý}Í½É•}Í½É¥¹}Í•ÍÍ¥½¹Ìè±…ÍÍ•Ì¹µ…À ¡±…ÍÍ%Ñ•´¤€ôø€¡ì(€€€€€€€‰±½­}¥è±…ÍÍ%Ñ•´¹¥°(€€€€€€€ÉÕ¹Ìèmt°(€€€€€ô¤¤°(€€€€€Í¡½Ý}Í½É•}©Õ‘•}Í•ÍÍ¥½¹Ìèmt°(€€€€€Í¡½Ý}Í½É•}‰±½­}Í•ÑÕÁÌè±…ÍÍ•Ì¹µ…À ¡±…ÍÍ%Ñ•´¤€ôø€¡ì(€€€€€€€‰±½­}¥è±…ÍÍ%Ñ•´¹¥°(€€€€€€€Á…ÑÑ•É¸è±…ÍÍ%Ñ•´¹Á…ÑÑ•É¸°(€€€€€€€ÉÕ¹Ìèmt°(€€€€€ô¤¤°(€€€€€Í¡½Ý}Í½É•}…¹¹½Õ¹•É}±¥Ù•}Í•ÍÍ¥½¹Ìèmt°(€€€€€‰±½­}É•ÍÕ±Ñ}ÁÕ‰±¥…Ñ¥½¹Ìèmt°(€€€ô°(€€€ì(€€€€€ÁÕ‰±¥}Í¡½Ý}Ñ¥µ¥¹}ÍÕµµ…Éäèmt°(€€€ô(€€¤ì(€•ÑMÕÁ…‰…Í•±¥•¹Ñ5½¬¹µ½­I•ÑÕÉ¹Y…±Õ”¡ÍÕÁ…‰…Í”¹±¥•¹Ð¤ì((€½¹ÍÐÙ¥•Ü€ô…Ý…¥Ð•ÑAÕ‰±¥M¡½ÝY¥•ÝI•Á½Í¥Ñ½Éä ‰Í¡½Ü´Äˆ¤ì((€•áÁ•Ð¡Ù¥•Ü¹Í¡½Ü¤¹Ñ½5…Ñ¡=‰©•Ð¡ì(€€€¥è€‰Í¡½Ü´Äˆ°(€€€¹…µ”è€‰MÕµµ•ÈM¡½Üˆ°(€ô¤ì(€•áÁ•Ð¡Ù¥•Ü¹±…ÍÍ%‘Ì¤¹Ñ½ÅÕ…°¡±…ÍÍ•Ì¹µ…À ¡ì¥ô¤€ôø¥¤¤ì(€•áÁ•Ð¡ÍÕÁ…‰…Í”¹ÉÁ…±±Ì¤¹Ñ½!…Ù•1•¹Ñ  Ä¤ì(€•áÁ•Ð¡ÍÕÁ…‰…Í”¹ÅÕ•É¥•Ì¤¹Ñ½!…Ù•1•¹Ñ  ÄÈ¤ì((€½¹ÍÐÅÕ•Éå½Õ¹Ñ	åQ…‰±”€ôÍÕÁ…‰…Í”¹ÅÕ•É¥•Ì¹É•‘Õ” ¡½Õ¹ÑÌ°ÅÕ•Éä¤€ôøì(€€€½Õ¹ÑÍmÅÕ•Éä¹Ñ…‰±•t€ô€¡½Õ¹ÑÍmÅÕ•Éä¹Ñ…‰±•tñð€À¤€¬€Äì(€€€É•ÑÕÉ¸½Õ¹ÑÌì(€ô°íô¤ì((€•áÁ•Ð¡ÅÕ•Éå½Õ¹Ñ	åQ…‰±”¤¹Ñ½ÅÕ…°¡ì(€€€Í¡½ÝÌè€Ä°(€€€Í¡½Ý}Í½É•}±…ÍÍ}‘½Õµ•¹ÑÌè€Ä°(€€€Í¡½Ý}‘…åÌè€Ä°(€€€‰±½­Ìè€Ä°(€€€Í¡½Ý}Í½É•}Á…¥‘}Ý…ÉµÕÁÌè€Ä°(€€€Í¡½Ý}Í½É•}ÁÕ‰±¥…Ñ¥½¹}ÍÑ…Ñ•Ìè€Ä°(€€€Í¡½Ý}Í½É•}½™™¥¥…±}É•ÍÕ±ÑÌè€Ä°(€€€Í¡½Ý}Í½É•}Í½É¥¹}Í•ÍÍ¥½¹Ìè€Ä°(€€€Í¡½Ý}Í½É•}©Õ‘•}Í•ÍÍ¥½¹Ìè€Ä°(€€€Í¡½Ý}Í½É•}‰±½­}Í•ÑÕÁÌè€Ä°(€€€Í¡½Ý}Í½É•}…¹¹½Õ¹•É}±¥Ù•}Í•ÍÍ¥½¹Ìè€Ä°(€€€‰±½­}É•ÍÕ±Ñ}ÁÕ‰±¥…Ñ¥½¹Ìè€Ä°(€ô¤ì((€½¹ÍÐ±…ÍÍEÕ•Éä€ôÍÕÁ…‰…Í”¹ÅÕ•É¥•Ì¹™¥¹ (€€€€¡ÅÕ•Éä¤€ôøÅÕ•Éä¹Ñ…‰±”€ôôô€‰‰±½­Ìˆ(€€¤ì(€½¹ÍÐÁ…¥‘]…ÉµÕÁEÕ•Éä€ôÍÕÁ…‰…Í”¹ÅÕ•É¥•Ì¹™¥¹ (€€€€¡ÅÕ•Éä¤€ôøÅÕ•Éä¹Ñ…‰±”€ôôô€‰Í¡½Ý}Í½É•}Á…¥‘}Ý…ÉµÕÁÌˆ(€€¤ì((€•áÁ•Ð¡±…ÍÍEÕ•Éä¹™¥±Ñ•ÉÌ¤¹Ñ½½¹Ñ…¥¹ÅÕ…°¡ì(€€€½Á•É…Ñ½Èè€‰•Äˆ°(€€€½±Õµ¸è€‰Í¡½Ý}¥ˆ°(€€€Ù…±Õ”è€‰Í¡½Ü´Äˆ°(€ô¤ì(€•áÁ•Ð¡Á…¥‘]…ÉµÕÁEÕ•Éä¹™¥±Ñ•ÉÌ¤¹Ñ½½¹Ñ…¥¹ÅÕ…°¡ì(€€€½Á•É…Ñ½Èè€‰•Äˆ°(€€€½±Õµ¸è€‰Í¡½Ý}¥ˆ°(€€€Ù…±Õ”è€‰Í¡½Ü´Äˆ°(€ô¤ì(€•áÁ•Ð (€€€l¸¸¹±…ÍÍEÕ•Éä¹™¥±Ñ•ÉÌ°€¸¸¹Á…¥‘]…ÉµÕÁEÕ•Éä¹™¥±Ñ•ÉÍt¹Í½µ” (€€€€€€¡™¥±Ñ•È¤€ôø™¥±Ñ•È¹½±Õµ¸€ôôô€‰Í¡½Ý}‘…å}¥ˆ(€€€€¤(€€¤¹Ñ½	”¡™…±Í”¤ì)ô¤ì()Ñ•ÍÐ ‰ÍÕ‰ÍÉ¥‰•ÌÁÕ‰±¥Œ‘¥ÍÁ±…åÌÑ¼•Ù•ÉäÑ…‰±”Ñ¡…Ð…¸¡…¹”±¥Ù”½ÕÑÁÕÐˆ°€ ¤€ôøì(€½¹ÍÐ‰¥¹‘¥¹Ì€ômtì(€½¹ÍÐ¡…¹¹•°€ôì(€€€½¸¡•Ù•¹Ð°½¹™¥œ°…±±‰…¬¤ì(€€€€€‰¥¹‘¥¹Ì¹ÁÕÍ ¡ì•Ù•¹Ð°½¹™¥œ°…±±‰…¬ô¤ì(€€€€€É•ÑÕÉ¸¡…¹¹•°ì(€€€ô°(€€€ÍÕ‰ÍÉ¥‰”èÙ¤¹™¸ ¤°(€ôì(€½¹ÍÐÍÕÁ…‰…Í”€ôì(€€€¡…¹¹•°èÙ¤¹™¸  ¤€ôø¡…¹¹•°¤°(€€€É•µ½Ù•¡…¹¹•°èÙ¤¹™¸ ¤°(€ôì(€½¹ÍÐ½¹¡…¹”€ôÙ¤¹™¸ ¤ì(€½¹ÍÐ½¹MÑ…ÑÕÌ€ôÙ¤¹™¸ ¤ì(€•ÑMÕÁ…‰…Í•±¥•¹Ñ5½¬¹µ½­I•ÑÕÉ¹Y…±Õ”¡ÍÕÁ…‰…Í”¤ì((€½¹ÍÐÕ¹ÍÕ‰ÍÉ¥‰”€ôÍÕ‰ÍÉ¥‰•AÕ‰±¥M¡½ÝY¥•ÝI•Á½Í¥Ñ½Éä (€€€€‰Í¡½Ü´Äˆ°(€€€l‰±…ÍÌ´Äˆ°€‰±…ÍÌ´Èˆ°€‰±…ÍÌ´Ä‰t°(€€€½¹¡…¹”°(€€€½¹MÑ…ÑÕÌ(€€¤ì((€•áÁ•Ð¡‰¥¹‘¥¹Ì¹µ…À ¡ì½¹™¥œô¤€ôø½¹™¥œ¤¹Í±¥” À°€È¤¤¹Ñ½ÅÕ…°¡l(€€€ì(€€€€€•Ù•¹Ðè€‰UAQˆ°(€€€€€Í¡•µ„è€‰ÁÕ‰±¥Œˆ°(€€€€€Ñ…‰±”è€‰Í¡½ÝÌˆ°(€€€€€™¥±Ñ•Èè€‰¥õ•Ä¹Í¡½Ü´Äˆ°(€€€ô°(€€€ì(€€€€€•Ù•¹Ðè€ˆ¨ˆ°(€€€€€Í¡•µ„è€‰ÁÕ‰±¥Œˆ°(€€€€€Ñ…‰±”è€‰Í¡½Ý}Í½É•}Á…¥‘}Ý…ÉµÕÁÌˆ°(€€€€€™¥±Ñ•Èè€‰Í¡½Ý}¥õ•Ä¹Í¡½Ü´Äˆ°(€€€ô°(€t¤ì(€•áÁ•Ð (€€€‰¥¹‘¥¹Ì¹Í±¥” È¤¹µ…À ¡ì½¹™¥œô¤€ôøm½¹™¥œ¹Ñ…‰±”°½¹™¥œ¹™¥±Ñ•Ét¤(€€¤¹Ñ½ÅÕ…° (€€€l‰±…ÍÌ´Äˆ°€‰±…ÍÌ´È‰t¹™±…Ñ5…À ¡±…ÍÍ%¤€ôøl(€€€€€l‰Í¡½Ý}Í½É•}Í½É¥¹}Í•ÍÍ¥½¹Ìˆ°‰±½­}¥õ•Ä¸‘í±…ÍÍ%‘õt°(€€€€€l‰Í¡½Ý}Í½É•}©Õ‘•}Í•ÍÍ¥½¹Ìˆ°‰±½­}¥õ•Ä¸‘í±…ÍÍ%‘õt°(€€€€€l‰Í¡½Ý}Í½É•}‰±½­}Í•ÑÕÁÌˆ°‰±½­}¥õ•Ä¸‘í±…ÍÍ%‘õt°(€€€€€l‰Í¡½Ý}Í½É•}ÁÕ‰±¥…Ñ¥½¹}ÍÑ…Ñ•Ìˆ°‰±½­}¥õ•Ä¸‘í±…ÍÍ%‘õt°(€€€€€l‰Í¡½Ý}Í½É•}½™™¥¥…±}É•ÍÕ±ÑÌˆ°‰±½­}¥õ•Ä¸‘í±…ÍÍ%‘õt°(€€€€€l‰Í¡½Ý}Í½É•}…¹¹½Õ¹•É}±¥Ù•}Í•ÍÍ¥½¹Ìˆ°±…ÍÍ}¥õ•Ä¸‘í±…ÍÍ%‘õt°(€€€t¤(€€¤ì(€•áÁ•Ð¡¡…¹¹•°¹ÍÕ‰ÍÉ¥‰”¤¹Ñ½!…Ù•	••¹…±±•‘=¹” ¤ì((€½¹ÍÐÍÑ…ÑÕÍ…±±‰…¬€ô¡…¹¹•°¹ÍÕ‰ÍÉ¥‰”¹µ½¬¹…±±ÍlÁulÁtì(€ÍÑ…ÑÕÍ…±±‰…¬ ‰MU	MI%	ˆ¤ì(€•áÁ•Ð¡½¹MÑ…ÑÕÌ¤¹Ñ½!…Ù•	••¹…±±•‘]¥Ñ  ‰MU	MI%	ˆ¤ì(€•áÁ•Ð¡½¹¡…¹”¤¹Ñ½!…Ù•	••¹…±±•‘=¹” ¤ì((€Õ¹ÍÕ‰ÍÉ¥‰” ¤ì((€ÍÑ…ÑÕÍ…±±‰…¬ ‰1=Mˆ¤ì((€•áÁ•Ð¡ÍÕÁ…‰…Í”¹É•µ½Ù•¡…¹¹•°¤¹Ñ½!…Ù•	••¹…±±•‘]¥Ñ ¡¡…¹¹•°¤ì(€•áÁ•Ð¡½¹MÑ…ÑÕÌ¤¹Ñ½!…Ù•	••¹…±±•‘Q¥µ•Ì Ä¤ì)ô¤ì
