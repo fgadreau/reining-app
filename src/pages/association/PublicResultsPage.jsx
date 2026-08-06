@@ -20,6 +20,7 @@ import {
   getPaidWarmupRemainingSeconds,
 } from "../../features/paidWarmups/paidWarmupLive";
 import { isLiveDragItem } from "../../features/live/liveQueueItems";
+import { buildLiveRunClassLabels } from "../../features/results/liveClassStandings";
 import { formatLiveDataFreshness } from "../../features/live/liveFreshness";
 import { getAssociationWebsiteHref } from "../../features/associations/associationProfile";
 import { getShowById } from "../../features/shows/showSelectors";
@@ -1158,6 +1159,7 @@ function PublicLivePanel({ classView, now, isUpcoming = false }) {
           {!isScheduleOnly && (
             <PublicLiveOrderTable
               runs={classView.orderRuns || []}
+              blockClasses={classView.blockClasses || []}
               showScores={showScores}
               panelId={buildAccordionPanelId(
                 "public-live-order",
@@ -1742,7 +1744,7 @@ function PublicPlannedDragCard({ item }) {
   );
 }
 
-function PublicLiveOrderTable({ runs, showScores, panelId }) {
+function PublicLiveOrderTable({ runs, blockClasses, showScores, panelId }) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const runCount = runs.filter((item) => !isLiveDragItem(item)).length;
@@ -1801,6 +1803,10 @@ function PublicLiveOrderTable({ runs, showScores, panelId }) {
                     {t("public.results.backNumber")} {item.backNumber || "—"} ·{" "}
                     {item.horse || t("public.results.horseFallback")}
                   </div>
+                  <PublicRunClassList
+                    run={item}
+                    blockClasses={blockClasses}
+                  />
                 </div>
                 <div style={orderRowMetaStyle}>
                   <span style={orderStatusBadgeStyle(item.liveOrderStatus)}>
@@ -1817,6 +1823,22 @@ function PublicLiveOrderTable({ runs, showScores, panelId }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function PublicRunClassList({ run, blockClasses }) {
+  const { t } = useTranslation();
+  const classLabels = buildLiveRunClassLabels(run, blockClasses);
+
+  if (!classLabels.length) return null;
+
+  return (
+    <div style={orderClassesStyle}>
+      <span style={orderClassesLabelStyle}>
+        {t("public.results.registeredClasses")}:
+      </span>{" "}
+      {classLabels.join(" · ")}
     </div>
   );
 }
@@ -2592,6 +2614,18 @@ const orderDrawStyle = {
 
 const orderIdentityStyle = {
   minWidth: 0,
+};
+
+const orderClassesStyle = {
+  marginTop: 5,
+  color: publicColors.text,
+  fontSize: 13,
+  lineHeight: 1.35,
+};
+
+const orderClassesLabelStyle = {
+  color: publicColors.muted,
+  fontWeight: 800,
 };
 
 const orderRowMetaStyle = {
