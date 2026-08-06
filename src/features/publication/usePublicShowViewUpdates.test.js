@@ -76,6 +76,13 @@ test("does not publish data or run a queued refresh after stop", async () => {
 test("keeps the healthy realtime safety refresh sparse and jittered", () => {
   expect(
     getFallbackRefreshDelay({
+      hasRealtime: true,
+      isRealtimeSubscribed: true,
+      random: () => 0.5,
+    })
+  ).toBe(600_000);
+  expect(
+    getFallbackRefreshDelay({
       fallbackRefreshMs: 300_000,
       hasRealtime: true,
       isRealtimeSubscribed: true,
