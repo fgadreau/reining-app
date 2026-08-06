@@ -1,3 +1,709 @@
-¨¥yÛhr‰çyËm¡»¬:—«jØ¨žz-¥êæŠÛ^u¥µÁ½ÉÐI•…Ð°ìÕÍ•™™•Ð°ÕÍ•5•µ¼°ÕÍ•MÑ…Ñ”ô™É½´€‰É•…Ðˆì)¥µÁ½ÉÐì1¥¹¬°ÕÍ•A…É…µÌô™É½´€‰É•…ÐµÉ½ÕÑ•Èµ‘½´ˆì)¥µÁ½ÉÐÍÍ½¥…Ñ¥½¹1½¼™É½´€ˆ¸¸¼¸¸½½µÁ½¹•¹ÑÌ½ÍÍ½¥…Ñ¥½¹1½¼ˆì)¥µÁ½ÉÐM•½5•Ñ„™É½´€ˆ¸¸¼¸¸½½µÁ½¹•¹ÑÌ½M•½5•Ñ„ˆì)¥µÁ½ÉÐM¡…É•	ÕÑÑ½¸™É½´€ˆ¸¸¼¸¸½½µÁ½¹•¹ÑÌ½M¡…É•	ÕÑÑ½¸ˆì)¥µÁ½ÉÐì™½Éµ…Ñ…å1…‰•°ô™É½´€ˆ¸¸¼¸¸½™•…ÑÕÉ•Ì½‘…åÌ½‘…å…Ñ•UÑ¥±Ìˆì)¥µÁ½ÉÐìÕÍ•QÉ…¹Í±…Ñ¥½¸ô™É½´€ˆ¸¸¼¸¸½™•…ÑÕÉ•Ì½¤Äá¸½$Äá¹AÉ½Ù¥‘•Èˆì)¥µÁ½ÉÐì‰Õ¥±‘1¥Ù•ÍÑÉ•…µµ‰•ô™É½´€ˆ¸¸¼¸¸½™•…ÑÕÉ•Ì½±¥Ù•ÍÑÉ•…´½±¥Ù•ÍÑÉ•…µµ‰•ˆì)¥µÁ½ÉÐì(€•ÑÕÉÉ•¹ÑAÕ‰±¥1¥Ù•ÍÑÉ•…´°(€•Ñ9•áÑAÕ‰±¥1¥Ù•ÍÑÉ•…´°(€•ÑAÉ•Ù¥½ÕÍAÕ‰±¥1¥Ù•ÍÑÉ•…µÌ°)ô™É½´€ˆ¸¸¼¸¸½™•…ÑÕÉ•Ì½±¥Ù•ÍÑÉ•…´½±¥Ù•ÍÑÉ•…µM¡•‘Õ±”ˆì)¥µÁ½ÉÐì(€•ÑAÕ‰±¥ÍÍ½¥…Ñ¥½¹I•Á½Í¥Ñ½Éä°(€•ÑAÕ‰±¥M¡½ÝY¥•Ü°(€•ÑAÕ‰±¥M¡½ÝY¥•ÝI•Á½Í¥Ñ½Éä°)ô™É½´€ˆ¸¸¼¸¸½™•…ÑÕÉ•Ì½ÁÕ‰±¥…Ñ¥½¸½ÁÕ‰±¥Y¥•ÝI•Á½Í¥Ñ½Éäˆì)¥µÁ½ÉÐìÕÍ•AÕ‰±¥M¡½ÝY¥•ÝUÁ‘…Ñ•Ìô™É½´€ˆ¸¸¼¸¸½™•…ÑÕÉ•Ì½ÁÕ‰±¥…Ñ¥½¸½ÕÍ•AÕ‰±¥M¡½ÝY¥•ÝUÁ‘…Ñ•Ìˆì)¥µÁ½ÉÐì‰Õ¥±‘M¡½ÝAÕ‰±¥M•¼ô™É½´€ˆ¸¸¼¸¸½™•…ÑÕÉ•Ì½Í•¼½ÁÕ‰±¥M•¼ˆì)¥µÁ½ÉÐìÁ…ÉÑ¥Ñ¥½¹M¡•‘Õ±•‘1¥Ù•Y¥•ÝÌô™É½´€ˆ¸¸¼¸¸½™•…ÑÕÉ•Ì½Í¡•‘Õ±”½±¥Ù•M¡•‘Õ±”ˆì)¥µÁ½ÉÐì•ÑM¡½Ý	å%ô™É½´€ˆ¸¸¼¸¸½™•…ÑÕÉ•Ì½Í¡½ÝÌ½Í¡½ÝM•±•Ñ½ÉÌˆì)¥µÁ½ÉÐì(€ÁÕ‰±¥…É‘MÑå±”°(€ÁÕ‰±¥½±½ÉÌ°(€ÁÕ‰±¥µÁÑåMÑ…Ñ•MÑå±”°(€ÁÕ‰±¥å•‰É½ÝMÑå±”°(€ÁÕ‰±¥!•É½MÑå±”°(€ÁÕ‰±¥5ÕÑ•‘Q•áÑMÑå±”°(€ÁÕ‰±¥A…•MÑå±”°(€ÁÕ‰±¥AÉ¥µ…ÉåÑ¥½¹MÑå±”°(€ÁÕ‰±¥M•½¹‘…ÉåÑ¥½¹MÑå±”°(€ÁÕ‰±¥MÕ‰Ñ¥Ñ±•MÑå±”°(€ÁÕ‰±¥Q¥Ñ±•MÑå±”°)ô™É½´€ˆ¸¸¼¸¸½ÍÑå±•Ì½ÁÕ‰±¥MÑå±•Ìˆì()™Õ¹Ñ¥½¸AÕ‰±¥M¡½Ý1¥Ù•ÍÑÉ•…µA…” ¤ì(€½¹ÍÐì…ÍÍ½¥…Ñ¥½¹%°Í¡½Ý%ô€ôÕÍ•A…É…µÌ ¤ì(€½¹ÍÐìÐ°±…¹Õ…”ô€ôÕÍ•QÉ…¹Í±…Ñ¥½¸ ¤ì(€½¹ÍÐm…ÍÍ½¥…Ñ¥½¸°Í•ÑÍÍ½¥…Ñ¥½¹t€ôÕÍ•MÑ…Ñ”¡¹Õ±°¤ì(€½¹ÍÐmÍ¡½Ü°Í•ÑM¡½Ýt€ôÕÍ•MÑ…Ñ”  ¤€ôø•ÑM¡½Ý	å%¡Í¡½Ý%¤¤ì(€½¹ÍÐmÁÕ‰±¥Y¥•Ü°Í•ÑAÕ‰±¥Y¥•Ýt€ôÕÍ•MÑ…Ñ”  ¤€ôø•ÑAÕ‰±¥M¡½ÝY¥•Ü¡Í¡½Ý%¤¤ì(€½¹ÍÐm¥Í1½…‘¥¹œ°Í•Ñ%Í1½…‘¥¹t€ôÕÍ•MÑ…Ñ”¡ÑÉÕ”¤ì(€½¹ÍÐm¹½Ü°Í•Ñ9½Ýt€ôÕÍ•MÑ…Ñ”  ¤€ôø¹•Ü…Ñ” ¤¤ì(€½¹ÍÐ…¹½¹¥…±A…Ñ €ô€½ÁÕ‰±¥Œ½…ÍÍ½¥…Ñ¥½¹Ì¼‘í…ÍÍ½¥…Ñ¥½¹%‘ô½Í¡½ÝÌ¼‘íÍ¡½Ý%‘ô½±¥Ù•ÍÑÉ•…µ€ì(€½¹ÍÐÉ•ÍÕ±ÑÍA…Ñ €ô€½ÁÕ‰±¥Œ½…ÍÍ½¥…Ñ¥½¹Ì¼‘í…ÍÍ½¥…Ñ¥½¹%‘ô½Í¡½ÝÌ¼‘íÍ¡½Ý%‘õ€ì(€½¹ÍÐÍ•¼€ôÕÍ•5•µ¼ (€€€€ ¤€ôø‰Õ¥±‘M¡½ÝAÕ‰±¥M•¼¡ì…ÍÍ½¥…Ñ¥½¸°Í¡½Ü°Ðô¤°(€€€m…ÍÍ½¥…Ñ¥½¸°Í¡½Ü°Ñt(€€¤ì(€½¹ÍÐ±¥Ù•ÍÑÉ•…´€ô•ÑÕÉÉ•¹ÑAÕ‰±¥1¥Ù•ÍÑÉ•…´¡Í¡½Ü°ì(€€€Ñ¥µ•é½¹”è…ÍÍ½¥…Ñ¥½¸ü¹Ñ¥µ•é½¹”°(€€€¹½Ü°(€ô¤ì(€½¹ÍÐ•µ‰•€ô‰Õ¥±‘1¥Ù•ÍÑÉ•…µµ‰•¡±¥Ù•ÍÑÉ•…´¹ÕÉ°¤ì(€½¹ÍÐÁÉ•Ù¥½ÕÍ1¥Ù•ÍÑÉ•…µÌ€ô•ÑAÉ•Ù¥½ÕÍAÕ‰±¥1¥Ù•ÍÑÉ•…µÌ¡Í¡½Ü°ì(€€€Ñ¥µ•é½¹”è…ÍÍ½¥…Ñ¥½¸ü¹Ñ¥µ•é½¹”°(€€€¹½Ü°(€ô¤ì(€½¹ÍÐ¹•áÑ1¥Ù•ÍÑÉ•…´€ô•Ñ9•áÑAÕ‰±¥1¥Ù•ÍÑÉ•…´¡Í¡½Ü°ì(€€€Ñ¥µ•é½¹”è…ÍÍ½¥…Ñ¥½¸ü¹Ñ¥µ•é½¹”°(€€€¹½Ü°(€ô¤ì(€½¹ÍÐ•¹…‰±•‘1¥Ù•±…ÍÍ•Ì€ôÉÉ…ä¹¥ÍÉÉ…ä¡ÁÕ‰±¥Y¥•Üü¹±¥Ù•±…ÍÍ•Ì¤(€€€€üÁÕ‰±¥Y¥•Ü¹±¥Ù•±…ÍÍ•Ì¹™¥±Ñ•È ¡±…ÍÍY¥•Ü¤€ôø€…±…ÍÍY¥•Ü¹¥ÍM¡•‘Õ±•=¹±ä¤(€€€€èmtì(€½¹ÍÐìÕÉÉ•¹Ðè±¥Ù•±…ÍÍ•Ìô€ôÁ…ÉÑ¥Ñ¥½¹M¡•‘Õ±•‘1¥Ù•Y¥•ÝÌ (€€€•¹…‰±•‘1¥Ù•±…ÍÍ•Ì°(€€€¹½Ü(€€¤ì(€½¹ÍÐÁÕ‰±¥±…ÍÍ%‘Í-•ä€ô€¡ÁÕ‰±¥Y¥•Üü¹±…ÍÍ%‘Ìñðmt¤¹©½¥¸ ‰ðˆ¤ì((€ÕÍ•™™•Ð  ¤€ôøì(€€€±•Ð¥Í5½Õ¹Ñ•€ôÑÉÕ”ì((€€€…Íå¹Œ™Õ¹Ñ¥½¸±½… ¤ì(€€€€€½¹ÍÐm¹•áÑÍÍ½¥…Ñ¥½¸°¹•áÑAÕ‰±¥Y¥•Ýt€ô…Ý…¥ÐAÉ½µ¥Í”¹…±°¡l(€€€€€€€•ÑAÕ‰±¥ÍÍ½¥…Ñ¥½¹I•Á½Í¥Ñ½Éä¡…ÍÍ½¥…Ñ¥½¹%¤°(€€€€€€€•ÑAÕ‰±¥M¡½ÝY¥•ÝI•Á½Í¥Ñ½Éä¡Í¡½Ý%¤°(€€€€€t¤ì((€€€€€¥˜€ …¥Í5½Õ¹Ñ•¤É•ÑÕÉ¸ì(€€€€€Í•ÑÍÍ½¥…Ñ¥½¸¡¹•áÑÍÍ½¥…Ñ¥½¸¤ì(€€€€€Í•ÑM¡½Ü¡¹•áÑAÕ‰±¥Y¥•Ü¹Í¡½Ü¤ì(€€€€€Í•ÑAÕ‰±¥Y¥•Ü¡¹•áÑAÕ‰±¥Y¥•Ü¤ì(€€€€€Í•Ñ%Í1½…‘¥¹œ¡™…±Í”¤ì(€€€ô((€€€±½… ¤ì((€€€É•ÑÕÉ¸€ ¤€ôøì(€€€€€¥Í5½Õ¹Ñ•€ô™…±Í”ì(€€€ôì(€ô°m…ÍÍ½¥…Ñ¥½¹%°Í¡½Ý%‘t¤ì((€ÕÍ•AÕ‰±¥M¡½ÝY¥•ÝUÁ‘…Ñ•Ì¡ì(€€€Í¡½Ý%°(€€€±…ÍÍ%‘ÌèÁÕ‰±¥±…ÍÍ%‘Í-•ä€üÁÕ‰±¥±…ÍÍ%‘Í-•ä¹ÍÁ±¥Ð ‰ðˆ¤€èmt°(€€€±½…è€ ¤€ôø•ÑAÕ‰±¥M¡½ÝY¥•ÝI•Á½Í¥Ñ½Éä¡Í¡½Ý%¤°(€€€½¹…Ñ„è€¡¹•áÑAÕ‰±¥Y¥•Ü¤€ôøì(€€€€€Í•ÑM¡½Ü¡¹•áÑAÕ‰±¥Y¥•Ü¹Í¡½Ü¤ì(€€€€€Í•ÑAÕ‰±¥Y¥•Ü¡¹•áÑAÕ‰±¥Y¥•Ü¤ì(€€€€€Í•Ñ9½Ü¡¹•Ü…Ñ” ¤¤ì(€€€ô°(€ô¤ì((€½¹ÍÐÁ…•Q¥Ñ±”€ôÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹Í•½Q¥Ñ±”ˆ°ì(€€€Í¡½Ý9…µ”èÍ¡½Üü¹¹…µ”ñðÐ ‰½µµ½¸¹Í¡½Üˆ¤°(€ô¤ì((€É•ÑÕÉ¸€ (€€€€ñµ…¥¸ÍÑå±”õíÁÕ‰±¥A…•MÑå±•ôø(€€€€€€ñM•½5•Ñ„(€€€€€€€Ñ¥Ñ±”õíÁ…•Q¥Ñ±•ô(€€€€€€€‘•ÍÉ¥ÁÑ¥½¸õíÍ•¼¹‘•ÍÉ¥ÁÑ¥½¹ô(€€€€€€€…¹½¹¥…±A…Ñ õí…¹½¹¥…±A…Ñ¡ô(€€€€€€€¥µ…•UÉ°õí…ÍÍ½¥…Ñ¥½¸ü¹±½½…Ñ…UÉ±ô(€€€€€€€É½‰½ÑÌô‰¥¹‘•à±™½±±½Üˆ(€€€€€€¼ø((€€€€€€ñÍ•Ñ¥½¸ÍÑå±”õíÁÕ‰±¥!•É½MÑå±•ôø(€€€€€€€€ñ‘¥ØÍÑå±”õí‰É…¹‘MÑå±•ôø(€€€€€€€€€€ñÍÍ½¥…Ñ¥½¹1½¼…ÍÍ½¥…Ñ¥½¸õí…ÍÍ½¥…Ñ¥½¹ôÍ¥é”õìÔáô€¼ø(€€€€€€€€€€ñ‘¥Øø(€€€€€€€€€€€€ñ‘¥ØÍÑå±”õíÁÕ‰±¥å•‰É½ÝMÑå±•ôø(€€€€€€€€€€€€€íÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹•å•‰É½Üˆ¥ô(€€€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€€€ñ ÄÍÑå±”õíÁÕ‰±¥Q¥Ñ±•MÑå±•ôø(€€€€€€€€€€€€€íÍ¡½Üü¹¹…µ”ñðÐ ‰½µµ½¸¹Í¡½Üˆ¥ô(€€€€€€€€€€€€ð½ Äø(€€€€€€€€€€€€ñ‘¥ØÍÑå±”õíÁÕ‰±¥MÕ‰Ñ¥Ñ±•MÑå±•ôø(€€€€€€€€€€€€€í…ÍÍ½¥…Ñ¥½¸ü¹Í¡½ÉÑ9…µ”ñð…ÍÍ½¥…Ñ¥½¸ü¹¹…µ”ñð(€€€€€€€€€€€€€€€Ð ‰½µµ½¸¹…ÍÍ½¥…Ñ¥½¸ˆ¥ô(€€€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€ð½‘¥Øø(€€€€€€€€ð½‘¥Øø(€€€€€€€€ñ‘¥ØÍÑå±”õí…Ñ¥½¹I½ÝMÑå±•ôø(€€€€€€€€€€ñ1¥¹¬Ñ¼õíÉ•ÍÕ±ÑÍA…Ñ¡ôÍÑå±”õíÁÕ‰±¥AÉ¥µ…ÉåÑ¥½¹MÑå±•ôø(€€€€€€€€€€€íÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹½Á•¹I•ÍÕ±ÑÌˆ¥ô(€€€€€€€€€€ð½1¥¹¬ø(€€€€€€€€€€ñM¡…É•	ÕÑÑ½¸(€€€€€€€€€€€ÕÉ°õí…¹½¹¥…±A…Ñ¡ô(€€€€€€€€€€€Ñ¥Ñ±”õíÁ…•Q¥Ñ±•ô(€€€€€€€€€€€Ñ•áÐõíÍ•¼¹‘•ÍÉ¥ÁÑ¥½¹ô(€€€€€€€€€€¼ø(€€€€€€€€ð½‘¥Øø(€€€€€€ð½Í•Ñ¥½¸ø((€€€€€í¥Í1½…‘¥¹œ€ü€ (€€€€€€€€ñÍ•Ñ¥½¸ÍÑå±”õíÁÕ‰±¥µÁÑåMÑ…Ñ•MÑå±•ôø(€€€€€€€€€íÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹±½…‘¥¹œˆ¥ô(€€€€€€€€ð½Í•Ñ¥½¸ø(€€€€€€¤€è€…Í¡½Ü€ü€ (€€€€€€€€ñÍ•Ñ¥½¸ÍÑå±”õíÁÕ‰±¥µÁÑåMÑ…Ñ•MÑå±•ôø(€€€€€€€€€íÐ ‰ÁÕ‰±¥Œ¹É•ÍÕ±ÑÌ¹Í¡½Ý9½Ñ½Õ¹ˆ¥ô(€€€€€€€€ð½Í•Ñ¥½¸ø(€€€€€€¤€è±¥Ù•ÍÑÉ•…´¹ÕÉ°€ü€ (€€€€€€€€ñÍ•Ñ¥½¸ÍÑå±”õíÙ¥‘•½…É‘MÑå±•ôø(€€€€€€€€€€ñ‘¥ØÍÑå±”õíÙ¥‘•½!•…‘¥¹MÑå±•ôø(€€€€€€€€€€€€ñ‘¥Øø(€€€€€€€€€€€€€€ñ‘¥ØÍÑå±”õíÁÕ‰±¥å•‰É½ÝMÑå±•ôø(€€€€€€€€€€€€€€€íÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹Ñ½‘…äˆ¥ô(€€€€€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€€€€€ñ ÈÍÑå±”õíÙ¥‘•½Q¥Ñ±•MÑå±•ôø(€€€€€€€€€€€€€€€í™½Éµ…Ñ…å1…‰•°¡±¥Ù•ÍÑÉ•…´¹Í¡½Ý…Ñ”°±…¹Õ…”¥ô(€€€€€€€€€€€€€€ð½ Èø(€€€€€€€€€€€€€€ñ‘¥ØÍÑå±”õíÁÕ‰±¥5ÕÑ•‘Q•áÑMÑå±•ôùí±¥Ù•ÍÑÉ•…´¹Í¡½Ý…Ñ•ôð½‘¥Øø(€€€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€€í•µ‰•¹ÁÉ½Ù¥‘•É1…‰•°€ü€ (€€€€€€€€€€€€€€ñÍÁ…¸ÍÑå±”õíÁÉ½Ù¥‘•É	…‘•MÑå±•ôùí•µ‰•¹ÁÉ½Ù¥‘•É1…‰•±ôð½ÍÁ…¸ø(€€€€€€€€€€€€¤€è¹Õ±±ô(€€€€€€€€€€ð½‘¥Øø((€€€€€€€€€í•µ‰•¹…¹µ‰•€ü€ (€€€€€€€€€€€€ñ‘¥ØÍÑå±”õí™É…µ•]É…ÁMÑå±•ôø(€€€€€€€€€€€€€€ñ¥™É…µ”(€€€€€€€€€€€€€€€Ñ¥Ñ±”õíÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹Ù¥‘•½Q¥Ñ±”ˆ¥ô(€€€€€€€€€€€€€€€ÍÉŒõí•µ‰•¹•µ‰•‘UÉ±ô(€€€€€€€€€€€€€€€…±±½Üô‰…ÕÑ½Á±…äì•¹ÉåÁÑ•µµ•‘¥„ìÁ¥ÑÕÉ”µ¥¸µÁ¥ÑÕÉ”ì™Õ±±ÍÉ••¸ˆ(€€€€€€€€€€€€€€€…±±½ÝÕ±±MÉ••¸(€€€€€€€€€€€€€€€ÍÑå±”õí™É…µ•MÑå±•ô(€€€€€€€€€€€€€€¼ø(€€€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€¤€è€ (€€€€€€€€€€€€ñ‘¥ØÍÑå±”õí•áÑ•É¹…±MÑå±•ôø(€€€€€€€€€€€€€€ñ‘¥ØÍÑå±”õíÁÕ‰±¥5ÕÑ•‘Q•áÑMÑå±•ôø(€€€€€€€€€€€€€€€íÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹•áÑ•É¹…±=¹±äˆ¥ô(€€€€€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€€€€€ñ„(€€€€€€€€€€€€€€€¡É•˜õí•µ‰•¹•áÑ•É¹…±UÉ±ô(€€€€€€€€€€€€€€€Ñ…É•Ðô‰}‰±…¹¬ˆ(€€€€€€€€€€€€€€€É•°ô‰¹½É•™•ÉÉ•Èˆ(€€€€€€€€€€€€€€€ÍÑå±”õíÁÕ‰±¥M•½¹‘…ÉåÑ¥½¹MÑå±•ô(€€€€€€€€€€€€€€ø(€€€€€€€€€€€€€€€íÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹½Á•¹áÑ•É¹…°ˆ¥ô(€€€€€€€€€€€€€€ð½„ø(€€€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€¥ô(€€€€€€€€ð½Í•Ñ¥½¸ø(€€€€€€¤€è€ (€€€€€€€€ñÍ•Ñ¥½¸ÍÑå±”õí•µÁÑåY¥‘•½MÑå±•ôø(€€€€€€€€€€ñ‘¥ØÍÑå±”õíÁÕ‰±¥å•‰É½ÝMÑå±•ôø(€€€€€€€€€€€íÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹•å•‰É½Üˆ¥ô(€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€ñ ÈÍÑå±”õí•µÁÑåQ¥Ñ±•MÑå±•ôø(€€€€€€€€€€€í¹•áÑ1¥Ù•ÍÑÉ•…´(€€€€€€€€€€€€€€üÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹¹•áÑ	É½…‘…ÍÐˆ°ì(€€€€€€€€€€€€€€€€€‘…Ñ”è™½Éµ…Ñ…å1…‰•°¡¹•áÑ1¥Ù•ÍÑÉ•…´¹‘…Ñ”°±…¹Õ…”¤°(€€€€€€€€€€€€€€€ô¤(€€€€€€€€€€€€€€è±¥Ù•ÍÑÉ•…´¹Í¡½Ý…Ñ”(€€€€€€€€€€€€€€€€üÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹¹½Y¥‘•½Q½‘…äˆ¤(€€€€€€€€€€€€€€€€èÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹½ÕÑÍ¥‘•M¡½Ý…äˆ¥ô(€€€€€€€€€€ð½ Èø(€€€€€€€€€í¹•áÑ1¥Ù•ÍÑÉ•…´€ü€ (€€€€€€€€€€€€ñ‘¥ØÍÑå±”õí¹•áÑ	É½…‘…ÍÑ…Ñ•MÑå±•ôùí¹•áÑ1¥Ù•ÍÑÉ•…´¹‘…Ñ•ôð½‘¥Øø(€€€€€€€€€€¤€è¹Õ±±ô(€€€€€€€€€€ñ‘¥ØÍÑå±”õíÁÕ‰±¥5ÕÑ•‘Q•áÑMÑå±•ôø(€€€€€€€€€€€í¹•áÑ1¥Ù•ÍÑÉ•…´(€€€€€€€€€€€€€€üÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹¹•áÑ	É½…‘…ÍÑ!•±Àˆ¤(€€€€€€€€€€€€€€èÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹É•ÍÕ±ÑÍI•µ…¥¹Ù…¥±…‰±”ˆ¥ô(€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€ñ1¥¹¬Ñ¼õíÉ•ÍÕ±ÑÍA…Ñ¡ôÍÑå±”õíÁÕ‰±¥AÉ¥µ…ÉåÑ¥½¹MÑå±•ôø(€€€€€€€€€€€íÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹½Á•¹I•ÍÕ±ÑÌˆ¥ô(€€€€€€€€€€ð½1¥¹¬ø(€€€€€€€€ð½Í•Ñ¥½¸ø(€€€€€€¥ô((€€€€€ì…¥Í1½…‘¥¹œ€˜˜±¥Ù•ÍÑÉ•…´¹ÕÉ°€ü€ (€€€€€€€€ñÍ•Ñ¥½¸ÍÑå±”õí±¥Ù•AÉ½É•ÍÍM•Ñ¥½¹MÑå±•ôø(€€€€€€€€€€ñ‘¥ØÍÑå±”õí±¥Ù•AÉ½É•ÍÍ!•…‘¥¹MÑå±•ôø(€€€€€€€€€€€€ñ‘¥Øø(€€€€€€€€€€€€€€ñ‘¥ØÍÑå±”õíÁÕ‰±¥å•‰É½ÝMÑå±•ôø(€€€€€€€€€€€€€€€íÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹‰±½­1¥Ù”ˆ¥ô(€€€€€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€€€€€ñ‘¥ØÍÑå±”õíÁÕ‰±¥5ÕÑ•‘Q•áÑMÑå±•ôø(€€€€€€€€€€€€€€€íÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹±¥Ù•AÉ½É•ÍÌˆ¥ô(€€€€€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€€€ñÍÁ…¸ÍÑå±”õí±¥Ù•	…‘•MÑå±•ôù1%Yð½ÍÁ…¸ø(€€€€€€€€€€ð½‘¥Øø((€€€€€€€€€í±¥Ù•±…ÍÍ•Ì¹±•¹Ñ €ø€À€ü€ (€€€€€€€€€€€€ñ‘¥ØÍÑå±”õí±¥Ù•±…ÍÍ1¥ÍÑMÑå±•ôø(€€€€€€€€€€€€€í±¥Ù•±…ÍÍ•Ì¹µ…À ¡±…ÍÍY¥•Ü¤€ôø€ (€€€€€€€€€€€€€€€€ñ1¥Ù•ÍÑÉ•…µ1¥Ù•±…ÍÌ(€€€€€€€€€€€€€€€€€­•äõí±…ÍÍY¥•Ü¹±…ÍÍ%ñð±…ÍÍY¥•Ü¹±…ÍÍ½‘•ô(€€€€€€€€€€€€€€€€€±…ÍÍY¥•Üõí±…ÍÍY¥•Ýô(€€€€€€€€€€€€€€€€¼ø(€€€€€€€€€€€€€€¤¥ô(€€€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€¤€è€ (€€€€€€€€€€€€ñ‘¥ØÍÑå±”õí±¥Ù•]…¥Ñ¥¹MÑå±•ôø(€€€€€€€€€€€€€íÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹¹½1¥Ù•	±½¬ˆ¥ô(€€€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€¥ô(€€€€€€€€ð½Í•Ñ¥½¸ø(€€€€€€¤€è¹Õ±±ô((€€€€€ì…¥Í1½…‘¥¹œ€˜˜ÁÉ•Ù¥½ÕÍ1¥Ù•ÍÑÉ•…µÌ¹±•¹Ñ €ø€À€ü€ (€€€€€€€€ñÍ•Ñ¥½¸ÍÑå±”õí…É¡¥Ù•…É‘MÑå±•ôø(€€€€€€€€€€ñ‘¥Øø(€€€€€€€€€€€€ñ‘¥ØÍÑå±”õíÁÕ‰±¥å•‰É½ÝMÑå±•ôø(€€€€€€€€€€€€€íÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹…É¡¥Ù”ˆ¥ô(€€€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€€€ñ‘¥ØÍÑå±”õíÁÕ‰±¥5ÕÑ•‘Q•áÑMÑå±•ôø(€€€€€€€€€€€€€íÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹…É¡¥Ù•!•±Àˆ¥ô(€€€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€ñ‘¥ØÍÑå±”õí…É¡¥Ù•1¥ÍÑMÑå±•ôø(€€€€€€€€€€€íÁÉ•Ù¥½ÕÍ1¥Ù•ÍÑÉ•…µÌ¹µ…À ¡¥Ñ•´¤€ôøì(€€€€€€€€€€€€€½¹ÍÐÁÉ•Ù¥½ÕÍµ‰•€ô‰Õ¥±‘1¥Ù•ÍÑÉ•…µµ‰•¡¥Ñ•´¹ÕÉ°¤ì((€€€€€€€€€€€€€É•ÑÕÉ¸€ (€€€€€€€€€€€€€€€€ñ„(€€€€€€€€€€€€€€€€€­•äõí¥Ñ•´¹‘…Ñ•ô(€€€€€€€€€€€€€€€€€¡É•˜õíÁÉ•Ù¥½ÕÍµ‰•¹•áÑ•É¹…±UÉ°ñð¥Ñ•´¹ÕÉ±ô(€€€€€€€€€€€€€€€€€Ñ…É•Ðô‰}‰±…¹¬ˆ(€€€€€€€€€€€€€€€€€É•°ô‰¹½É•™•ÉÉ•Èˆ(€€€€€€€€€€€€€€€€€ÍÑå±”õí…É¡¥Ù•1¥¹­MÑå±•ô(€€€€€€€€€€€€€€€€ø(€€€€€€€€€€€€€€€€€€ñÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€€ñÍÑÉ½¹œÍÑå±”õí…É¡¥Ù•…Ñ•MÑå±•ôø(€€€€€€€€€€€€€€€€€€€€€í™½Éµ…Ñ…å1…‰•°¡¥Ñ•´¹‘…Ñ”°±…¹Õ…”¥ô(€€€€€€€€€€€€€€€€€€€€ð½ÍÑÉ½¹œø(€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸ÍÑå±”õí…É¡¥Ù•%Í½…Ñ•MÑå±•ôùí¥Ñ•´¹‘…Ñ•ôð½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€ð½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€ñÍÁ…¸ÍÑå±”õí…É¡¥Ù•Ñ¥½¹MÑå±•ôø(€€€€€€€€€€€€€€€€€€€íÁÉ•Ù¥½ÕÍµ‰•¹ÁÉ½Ù¥‘•É1…‰•°€ü€ (€€€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸ÍÑå±”õíÁÉ½Ù¥‘•É	…‘•MÑå±•ôø(€€€€€€€€€€€€€€€€€€€€€€€íÁÉ•Ù¥½ÕÍµ‰•¹ÁÉ½Ù¥‘•É1…‰•±ô(€€€€€€€€€€€€€€€€€€€€€€ð½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€€¤€è¹Õ±±ô(€€€€€€€€€€€€€€€€€€€íÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹½Á•¹I•Á±…äˆ¥ôƒŠH(€€€€€€€€€€€€€€€€€€ð½ÍÁ…¸ø(€€€€€€€€€€€€€€€€ð½„ø(€€€€€€€€€€€€€€¤ì(€€€€€€€€€€€ô¥ô(€€€€€€€€€€ð½‘¥Øø(€€€€€€€€ð½Í•Ñ¥½¸ø(€€€€€€¤€è¹Õ±±ô(€€€€ð½µ…¥¸ø(€€¤ì)ô()™Õ¹Ñ¥½¸1¥Ù•ÍÑÉ•…µ1¥Ù•±…ÍÌ¡ì±…ÍÍY¥•Üô¤ì(€½¹ÍÐìÐô€ôÕÍ•QÉ…¹Í±…Ñ¥½¸ ¤ì(€½¹ÍÐ…Ñ¥Ù•IÕ¸€ô±…ÍÍY¥•Ü¹…Ñ¥Ù•IÕ¸ñð¹Õ±°ì(€½¹ÍÐÉÕ¹Ì€ô‰Õ¥±‘1¥Ù•ÍÑÉ•…µIÕ¹=É‘•È¡±…ÍÍY¥•Ü¤ì((€É•ÑÕÉ¸€ (€€€€ñ…ÉÑ¥±”ÍÑå±”õí±¥Ù•±…ÍÍ…É‘MÑå±•ôø(€€€€€€ñ‘¥ØÍÑå±”õí±¥Ù•±…ÍÍ!•…‘¥¹MÑå±•ôø(€€€€€€€€ñ‘¥Øø(€€€€€€€€€€ñ ÈÍÑå±”õí±¥Ù•±…ÍÍQ¥Ñ±•MÑå±•ôø(€€€€€€€€€€€í±…ÍÍY¥•Ü¹±…ÍÍ9…µ•ô(€€€€€€€€€€€í±…ÍÍY¥•Ü¹±…ÍÍ½‘”€ü€€ ‘í±…ÍÍY¥•Ü¹±…ÍÍ½‘•ô¥€€è€ˆ‰ô(€€€€€€€€€€ð½ Èø(€€€€€€€€€€ñ‘¥ØÍÑå±”õíÁÕ‰±¥5ÕÑ•‘Q•áÑMÑå±•ôø(€€€€€€€€€€€í±…ÍÍY¥•Ü¹…É•¹„(€€€€€€€€€€€€€€ü€‘íÐ ‰ÁÕ‰±¥Œ¹É•ÍÕ±ÑÌ¹…É•¹„ˆ¥ô€‘í±…ÍÍY¥•Ü¹…É•¹…ôƒ
-Ü€(€€€€€€€€€€€€€€è€ˆ‰ô(€€€€€€€€€€€í±…ÍÍY¥•Ü¹Á…ÑÑ•É¸ñð€ˆ‰ô(€€€€€€€€€€ð½‘¥Øø(€€€€€€€€ð½‘¥Øø(€€€€€€€í…Ñ¥Ù•IÕ¸€ü€ (€€€€€€€€€€ñÍÁ…¸ÍÑå±”õí½¹½ÕÉÍ•	…‘•MÑå±•ôø(€€€€€€€€€€€íÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹ÕÉÉ•¹Ðˆ¥ôƒ
-Ü€í…Ñ¥Ù•IÕ¸¹‘É…Ýô(€€€€€€€€€€ð½ÍÁ…¸ø(€€€€€€€€¤€è¹Õ±±ô(€€€€€€ð½‘¥Øø((€€€€€€ñ‘¥ØÍÑå±”õí±¥Ù•Q…‰±•]É…ÁMÑå±•ôø(€€€€€€€€ñÑ…‰±”ÍÑå±”õí±¥Ù•Q…‰±•MÑå±•ôø(€€€€€€€€€€ñÑ¡•…ø(€€€€€€€€€€€€ñÑÈø(€€€€€€€€€€€€€€ñÑ ÍÑå±”õí±¥Ù•Q¡MÑå±•ôùíÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹‘É…Üˆ¥ôð½Ñ ø(€€€€€€€€€€€€€€ñÑ ÍÑå±”õí±¥Ù•Q¡MÑå±•ôùíÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹‰…­9Õµ‰•Èˆ¥ôð½Ñ ø(€€€€€€€€€€€€€€ñÑ ÍÑå±”õí±¥Ù•Q¡MÑå±•ôùíÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹É¥‘•Èˆ¥ôð½Ñ ø(€€€€€€€€€€€€€€ñÑ ÍÑå±”õí±¥Ù•Q¡MÑå±•ôùíÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹¡½ÉÍ”ˆ¥ôð½Ñ ø(€€€€€€€€€€€€€€ñÑ ÍÑå±”õí±¥Ù•Q¡MÑå±•ôùíÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹ÍÑ…ÑÕÌˆ¥ôð½Ñ ø(€€€€€€€€€€€€€í±…ÍÍY¥•Ü¹Í¡½ÝM½É•Ì€„ôô™…±Í”€ü€ (€€€€€€€€€€€€€€€€ñÑ ÍÑå±”õí±¥Ù•M½É•Q¡MÑå±•ôùíÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹Í½É”ˆ¥ôð½Ñ ø(€€€€€€€€€€€€€€¤€è¹Õ±±ô(€€€€€€€€€€€€ð½ÑÈø(€€€€€€€€€€ð½Ñ¡•…ø(€€€€€€€€€€ñÑ‰½‘äø(€€€€€€€€€€€íÉÕ¹Ì¹µ…À ¡ÉÕ¸¤€ôøì(€€€€€€€€€€€€€½¹ÍÐ¥ÍÑ¥Ù”€ô¥ÍM…µ•1¥Ù•ÍÑÉ•…µIÕ¸¡ÉÕ¸°…Ñ¥Ù•IÕ¸¤ì(€€€€€€€€€€€€€½¹ÍÐ¥Í½µÁ±•Ñ•€ô	½½±•…¸¡ÉÕ¸¹¥ÍA…ÍÍ•ñðÉÕ¸¹¥Í½µÁ±•Ñ”¤ì((€€€€€€€€€€€€€É•ÑÕÉ¸€ (€€€€€€€€€€€€€€€€ñÑÈ(€€€€€€€€€€€€€€€€€­•äõí•Ñ1¥Ù•ÍÑÉ•…µIÕ¹-•ä¡ÉÕ¸¥ô(€€€€€€€€€€€€€€€€€ÍÑå±”õí±¥Ù•IÕ¹I½ÝMÑå±”¡ì¥ÍÑ¥Ù”°¥Í½µÁ±•Ñ•ô¥ô(€€€€€€€€€€€€€€€€ø(€€€€€€€€€€€€€€€€€€ñÑÍÑå±”õí±¥Ù•Q‘MÑå±•ôø(€€€€€€€€€€€€€€€€€€€€ñÍÑÉ½¹œøíÉÕ¸¹‘É…Ýôð½ÍÑÉ½¹œø(€€€€€€€€€€€€€€€€€€ð½Ñø(€€€€€€€€€€€€€€€€€€ñÑÍÑå±”õí±¥Ù•Q‘MÑå±•ôùíÉÕ¸¹‰…­9Õµ‰•Èñð€‹ŠP‰ôð½Ñø(€€€€€€€€€€€€€€€€€€ñÑÍÑå±”õí±¥Ù•Q‘MÑå±•ôùíÉÕ¸¹É¥‘•Èñð€‹ŠP‰ôð½Ñø(€€€€€€€€€€€€€€€€€€ñÑÍÑå±”õí±¥Ù•Q‘MÑå±•ôùíÉÕ¸¹¡½ÉÍ”ñð€‹ŠP‰ôð½Ñø(€€€€€€€€€€€€€€€€€€ñÑÍÑå±”õí±¥Ù•Q‘MÑå±•ôø(€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸(€€€€€€€€€€€€€€€€€€€€€ÍÑå±”õì(€€€€€€€€€€€€€€€€€€€€€€€¥ÍÑ¥Ù”(€€€€€€€€€€€€€€€€€€€€€€€€€€üÕÉÉ•¹ÑMÑ…ÑÕÍMÑå±”(€€€€€€€€€€€€€€€€€€€€€€€€€€è¥Í½µÁ±•Ñ•(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ü½µÁ±•Ñ•‘MÑ…ÑÕÍMÑå±”(€€€€€€€€€€€€€€€€€€€€€€€€€€€€èÕÁ½µ¥¹MÑ…ÑÕÍMÑå±”(€€€€€€€€€€€€€€€€€€€€€ô(€€€€€€€€€€€€€€€€€€€€ø(€€€€€€€€€€€€€€€€€€€€€í¥ÍÑ¥Ù”(€€€€€€€€€€€€€€€€€€€€€€€€üÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹ÕÉÉ•¹Ðˆ¤(€€€€€€€€€€€€€€€€€€€€€€€€è¥Í½µÁ±•Ñ•(€€€€€€€€€€€€€€€€€€€€€€€€€€üÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹½µÁ±•Ñ•ˆ¤(€€€€€€€€€€€€€€€€€€€€€€€€€€èÐ ‰ÁÕ‰±¥Œ¹±¥Ù•ÍÑÉ•…´¹ÕÁ½µ¥¹œˆ¥ô(€€€€€€€€€€€€€€€€€€€€ð½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€ð½Ñø(€€€€€€€€€€€€€€€€€í±…ÍÍY¥•Ü¹Í¡½ÝM½É•Ì€„ôô™…±Í”€ü€ (€€€€€€€€€€€€€€€€€€€€ñÑÍÑå±”õí±¥Ù•M½É•Q‘MÑå±•ôø(€€€€€€€€€€€€€€€€€€€€€í¥Í½µÁ±•Ñ•€üÉÕ¸¹Í½É•Q½Ñ…°ñð€‹ŠPˆ€è€‹ŠP‰ô(€€€€€€€€€€€€€€€€€€€€ð½Ñø(€€€€€€€€€€€€€€€€€€¤€è¹Õ±±ô(€€€€€€€€€€€€€€€€ð½ÑÈø(€€€€€€€€€€€€€€¤ì(€€€€€€€€€€€ô¥ô(€€€€€€€€€€ð½Ñ‰½‘äø(€€€€€€€€ð½Ñ…‰±”ø(€€€€€€ð½‘¥Øø(€€€€ð½…ÉÑ¥±”ø(€€¤ì)ô()™Õ¹Ñ¥½¸‰Õ¥±‘1¥Ù•ÍÑÉ•…µIÕ¹=É‘•È¡±…ÍÍY¥•Ü¤ì(€½¹ÍÐÉÕ¹5…À€ô¹•Ü5…À ¤ì(€½¹ÍÐÍ½ÕÉ•IÕ¹Ì€ôl(€€€€¸¸¸¡ÉÉ…ä¹¥ÍÉÉ…ä¡±…ÍÍY¥•Üü¹Á…ÍÍ•‘IÕ¹Ì¤€ü±…ÍÍY¥•Ü¹Á…ÍÍ•‘IÕ¹Ì€èmt¤°(€€€±…ÍÍY¥•Üü¹…Ñ¥Ù•IÕ¸°(€€€€¸¸¸¡ÉÉ…ä¹¥ÍÉÉ…ä¡±…ÍÍY¥•Üü¹½É‘•ÉIÕ¹Ì¤€ü±…ÍÍY¥•Ü¹½É‘•ÉIÕ¹Ì€èmt¤°(€t¹™¥±Ñ•È¡	½½±•…¸¤ì((€Í½ÕÉ•IÕ¹Ì¹™½É…  ¡ÉÕ¸¤€ôøì(€€€½¹ÍÐ­•ä€ô•Ñ1¥Ù•ÍÑÉ•…µIÕ¹-•ä¡ÉÕ¸¤ì(€€€½¹ÍÐÁÉ•Ù¥½ÕÌ€ôÉÕ¹5…À¹•Ð¡­•ä¤ì(€€€ÉÕ¹5…À¹Í•Ð¡­•ä°ÁÉ•Ù¥½ÕÌ€üì€¸¸¹ÁÉ•Ù¥½ÕÌ°€¸¸¹ÉÕ¸ô€èÉÕ¸¤ì(€ô¤ì((€É•ÑÕÉ¸ÉÉ…ä¹™É½´¡ÉÕ¹5…À¹Ù…±Õ•Ì ¤¤¹Í½ÉÐ ¡™¥ÉÍÐ°Í•½¹¤€ôøì(€€€½¹ÍÐ™¥ÉÍÑÉ…Ü€ô9Õµ‰•È¡™¥ÉÍÐü¹‘É…Ü¤ì(€€€½¹ÍÐÍ•½¹‘É…Ü€ô9Õµ‰•È¡Í•½¹ü¹‘É…Ü¤ì((€€€¥˜€¡9Õµ‰•È¹¥Í¥¹¥Ñ”¡™¥ÉÍÑÉ…Ü¤€˜˜9Õµ‰•È¹¥Í¥¹¥Ñ”¡Í•½¹‘É…Ü¤¤ì(€€€€€É•ÑÕÉ¸™¥ÉÍÑÉ…Ü€´Í•½¹‘É…Üì(€€€ô((€€€É•ÑÕÉ¸MÑÉ¥¹œ¡™¥ÉÍÐü¹‘É…Üñð€ˆˆ¤¹±½…±•½µÁ…É”¡MÑÉ¥¹œ¡Í•½¹ü¹‘É…Üñð€ˆˆ¤¤ì(€ô¤ì)ô()™Õ¹Ñ¥½¸•Ñ1¥Ù•ÍÑÉ•…µIÕ¹-•ä¡ÉÕ¸¤ì(€É•ÑÕÉ¸MÑÉ¥¹œ¡ÉÕ¸ü¹¥ñð‘É…Ü´‘íÉÕ¸ü¹‘É…Üñð€ˆ‰õ€¤ì)ô()™Õ¹Ñ¥½¸¥ÍM…µ•1¥Ù•ÍÑÉ•…µIÕ¸¡™¥ÉÍÐ°Í•½¹¤ì(€¥˜€ …™¥ÉÍÐñð€…Í•½¹¤É•ÑÕÉ¸™…±Í”ì(€¥˜€¡™¥ÉÍÐ¹¥€˜˜Í•½¹¹¥¤É•ÑÕÉ¸™¥ÉÍÐ¹¥€ôôôÍ•½¹¹¥ì(€É•ÑÕÉ¸MÑÉ¥¹œ¡™¥ÉÍÐ¹‘É…Üñð€ˆˆ¤€ôôôMÑÉ¥¹œ¡Í•½¹¹‘É…Üñð€ˆˆ¤ì)ô()½¹ÍÐ‰É…¹‘MÑå±”€ôì(€‘¥ÍÁ±…äè€‰™±•àˆ°(€…±¥¹%Ñ•µÌè€‰•¹Ñ•Èˆ°(€…Àè€ÄÈ°)ôì()½¹ÍÐ…Ñ¥½¹I½ÝMÑå±”€ôì(€‘¥ÍÁ±…äè€‰™±•àˆ°(€…Àè€à°(€™±•á]É…Àè€‰ÝÉ…Àˆ°)ôì()½¹ÍÐÙ¥‘•½…É‘MÑå±”€ôì(€€¸¸¹ÁÕ‰±¥…É‘MÑå±”°(€‘¥ÍÁ±…äè€‰É¥ˆ°(€…Àè€ÄÐ°)ôì()½¹ÍÐÙ¥‘•½!•…‘¥¹MÑå±”€ôì(€‘¥ÍÁ±…äè€‰™±•àˆ°(€©ÕÍÑ¥™å½¹Ñ•¹Ðè€‰ÍÁ…”µ‰•ÑÝ••¸ˆ°(€…±¥¹%Ñ•µÌè€‰™±•àµÍÑ…ÉÐˆ°(€…Àè€ÄÈ°(€™±•á]É…Àè€‰ÝÉ…Àˆ°)ôì()½¹ÍÐÙ¥‘•½Q¥Ñ±•MÑå±”€ôì(€µ…É¥¸è€ˆÑÁà€Àˆ°(€½±½ÈèÁÕ‰±¥½±½ÉÌ¹Ñ•áÐ°(€Ñ•áÑQÉ…¹Í™½É´è€‰…Á¥Ñ…±¥é”ˆ°)ôì()½¹ÍÐÁÉ½Ù¥‘•É	…‘•MÑå±”€ôì(€Á…‘‘¥¹œè€ˆÙÁà€ÄÁÁàˆ°(€‰½É‘•ÉI…‘¥ÕÌè€äää°(€‰…­É½Õ¹èÁÕ‰±¥½±½ÉÌ¹‰±Õ•M½™Ð°(€½±½ÈèÁÕ‰±¥½±½ÉÌ¹‰±Õ”°(€™½¹Ñ]•¥¡Ðè€àÔÀ°)ôì()½¹ÍÐ™É…µ•]É…ÁMÑå±”€ôì(€Á½Í¥Ñ¥½¸è€‰É•±…Ñ¥Ù”ˆ°(€Ý¥‘Ñ è€ˆÄÀÀ”ˆ°(€…ÍÁ•ÑI…Ñ¥¼è€ˆÄØ€¼€äˆ°(€½Ù•É™±½Üè€‰¡¥‘‘•¸ˆ°(€‰½É‘•ÉI…‘¥ÕÌè€à°(€‰…­É½Õ¹è€ˆŒÀÈÀØÄÜˆ°)ôì()½¹ÍÐ™É…µ•MÑå±”€ôì(€Á½Í¥Ñ¥½¸è€‰…‰Í½±ÕÑ”ˆ°(€¥¹Í•Ðè€À°(€Ý¥‘Ñ è€ˆÄÀÀ”ˆ°(€¡•¥¡Ðè€ˆÄÀÀ”ˆ°(€‰½É‘•Èè€À°)ôì()½¹ÍÐ•áÑ•É¹…±MÑå±”€ôì(€µ¥¹!•¥¡Ðè€ÄàÀ°(€‘¥ÍÁ±…äè€‰É¥ˆ°(€Á±…•½¹Ñ•¹Ðè€‰•¹Ñ•Èˆ°(€©ÕÍÑ¥™å%Ñ•µÌè€‰•¹Ñ•Èˆ°(€…Àè€ÄÐ°(€Ñ•áÑ±¥¸è€‰•¹Ñ•Èˆ°(€‰½É‘•ÉI…‘¥ÕÌè€à°(€‰…­É½Õ¹èÁÕ‰±¥½±½ÉÌ¹ÍÕÉ™…•M½™Ð°)ôì()½¹ÍÐ•µÁÑåY¥‘•½MÑå±”€ôì(€€¸¸¹ÁÕ‰±¥µÁÑåMÑ…Ñ•MÑå±”°(€µ¥¹!•¥¡Ðè€ÈàÀ°(€‘¥ÍÁ±…äè€‰É¥ˆ°(€Á±…•½¹Ñ•¹Ðè€‰•¹Ñ•Èˆ°(€©ÕÍÑ¥™å%Ñ•µÌè€‰•¹Ñ•Èˆ°(€…Àè€ÄÈ°(€Ñ•áÑ±¥¸è€‰•¹Ñ•Èˆ°)ôì()½¹ÍÐ•µÁÑåQ¥Ñ±•MÑå±”€ôì(€µ…É¥¸è€À°(€½±½ÈèÁÕ‰±¥½±½ÉÌ¹Ñ•áÐ°(€Ñ•áÑQÉ…¹Í™½É´è€‰…Á¥Ñ…±¥é”ˆ°)ôì()½¹ÍÐ¹•áÑ	É½…‘…ÍÑ…Ñ•MÑå±”€ôì(€Á…‘‘¥¹œè€ˆÙÁà€ÄÁÁàˆ°(€‰½É‘•ÉI…‘¥ÕÌè€äää°(€‰…­É½Õ¹èÁÕ‰±¥½±½ÉÌ¹‰±Õ•M½™Ð°(€½±½ÈèÁÕ‰±¥½±½ÉÌ¹‰±Õ”°(€™½¹Ñ]•¥¡Ðè€àÔÀ°)ôì()½¹ÍÐ…É¡¥Ù•…É‘MÑå±”€ôì(€€¸¸¹ÁÕ‰±¥…É‘MÑå±”°(€‘¥ÍÁ±…äè€‰É¥ˆ°(€…Àè€ÄÐ°(€µ…É¥¹Q½Àè€ÄÈ°)ôì()½¹ÍÐ…É¡¥Ù•1¥ÍÑMÑå±”€ôì(€‘¥ÍÁ±…äè€‰É¥ˆ°(€…Àè€à°)ôì()½¹ÍÐ…É¡¥Ù•1¥¹­MÑå±”€ôì(€‘¥ÍÁ±…äè€‰™±•àˆ°(€…±¥¹%Ñ•µÌè€‰•¹Ñ•Èˆ°(€©ÕÍÑ¥™å½¹Ñ•¹Ðè€‰ÍÁ…”µ‰•ÑÝ••¸ˆ°(€…Àè€ÄØ°(€™±•á]É…Àè€‰ÝÉ…Àˆ°(€Á…‘‘¥¹œè€ˆÄÉÁà€ÄÑÁàˆ°(€‰½É‘•Èè€ÅÁàÍ½±¥€‘íÁÕ‰±¥½±½ÉÌ¹‰½É‘•Éõ€°(€‰½É‘•ÉI…‘¥ÕÌè€à°(€½±½ÈèÁÕ‰±¥½±½ÉÌ¹Ñ•áÐ°(€Ñ•áÑ•½É…Ñ¥½¸è€‰¹½¹”ˆ°(€‰…­É½Õ¹èÁÕ‰±¥½±½ÉÌ¹ÍÕÉ™…•M½™Ð°)ôì()½¹ÍÐ…É¡¥Ù•…Ñ•MÑå±”€ôì(€‘¥ÍÁ±…äè€‰‰±½¬ˆ°(€Ñ•áÑQÉ…¹Í™½É´è€‰…Á¥Ñ…±¥é”ˆ°)ôì()½¹ÍÐ…É¡¥Ù•%Í½…Ñ•MÑå±”€ôì(€‘¥ÍÁ±…äè€‰‰±½¬ˆ°(€µ…É¥¹Q½Àè€È°(€½±½ÈèÁÕ‰±¥½±½ÉÌ¹µÕÑ•°(€™½¹ÑM¥é”è€ÄÌ°)ôì()½¹ÍÐ…É¡¥Ù•Ñ¥½¹MÑå±”€ôì(€‘¥ÍÁ±…äè€‰™±•àˆ°(€…±¥¹%Ñ•µÌè€‰•¹Ñ•Èˆ°(€©ÕÍÑ¥™å½¹Ñ•¹Ðè€‰™±•àµ•¹ˆ°(€…Àè€à°(€½±½ÈèÁÕ‰±¥½±½ÉÌ¹‰±Õ”°(€™½¹Ñ]•¥¡Ðè€àÀÀ°(€Ñ•áÑ±¥¸è€‰É¥¡Ðˆ°)ôì()½¹ÍÐ±¥Ù•AÉ½É•ÍÍM•Ñ¥½¹MÑå±”€ôì(€‘¥ÍÁ±…äè€‰É¥ˆ°(€…Àè€ÄÐ°(€µ…É¥¹Q½Àè€ÄØ°)ôì()½¹ÍÐ±¥Ù•AÉ½É•ÍÍ!•…‘¥¹MÑå±”€ôì(€‘¥ÍÁ±…äè€‰™±•àˆ°(€…±¥¹%Ñ•µÌè€‰™±•àµÍÑ…ÉÐˆ°(€©ÕÍÑ¥™å½¹Ñ•¹Ðè€‰ÍÁ…”µ‰•ÑÝ••¸ˆ°(€…Àè€ÄÈ°)ôì()½¹ÍÐ±¥Ù•	…‘•MÑå±”€ôì(€Á…‘‘¥¹œè€ˆÙÁà€ÄÁÁàˆ°(€‰½É‘•ÉI…‘¥ÕÌè€äää°(€‰…­É½Õ¹è€ˆ‘ŒÈØÈØˆ°(€½±½Èè€ˆ™™˜ˆ°(€™½¹ÑM¥é”è€ÄÈ°(€™½¹Ñ]•¥¡Ðè€äÀÀ°(€±•ÑÑ•ÉMÁ…¥¹œè€ˆÀ¸Àá•´ˆ°)ôì()½¹ÍÐ±¥Ù•±…ÍÍ1¥ÍÑMÑå±”€ôì(€‘¥ÍÁ±…äè€‰É¥ˆ°(€…Àè€ÄÈ°)ôì()½¹ÍÐ±¥Ù•]…¥Ñ¥¹MÑå±”€ôì(€€¸¸¹ÁÕ‰±¥…É‘MÑå±”°(€½±½ÈèÁÕ‰±¥½±½ÉÌ¹µÕÑ•°(€Ñ•áÑ±¥¸è€‰•¹Ñ•Èˆ°)ôì()½¹ÍÐ±¥Ù•±…ÍÍ…É‘MÑå±”€ôì(€€¸¸¹ÁÕ‰±¥…É‘MÑå±”°(€‘¥ÍÁ±…äè€‰É¥ˆ°(€…Àè€ÄÈ°)ôì()½¹ÍÐ±¥Ù•±…ÍÍ!•…‘¥¹MÑå±”€ôì(€‘¥ÍÁ±…äè€‰™±•àˆ°(€…±¥¹%Ñ•µÌè€‰™±•àµÍÑ…ÉÐˆ°(€©ÕÍÑ¥™å½¹Ñ•¹Ðè€‰ÍÁ…”µ‰•ÑÝ••¸ˆ°(€…Àè€ÄÈ°(€™±•á]É…Àè€‰ÝÉ…Àˆ°)ôì()½¹ÍÐ±¥Ù•±…ÍÍQ¥Ñ±•MÑå±”€ôì(€µ…É¥¸è€ˆÀ€À€ÑÁàˆ°(€½±½ÈèÁÕ‰±¥½±½ÉÌ¹Ñ•áÐ°(€™½¹ÑM¥é”è€ÈÀ°)ôì()½¹ÍÐ½¹½ÕÉÍ•	…‘•MÑå±”€ôì(€Á…‘‘¥¹œè€ˆÝÁà€ÄÁÁàˆ°(€‰½É‘•ÉI…‘¥ÕÌè€äää°(€‰…­É½Õ¹è€ˆ™•”É”Èˆ°(€½±½Èè€ˆˆäÅŒÅŒˆ°(€™½¹ÑM¥é”è€ÄÌ°(€™½¹Ñ]•¥¡Ðè€àÔÀ°)ôì()½¹ÍÐ±¥Ù•Q…‰±•]É…ÁMÑå±”€ôì(€Ý¥‘Ñ è€ˆÄÀÀ”ˆ°(€½Ù•É™±½Ý`è€‰…ÕÑ¼ˆ°(€‰½É‘•Èè€ÅÁàÍ½±¥€‘íÁÕ‰±¥½±½ÉÌ¹‰½É‘•Éõ€°(€‰½É‘•ÉI…‘¥ÕÌè€à°)ôì()½¹ÍÐ±¥Ù•Q…‰±•MÑå±”€ôì(€Ý¥‘Ñ è€ˆÄÀÀ”ˆ°(€µ¥¹]¥‘Ñ è€ØàÀ°(€‰½É‘•É½±±…ÁÍ”è€‰½±±…ÁÍ”ˆ°)ôì()½¹ÍÐ±¥Ù•Q¡MÑå±”€ôì(€Á…‘‘¥¹œè€ˆÄÁÁà€ÄÉÁàˆ°(€‰½É‘•É	½ÑÑ½´è€ÅÁàÍ½±¥€‘íÁÕ‰±¥½±½ÉÌ¹‰½É‘•Éõ€°(€‰…­É½Õ¹èÁÕ‰±¥½±½ÉÌ¹ÍÕÉ™…•M½™Ð°(€½±½ÈèÁÕ‰±¥½±½ÉÌ¹µÕÑ•°(€™½¹ÑM¥é”è€ÄÈ°(€™½¹Ñ]•¥¡Ðè€àÔÀ°(€Ñ•áÑ±¥¸è€‰±•™Ðˆ°(€Ñ•áÑQÉ…¹Í™½É´è€‰ÕÁÁ•É…Í”ˆ°(€±•ÑÑ•ÉMÁ…¥¹œè€ˆÀ¸ÀÍ•´ˆ°)ôì()½¹ÍÐ±¥Ù•M½É•Q¡MÑå±”€ôì(€€¸¸¹±¥Ù•Q¡MÑå±”°(€Ñ•áÑ±¥¸è€‰É¥¡Ðˆ°)ôì()½¹ÍÐ±¥Ù•Q‘MÑå±”€ôì(€Á…‘‘¥¹œè€ˆÄÅÁà€ÄÉÁàˆ°(€‰½É‘•É	½ÑÑ½´è€ÅÁàÍ½±¥€‘íÁÕ‰±¥½±½ÉÌ¹‰½É‘•Éõ€°(€½±½ÈèÁÕ‰±¥½±½ÉÌ¹Ñ•áÐ°(€Ù•ÉÑ¥…±±¥¸è€‰µ¥‘‘±”ˆ°)ôì()½¹ÍÐ±¥Ù•M½É•Q‘MÑå±”€ôì(€€¸¸¹±¥Ù•Q‘MÑå±”°(€Ñ•áÑ±¥¸è€‰É¥¡Ðˆ°(€™½¹ÑM¥é”è€Äà°(€™½¹Ñ]•¥¡Ðè€äÀÀ°)ôì()½¹ÍÐ±¥Ù•IÕ¹I½ÝMÑå±”€ô€¡ì¥ÍÑ¥Ù”°¥Í½µÁ±•Ñ•ô¤€ôø€¡ì(€‰…­É½Õ¹è¥ÍÑ¥Ù”€ü€ˆ™™˜Ý•ˆ€è¥Í½µÁ±•Ñ•€ü€ˆ˜á™…™Œˆ€è€ˆ™™˜ˆ°)ô¤ì()½¹ÍÐÍÑ…ÑÕÍA¥±±	…Í•MÑå±”€ôì(€‘¥ÍÁ±…äè€‰¥¹±¥¹”µ™±•àˆ°(€…±¥¹%Ñ•µÌè€‰•¹Ñ•Èˆ°(€Á…‘‘¥¹œè€ˆÑÁà€áÁàˆ°(€‰½É‘•ÉI…‘¥ÕÌè€äää°(€™½¹ÑM¥é”è€ÄÈ°(€™½¹Ñ]•¥¡Ðè€àÀÀ°(€Ý¡¥Ñ•MÁ…”è€‰¹½ÝÉ…Àˆ°)ôì()½¹ÍÐÕÉÉ•¹ÑMÑ…ÑÕÍMÑå±”€ôì(€€¸¸¹ÍÑ…ÑÕÍA¥±±	…Í•MÑå±”°(€‰…­É½Õ¹è€ˆ™•”É”Èˆ°(€½±½Èè€ˆˆäÅŒÅŒˆ°)ôì()½¹ÍÐ½µÁ±•Ñ•‘MÑ…ÑÕÍMÑå±”€ôì(€€¸¸¹ÍÑ…ÑÕÍA¥±±	…Í•MÑå±”°(€‰…­É½Õ¹è€ˆ‘™”Üˆ°(€½±½Èè€ˆŒÄØØÔÌÐˆ°)ôì()½¹ÍÐÕÁ½µ¥¹MÑ…ÑÕÍMÑå±”€ôì(€€¸¸¹ÍÑ…ÑÕÍA¥±±	…Í•MÑå±”°(€‰…­É½Õ¹èÁÕ‰±¥½±½ÉÌ¹‰±Õ•M½™Ð°(€½±½ÈèÁÕ‰±¥½±½ÉÌ¹‰±Õ”°)ôì()•áÁ½ÉÐ‘•™…Õ±ÐAÕ‰±¥M¡½Ý1¥Ù•ÍÑÉ•…µA…”ì
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import AssociationLogo from "../../components/AssociationLogo";
+import SeoMeta from "../../components/SeoMeta";
+import ShareButton from "../../components/ShareButton";
+import { formatDayLabel } from "../../features/days/dayDateUtils";
+import { useTranslation } from "../../features/i18n/I18nProvider";
+import { buildLivestreamEmbed } from "../../features/livestream/livestreamEmbed";
+import {
+  getCurrentPublicLivestream,
+  getNextPublicLivestream,
+  getPreviousPublicLivestreams,
+} from "../../features/livestream/livestreamSchedule";
+import {
+  getPublicAssociationRepository,
+  getPublicShowView,
+  getPublicShowViewRepository,
+} from "../../features/publication/publicViewRepository";
+import { usePublicShowViewUpdates } from "../../features/publication/usePublicShowViewUpdates";
+import { buildShowPublicSeo } from "../../features/seo/publicSeo";
+import { partitionScheduledLiveViews } from "../../features/schedule/liveSchedule";
+import { getShowById } from "../../features/shows/showSelectors";
+import {
+  publicCardStyle,
+  publicColors,
+  publicEmptyStateStyle,
+  publicEyebrowStyle,
+  publicHeroStyle,
+  publicMutedTextStyle,
+  publicPageStyle,
+  publicPrimaryActionStyle,
+  publicSecondaryActionStyle,
+  publicSubtitleStyle,
+  publicTitleStyle,
+} from "../../styles/publicStyles";
+
+function PublicShowLivestreamPage() {
+  const { associationId, showId } = useParams();
+  const { t, language } = useTranslation();
+  const [association, setAssociation] = useState(null);
+  const [show, setShow] = useState(() => getShowById(showId));
+  const [publicView, setPublicView] = useState(() => getPublicShowView(showId));
+  const [isLoading, setIsLoading] = useState(true);
+  const [now, setNow] = useState(() => new Date());
+  const canonicalPath = `/public/associations/${associationId}/shows/${showId}/livestream`;
+  const resultsPath = `/public/associations/${associationId}/shows/${showId}`;
+  const seo = useMemo(
+    () => buildShowPublicSeo({ association, show, t }),
+    [association, show, t]
+  );
+  const livestream = getCurrentPublicLivestream(show, {
+    timezone: association?.timezone,
+    now,
+  });
+  const embed = buildLivestreamEmbed(livestream.url);
+  const previousLivestreams = getPreviousPublicLivestreams(show, {
+    timezone: association?.timezone,
+    now,
+  });
+  const nextLivestream = getNextPublicLivestream(show, {
+    timezone: association?.timezone,
+    now,
+  });
+  const enabledLiveClasses = Array.isArray(publicView?.liveClasses)
+    ? publicView.liveClasses.filter((classView) => !classView.isScheduleOnly)
+    : [];
+  const { current: liveClasses } = partitionScheduledLiveViews(
+    enabledLiveClasses,
+    now
+  );
+  const publicClassIdsKey = (publicView?.classIds || []).join("|");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      const [nextAssociation, nextPublicView] = await Promise.all([
+        getPublicAssociationRepository(associationId),
+        getPublicShowViewRepository(showId),
+      ]);
+
+      if (!isMounted) return;
+      setAssociation(nextAssociation);
+      setShow(nextPublicView.show);
+      setPublicView(nextPublicView);
+      setIsLoading(false);
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [associationId, showId]);
+
+  usePublicShowViewUpdates({
+    showId,
+    classIds: publicClassIdsKey ? publicClassIdsKey.split("|") : [],
+    load: () => getPublicShowViewRepository(showId),
+    onData: (nextPublicView) => {
+      setShow(nextPublicView.show);
+      setPublicView(nextPublicView);
+      setNow(new Date());
+    },
+  });
+
+  const pageTitle = t("public.livestream.seoTitle", {
+    showName: show?.name || t("common.show"),
+  });
+
+  return (
+    <main style={publicPageStyle}>
+      <SeoMeta
+        title={pageTitle}
+        description={seo.description}
+        canonicalPath={canonicalPath}
+        imageUrl={association?.logoDataUrl}
+        robots="index,follow"
+      />
+
+      <section style={publicHeroStyle}>
+        <div style={brandStyle}>
+          <AssociationLogo association={association} size={58} />
+          <div>
+            <div style={publicEyebrowStyle}>
+              {t("public.livestream.eyebrow")}
+            </div>
+            <h1 style={publicTitleStyle}>
+              {show?.name || t("common.show")}
+            </h1>
+            <div style={publicSubtitleStyle}>
+              {association?.shortName || association?.name ||
+                t("common.association")}
+            </div>
+          </div>
+        </div>
+        <div style={actionRowStyle}>
+          <Link to={resultsPath} style={publicPrimaryActionStyle}>
+            {t("public.livestream.openResults")}
+          </Link>
+          <ShareButton
+            url={canonicalPath}
+            title={pageTitle}
+            text={seo.description}
+          />
+        </div>
+      </section>
+
+      {isLoading ? (
+        <section style={publicEmptyStateStyle}>
+          {t("public.livestream.loading")}
+        </section>
+      ) : !show ? (
+        <section style={publicEmptyStateStyle}>
+          {t("public.results.showNotFound")}
+        </section>
+      ) : livestream.url ? (
+        <section style={videoCardStyle}>
+          <div style={videoHeadingStyle}>
+            <div>
+              <div style={publicEyebrowStyle}>
+                {t("public.livestream.today")}
+              </div>
+              <h2 style={videoTitleStyle}>
+                {formatDayLabel(livestream.showDate, language)}
+              </h2>
+              <div style={publicMutedTextStyle}>{livestream.showDate}</div>
+            </div>
+            {embed.providerLabel ? (
+              <span style={providerBadgeStyle}>{embed.providerLabel}</span>
+            ) : null}
+          </div>
+
+          {embed.canEmbed ? (
+            <div style={frameWrapStyle}>
+              <iframe
+                title={t("public.livestream.videoTitle")}
+                src={embed.embedUrl}
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+                style={frameStyle}
+              />
+            </div>
+          ) : (
+            <div style={externalStyle}>
+              <div style={publicMutedTextStyle}>
+                {t("public.livestream.externalOnly")}
+              </div>
+              <a
+                href={embed.externalUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={publicSecondaryActionStyle}
+              >
+                {t("public.livestream.openExternal")}
+              </a>
+            </div>
+          )}
+        </section>
+      ) : (
+        <section style={emptyVideoStyle}>
+          <div style={publicEyebrowStyle}>
+            {t("public.livestream.eyebrow")}
+          </div>
+          <h2 style={emptyTitleStyle}>
+            {nextLivestream
+              ? t("public.livestream.nextBroadcast", {
+                  date: formatDayLabel(nextLivestream.date, language),
+                })
+              : livestream.showDate
+                ? t("public.livestream.noVideoToday")
+                : t("public.livestream.outsideShowDay")}
+          </h2>
+          {nextLivestream ? (
+            <div style={nextBroadcastDateStyle}>{nextLivestream.date}</div>
+          ) : null}
+          <div style={publicMutedTextStyle}>
+            {nextLivestream
+              ? t("public.livestream.nextBroadcastHelp")
+              : t("public.livestream.resultsRemainAvailable")}
+          </div>
+          <Link to={resultsPath} style={publicPrimaryActionStyle}>
+            {t("public.livestream.openResults")}
+          </Link>
+        </section>
+      )}
+
+      {!isLoading && livestream.url ? (
+        <section style={liveProgressSectionStyle}>
+          <div style={liveProgressHeadingStyle}>
+            <div>
+              <div style={publicEyebrowStyle}>
+                {t("public.livestream.blockLive")}
+              </div>
+              <div style={publicMutedTextStyle}>
+                {t("public.livestream.liveProgress")}
+              </div>
+            </div>
+            <span style={liveBadgeStyle}>LIVE</span>
+          </div>
+
+          {liveClasses.length > 0 ? (
+            <div style={liveClassListStyle}>
+              {liveClasses.map((classView) => (
+                <LivestreamLiveClass
+                  key={classView.classId || classView.classCode}
+                  classView={classView}
+                />
+              ))}
+            </div>
+          ) : (
+            <div style={liveWaitingStyle}>
+              {t("public.livestream.noLiveBlock")}
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {!isLoading && previousLivestreams.length > 0 ? (
+        <section style={archiveCardStyle}>
+          <div>
+            <div style={publicEyebrowStyle}>
+              {t("public.livestream.archive")}
+            </div>
+            <div style={publicMutedTextStyle}>
+              {t("public.livestream.archiveHelp")}
+            </div>
+          </div>
+          <div style={archiveListStyle}>
+            {previousLivestreams.map((item) => {
+              const previousEmbed = buildLivestreamEmbed(item.url);
+
+              return (
+                <a
+                  key={item.date}
+                  href={previousEmbed.externalUrl || item.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={archiveLinkStyle}
+                >
+                  <span>
+                    <strong style={archiveDateStyle}>
+                      {formatDayLabel(item.date, language)}
+                    </strong>
+                    <span style={archiveIsoDateStyle}>{item.date}</span>
+                  </span>
+                  <span style={archiveActionStyle}>
+                    {previousEmbed.providerLabel ? (
+                      <span style={providerBadgeStyle}>
+                        {previousEmbed.providerLabel}
+                      </span>
+                    ) : null}
+                    {t("public.livestream.openReplay")} â†’
+                  </span>
+                </a>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+    </main>
+  );
+}
+
+function LivestreamLiveClass({ classView }) {
+  const { t } = useTranslation();
+  const activeRun = classView.activeRun || null;
+  const runs = buildLivestreamRunOrder(classView);
+
+  return (
+    <article style={liveClassCardStyle}>
+      <div style={liveClassHeadingStyle}>
+        <div>
+          <h2 style={liveClassTitleStyle}>
+            {classView.className}
+            {classView.classCode ? ` (${classView.classCode})` : ""}
+          </h2>
+          <div style={publicMutedTextStyle}>
+            {classView.arena
+              ? `${t("public.results.arena")} ${classView.arena} Â· `
+              : ""}
+            {classView.pattern || ""}
+          </div>
+        </div>
+        {activeRun ? (
+          <span style={onCourseBadgeStyle}>
+            {t("public.livestream.current")} Â· #{activeRun.draw}
+          </span>
+        ) : null}
+      </div>
+
+      <div style={liveTableWrapStyle}>
+        <table style={liveTableStyle}>
+          <thead>
+            <tr>
+              <th style={liveThStyle}>{t("public.livestream.draw")}</th>
+              <th style={liveThStyle}>{t("public.livestream.backNumber")}</th>
+              <th style={liveThStyle}>{t("public.livestream.rider")}</th>
+              <th style={liveThStyle}>{t("public.livestream.horse")}</th>
+              <th style={liveThStyle}>{t("public.livestream.status")}</th>
+              {classView.showScores !== false ? (
+                <th style={liveScoreThStyle}>{t("public.livestream.score")}</th>
+              ) : null}
+            </tr>
+          </thead>
+          <tbody>
+            {runs.map((run) => {
+              const isActive = isSameLivestreamRun(run, activeRun);
+              const isCompleted = Boolean(run.isPassed || run.isComplete);
+
+              return (
+                <tr
+                  key={getLivestreamRunKey(run)}
+                  style={liveRunRowStyle({ isActive, isCompleted })}
+                >
+                  <td style={liveTdStyle}>
+                    <strong>#{run.draw}</strong>
+                  </td>
+                  <td style={liveTdStyle}>{run.backNumber || "â€”"}</td>
+                  <td style={liveTdStyle}>{run.rider || "â€”"}</td>
+                  <td style={liveTdStyle}>{run.horse || "â€”"}</td>
+                  <td style={liveTdStyle}>
+                    <span
+                      style={
+                        isActive
+                          ? currentStatusStyle
+                          : isCompleted
+                            ? completedStatusStyle
+                            : upcomingStatusStyle
+                      }
+                    >
+                      {isActive
+                        ? t("public.livestream.current")
+                        : isCompleted
+                          ? t("public.livestream.completed")
+                          : t("public.livestream.upcoming")}
+                    </span>
+                  </td>
+                  {classView.showScores !== false ? (
+                    <td style={liveScoreTdStyle}>
+                      {isCompleted ? run.scoreTotal || "â€”" : "â€”"}
+                    </td>
+                  ) : null}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  );
+}
+
+function buildLivestreamRunOrder(classView) {
+  const runMap = new Map();
+  const sourceRuns = [
+    ...(Array.isArray(classView?.passedRuns) ? classView.passedRuns : []),
+    classView?.activeRun,
+    ...(Array.isArray(classView?.orderRuns) ? classView.orderRuns : []),
+  ].filter(Boolean);
+
+  sourceRuns.forEach((run) => {
+    const key = getLivestreamRunKey(run);
+    const previous = runMap.get(key);
+    runMap.set(key, previous ? { ...previous, ...run } : run);
+  });
+
+  return Array.from(runMap.values()).sort((first, second) => {
+    const firstDraw = Number(first?.draw);
+    const secondDraw = Number(second?.draw);
+
+    if (Number.isFinite(firstDraw) && Number.isFinite(secondDraw)) {
+      return firstDraw - secondDraw;
+    }
+
+    return String(first?.draw || "").localeCompare(String(second?.draw || ""));
+  });
+}
+
+function getLivestreamRunKey(run) {
+  return String(run?.id || `draw-${run?.draw || ""}`);
+}
+
+function isSameLivestreamRun(first, second) {
+  if (!first || !second) return false;
+  if (first.id && second.id) return first.id === second.id;
+  return String(first.draw || "") === String(second.draw || "");
+}
+
+const brandStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+};
+
+const actionRowStyle = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
+const videoCardStyle = {
+  ...publicCardStyle,
+  display: "grid",
+  gap: 14,
+};
+
+const videoHeadingStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 12,
+  flexWrap: "wrap",
+};
+
+const videoTitleStyle = {
+  margin: "4px 0",
+  color: publicColors.text,
+  textTransform: "capitalize",
+};
+
+const providerBadgeStyle = {
+  padding: "6px 10px",
+  borderRadius: 999,
+  background: publicColors.blueSoft,
+  color: publicColors.blue,
+  fontWeight: 850,
+};
+
+const frameWrapStyle = {
+  position: "relative",
+  width: "100%",
+  aspectRatio: "16 / 9",
+  overflow: "hidden",
+  borderRadius: 8,
+  background: "#020617",
+};
+
+const frameStyle = {
+  position: "absolute",
+  inset: 0,
+  width: "100%",
+  height: "100%",
+  border: 0,
+};
+
+const externalStyle = {
+  minHeight: 180,
+  display: "grid",
+  placeContent: "center",
+  justifyItems: "center",
+  gap: 14,
+  textAlign: "center",
+  borderRadius: 8,
+  background: publicColors.surfaceSoft,
+};
+
+const emptyVideoStyle = {
+  ...publicEmptyStateStyle,
+  minHeight: 280,
+  display: "grid",
+  placeContent: "center",
+  justifyItems: "center",
+  gap: 12,
+  textAlign: "center",
+};
+
+const emptyTitleStyle = {
+  margin: 0,
+  color: publicColors.text,
+  textTransform: "capitalize",
+};
+
+const nextBroadcastDateStyle = {
+  padding: "6px 10px",
+  borderRadius: 999,
+  background: publicColors.blueSoft,
+  color: publicColors.blue,
+  fontWeight: 850,
+};
+
+const archiveCardStyle = {
+  ...publicCardStyle,
+  display: "grid",
+  gap: 14,
+  marginTop: 12,
+};
+
+const archiveListStyle = {
+  display: "grid",
+  gap: 8,
+};
+
+const archiveLinkStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 16,
+  flexWrap: "wrap",
+  padding: "12px 14px",
+  border: `1px solid ${publicColors.border}`,
+  borderRadius: 8,
+  color: publicColors.text,
+  textDecoration: "none",
+  background: publicColors.surfaceSoft,
+};
+
+const archiveDateStyle = {
+  display: "block",
+  textTransform: "capitalize",
+};
+
+const archiveIsoDateStyle = {
+  display: "block",
+  marginTop: 2,
+  color: publicColors.muted,
+  fontSize: 13,
+};
+
+const archiveActionStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  gap: 8,
+  color: publicColors.blue,
+  fontWeight: 800,
+  textAlign: "right",
+};
+
+const liveProgressSectionStyle = {
+  display: "grid",
+  gap: 14,
+  marginTop: 16,
+};
+
+const liveProgressHeadingStyle = {
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  gap: 12,
+};
+
+const liveBadgeStyle = {
+  padding: "6px 10px",
+  borderRadius: 999,
+  background: "#dc2626",
+  color: "#fff",
+  fontSize: 12,
+  fontWeight: 900,
+  letterSpacing: "0.08em",
+};
+
+const liveClassListStyle = {
+  display: "grid",
+  gap: 12,
+};
+
+const liveWaitingStyle = {
+  ...publicCardStyle,
+  color: publicColors.muted,
+  textAlign: "center",
+};
+
+const liveClassCardStyle = {
+  ...publicCardStyle,
+  display: "grid",
+  gap: 12,
+};
+
+const liveClassHeadingStyle = {
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  gap: 12,
+  flexWrap: "wrap",
+};
+
+const liveClassTitleStyle = {
+  margin: "0 0 4px",
+  color: publicColors.text,
+  fontSize: 20,
+};
+
+const onCourseBadgeStyle = {
+  padding: "7px 10px",
+  borderRadius: 999,
+  background: "#fee2e2",
+  color: "#b91c1c",
+  fontSize: 13,
+  fontWeight: 850,
+};
+
+const liveTableWrapStyle = {
+  width: "100%",
+  overflowX: "auto",
+  border: `1px solid ${publicColors.border}`,
+  borderRadius: 8,
+};
+
+const liveTableStyle = {
+  width: "100%",
+  minWidth: 680,
+  borderCollapse: "collapse",
+};
+
+const liveThStyle = {
+  padding: "10px 12px",
+  borderBottom: `1px solid ${publicColors.border}`,
+  background: publicColors.surfaceSoft,
+  color: publicColors.muted,
+  fontSize: 12,
+  fontWeight: 850,
+  textAlign: "left",
+  textTransform: "uppercase",
+  letterSpacing: "0.03em",
+};
+
+const liveScoreThStyle = {
+  ...liveThStyle,
+  textAlign: "right",
+};
+
+const liveTdStyle = {
+  padding: "11px 12px",
+  borderBottom: `1px solid ${publicColors.border}`,
+  color: publicColors.text,
+  verticalAlign: "middle",
+};
+
+const liveScoreTdStyle = {
+  ...liveTdStyle,
+  textAlign: "right",
+  fontSize: 18,
+  fontWeight: 900,
+};
+
+const liveRunRowStyle = ({ isActive, isCompleted }) => ({
+  background: isActive ? "#fff7ed" : isCompleted ? "#f8fafc" : "#fff",
+});
+
+const statusPillBaseStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "4px 8px",
+  borderRadius: 999,
+  fontSize: 12,
+  fontWeight: 800,
+  whiteSpace: "nowrap",
+};
+
+const currentStatusStyle = {
+  ...statusPillBaseStyle,
+  background: "#fee2e2",
+  color: "#b91c1c",
+};
+
+const completedStatusStyle = {
+  ...statusPillBaseStyle,
+  background: "#dcfce7",
+  color: "#166534",
+};
+
+const upcomingStatusStyle = {
+  ...statusPillBaseStyle,
+  background: publicColors.blueSoft,
+  color: publicColors.blue,
+};
+
+export default PublicShowLivestreamPage;
