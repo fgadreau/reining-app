@@ -261,6 +261,11 @@ export function formatPaidWarmupTimer(seconds) {
   return seconds < 0 ? `+${formatted}` : formatted;
 }
 
+export function clampPaidWarmupTimerSeconds(remainingSeconds) {
+  if (!Number.isFinite(remainingSeconds)) return null;
+  return Math.max(Math.round(remainingSeconds), 0);
+}
+
 export function getPaidWarmupTimerCueType(warmup, remainingSeconds) {
   if (remainingSeconds == null) return null;
 

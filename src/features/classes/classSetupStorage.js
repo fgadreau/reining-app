@@ -12,6 +12,8 @@ import {
   normalizeSetApprovals,
 } from "../scoring/setApprovals";
 import {
+  DEFAULT_LIVE_DATA_SOURCE,
+  DEFAULT_QUALIFIED_RIDER_COUNT,
   normalizeLiveDataSource,
   normalizeLiveDisplayMode,
   normalizeQualifiedRiderCount,
@@ -249,6 +251,11 @@ function normalizeSetup(setup = {}) {
   const scheduleDetails = normalizeClassScheduleDetails(
     setup.scheduleDetails || setup.schedule_details || setup.customPattern?.scheduleDetails
   );
+  const hasQualifiedRiderCount =
+    hasOwn(setup, "qualifiedRiderCount") ||
+    hasOwn(setup, "qualified_rider_count");
+  const hasLiveDataSource =
+    hasOwn(setup, "liveDataSource") || hasOwn(setup, "live_data_source");
 
   return {
     ...setup,
@@ -267,13 +274,17 @@ function normalizeSetup(setup = {}) {
     setApprovalMode: normalizeSetApprovalMode(setup.setApprovalMode),
     setApprovals: normalizeSetApprovals(setup.setApprovals),
     liveDataSource: normalizeLiveDataSource(
-      setup.liveDataSource || setup.live_data_source
+      hasLiveDataSource
+        ? setup.liveDataSource || setup.live_data_source
+        : DEFAULT_LIVE_DATA_SOURCE
     ),
     liveDisplayMode: normalizeLiveDisplayMode(
       setup.liveDisplayMode || setup.live_display_mode
     ),
     qualifiedRiderCount: normalizeQualifiedRiderCount(
-      setup.qualifiedRiderCount ?? setup.qualified_rider_count
+      hasQualifiedRiderCount
+        ? setup.qualifiedRiderCount ?? setup.qualified_rider_count
+        : DEFAULT_QUALIFIED_RIDER_COUNT
     ),
     liveSourceChangedAt:
       setup.liveSourceChangedAt || setup.live_source_changed_at || null,
