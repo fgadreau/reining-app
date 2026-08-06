@@ -673,20 +673,31 @@ export function subscribePublicShowViewRepository(showId, classIds, onChange) {
   );
 
   uniqueClassIds.forEach((classId) => {
-    channel.on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "show_score_announcer_live_sessions",
-        filter: `class_id=eq.${classId}`,
-      },
-      onChange
-    );
+    [
+      { table: "show_score_scoring_sessions", idColumn: "block_id" },
+      { table: "show_score_judge_sessions", idColumn: "block_id" },
+      { table: "show_score_block_setups", idColumn: "block_id" },
+      { table: "show_score_publication_states", idColumn: "block_id" },
+      { table: "show_score_official_results", idColumn: "block_id" },
+      { table: "show_score_announcer_live_sessions", idColumn: "class_id" },
+    ].forEach(({ table, idColumn }) => {
+      channel.on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table,
+          filter: `${idColumn}=eq.${classId}`,
+        },
+        onChange
+      );
+    });
   });
 
   channel.subscribe((status) => {
-    if (status === "CHANNEL_ERROR") {
+    if (status === "SUBSCRIBED") {
+      onChange();
+    } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
       console.error("Erreur abonnement temps réel résultats publics Supabase.");
     }
   });

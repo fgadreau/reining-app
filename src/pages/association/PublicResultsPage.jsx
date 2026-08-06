@@ -55,7 +55,7 @@ import {
   publicTitleStyle,
 } from "../../styles/publicStyles";
 
-const PUBLIC_LIVE_FALLBACK_REFRESH_MS = 30_000;
+const PUBLIC_LIVE_FALLBACK_REFRESH_MS = 5_000;
 
 function PublicResultsPage() {
   const { associationId, showId } = useParams();

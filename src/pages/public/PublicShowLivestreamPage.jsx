@@ -34,7 +34,7 @@ import {
   publicTitleStyle,
 } from "../../styles/publicStyles";
 
-const LIVESTREAM_REFRESH_MS = 30_000;
+const LIVESTREAM_REFRESH_MS = 5_000;
 
 function PublicShowLivestreamPage() {
   const { associationId, showId } = useParams();

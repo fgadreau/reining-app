@@ -633,57 +633,9 @@ export async function advanceArenaLiveClassAfterCompletionRepository({
     return null;
   }
 
-  const localScheduleItems = getLocalShowLiveSchedule(normalizedShowId);
-  const localNextItem = findNextArenaLiveItem({
-    scheduleItems: localScheduleItems,
-    completedType: LIVE_SCHEDULE_ITEM_TYPES.CLASS,
-    completedItemId: normalizedClassId,
-    arena,
-  });
-
-  if (localNextItem) {
-    const activatedItem = await activateArenaLiveItemRepository({
-      showId: normalizedShowId,
-      arena: localNextItem.effectiveArena || arena,
-      scheduleItems: localScheduleItems,
-      item: localNextItem,
-      status: nextStatus,
-    });
-
-    if (activatedItem) return activatedItem;
-  }
-
-  const supabase = getSupabaseClient();
-
-  if (supabase) {
-    try {
-      const remoteScheduleItems = await getRemoteShowLiveSchedule(
-        supabase,
-        normalizedShowId
-      );
-      const remoteNextItem = findNextArenaLiveItem({
-        scheduleItems: remoteScheduleItems,
-        completedType: LIVE_SCHEDULE_ITEM_TYPES.CLASS,
-        completedItemId: normalizedClassId,
-        arena,
-      });
-
-      if (remoteNextItem) {
-        const activatedItem = await activateArenaLiveItemRepository({
-          showId: normalizedShowId,
-          arena: remoteNextItem.effectiveArena || arena,
-          scheduleItems: remoteScheduleItems,
-          item: remoteNextItem,
-          status: nextStatus,
-        });
-
-        if (activatedItem) return activatedItem;
-      }
-    } catch (error) {
-      console.error("Erreur avancement live Supabase:", error);
-    }
-  }
-
+  // Completing a class must never put the following class on air without an
+  // explicit operator action. Keep the historical function name for callers,
+  // but only remove the completed class from the live displays.
   return savePublicationStateRepository(normalizedClassId, {
     status: PUBLICATION_STATUSES.HIDDEN,
     publishedAt: null,

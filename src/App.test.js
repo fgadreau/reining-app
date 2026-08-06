@@ -1036,7 +1036,7 @@ test("runs the announcer fallback without overwriting the scribe snapshot", () =
   expect(completed.session.runs[1].history).toHaveLength(2);
 });
 
-test("advances the announcer live automatically after a result but waits for drags", () => {
+test("moves the TV from scored competitor 1 to competitor 2 immediately", () => {
   const setupRuns = [
     { id: "auto-run-1", draw: 1, rider: "Alice" },
     { id: "auto-run-2", draw: 2, rider: "Bob" },
@@ -1073,30 +1073,29 @@ test("advances the announcer live automatically after a result but waits for dra
     draw: 2,
   });
 
-  const waitingForDrag = saveAnnouncerRunResultAndAdvance(
-    started,
-    "auto-run-1",
-    { status: ANNOUNCER_RUN_STATUSES.SCORED, scoreTotal: "70" },
-    {
-      nextRunId: "auto-run-2",
-      waitForDrag: true,
-      now: new Date("2026-07-20T12:03:00.000Z"),
-    }
-  );
+  const tvView = buildPublicLiveClassView({
+    classItem: { id: "auto-class", name: "Open", pattern: "2" },
+    setup: {
+      pattern: "2",
+      liveDataSource: LIVE_DATA_SOURCES.ANNOUNCER,
+      runs: setupRuns,
+    },
+    publication: { status: PUBLICATION_STATUSES.LIVE },
+    scoringSession: { classId: "auto-class", runs: setupRuns },
+    announcerSession: advanced,
+  });
 
-  expect(waitingForDrag.activeManoeuvre).toBeNull();
-  expect(waitingForDrag.runs[1].status).toBe(
-    ANNOUNCER_RUN_STATUSES.PENDING
-  );
+  expect(tvView.latestScore).toMatchObject({ id: "auto-run-1", scoreTotal: "70" });
+  expect(tvView.activeRun).toMatchObject({ id: "auto-run-2", draw: 2 });
 
   const dragging = startAnnouncerDrag(
-    waitingForDrag,
+    advanced,
     { id: "drag-after-auto-run-1", afterIndex: 0, afterDraw: 1 },
     new Date("2026-07-20T12:04:00.000Z")
   );
   const afterDrag = stopAnnouncerDragAndAdvance(
     dragging,
-    "auto-run-2",
+    "auto-run-3",
     new Date("2026-07-20T12:12:00.000Z")
   );
 
@@ -1105,23 +1104,8 @@ test("advances the announcer live automatically after a result but waits for dra
   );
   expect(afterDrag.activeManoeuvre).toMatchObject({
     type: "run",
-    runId: "auto-run-2",
+    runId: "auto-run-3",
   });
-
-  const corrected = saveAnnouncerRunResultAndAdvance(
-    advanced,
-    "auto-run-1",
-    { status: ANNOUNCER_RUN_STATUSES.SCORED, scoreTotal: "71" },
-    {
-      nextRunId: "auto-run-3",
-      now: new Date("2026-07-20T12:13:00.000Z"),
-    }
-  );
-
-  expect(corrected.activeManoeuvre).toMatchObject({
-    runId: "auto-run-2",
-  });
-  expect(corrected.runs[2].status).toBe(ANNOUNCER_RUN_STATUSES.PENDING);
 });
 
 test("records an announcer no score as NS and completes the run", () => {
@@ -6499,7 +6483,7 @@ test("setting an arena live class hides only the previous live in that arena", a
   );
 });
 
-test("completed arena live advances to the next class in the same arena", async () => {
+test("completed arena live stays stopped until the next class is activated explicitly", async () => {
   saveDays([
     {
       id: "day-advance-live",
@@ -6552,14 +6536,14 @@ test("completed arena live advances to the next class in the same arena", async 
     PUBLICATION_STATUSES.HIDDEN
   );
   expect(getPublicationState("advance-main-next").status).toBe(
-    PUBLICATION_STATUSES.LIVE_SCORING
+    PUBLICATION_STATUSES.HIDDEN
   );
   expect(getPublicationState("advance-secondary-current").status).toBe(
     PUBLICATION_STATUSES.LIVE_NO_SCORE
   );
 });
 
-test("completed arena live advances to the next paid warmup in the same arena", async () => {
+test("completed arena live does not activate the next paid warmup", async () => {
   saveDays([
     {
       id: "day-advance-warmup",
@@ -6609,7 +6593,7 @@ test("completed arena live advances to the next paid warmup in the same arena", 
   expect(getPublicationState("advance-warmup-current").status).toBe(
     PUBLICATION_STATUSES.HIDDEN
   );
-  expect(getPaidWarmupById("advance-warmup-next").isPublicLive).toBe(true);
+  expect(getPaidWarmupById("advance-warmup-next").isPublicLive).toBe(false);
   expect(getPublicationState("advance-warmup-next-class").status).toBe(
     PUBLICATION_STATUSES.HIDDEN
   );
@@ -6988,7 +6972,7 @@ test("completed live skips the next class when its planned live is hidden", asyn
     PUBLICATION_STATUSES.HIDDEN
   );
   expect(getPublicationState("advance-skip-next-live").status).toBe(
-    PUBLICATION_STATUSES.LIVE
+    PUBLICATION_STATUSES.HIDDEN
   );
 });
 
