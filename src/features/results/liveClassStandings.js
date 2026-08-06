@@ -85,6 +85,20 @@ export function buildLiveClassStandings({
     .sort((a, b) => compareStandingGroups(a, b, blockClassOrder));
 }
 
+export function buildLiveRunClassLabels(run, blockClasses = []) {
+  const classByCode = new Map(
+    normalizeBlockClasses(blockClasses).map((classEntry) => [
+      classEntry.code,
+      classEntry,
+    ])
+  );
+
+  return getRunClassCodes(run, null).map((code) => {
+    const classEntry = classByCode.get(code);
+    return classEntry?.name ? `${code} — ${classEntry.name}` : code;
+  });
+}
+
 function getVisibleStandingEntries(entries, visibleEntryCount) {
   const limit = Number.parseInt(visibleEntryCount, 10);
 

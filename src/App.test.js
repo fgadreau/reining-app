@@ -196,7 +196,10 @@ import {
   isClassResultsSecretariatApproved,
   normalizeResultGroups,
 } from "./features/results/classResults";
-import { buildLiveClassStandings } from "./features/results/liveClassStandings";
+import {
+  buildLiveClassStandings,
+  buildLiveRunClassLabels,
+} from "./features/results/liveClassStandings";
 import {
   buildQualifiedRiderKey,
   buildQualifiedRiderList,
@@ -5666,6 +5669,14 @@ test("public live class view derives standings from setup class codes", () => {
   });
 
   expect(view.classStandings.map((group) => group.code)).toEqual(["NHO", "NH2"]);
+  expect(view.blockClasses).toEqual([
+    { code: "NHO", name: "Novice Horse Open", classNumber: "", association: "" },
+    { code: "NH2", name: "Novice Horse Level 2", classNumber: "", association: "" },
+  ]);
+  expect(buildLiveRunClassLabels(view.orderRuns[0], view.blockClasses)).toEqual([
+    "NHO — Novice Horse Open",
+    "NH2 — Novice Horse Level 2",
+  ]);
   expect(view.classStandings[0].entries[0]).toMatchObject({
     backNumber: "101",
     rider: "Open Rider",

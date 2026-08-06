@@ -77,7 +77,10 @@ import {
   getClassResultPublication,
   getResultPublicationsForClassesRepository,
 } from "../results/resultPublicationRepository";
-import { normalizeResultGroups } from "../results/classResults";
+import {
+  normalizeBlockClasses,
+  normalizeResultGroups,
+} from "../results/classResults";
 import { buildLiveClassStandings } from "../results/liveClassStandings";
 import {
   getLocalScannedScoresheetsForShow,
@@ -1647,6 +1650,7 @@ export function buildPublicLiveClassView({
         classItem,
       })
     : [];
+  const blockClasses = normalizeBlockClasses(setup?.blockClasses);
 
   const activeDragItem = buildActiveClassDragItem({
     activeManoeuvre: selectedScoringSession?.activeManoeuvre,
@@ -1722,6 +1726,7 @@ export function buildPublicLiveClassView({
     upcomingLiveItems: liveQueue.upcomingLiveItems,
     upcomingRuns,
     orderRuns,
+    blockClasses,
     passedRuns,
     lastPassedRuns,
     latestScore: showScores ? lastPassedRuns.find(runHasScore) || null : null,
