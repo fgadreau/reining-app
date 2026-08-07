@@ -63,11 +63,21 @@ import {
 import {
   buildTvDisplayCompetitionShortCode,
   buildTvDisplayLivestreamShortCode,
+  buildTvDisplayStandingsShortCode,
   buildTvDisplayShortCode,
   getTvDisplayCompetitionShortcutPath,
   getTvDisplayLivestreamShortcutPath,
+  getTvDisplayStandingsShortcutPath,
   getTvDisplayShortcutPath,
 } from "../../features/tvDisplay/tvDisplayShortCode";
+import ShowDayTabs, {
+  useShowDaySelection,
+} from "../../components/ShowDayTabs";
+import {
+  filterShowDaySections,
+  getShowDayQueryPath,
+} from "../../features/days/showDayNavigation";
+import DayClassesPage from "./DayClassesPage";
 
 function ShowDetailPage() {
   const { associationId, showId } = useParams();
@@ -116,6 +126,11 @@ function ShowDetailPage() {
   const cloudStatus = getCloudSyncStatus(access.user);
   const showDateRange = useMemo(() => getShowDateRange(show), [show]);
   const sortedDays = useMemo(() => sortDaysByDate(days), [days]);
+  const daySelection = useShowDaySelection(sortedDays);
+  const activeDays = filterShowDaySections(
+    sortedDays.map((day) => ({ day })),
+    daySelection.activeDayId
+  ).map((section) => section.day);
   const rangeStartDate = showDateRange[0] || "";
   const rangeEndDate = showDateRange[showDateRange.length - 1] || "";
   const publicShowcaseStatus = useMemo(
@@ -127,6 +142,8 @@ function ShowDetailPage() {
     buildTvDisplayCompetitionShortCode(showId);
   const livestreamTvDisplayShortCode =
     buildTvDisplayLivestreamShortCode(showId);
+  const standingsTvDisplayShortCode =
+    buildTvDisplayStandingsShortCode(showId);
   const competitionTvArena = normalizeArenaName(
     livestreamDraft.tvDisplayVideoArena
   );
@@ -217,12 +234,15 @@ function ShowDetailPage() {
     const currentPath = `/associations/${associationId}/shows/${showId}`;
 
     if (targetPath !== currentPath) {
-      navigate(targetPath, { replace: true });
+      navigate(getShowDayQueryPath(targetPath, daySelection.activeDayId), {
+        replace: true,
+      });
     }
   }, [
     access.associationRoles,
     access.isLoadingAccess,
     associationId,
+    daySelection.activeDayId,
     navigate,
     showId,
   ]);
@@ -780,6 +800,8 @@ function ShowDetailPage() {
         ? getAbsoluteTvDisplayCompetitionShortcutUrl(showId)
         : normalizedMode === "livestream"
           ? getAbsoluteTvDisplayLivestreamShortcutUrl(showId)
+          : normalizedMode === "standings"
+            ? getAbsoluteTvDisplayStandingsShortcutUrl(showId)
         : !normalizedArena && !normalizedMode
         ? getAbsoluteTvDisplayShortcutUrl(showId)
         : getAbsoluteTvDisplayUrl(
@@ -791,6 +813,8 @@ function ShowDetailPage() {
     const copyKey =
       normalizedMode === "livestream"
         ? "tv:livestream"
+        : normalizedMode === "standings"
+          ? "tv:standings"
         : `tv:${
             normalizedMode === "competition" ? "competition:" : ""
           }${getOverlayCopyKey(normalizedArena)}`;
@@ -944,7 +968,10 @@ function ShowDetailPage() {
             {t("management.shows.livestreamSettings")}
           </button>
           <Link
-            to={`/associations/${associationId}/shows/${showId}/schedule`}
+            to={getShowDayQueryPath(
+              `/associations/${associationId}/shows/${showId}/schedule`,
+              daySelection.activeDayId
+            )}
             style={linkButtonStyle}
           >
             {t("management.shows.showSchedule")}
@@ -1147,7 +1174,10 @@ function ShowDetailPage() {
                 </label>
 
                 <Link
-                  to={`/associations/${associationId}/shows/${showId}/schedule`}
+                  to={getShowDayQueryPath(
+                    `/associations/${associationId}/shows/${showId}/schedule`,
+                    daySelection.activeDayId
+                  )}
                   style={linkButtonStyle}
                   onClick={closeLivestreamSettings}
                 >
@@ -1250,6 +1280,39 @@ function ShowDetailPage() {
                     {copiedOverlayKey === "tv:general"
                       ? t("common.linkCopied")
                       : t("management.shows.copyTvDisplayLink")}
+                  </button>
+                </div>
+
+                <div style={arenaOverlayRowStyle} data-tv-settings="standings">
+                  <span style={arenaOverlayNameStyle}>
+                    {t("management.shows.tvDisplayStandingsTitle")}
+                  </span>
+                  <span
+                    style={tvDisplayShortCodeStyle}
+                    data-tv-standings-short-code={standingsTvDisplayShortCode}
+                  >
+                    <span>
+                      {t("management.shows.tvDisplayShortCode")} ·{" "}
+                      <strong>{standingsTvDisplayShortCode}</strong>
+                    </span>
+                    <small>showscore.app/tv/{standingsTvDisplayShortCode}</small>
+                  </span>
+                  <Link
+                    to={getTvDisplayStandingsShortcutPath(showId)}
+                    style={linkButtonStyle}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {t("management.shows.openTvDisplayStandings")}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => copyTvDisplayLink("", "standings")}
+                    style={secondaryButtonStyle}
+                  >
+                    {copiedOverlayKey === "tv:standings"
+                      ? t("common.linkCopied")
+                      : t("management.shows.copyTvDisplayStandings")}
                   </button>
                 </div>
 
@@ -1885,80 +1948,70 @@ function ShowDetailPage() {
         </div>
       )}
 
+      <ShowDayTabs
+        days={daySelection.days}
+        activeDayId={daySelection.activeDayId}
+        onChange={daySelection.selectDay}
+      />
+
       {isLoading ? (
         <div style={emptyStateStyle}>{t("management.days.loading")}</div>
       ) : sortedDays.length === 0 ? (
         <div style={emptyStateStyle}>{t("management.days.empty")}</div>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
-          {sortedDays.map((day) => {
+          {activeDays.map((day) => {
             const isEditing = editingId === day.id;
             const isCopying = copyDraft.sourceDayId === day.id;
             const isOutOfRange =
               Boolean(day.date) && !isDateInShowRange(day.date, show);
 
             return (
-              <div key={day.id} style={cardStyle}>
+              <React.Fragment key={day.id}>
+                <div
+                  data-show-day-actions={day.id}
+                  style={selectedDayActionsStyle}
+                >
                 {!isEditing ? (
                   <>
-                    <div style={cardHeaderStyle}>
-                      <div>
-                        <div style={cardTitleStyle}>
-                          {day.label || t("management.days.dayFallback")}
-                        </div>
+                    <div style={selectedDayToolbarStyle}>
+                      <div style={actionRowStyleNoMargin}>
+                        {access.canManageAssociation && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => startEditDay(day)}
+                              style={secondaryButtonStyle}
+                              disabled={isSaving}
+                            >
+                              {t("management.days.edit")}
+                            </button>
 
-                        <div style={cardMetaStyle}>
-                          {day.date || t("public.results.dateTbd")}
-                        </div>
+                            <button
+                              type="button"
+                              onClick={() => startCopyClasses(day)}
+                              style={secondaryButtonStyle}
+                              disabled={isSaving}
+                            >
+                              {t("management.days.copyClasses")}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDay(day.id)}
+                              style={dangerButtonStyle}
+                              disabled={isSaving}
+                            >
+                              {t("management.days.delete")}
+                            </button>
+                          </>
+                        )}
                       </div>
 
                       {isOutOfRange && (
                         <div style={warningBadgeStyle}>
                           {t("management.days.outOfRange")}
                         </div>
-                      )}
-                    </div>
-
-                    <div style={actionRowStyle}>
-                      {(access.canManageAssociation ||
-                        access.canScoreAssociation) && (
-                        <Link
-                          to={`/associations/${associationId}/shows/${showId}/days/${day.id}`}
-                          style={linkButtonStyle}
-                        >
-                          {t("management.days.openClasses")}
-                        </Link>
-                      )}
-
-                      {access.canManageAssociation && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => startEditDay(day)}
-                            style={secondaryButtonStyle}
-                            disabled={isSaving}
-                          >
-                            {t("management.days.edit")}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => startCopyClasses(day)}
-                            style={secondaryButtonStyle}
-                            disabled={isSaving}
-                          >
-                            {t("management.days.copyClasses")}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteDay(day.id)}
-                            style={dangerButtonStyle}
-                            disabled={isSaving}
-                          >
-                            {t("management.days.delete")}
-                          </button>
-                        </>
                       )}
                     </div>
 
@@ -2046,7 +2099,14 @@ function ShowDetailPage() {
                     </div>
                   </>
                 )}
-              </div>
+                </div>
+
+                <DayClassesPage
+                  dayId={day.id}
+                  day={day}
+                  show={show}
+                />
+              </React.Fragment>
             );
           })}
         </div>
@@ -2163,6 +2223,22 @@ const cardStyle = {
   borderRadius: 12,
   padding: 16,
   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+};
+
+const selectedDayActionsStyle = {
+  background: "#fff",
+  border: "1px solid #dbe4ee",
+  borderRadius: 10,
+  padding: "10px 12px",
+  boxShadow: "0 1px 4px rgba(15, 23, 42, 0.05)",
+};
+
+const selectedDayToolbarStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 10,
+  flexWrap: "wrap",
 };
 
 const cardHeaderStyle = {
@@ -3121,6 +3197,16 @@ function getAbsoluteTvDisplayCompetitionShortcutUrl(showId) {
 
 function getAbsoluteTvDisplayLivestreamShortcutUrl(showId) {
   const path = getTvDisplayLivestreamShortcutPath(showId);
+  const origin =
+    typeof window === "undefined" || !window.location?.origin
+      ? ""
+      : window.location.origin;
+
+  return `${origin}${path}`;
+}
+
+function getAbsoluteTvDisplayStandingsShortcutUrl(showId) {
+  const path = getTvDisplayStandingsShortcutPath(showId);
   const origin =
     typeof window === "undefined" || !window.location?.origin
       ? ""

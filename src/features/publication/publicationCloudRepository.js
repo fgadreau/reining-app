@@ -32,7 +32,7 @@ import {
 
 function toPublicationState(row) {
   return {
-    classId: row.class_id,
+    classId: row.block_id,
     status: row.status || PUBLICATION_STATUSES.HIDDEN,
     publishedAt: row.published_at || null,
     publishedBy: row.published_by || null,
@@ -41,11 +41,11 @@ function toPublicationState(row) {
       row.planned_live_status,
       isLivePublicationStatus(row.status)
         ? normalizePlannedLiveStatus(row.status)
-        : getDefaultPublicationState(row.class_id).plannedLiveStatus
+        : getDefaultPublicationState(row.block_id).plannedLiveStatus
     ),
     visibleFields: Array.isArray(row.visible_fields)
       ? row.visible_fields
-      : getDefaultPublicationState(row.class_id).visibleFields,
+      : getDefaultPublicationState(row.block_id).visibleFields,
   };
 }
 
@@ -57,7 +57,7 @@ function toPublicationRow(classId, publication) {
   };
 
   return {
-    class_id: classId,
+    block_id: classId,
     status: state.status,
     published_at: state.publishedAt || null,
     published_by: state.publishedBy || null,
@@ -69,16 +69,6 @@ function toPublicationRow(classId, publication) {
 
 function isPlannedLiveStatusColumnMissingError(error) {
   return String(error?.message || "").includes("planned_live_status");
-}
-
-function getSupabaseErrorText(error) {
-  return [error?.message, error?.details, error?.hint]
-    .map((value) => String(value || "").toLowerCase())
-    .join(" ");
-}
-
-function isEventBlockColumnMissingError(error) {
-  return getSupabaseErrorText(error).includes("is_event_block");
 }
 
 export async function getPublicationStateRepository(classId) {
@@ -93,7 +83,7 @@ export async function getPublicationStateRepository(classId) {
     const { data, error } = await supabase
       .from("show_score_publication_states")
       .select("*")
-      .eq("class_id", classId)
+      .eq("block_id", classId)
       .maybeSingle();
 
     if (error) throw error;
@@ -131,7 +121,7 @@ export async function getPublicationStatesForClassesRepository(classIds) {
     const { data, error } = await supabase
       .from("show_score_publication_states")
       .select("*")
-      .in("class_id", uniqueIds);
+      .in("block_id", uniqueIds);
 
     if (error) throw error;
 
@@ -245,12 +235,11 @@ function getLocalShowLiveSchedule(showId) {
 
 async function getRemoteShowLiveSchedule(supabase, showId) {
   const classesQuery = supabase
-    .from("classes")
+    .from("blocks")
     .select(
-      "id, show_id, show_day_id, name, arena, sort_order, schedule_start_mode, scheduled_time, is_event_block"
+      "id, show_id, show_day_id, name, arena, sort_order, schedule_start_mode, scheduled_time, follows_block_id, block_type"
     )
-    .eq("show_id", showId)
-    .eq("is_event_block", false);
+    .eq("show_id", showId);
 
   const [classesResult, daysResult, paidWarmupsResult] = await Promise.all([
     classesQuery,
@@ -261,32 +250,28 @@ async function getRemoteShowLiveSchedule(supabase, showId) {
     supabase.from("show_score_paid_warmups").select("*").eq("show_id", showId),
   ]);
 
-  let resolvedClassesResult = classesResult;
-  if (classesResult.error && isEventBlockColumnMissingError(classesResult.error)) {
-    resolvedClassesResult = await supabase
-      .from("classes")
-      .select(
-        "id, show_id, show_day_id, name, arena, sort_order, schedule_start_mode, scheduled_time"
-      )
-      .eq("show_id", showId);
-  }
-
-  if (resolvedClassesResult.error) throw resolvedClassesResult.error;
+  if (classesResult.error) throw classesResult.error;
   if (daysResult.error) throw daysResult.error;
   if (paidWarmupsResult.error) throw paidWarmupsResult.error;
 
+  const scheduleBlocks = Array.isArray(classesResult.data) ? classesResult.data : [];
+  const scheduleBlockById = new Map(scheduleBlocks.map((row) => [row.id, row]));
+
   return buildLiveScheduleItems({
-    classes: Array.isArray(resolvedClassesResult.data)
-      ? resolvedClassesResult.data
-          .filter((row) => row?.is_event_block !== true)
+    classes: scheduleBlocks.length
+      ? scheduleBlocks
+          .filter((row) => row?.block_type === "competition")
           .map((row) => ({
           ...row,
           dayId: row.show_day_id,
           scheduleStartTime: row.scheduled_time || "",
+          followsBlockId: row.follows_block_id || "",
         }))
       : [],
     paidWarmups: Array.isArray(paidWarmupsResult.data)
-      ? paidWarmupsResult.data.map((row) => ({
+      ? paidWarmupsResult.data.map((row) => {
+          const scheduleBlock = scheduleBlockById.get(row.block_id || row.id);
+          return {
           id: row.id,
           associationId: row.organization_id,
           showId: row.show_id,
@@ -298,7 +283,9 @@ async function getRemoteShowLiveSchedule(supabase, showId) {
           activeStartedAt: row.active_started_at || null,
           entries: Array.isArray(row.entries) ? row.entries : [],
           sortOrder: row.sort_order || 1,
-        }))
+          followsBlockId: scheduleBlock?.follows_block_id || "",
+        };
+        })
       : [],
     days: Array.isArray(daysResult.data)
       ? daysResult.data.map((row) => ({
@@ -472,7 +459,7 @@ export async function hideOtherArenaLiveClassesRepository({
         published_at: null,
         published_by: null,
       })
-      .in("class_id", remoteClassIds)
+      .in("block_id", remoteClassIds)
       .in("status", LIVE_PUBLICATION_STATUSES);
 
     if (updateError) throw updateError;
@@ -646,57 +633,9 @@ export async function advanceArenaLiveClassAfterCompletionRepository({
     return null;
   }
 
-  const localScheduleItems = getLocalShowLiveSchedule(normalizedShowId);
-  const localNextItem = findNextArenaLiveItem({
-    scheduleItems: localScheduleItems,
-    completedType: LIVE_SCHEDULE_ITEM_TYPES.CLASS,
-    completedItemId: normalizedClassId,
-    arena,
-  });
-
-  if (localNextItem) {
-    const activatedItem = await activateArenaLiveItemRepository({
-      showId: normalizedShowId,
-      arena: localNextItem.effectiveArena || arena,
-      scheduleItems: localScheduleItems,
-      item: localNextItem,
-      status: nextStatus,
-    });
-
-    if (activatedItem) return activatedItem;
-  }
-
-  const supabase = getSupabaseClient();
-
-  if (supabase) {
-    try {
-      const remoteScheduleItems = await getRemoteShowLiveSchedule(
-        supabase,
-        normalizedShowId
-      );
-      const remoteNextItem = findNextArenaLiveItem({
-        scheduleItems: remoteScheduleItems,
-        completedType: LIVE_SCHEDULE_ITEM_TYPES.CLASS,
-        completedItemId: normalizedClassId,
-        arena,
-      });
-
-      if (remoteNextItem) {
-        const activatedItem = await activateArenaLiveItemRepository({
-          showId: normalizedShowId,
-          arena: remoteNextItem.effectiveArena || arena,
-          scheduleItems: remoteScheduleItems,
-          item: remoteNextItem,
-          status: nextStatus,
-        });
-
-        if (activatedItem) return activatedItem;
-      }
-    } catch (error) {
-      console.error("Erreur avancement live Supabase:", error);
-    }
-  }
-
+  // Completing a class must never put the following class on air without an
+  // explicit operator action. Keep the historical function name for callers,
+  // but only remove the completed class from the live displays.
   return savePublicationStateRepository(normalizedClassId, {
     status: PUBLICATION_STATUSES.HIDDEN,
     publishedAt: null,
@@ -909,7 +848,7 @@ export async function deletePublicationStateRepository(classId) {
       const { error } = await supabase
         .from("show_score_publication_states")
         .delete()
-        .eq("class_id", classId);
+        .eq("block_id", classId);
 
       if (error) throw error;
     } catch (error) {

@@ -3,6 +3,9 @@ export const LIVE_DATA_SOURCES = {
   ANNOUNCER: "announcer",
 };
 
+export const DEFAULT_LIVE_DATA_SOURCE = LIVE_DATA_SOURCES.ANNOUNCER;
+export const DEFAULT_QUALIFIED_RIDER_COUNT = 6;
+
 export const LIVE_DISPLAY_MODES = {
   FULL: "full",
   ORDER_ONLY: "order_only",

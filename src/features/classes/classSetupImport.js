@@ -964,8 +964,33 @@ function parseFunwarePositionedPdfPages(pages) {
   };
 }
 
+function deduplicatePositionedPdfPages(pages) {
+  const seenPageSignatures = new Set();
+
+  return (Array.isArray(pages) ? pages : []).filter((pageLines) => {
+    const signature = JSON.stringify(
+      (Array.isArray(pageLines) ? pageLines : []).map((line) =>
+        (Array.isArray(line?.cells) ? line.cells : []).map((cell) => [
+          Math.round(Number(cell?.x) || 0),
+          cleanText(cell?.text),
+        ])
+      )
+    );
+
+    if (seenPageSignatures.has(signature)) return false;
+
+    seenPageSignatures.add(signature);
+    return true;
+  });
+}
+
 export function parsePositionedPdfPages(pages) {
-  return parseReoPositionedPdfPages(pages) || parseFunwarePositionedPdfPages(pages);
+  const uniquePages = deduplicatePositionedPdfPages(pages);
+
+  return (
+    parseReoPositionedPdfPages(uniquePages) ||
+    parseFunwarePositionedPdfPages(uniquePages)
+  );
 }
 
 function addPdfTextItemToRows(rows, item) {

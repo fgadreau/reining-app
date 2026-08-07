@@ -70,6 +70,10 @@ Environment examples:
 - `.env.staging.example` for an online staging deployment against Supabase DEV.
 - `.env.production.example` for production against Supabase PROD.
 
+Every online environment must also define `VITE_SUPABASE_PROJECT_REF` and
+`VITE_PRODUCTION_SUPABASE_PROJECT_REF`. Builds fail if staging points to PROD or
+production points to DEV.
+
 The app includes SPA routing config for Vercel (`vercel.json`) and Netlify
 (`public/_redirects`).
 

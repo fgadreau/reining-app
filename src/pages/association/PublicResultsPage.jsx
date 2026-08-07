@@ -15,11 +15,13 @@ import {
   formatDuration,
 } from "../../features/classes/classTiming";
 import {
+  clampPaidWarmupTimerSeconds,
   formatPaidWarmupTimer,
   getPaidWarmupDragRemainingSeconds,
   getPaidWarmupRemainingSeconds,
 } from "../../features/paidWarmups/paidWarmupLive";
 import { isLiveDragItem } from "../../features/live/liveQueueItems";
+import { buildLiveRunClassLabels } from "../../features/results/liveClassStandings";
 import { formatLiveDataFreshness } from "../../features/live/liveFreshness";
 import { getAssociationWebsiteHref } from "../../features/associations/associationProfile";
 import { getShowById } from "../../features/shows/showSelectors";
@@ -55,8 +57,6 @@ import {
   publicTitleStyle,
 } from "../../styles/publicStyles";
 
-const PUBLIC_LIVE_FALLBACK_REFRESH_MS = 30_000;
-
 function PublicResultsPage() {
   const { associationId, showId } = useParams();
   const navigate = useNavigate();
@@ -66,6 +66,7 @@ function PublicResultsPage() {
   const [show, setShow] = useState(() => getShowById(showId));
   const [publicView, setPublicView] = useState(() => getPublicShowView(showId));
   const [isLoading, setIsLoading] = useState(true);
+  const [isDisplayRefreshPending, setIsDisplayRefreshPending] = useState(false);
   const [openClassId, setOpenClassId] = useState(null);
   const [now, setNow] = useState(() => new Date());
   const { t } = useTranslation();
@@ -159,7 +160,8 @@ function PublicResultsPage() {
   usePublicShowViewUpdates({
     showId,
     classIds: publicClassIdsKey ? publicClassIdsKey.split("|") : [],
-    fallbackRefreshMs: PUBLIC_LIVE_FALLBACK_REFRESH_MS,
+    data: publicView,
+    onDisplayRefreshStateChange: setIsDisplayRefreshPending,
     load: () => getPublicShowViewRepository(showId),
     onData: (nextPublicView) => {
       setShow(nextPublicView.show);
@@ -259,6 +261,7 @@ function PublicResultsPage() {
               key={warmup.id}
               warmup={warmup}
               now={now}
+              isDisplayRefreshPending={isDisplayRefreshPending}
             />
           ))}
         </div>
@@ -1152,18 +1155,19 @@ function PublicLivePanel({ classView, now, isUpcoming = false }) {
           )}
 
           {!isScheduleOnly && (
-            <PublicNextScheduleItem item={classView.nextScheduleItem} />
-          )}
-
-          {!isScheduleOnly && (
             <PublicLiveOrderTable
               runs={classView.orderRuns || []}
+              blockClasses={classView.blockClasses || []}
               showScores={showScores}
               panelId={buildAccordionPanelId(
                 "public-live-order",
                 classView.classId || classView.classCode || "class"
               )}
             />
+          )}
+
+          {!isScheduleOnly && (
+            <PublicNextScheduleItem item={classView.nextScheduleItem} />
           )}
         </div>
       )}
@@ -1350,7 +1354,12 @@ function ScheduleOnlyLiveDetails({ classView }) {
   );
 }
 
-function PublicPaidWarmupLivePanel({ warmup, now, isUpcoming = false }) {
+function PublicPaidWarmupLivePanel({
+  warmup,
+  now,
+  isUpcoming = false,
+  isDisplayRefreshPending = false,
+}) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const remainingSeconds = getPaidWarmupRemainingSeconds(warmup, now);
@@ -1358,6 +1367,10 @@ function PublicPaidWarmupLivePanel({ warmup, now, isUpcoming = false }) {
   const dragRemainingSeconds = isDragDue
     ? getPaidWarmupDragRemainingSeconds(warmup, now)
     : null;
+  const isEntryTimerUpdating =
+    !isUpcoming && isDisplayRefreshPending && remainingSeconds != null;
+  const isDragTimerUpdating =
+    !isUpcoming && isDisplayRefreshPending && dragRemainingSeconds != null;
   const onCourseEntry = warmup.onCourseEntry || warmup.activeEntry || null;
   const nextLiveItem = warmup.nextLiveItem || warmup.nextEntry || null;
   const secondNextLiveItem =
@@ -1444,12 +1457,16 @@ function PublicPaidWarmupLivePanel({ warmup, now, isUpcoming = false }) {
             <div style={liveBlockStyle}>
               <div style={runLabelStyle}>{t("public.results.onCourse")}</div>
               {isDragDue ? (
-                <PublicDragCard remainingSeconds={dragRemainingSeconds} />
+                <PublicDragCard
+                  remainingSeconds={dragRemainingSeconds}
+                  isTimerUpdating={isDragTimerUpdating}
+                />
               ) : onCourseEntry ? (
                 <PublicPaidWarmupEntry
                   entry={onCourseEntry}
                   remainingSeconds={remainingSeconds}
                   warmup={warmup}
+                  isTimerUpdating={isEntryTimerUpdating}
                 />
               ) : (
                 <div style={mutedTextStyle}>—</div>
@@ -1484,8 +1501,6 @@ function PublicPaidWarmupLivePanel({ warmup, now, isUpcoming = false }) {
             </div>
           </div>
 
-          <PublicNextScheduleItem item={warmup.nextScheduleItem} />
-
           <PublicPaidWarmupOrderTable
             entries={warmup.orderItems || warmup.entries || []}
             warmup={warmup}
@@ -1494,6 +1509,8 @@ function PublicPaidWarmupLivePanel({ warmup, now, isUpcoming = false }) {
               warmup.id || "warmup"
             )}
           />
+
+          <PublicNextScheduleItem item={warmup.nextScheduleItem} />
         </div>
       )}
     </section>
@@ -1597,16 +1614,19 @@ function PublicPaidWarmupEntryBlock({ label, entry, statusLabel, status }) {
   );
 }
 
-function PublicDragCard({ remainingSeconds }) {
+function PublicDragCard({ remainingSeconds, isTimerUpdating = false }) {
   const { t } = useTranslation();
-  const displaySeconds =
-    remainingSeconds == null ? null : Math.max(Math.round(remainingSeconds), 0);
+  const displaySeconds = clampPaidWarmupTimerSeconds(remainingSeconds);
 
   return (
     <div>
       <div style={runTitleStyle}>{t("public.results.dragSurface")}</div>
       <div style={mutedTextStyle}>{t("public.results.trackPrep")}</div>
-      {displaySeconds != null && (
+      {isTimerUpdating ? (
+        <div style={timerUpdatingStyle}>
+          {t("public.results.timerUpdating")}
+        </div>
+      ) : displaySeconds != null && (
         <>
           <div style={paidWarmupTimerStyle}>
             {formatPaidWarmupTimer(displaySeconds)}
@@ -1626,8 +1646,14 @@ function PublicDragCard({ remainingSeconds }) {
   );
 }
 
-function PublicPaidWarmupEntry({ entry, remainingSeconds, warmup }) {
+function PublicPaidWarmupEntry({
+  entry,
+  remainingSeconds,
+  warmup,
+  isTimerUpdating = false,
+}) {
   const { t } = useTranslation();
+  const displaySeconds = clampPaidWarmupTimerSeconds(remainingSeconds);
 
   return (
     <div>
@@ -1640,10 +1666,14 @@ function PublicPaidWarmupEntry({ entry, remainingSeconds, warmup }) {
           {getPaidWarmupStatusLabel(entry.status, t)}
         </div>
       )}
-      {remainingSeconds != null && (
+      {isTimerUpdating ? (
+        <div style={timerUpdatingStyle}>
+          {t("public.results.timerUpdating")}
+        </div>
+      ) : displaySeconds != null && (
         <>
           <div style={paidWarmupTimerStyle}>
-            {formatPaidWarmupTimer(remainingSeconds)}
+            {formatPaidWarmupTimer(displaySeconds)}
           </div>
           {remainingSeconds <= 0 ? (
             <div style={paidWarmupCueStyle("danger")}>
@@ -1742,7 +1772,7 @@ function PublicPlannedDragCard({ item }) {
   );
 }
 
-function PublicLiveOrderTable({ runs, showScores, panelId }) {
+function PublicLiveOrderTable({ runs, blockClasses, showScores, panelId }) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const runCount = runs.filter((item) => !isLiveDragItem(item)).length;
@@ -1801,6 +1831,10 @@ function PublicLiveOrderTable({ runs, showScores, panelId }) {
                     {t("public.results.backNumber")} {item.backNumber || "—"} ·{" "}
                     {item.horse || t("public.results.horseFallback")}
                   </div>
+                  <PublicRunClassList
+                    run={item}
+                    blockClasses={blockClasses}
+                  />
                 </div>
                 <div style={orderRowMetaStyle}>
                   <span style={orderStatusBadgeStyle(item.liveOrderStatus)}>
@@ -1817,6 +1851,22 @@ function PublicLiveOrderTable({ runs, showScores, panelId }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function PublicRunClassList({ run, blockClasses }) {
+  const { t } = useTranslation();
+  const classLabels = buildLiveRunClassLabels(run, blockClasses);
+
+  if (!classLabels.length) return null;
+
+  return (
+    <div style={orderClassesStyle}>
+      <span style={orderClassesLabelStyle}>
+        {t("public.results.registeredClasses")}:
+      </span>{" "}
+      {classLabels.join(" · ")}
     </div>
   );
 }
@@ -2594,6 +2644,18 @@ const orderIdentityStyle = {
   minWidth: 0,
 };
 
+const orderClassesStyle = {
+  marginTop: 5,
+  color: publicColors.text,
+  fontSize: 13,
+  lineHeight: 1.35,
+};
+
+const orderClassesLabelStyle = {
+  color: publicColors.muted,
+  fontWeight: 800,
+};
+
 const orderRowMetaStyle = {
   gridColumn: "1 / -1",
   display: "flex",
@@ -2710,6 +2772,13 @@ const paidWarmupTimerStyle = {
   fontSize: 30,
   fontWeight: 900,
   marginTop: 8,
+};
+
+const timerUpdatingStyle = {
+  marginTop: 14,
+  color: publicColors.muted,
+  fontSize: 18,
+  fontWeight: 850,
 };
 
 const paidWarmupNoticeStyle = {

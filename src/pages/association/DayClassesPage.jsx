@@ -35,8 +35,6 @@ import {
   resolveClassScoringId,
 } from "../../features/classes/classScoringGroups";
 import { buildArenaOptions } from "../../features/classes/arenaOptions";
-import { getDayById } from "../../features/days/daySelectors";
-import { getShowById } from "../../features/shows/showSelectors";
 import { loadAssociations } from "../../features/associations/associationsData";
 import { useAssociationAccess } from "../../features/auth/useAssociationAccess";
 import {
@@ -56,16 +54,13 @@ import {
 } from "../../utils/generateScorePdf";
 import { getClassOfficialData } from "../../features/classes/classOfficialData";
 import { useTranslation } from "../../features/i18n/I18nProvider";
-import { appStyles as styles } from "../../styles/appStyles";
 import { createId } from "../../utils/createId";
 
-function DayClassesPage() {
-  const { associationId, showId, dayId } = useParams();
+function DayClassesPage({ dayId, day, show }) {
+  const { associationId, showId } = useParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const day = getDayById(dayId);
-  const show = getShowById(showId);
   const access = useAssociationAccess(associationId);
 
   const association = useMemo(() => {
@@ -519,12 +514,7 @@ function DayClassesPage() {
     !access.canScoreAssociation
   ) {
     return (
-      <div style={styles.app}>
-        <div style={{ marginBottom: 16 }}>
-          <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-            {t("public.results.back")}
-          </button>
-        </div>
+      <div style={embeddedPageStyle}>
         <div style={emptyStateStyle}>
           {t("management.classes.accessDenied")}
         </div>
@@ -533,41 +523,25 @@ function DayClassesPage() {
   }
 
   return (
-    <div style={styles.app}>
-      <div style={{ marginBottom: 16 }}>
-        <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
-          {t("public.results.back")}
-        </button>
-      </div>
-
-      <div style={headerWrapStyle}>
-        <div>
-          <h1 style={{ marginBottom: 4 }}>{show?.name || t("common.show")}</h1>
-          <h2 style={{ fontSize: 20, margin: 0, color: "#475569" }}>
-            {day?.label || t("management.days.dayFallback")}{" "}
-            {day?.date ? `— ${day.date}` : ""}
-          </h2>
+    <div data-show-day-content={dayId} style={embeddedPageStyle}>
+      {access.canManageAssociation && (
+        <div style={embeddedHeaderActionsStyle}>
+          <button
+            onClick={startCreateClass}
+            style={primaryButtonStyle}
+            disabled={isSaving}
+          >
+            {t("management.classes.addClass")}
+          </button>
+          <button
+            onClick={startCreatePaidWarmup}
+            style={secondaryButtonStyle}
+            disabled={isSaving}
+          >
+            {t("management.classes.addPaidWarmup")}
+          </button>
         </div>
-
-        {access.canManageAssociation && (
-          <div style={headerActionsStyle}>
-            <button
-              onClick={startCreateClass}
-              style={primaryButtonStyle}
-              disabled={isSaving}
-            >
-              {t("management.classes.addClass")}
-            </button>
-            <button
-              onClick={startCreatePaidWarmup}
-              style={secondaryButtonStyle}
-              disabled={isSaving}
-            >
-              {t("management.classes.addPaidWarmup")}
-            </button>
-          </div>
-        )}
-      </div>
+      )}
 
       {isLoading ? (
         <div style={emptyStateStyle}>{t("management.classes.loadingDay")}</div>
@@ -976,19 +950,16 @@ function DayClassesPage() {
   );
 }
 
-const headerWrapStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-start",
-  gap: 16,
-  marginBottom: 20,
-  flexWrap: "wrap",
+const embeddedPageStyle = {
+  display: "grid",
+  gap: 12,
 };
 
-const headerActionsStyle = {
+const embeddedHeaderActionsStyle = {
   display: "flex",
   gap: 10,
   flexWrap: "wrap",
+  justifyContent: "flex-end",
 };
 
 const cardStyle = {

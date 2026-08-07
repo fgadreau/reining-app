@@ -119,6 +119,7 @@ function toPaidWarmupRow(item, options = {}) {
   const includeActiveEntry = options.includeActiveEntry !== false;
   const row = {
     id: warmup.id,
+    block_id: warmup.id,
     organization_id: warmup.associationId,
     show_id: warmup.showId,
     show_day_id: warmup.dayId,
@@ -374,6 +375,7 @@ export async function deletePaidWarmupRepository(id) {
           "Le paid warmup n'a pas été supprimé dans Supabase. Recharge et réessaie, ou vérifie les permissions."
         );
       }
+
     } catch (error) {
       console.error("Erreur suppression paid warmup Supabase:", error);
       throw error;

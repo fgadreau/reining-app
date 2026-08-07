@@ -2,6 +2,7 @@ import {
   CLASS_START_MODE_FIXED,
   compareMixedScheduleItemsByStart,
   normalizeClassStartTime,
+  sortScheduleItemsByDependencies,
 } from "../classes/classSchedule";
 
 export const LIVE_SCHEDULE_ITEM_TYPES = {
@@ -187,6 +188,7 @@ function buildLiveScheduleItem({ type, item }) {
     sortOrder: item?.sortOrder || item?.sort_order || 1,
     scheduleStartMode: item?.scheduleStartMode || item?.schedule_start_mode || "",
     scheduleStartTime,
+    followsBlockId: item?.followsBlockId || item?.follows_block_id || "",
     source: item,
   };
 }
@@ -202,7 +204,7 @@ function sortLiveScheduleItems(items, days) {
     ])
   );
 
-  return [...items].sort((a, b) => {
+  const compareByDayAndStart = (a, b) => {
     const firstDay = dayOrderById.get(a.dayId) || {};
     const secondDay = dayOrderById.get(b.dayId) || {};
     const daySort = (firstDay.sortOrder || 0) - (secondDay.sortOrder || 0);
@@ -214,7 +216,9 @@ function sortLiveScheduleItems(items, days) {
     if (dateSort !== 0) return dateSort;
 
     return compareMixedScheduleItemsByStart(a, b);
-  });
+  };
+
+  return sortScheduleItemsByDependencies(items, compareByDayAndStart);
 }
 
 function inferPaidWarmupArenas(scheduleItems) {

@@ -212,6 +212,7 @@ async function seedActiveSingleJudgeAnnouncerShow(page) {
   const seed = buildRobotShowStorageSeed();
   const setup = seed.json["reining_class_setup_v1"][CLASS_ID];
   const firstJudge = setup.judges[0];
+  const today = new Date().toISOString().slice(0, 10);
   const startedAt = "2026-05-28T15:00:00.000Z";
   const activeStartedAt = "2026-05-28T15:05:00.000Z";
 
@@ -219,6 +220,9 @@ async function seedActiveSingleJudgeAnnouncerShow(page) {
   setup.liveDataSource = "announcer";
   setup.judges = [firstJudge];
   setup.judgeName = firstJudge.name;
+  seed.json["reining_shows_v1"][0].startDate = today;
+  seed.json["reining_shows_v1"][0].endDate = today;
+  seed.json["reining_days_v1"][0].date = today;
   seed.json["reining_classes_v1"].find(
     (classItem) => classItem.id === CLASS_ID
   ).pattern = "R16";
@@ -268,6 +272,7 @@ async function seedActiveSingleJudgeAnnouncerShow(page) {
   };
 
   await seedStorage(page, seed);
+  return seed;
 }
 
 async function seedDailyLivestreamShow(page) {
@@ -644,6 +649,20 @@ test.describe("robot de show local", () => {
     );
   });
 
+  test("fait defiler le classement du bloc actif sur la TV", async ({ page }) => {
+    await page.route("**/rest/v1/**", (route) => route.abort());
+    await seedActiveSingleJudgeAnnouncerShow(page);
+    await page.goto(
+      `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/tv?mode=standings`
+    );
+
+    await expect(page.locator('[data-tv-layout="standings"]')).toBeVisible();
+    await expect(page.locator('[role="table"] [role="row"]')).toHaveCount(3);
+    await expect(page.locator('[role="table"]')).toContainText("Cavalier 2");
+    await expect(page.locator('[role="table"]')).toContainText("70");
+    await expect(page.locator('[role="table"]')).toContainText("69½");
+  });
+
   test("remplace les cartes TV vides par la prochaine classe", async ({
     page,
   }) => {
@@ -979,6 +998,42 @@ test.describe("robot de show local", () => {
         scoreTotal: "70½",
         nextActiveDraw: 4,
       });
+  });
+
+  test("garde la TV synchronisée quand le score annonceur démarre le suivant", async ({
+    page,
+  }) => {
+    await page.route("**/rest/v1/**", (route) => route.abort());
+    const seed = await seedActiveSingleJudgeAnnouncerShow(page);
+
+    const tvPage = await page.context().newPage();
+    await tvPage.route("**/rest/v1/**", (route) => route.abort());
+    await seedStorage(tvPage, seed);
+    await tvPage.goto(
+      `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/tv`
+    );
+    await expect(
+      tvPage.locator(".tv-live-hero .tv-participant-card__name")
+    ).toContainText("Cavalier 3");
+
+    await page.goto(
+      `/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/announcer`
+    );
+    await page.getByRole("button", { name: "Entrer le résultat" }).click();
+    await page.getByLabel("Juge Alpha").fill("70,5");
+    await page.getByLabel("Juge Alpha").press("Enter");
+
+    await expect
+      .poll(
+        () =>
+          tvPage
+            .locator(".tv-live-hero .tv-participant-card__name")
+            .textContent(),
+        { timeout: 8_000 }
+      )
+      .toContain("Cavalier 4");
+
+    await tvPage.close();
   });
 
   test("affiche la liste de rappel apres un bloc annonceur simple termine", async ({

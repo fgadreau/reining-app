@@ -149,6 +149,7 @@ import {
 } from "./features/scoring/scoringTestMode";
 import { canOpenClassForScribe } from "./pages/association/ShowScribePage";
 import {
+  buildTvStandingsSlides,
   buildTvUpcomingCards,
   pickTvLiveItem,
   pickTvUpcomingItem,
@@ -166,9 +167,11 @@ import {
 import {
   buildTvDisplayCompetitionShortCode,
   buildTvDisplayLivestreamShortCode,
+  buildTvDisplayStandingsShortCode,
   buildTvDisplayShortCode,
   getTvDisplayCompetitionShortcutPath,
   getTvDisplayLivestreamShortcutPath,
+  getTvDisplayStandingsShortcutPath,
   getTvDisplayShortcutPath,
   normalizeTvDisplayShortCode,
 } from "./features/tvDisplay/tvDisplayShortCode";
@@ -196,7 +199,10 @@ import {
   isClassResultsSecretariatApproved,
   normalizeResultGroups,
 } from "./features/results/classResults";
-import { buildLiveClassStandings } from "./features/results/liveClassStandings";
+import {
+  buildLiveClassStandings,
+  buildLiveRunClassLabels,
+} from "./features/results/liveClassStandings";
 import {
   buildQualifiedRiderKey,
   buildQualifiedRiderList,
@@ -214,6 +220,7 @@ import { buildAnnouncerClassView } from "./features/live/liveViewRepository";
 import {
   PAID_WARMUP_TIMER_CUES,
   buildPaidWarmupLiveView,
+  clampPaidWarmupTimerSeconds,
   getPaidWarmupTimerCueType,
   setPaidWarmupEntryStatus,
   startPaidWarmupDrag,
@@ -426,18 +433,24 @@ test("builds a permanent six-character shortcut for a TV display", () => {
   );
   const competitionCode = buildTvDisplayCompetitionShortCode(showId);
   const livestreamCode = buildTvDisplayLivestreamShortCode(showId);
+  const standingsCode = buildTvDisplayStandingsShortCode(showId);
 
   expect(code).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
   expect(competitionCode).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
   expect(livestreamCode).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
+  expect(standingsCode).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
   expect(competitionCode).not.toBe(code);
   expect(livestreamCode).not.toBe(code);
   expect(livestreamCode).not.toBe(competitionCode);
+  expect(standingsCode).not.toBe(code);
+  expect(standingsCode).not.toBe(competitionCode);
+  expect(standingsCode).not.toBe(livestreamCode);
   expect(
     buildTvDisplayShortCode(showId)
   ).toBe(code);
   expect(buildTvDisplayCompetitionShortCode(showId)).toBe(competitionCode);
   expect(buildTvDisplayLivestreamShortCode(showId)).toBe(livestreamCode);
+  expect(buildTvDisplayStandingsShortCode(showId)).toBe(standingsCode);
   expect(
     buildTvDisplayShortCode("04b478f9-d90c-4589-8466-d3b25ea865df")
   ).not.toBe(code);
@@ -450,6 +463,9 @@ test("builds a permanent six-character shortcut for a TV display", () => {
   );
   expect(getTvDisplayLivestreamShortcutPath(showId)).toBe(
     `/tv/${livestreamCode}`
+  );
+  expect(getTvDisplayStandingsShortcutPath(showId)).toBe(
+    `/tv/${standingsCode}`
   );
 });
 
@@ -469,6 +485,47 @@ test("resolves the livestream TV code to the public livestream mode", async () =
 
   expect(target?.id).toBe("show-1");
   expect(target?.tvDisplayMode).toBe("livestream");
+});
+
+test("resolves the standings TV code to the rotating standings mode", async () => {
+  const target = await getPublicShowByTvCodeRepository(
+    buildTvDisplayStandingsShortCode("show-1")
+  );
+
+  expect(target?.id).toBe("show-1");
+  expect(target?.tvDisplayMode).toBe("standings");
+});
+
+test("paginates every class standing in display order", () => {
+  const slides = buildTvStandingsSlides(
+    [
+      {
+        id: "open",
+        classCode: "OPEN",
+        className: "Open",
+        entries: Array.from({ length: 9 }, (_, index) => ({
+          id: `open-${index + 1}`,
+          rank: index + 1,
+          rider: `Rider ${index + 1}`,
+          scoreTotal: String(75 - index),
+        })),
+      },
+      {
+        id: "np",
+        classCode: "NP",
+        className: "Non Pro",
+        entries: [{ id: "np-1", rank: 1, rider: "Leader", scoreTotal: "72" }],
+      },
+    ],
+    7
+  );
+
+  expect(slides).toHaveLength(3);
+  expect(slides.map((slide) => [slide.classCode, slide.entries.length])).toEqual([
+    ["OPEN", 7],
+    ["OPEN", 2],
+    ["NP", 1],
+  ]);
 });
 
 test("holds the TV livestream until five minutes are buffered", () => {
@@ -1036,7 +1093,7 @@ test("runs the announcer fallback without overwriting the scribe snapshot", () =
   expect(completed.session.runs[1].history).toHaveLength(2);
 });
 
-test("advances the announcer live automatically after a result but waits for drags", () => {
+test("moves the TV from scored competitor 1 to competitor 2 immediately", () => {
   const setupRuns = [
     { id: "auto-run-1", draw: 1, rider: "Alice" },
     { id: "auto-run-2", draw: 2, rider: "Bob" },
@@ -1073,30 +1130,29 @@ test("advances the announcer live automatically after a result but waits for dra
     draw: 2,
   });
 
-  const waitingForDrag = saveAnnouncerRunResultAndAdvance(
-    started,
-    "auto-run-1",
-    { status: ANNOUNCER_RUN_STATUSES.SCORED, scoreTotal: "70" },
-    {
-      nextRunId: "auto-run-2",
-      waitForDrag: true,
-      now: new Date("2026-07-20T12:03:00.000Z"),
-    }
-  );
+  const tvView = buildPublicLiveClassView({
+    classItem: { id: "auto-class", name: "Open", pattern: "2" },
+    setup: {
+      pattern: "2",
+      liveDataSource: LIVE_DATA_SOURCES.ANNOUNCER,
+      runs: setupRuns,
+    },
+    publication: { status: PUBLICATION_STATUSES.LIVE },
+    scoringSession: { classId: "auto-class", runs: setupRuns },
+    announcerSession: advanced,
+  });
 
-  expect(waitingForDrag.activeManoeuvre).toBeNull();
-  expect(waitingForDrag.runs[1].status).toBe(
-    ANNOUNCER_RUN_STATUSES.PENDING
-  );
+  expect(tvView.latestScore).toMatchObject({ id: "auto-run-1", scoreTotal: "70" });
+  expect(tvView.activeRun).toMatchObject({ id: "auto-run-2", draw: 2 });
 
   const dragging = startAnnouncerDrag(
-    waitingForDrag,
+    advanced,
     { id: "drag-after-auto-run-1", afterIndex: 0, afterDraw: 1 },
     new Date("2026-07-20T12:04:00.000Z")
   );
   const afterDrag = stopAnnouncerDragAndAdvance(
     dragging,
-    "auto-run-2",
+    "auto-run-3",
     new Date("2026-07-20T12:12:00.000Z")
   );
 
@@ -1105,23 +1161,8 @@ test("advances the announcer live automatically after a result but waits for dra
   );
   expect(afterDrag.activeManoeuvre).toMatchObject({
     type: "run",
-    runId: "auto-run-2",
+    runId: "auto-run-3",
   });
-
-  const corrected = saveAnnouncerRunResultAndAdvance(
-    advanced,
-    "auto-run-1",
-    { status: ANNOUNCER_RUN_STATUSES.SCORED, scoreTotal: "71" },
-    {
-      nextRunId: "auto-run-3",
-      now: new Date("2026-07-20T12:13:00.000Z"),
-    }
-  );
-
-  expect(corrected.activeManoeuvre).toMatchObject({
-    runId: "auto-run-2",
-  });
-  expect(corrected.runs[2].status).toBe(ANNOUNCER_RUN_STATUSES.PENDING);
 });
 
 test("records an announcer no score as NS and completes the run", () => {
@@ -1197,7 +1238,7 @@ test("combines announcer scores entered per judge with the existing rules", () =
   expect(fiveJudgeResult.isComplete).toBe(true);
 });
 
-test("stores announcer judge scores and activates only the planned public live", () => {
+test("stores announcer scores and activates public live reliably on first start", () => {
   const session = buildInitialAnnouncerLiveSession({
     classId: "block-multi",
     setupRuns: [{ id: "run-1", draw: 1 }],
@@ -1231,6 +1272,7 @@ test("stores announcer judge scores and activates only the planned public live",
   expect(
     getAnnouncerLiveActivationStatus({
       session: started,
+      previousSessionStartedAt: null,
       publicationStatus: PUBLICATION_STATUSES.HIDDEN,
       plannedLiveStatus: PUBLICATION_STATUSES.LIVE_SCORING,
     })
@@ -1238,10 +1280,28 @@ test("stores announcer judge scores and activates only the planned public live",
   expect(
     getAnnouncerLiveActivationStatus({
       session: started,
+      previousSessionStartedAt: started.startedAt,
       publicationStatus: PUBLICATION_STATUSES.LIVE_SCORING,
       plannedLiveStatus: PUBLICATION_STATUSES.LIVE_SCORING,
     })
   ).toBeNull();
+
+  expect(
+    getAnnouncerLiveActivationStatus({
+      session: started,
+      previousSessionStartedAt: null,
+      publicationStatus: PUBLICATION_STATUSES.LIVE_SCORING,
+      plannedLiveStatus: PUBLICATION_STATUSES.LIVE_SCORING,
+    })
+  ).toBe(PUBLICATION_STATUSES.LIVE_SCORING);
+
+  expect(
+    getAnnouncerLiveActivationStatus({
+      session: started,
+      previousSessionStartedAt: null,
+      publicationStatus: PUBLICATION_STATUSES.HIDDEN,
+    })
+  ).toBe(PUBLICATION_STATUSES.LIVE_SCORING);
 });
 
 test("builds a unique classified-rider call list with cutoff ties", () => {
@@ -4042,6 +4102,75 @@ test("parses imported draw class codes when a code column is present", () => {
   expect(importedDraw.runs[1].classCodes).toEqual(["NHNP", "NONP"]);
 });
 
+test("ignores exact duplicate pages in positioned PDF draws", () => {
+  const firstPage = [
+    {
+      cells: [
+        { x: 36, text: "Showbill #:" },
+        { x: 92, text: "121" },
+        { x: 128, text: "Class:" },
+        { x: 161, text: "3100" },
+        { x: 205, text: "NRHA - Youth 13 & Under [Y13]" },
+      ],
+    },
+    {
+      cells: [
+        { x: 54, text: "1" },
+        { x: 141, text: "SMART GENUINE SPARK" },
+        { x: 317, text: "DALI OUELLETTE" },
+      ],
+    },
+    {
+      cells: [
+        { x: 108, text: "2630" },
+        { x: 141, text: "MAVRIC OUELLETTE" },
+      ],
+    },
+    {
+      cells: [{ x: 317, text: "Y13" }],
+    },
+  ];
+  const secondPage = [
+    {
+      cells: [
+        { x: 54, text: "2" },
+        { x: 141, text: "ELECTRIC BLACK JAC" },
+        { x: 317, text: "WILLIAM TZOURNAVELIS" },
+      ],
+    },
+    {
+      cells: [
+        { x: 108, text: "8793" },
+        { x: 141, text: "WILLIAM TZOURNAVELIS" },
+      ],
+    },
+    {
+      cells: [{ x: 317, text: "Y13" }],
+    },
+  ];
+
+  const importedDraw = parsePositionedPdfPages([
+    firstPage,
+    secondPage,
+    firstPage,
+    secondPage,
+  ]);
+
+  expect(importedDraw.runs).toHaveLength(2);
+  expect(importedDraw.runs).toMatchObject([
+    {
+      draw: 1,
+      backNumber: "2630",
+      rider: "MAVRIC OUELLETTE",
+    },
+    {
+      draw: 2,
+      backNumber: "8793",
+      rider: "WILLIAM TZOURNAVELIS",
+    },
+  ]);
+});
+
 test("parses Funware positioned PDF class codes with spaces and split headers", () => {
   const importedDraw = parsePositionedPdfPages([
     [
@@ -5613,6 +5742,14 @@ test("public live class view derives standings from setup class codes", () => {
   });
 
   expect(view.classStandings.map((group) => group.code)).toEqual(["NHO", "NH2"]);
+  expect(view.blockClasses).toEqual([
+    { code: "NHO", name: "Novice Horse Open", classNumber: "", association: "" },
+    { code: "NH2", name: "Novice Horse Level 2", classNumber: "", association: "" },
+  ]);
+  expect(buildLiveRunClassLabels(view.orderRuns[0], view.blockClasses)).toEqual([
+    "NHO — Novice Horse Open",
+    "NH2 — Novice Horse Level 2",
+  ]);
   expect(view.classStandings[0].entries[0]).toMatchObject({
     backNumber: "101",
     rider: "Open Rider",
@@ -6499,7 +6636,7 @@ test("setting an arena live class hides only the previous live in that arena", a
   );
 });
 
-test("completed arena live advances to the next class in the same arena", async () => {
+test("completed arena live stays stopped until the next class is activated explicitly", async () => {
   saveDays([
     {
       id: "day-advance-live",
@@ -6552,14 +6689,14 @@ test("completed arena live advances to the next class in the same arena", async 
     PUBLICATION_STATUSES.HIDDEN
   );
   expect(getPublicationState("advance-main-next").status).toBe(
-    PUBLICATION_STATUSES.LIVE_SCORING
+    PUBLICATION_STATUSES.HIDDEN
   );
   expect(getPublicationState("advance-secondary-current").status).toBe(
     PUBLICATION_STATUSES.LIVE_NO_SCORE
   );
 });
 
-test("completed arena live advances to the next paid warmup in the same arena", async () => {
+test("completed arena live does not activate the next paid warmup", async () => {
   saveDays([
     {
       id: "day-advance-warmup",
@@ -6609,7 +6746,7 @@ test("completed arena live advances to the next paid warmup in the same arena", 
   expect(getPublicationState("advance-warmup-current").status).toBe(
     PUBLICATION_STATUSES.HIDDEN
   );
-  expect(getPaidWarmupById("advance-warmup-next").isPublicLive).toBe(true);
+  expect(getPaidWarmupById("advance-warmup-next").isPublicLive).toBe(false);
   expect(getPublicationState("advance-warmup-next-class").status).toBe(
     PUBLICATION_STATUSES.HIDDEN
   );
@@ -6988,7 +7125,7 @@ test("completed live skips the next class when its planned live is hidden", asyn
     PUBLICATION_STATUSES.HIDDEN
   );
   expect(getPublicationState("advance-skip-next-live").status).toBe(
-    PUBLICATION_STATUSES.LIVE
+    PUBLICATION_STATUSES.HIDDEN
   );
 });
 
@@ -9185,6 +9322,23 @@ test("normalizes the judge set approval mode without changing the legacy default
   expect(normalizeClassSetup({}).setApprovalMode).toBe(
     SET_APPROVAL_MODES.CLASS_END
   );
+});
+
+test("defaults new block setups to announcer live and six classified riders", () => {
+  expect(normalizeClassSetup({})).toMatchObject({
+    liveDataSource: LIVE_DATA_SOURCES.ANNOUNCER,
+    qualifiedRiderCount: 6,
+  });
+  expect(
+    normalizeClassSetup({ qualifiedRiderCount: "" }).qualifiedRiderCount
+  ).toBeNull();
+});
+
+test("keeps the public paid warmup countdown at zero without overtime", () => {
+  expect(clampPaidWarmupTimerSeconds(61.4)).toBe(61);
+  expect(clampPaidWarmupTimerSeconds(0)).toBe(0);
+  expect(clampPaidWarmupTimerSeconds(-1_014)).toBe(0);
+  expect(clampPaidWarmupTimerSeconds(null)).toBeNull();
 });
 
 test("builds consecutive signed set snapshots and locks their runs", () => {

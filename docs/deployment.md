@@ -4,12 +4,16 @@ Use separate Supabase projects for development/staging and production. The app
 can be deployed more than once from the same codebase, but each deployment must
 receive the right environment variables.
 
+Production is frozen while the shared HSP block/class rebuild is being made
+data-safe. Do not run ShowScore SQL directly against the shared production
+project. HorseShowPlatform owns the canonical migration chain.
+
 ## Recommended Setup
 
 | Environment | App URL | Supabase project | Purpose |
 | --- | --- | --- | --- |
 | Local dev | `http://localhost:3001` | Supabase DEV | Daily development and testing |
-| Online staging | staging URL | Supabase DEV | Real-device testing before production |
+| Online preproduction | stable `preprod` URL | Supabase PREPROD | Real-device testing before production |
 | Production | production URL | Supabase PROD | Real show data only |
 
 Keep test shows and training data out of Supabase PROD.
@@ -55,7 +59,7 @@ Local development:
 2. Fill it with Supabase DEV values.
 3. Run `npm start`.
 
-Online staging:
+Online preproduction:
 
 Set these variables in the hosting dashboard:
 
@@ -63,6 +67,8 @@ Set these variables in the hosting dashboard:
 VITE_DEPLOY_ENV=staging
 VITE_SUPABASE_URL=<Supabase DEV URL>
 VITE_SUPABASE_PUBLISHABLE_KEY=<Supabase DEV publishable key>
+VITE_SUPABASE_PROJECT_REF=<Supabase DEV project ref>
+VITE_PRODUCTION_SUPABASE_PROJECT_REF=<Supabase PROD project ref>
 ```
 
 Production:
@@ -73,9 +79,16 @@ Set these variables in the hosting dashboard:
 VITE_DEPLOY_ENV=production
 VITE_SUPABASE_URL=<Supabase PROD URL>
 VITE_SUPABASE_PUBLISHABLE_KEY=<Supabase PROD publishable key>
+VITE_SUPABASE_PROJECT_REF=<Supabase PROD project ref>
+VITE_PRODUCTION_SUPABASE_PROJECT_REF=<Supabase PROD project ref>
 ```
 
 Do not reuse the DEV Supabase URL in production.
+
+The Vite build rejects a Preview/Production deployment without an explicit
+environment, a URL/project-ref mismatch, staging connected to PROD, or
+production connected to DEV. Non-production builds also show a persistent
+banner on private, public, TV and OBS pages.
 
 ## Hosting Notes
 
@@ -113,16 +126,19 @@ Recommended:
 
 | Branch | Deployment | Supabase |
 | --- | --- | --- |
-| `develop` | Online staging / preview | DEV |
+| `preprod` | Online preproduction | PREPROD |
 | `main` | Production | PROD |
 
 Typical release flow:
 
 1. Work locally against Supabase DEV.
-2. Push/merge to `develop`.
-3. Test the online staging deployment with real devices.
+2. Open a pull request and merge to `preprod`.
+3. Test the stable preproduction deployment with real devices and the cross-app robot.
 4. Merge to `main`.
 5. Confirm the production deployment uses Supabase PROD variables.
+
+The controlled cross-app order and rollback procedure are documented in
+[production-promotion.md](production-promotion.md).
 
 ## Pre-Production Checklist
 

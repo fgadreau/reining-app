@@ -75,6 +75,13 @@ import { getShowById } from "../../features/shows/showSelectors";
 import { useTranslation } from "../../features/i18n/I18nProvider";
 import { appStyles as styles } from "../../styles/appStyles";
 import ClassPaceSummary from "../../components/ClassPaceSummary";
+import ShowDayTabs, {
+  useShowDaySelection,
+} from "../../components/ShowDayTabs";
+import {
+  filterShowDaySections,
+  getShowDayQueryPath,
+} from "../../features/days/showDayNavigation";
 
 const CURRENT_SECRETARIAT_PUBLICATION_STATUSES = [
   PUBLICATION_STATUSES.LIVE,
@@ -94,6 +101,13 @@ function SecretariatDashboardPage() {
     () => new Set()
   );
   const access = useAssociationAccess(associationId);
+  const daySelection = useShowDaySelection(
+    daySections.map((section) => section.day)
+  );
+  const activeDaySections = filterShowDaySections(
+    daySections,
+    daySelection.activeDayId
+  );
 
   const association = useMemo(() => {
     return (
@@ -162,9 +176,14 @@ function SecretariatDashboardPage() {
     };
   }, [showId, version]);
 
-  const allClassRows = daySections.flatMap((section) => section.classRows);
+  const allClassRows = activeDaySections.flatMap(
+    (section) => section.classRows
+  );
   const summary = buildSummary(allClassRows);
-  const currentClassRows = buildCurrentClassRows(daySections);
+  const currentClassRows = buildCurrentClassRows(activeDaySections);
+  const classCountsByDayId = Object.fromEntries(
+    daySections.map((section) => [section.day.id, section.classRows.length])
+  );
 
   const refresh = () => setVersion((value) => value + 1);
 
@@ -477,19 +496,32 @@ function SecretariatDashboardPage() {
             {t("management.secretariat.refresh")}
           </button>
           <Link
-            to={`/associations/${associationId}/shows/${showId}/time`}
+            to={getShowDayQueryPath(
+              `/associations/${associationId}/shows/${showId}/time`,
+              daySelection.activeDayId
+            )}
             style={linkButtonStyle}
           >
             {t("management.secretariat.timeManagement")}
           </Link>
           <Link
-            to={`/associations/${associationId}/shows/${showId}`}
+            to={getShowDayQueryPath(
+              `/associations/${associationId}/shows/${showId}`,
+              daySelection.activeDayId
+            )}
             style={linkButtonStyle}
           >
             {t("management.secretariat.manageDays")}
           </Link>
         </div>
       </section>
+
+      <ShowDayTabs
+        days={daySelection.days}
+        activeDayId={daySelection.activeDayId}
+        onChange={daySelection.selectDay}
+        countsByDayId={classCountsByDayId}
+      />
 
       <section style={summaryGridStyle}>
         <SummaryTile label={t("management.secretariat.classes")} value={summary.total} />
@@ -527,7 +559,7 @@ function SecretariatDashboardPage() {
         <div style={emptyStateStyle}>{t("management.days.empty")}</div>
       ) : (
         <div style={{ display: "grid", gap: 16 }}>
-          {daySections.map(({ day, classRows }) => (
+          {activeDaySections.map(({ day, classRows }) => (
             <section key={day.id} style={cardStyle}>
               <div style={sectionHeaderStyle}>
                 <div>
@@ -542,7 +574,10 @@ function SecretariatDashboardPage() {
                   </div>
                 </div>
                 <Link
-                  to={`/associations/${associationId}/shows/${showId}/days/${day.id}`}
+                  to={getShowDayQueryPath(
+                    `/associations/${associationId}/shows/${showId}/days/${day.id}`,
+                    day.id
+                  )}
                   style={linkButtonStyle}
                 >
                   {t("management.days.openClasses")}

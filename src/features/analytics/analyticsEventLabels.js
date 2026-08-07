@@ -24,25 +24,10 @@ function mapById(items) {
 }
 
 function isScoringClassRow(row) {
-  return row?.is_event_block !== true && row?.isEventBlock !== true;
-}
-
-function getSupabaseErrorText(error) {
-  return [error?.message, error?.details, error?.hint]
-    .map((value) => String(value || "").toLowerCase())
-    .join(" ");
-}
-
-function isEventBlockColumnMissingError(error) {
-  return getSupabaseErrorText(error).includes("is_event_block");
-}
-
-function removeColumn(columns, columnName) {
-  return String(columns || "*")
-    .split(",")
-    .map((column) => column.trim())
-    .filter((column) => column && column !== columnName)
-    .join(",");
+  return (
+    row?.block_type === "competition" ||
+    (row?.block_type == null && row?.isEventBlock !== true)
+  );
 }
 
 function shortId(value) {
@@ -78,13 +63,6 @@ async function fetchRowsByIds(tableName, ids, columns = "*") {
     if (error) throw error;
     return Array.isArray(data) ? data : [];
   } catch (error) {
-    if (
-      String(columns).includes("is_event_block") &&
-      isEventBlockColumnMissingError(error)
-    ) {
-      return fetchRowsByIds(tableName, ids, removeColumn(columns, "is_event_block"));
-    }
-
     console.error(`Erreur chargement libelles ${tableName}:`, error);
     return [];
   }
@@ -110,8 +88,8 @@ function toDayFromRow(row) {
   return {
     id: row.id,
     showId: row.show_id,
-    label: row.label || "",
-    date: row.date || "",
+    label: row.day_name || row.label || "",
+    date: row.day_date || row.date || "",
   };
 }
 
@@ -122,8 +100,8 @@ function toClassFromRow(row) {
     showId: row.show_id,
     dayId: row.show_day_id || row.day_id,
     name: row.name || "",
-    classCode: row.code || row.class_code || "",
-    isEventBlock: Boolean(row.is_event_block),
+    classCode: row.display_label || row.name || "",
+    isEventBlock: row.block_type !== "competition",
   };
 }
 
@@ -232,13 +210,13 @@ export async function buildAnalyticsEventLabelResolver(events) {
     remoteClasses,
     remotePaidWarmups,
   ] = await Promise.all([
-    fetchRowsByIds("associations", missingAssociationIds, "id,name,short_name"),
+    fetchRowsByIds("organizations", missingAssociationIds, "id,name,short_name"),
     fetchRowsByIds("shows", missingShowIds, "id,organization_id,name"),
-    fetchRowsByIds("days", missingDayIds, "id,show_id,label,date"),
+    fetchRowsByIds("show_days", missingDayIds, "id,show_id,day_name,day_date"),
     fetchRowsByIds(
-      "classes",
+      "blocks",
       missingClassIds,
-      "id,organization_id,show_id,show_day_id,name,code,is_event_block"
+      "id,organization_id,show_id,show_day_id,name,display_label,block_type"
     ),
     fetchRowsByIds(
       "show_score_paid_warmups",
@@ -273,7 +251,7 @@ export async function buildAnalyticsEventLabelResolver(events) {
   if (inferredShowIds.length || inferredDayIds.length) {
     const [inferredShows, inferredDays] = await Promise.all([
       fetchRowsByIds("shows", inferredShowIds, "id,organization_id,name"),
-      fetchRowsByIds("days", inferredDayIds, "id,show_id,label,date"),
+      fetchRowsByIds("show_days", inferredDayIds, "id,show_id,day_name,day_date"),
     ]);
 
     shows = [...shows, ...inferredShows.map(toShowFromRow)];

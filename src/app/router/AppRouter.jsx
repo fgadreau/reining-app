@@ -1,10 +1,18 @@
 import React, { useEffect } from "react";
-import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useParams,
+} from "react-router-dom";
 
 import AppMenu from "../../components/AppMenu";
 import PublicAppInstallPrompt from "../../components/PublicAppInstallPrompt";
 import AnalyticsRouteTracker from "../../features/analytics/AnalyticsRouteTracker";
 import { dispatchAppRouteChanged } from "../../features/pwa/appUpdateSafety";
+import { getShowDayQueryPath } from "../../features/days/showDayNavigation";
 import ShowScoreAssociationGate from "./ShowScoreAssociationGate";
 import PlatformAnalyticsPage from "../../pages/admin/PlatformAnalyticsPage";
 import PlatformAccessPage from "../../pages/admin/PlatformAccessPage";
@@ -29,7 +37,6 @@ import PublicShowLivestreamPage from "../../pages/public/PublicShowLivestreamPag
 import PublicShowLivestreamTvPage from "../../pages/public/PublicShowLivestreamTvPage";
 import ShowSchedulePreviewPage from "../../pages/association/ShowSchedulePreviewPage";
 import ShowTimeManagementPage from "../../pages/association/ShowTimeManagementPage";
-import DayClassesPage from "../../pages/association/DayClassesPage";
 import ClassSetupPage from "../../pages/association/ClassSetupPage";
 import PaidWarmupSetupPage from "../../pages/association/PaidWarmupSetupPage";
 import ClassScoringPage from "../../pages/scribe/ClassScoringPage";
@@ -192,7 +199,7 @@ function AppRouter() {
           path="/associations/:associationId/shows/:showId/days/:dayId"
           element={
             <ShowScoreAssociationGate>
-              <DayClassesPage />
+              <LegacyShowDayRedirect />
             </ShowScoreAssociationGate>
           }
         />
@@ -234,6 +241,20 @@ function AppRouteChangeNotifier() {
   }, [location.pathname]);
 
   return null;
+}
+
+function LegacyShowDayRedirect() {
+  const { associationId, showId, dayId } = useParams();
+
+  return (
+    <Navigate
+      replace
+      to={getShowDayQueryPath(
+        `/associations/${associationId}/shows/${showId}`,
+        dayId
+      )}
+    />
+  );
 }
 
 export default AppRouter;

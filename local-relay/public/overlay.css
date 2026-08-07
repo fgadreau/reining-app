@@ -1,0 +1,80 @@
+:root {
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
+body { color: #f8fafc; }
+.overlay { position: relative; width: 100%; height: 100%; }
+
+.bar {
+  position: absolute;
+  right: 2.5%;
+  bottom: 3.5%;
+  left: 2.5%;
+  min-height: 150px;
+  display: grid;
+  grid-template-columns: minmax(330px, 1.25fr) minmax(620px, 2fr) auto;
+  align-items: stretch;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 18px;
+  background: linear-gradient(110deg, rgba(7, 18, 36, 0.97), rgba(15, 23, 42, 0.94));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.bar__accent { position: absolute; inset: 0 auto 0 0; width: 7px; background: #2dd4bf; }
+.brand { min-width: 0; display: flex; align-items: center; gap: 18px; padding: 23px 24px 23px 31px; }
+.brand__logo { width: 78px; height: 78px; flex: 0 0 78px; display: grid; place-items: center; overflow: hidden; border-radius: 13px; background: #eff6ff; color: #1d4ed8; font-size: 23px; font-weight: 900; }
+.brand__logo img { width: 100%; height: 100%; object-fit: contain; }
+.brand__copy { min-width: 0; }
+.eyebrow { margin-bottom: 7px; color: #5eead4; font-size: 14px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+.class-name { overflow: hidden; color: #fff; font-size: clamp(24px, 2.05vw, 38px); font-weight: 900; line-height: 1.05; text-overflow: ellipsis; white-space: nowrap; }
+.association-name { margin-top: 7px; overflow: hidden; color: #cbd5e1; font-size: 16px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+
+.metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-left: 1px solid rgba(148, 163, 184, .28); }
+.metric { min-width: 0; padding: 24px 20px; border-right: 1px solid rgba(148, 163, 184, .22); }
+.metric__label { margin-bottom: 13px; font-size: 13px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.metric--green .metric__label { color: #4ade80; }
+.metric--amber .metric__label { color: #fbbf24; }
+.metric--blue .metric__label { color: #60a5fa; }
+.metric__value { overflow: hidden; color: #fff; font-size: clamp(20px, 1.6vw, 30px); font-weight: 850; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+.metric__value small { display: block; margin-top: 8px; overflow: hidden; color: #cbd5e1; font-size: 15px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.metric__value strong { margin-left: 10px; color: #fff; font-size: 1.15em; }
+.powered { display: flex; min-width: 148px; flex-direction: column; justify-content: center; padding: 24px; color: #94a3b8; font-size: 12px; text-transform: uppercase; }
+.powered strong { margin-top: 5px; color: #f8fafc; font-size: 17px; letter-spacing: .02em; text-transform: none; }
+
+.overlay[data-mode="neutral"] .metrics { display: none; }
+.overlay[data-mode="neutral"] .bar { grid-template-columns: 1fr auto; }
+.overlay[data-mode="neutral"] .class-name { font-size: clamp(30px, 2.6vw, 48px); }
+
+.takeover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6vh 6vw;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(45, 212, 191, .22), transparent 34%),
+    linear-gradient(145deg, rgba(3, 12, 27, .985), rgba(10, 29, 48, .985));
+}
+.takeover[hidden] { display: none; }
+.takeover__eyebrow { color: #5eead4; font-size: clamp(18px, 1.5vw, 28px); font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+.takeover__title { margin: 16px 0 5vh; color: #fff; font-size: clamp(42px, 5vw, 88px); line-height: 1; text-align: center; }
+.takeover__list { width: min(1640px, 92vw); min-height: 55vh; display: grid; grid-template-columns: repeat(var(--sponsor-count, 2), minmax(0, 1fr)); align-items: stretch; gap: clamp(28px, 3.5vw, 70px); }
+.takeover__sponsor { height: 100%; min-height: 250px; display: grid; place-items: center; padding: clamp(24px, 4vw, 68px); border: 1px solid rgba(255,255,255,.3); border-radius: 26px; background: #fff; box-shadow: 0 30px 80px rgba(0,0,0,.3); }
+.takeover__sponsor img { max-width: 94%; max-height: 48vh; object-fit: contain; }
+.takeover__powered { position: absolute; right: 3vw; bottom: 2.5vh; color: #94a3b8; font-size: 17px; font-weight: 800; }
+
+@media (max-width: 900px) {
+  .bar { grid-template-columns: 1fr; min-height: 0; }
+  .brand { padding: 14px 18px 14px 24px; }
+  .brand__logo { width: 54px; height: 54px; flex-basis: 54px; }
+  .metrics { border-top: 1px solid rgba(148, 163, 184, .28); border-left: 0; }
+  .metric { padding: 13px 15px; }
+  .powered { display: none; }
+}

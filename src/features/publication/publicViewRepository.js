@@ -57,6 +57,7 @@ import {
   compareScheduleItemsByStart,
   hasClassScheduleDetails,
   normalizeClassScheduleDetails,
+  sortScheduleItemsByDependencies,
 } from "../classes/classSchedule";
 import { MIN_MEASURED_RUN_SECONDS } from "../classes/classTiming";
 import {
@@ -76,7 +77,10 @@ import {
   getClassResultPublication,
   getResultPublicationsForClassesRepository,
 } from "../results/resultPublicationRepository";
-import { normalizeResultGroups } from "../results/classResults";
+import {
+  normalizeBlockClasses,
+  normalizeResultGroups,
+} from "../results/classResults";
 import { buildLiveClassStandings } from "../results/liveClassStandings";
 import {
   getLocalScannedScoresheetsForShow,
@@ -99,6 +103,7 @@ import { normalizeLivestreamUrlsByDate } from "../livestream/livestreamSchedule"
 import {
   buildTvDisplayCompetitionShortCode,
   buildTvDisplayLivestreamShortCode,
+  buildTvDisplayStandingsShortCode,
   buildTvDisplayShortCode,
   normalizeTvDisplayShortCode,
 } from "../tvDisplay/tvDisplayShortCode";
@@ -203,7 +208,7 @@ function toClass(row) {
     showId: row.show_id,
     dayId: row.show_day_id || row.day_id,
     name: row.name || "",
-    classCode: row.code || row.class_code || "",
+    classCode: row.display_label || row.name || "",
     arena: row.arena || "",
     pattern: row.pattern || "",
     customPattern:
@@ -212,48 +217,32 @@ function toClass(row) {
         : null,
     scheduleStartMode: row.schedule_start_mode || "",
     scheduleStartTime: row.schedule_start_time || row.scheduled_time || "",
-    judgeName: row.judge_name || "",
+    followsBlockId: row.follows_block_id || "",
+    judgeName: row.judge_display_name || "",
     sortOrder: row.sort_order || 1,
-    isEventBlock: Boolean(row.is_event_block),
+    isEventBlock: row.block_type !== "competition",
   };
-}
-
-function getSupabaseErrorText(error) {
-  return [error?.message, error?.details, error?.hint]
-    .map((value) => String(value || "").toLowerCase())
-    .join(" ");
-}
-
-function isEventBlockColumnMissingError(error) {
-  return getSupabaseErrorText(error).includes("is_event_block");
 }
 
 const PUBLIC_CLASS_ID_CHUNK_SIZE = 100;
 
 async function fetchPublicClassesForShow(supabase, showId) {
-  let result = await supabase
-    .from("classes")
+  return supabase
+    .from("blocks")
     .select("*")
     .eq("show_id", showId)
-    .eq("is_event_block", false)
+    .eq("block_type", "competition")
     .order("show_day_id", { ascending: true })
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
-
-  if (result.error && isEventBlockColumnMissingError(result.error)) {
-    result = await supabase
-      .from("classes")
-      .select("*")
-      .eq("show_id", showId)
-      .order("show_day_id", { ascending: true })
-      .order("sort_order", { ascending: true })
-      .order("name", { ascending: true });
-  }
-
-  return result;
 }
 
-async function fetchPublicRowsForClasses(supabase, table, classIds) {
+async function fetchPublicRowsForClasses(
+  supabase,
+  table,
+  classIds,
+  idColumn = "block_id"
+) {
   const uniqueIds = Array.from(
     new Set((Array.isArray(classIds) ? classIds : []).filter(Boolean))
   );
@@ -273,7 +262,7 @@ async function fetchPublicRowsForClasses(supabase, table, classIds) {
 
   const results = await Promise.all(
     chunks.map((chunk) =>
-      supabase.from(table).select("*").in("class_id", chunk)
+      supabase.from(table).select("*").in(idColumn, chunk)
     )
   );
   const failedResult = results.find((result) => result.error);
@@ -292,7 +281,7 @@ async function fetchPublicRowsForClasses(supabase, table, classIds) {
 
 function toPublicationState(row) {
   return {
-    classId: row.class_id,
+    classId: row.block_id,
     status: row.status || PUBLICATION_STATUSES.HIDDEN,
     publishedAt: row.published_at || null,
     publishedBy: row.published_by || null,
@@ -302,7 +291,7 @@ function toPublicationState(row) {
 
 function toResultPublication(row) {
   return {
-    classId: row.class_id,
+    classId: row.block_id,
     status: row.status || RESULT_PUBLICATION_STATUSES.HIDDEN,
     publishedAt: row.published_at || null,
     publishedBy: row.published_by || null,
@@ -312,7 +301,7 @@ function toResultPublication(row) {
 
 function toOfficialResult(row) {
   return {
-    classId: row.class_id,
+    classId: row.block_id,
     judgeName: row.judge_name || "",
     finalized: Boolean(row.finalized),
     finalizedAt: row.finalized_at || null,
@@ -330,7 +319,7 @@ function toOfficialResult(row) {
 
 function toScoringSession(row) {
   return {
-    classId: row.class_id,
+    classId: row.block_id,
     runs: Array.isArray(row.runs) ? row.runs : [],
     activeManoeuvre:
       row.active_manoeuvre && typeof row.active_manoeuvre === "object"
@@ -342,7 +331,7 @@ function toScoringSession(row) {
 
 function toClassSetup(row) {
   return {
-    classId: row.class_id,
+    classId: row.block_id,
     pattern: row.pattern || "",
     customPattern:
       row.custom_pattern && typeof row.custom_pattern === "object"
@@ -379,7 +368,7 @@ function toAnnouncerLiveSession(row) {
 
 function toJudgeScoringSession(row) {
   return normalizeJudgeScoringSession({
-    classId: row.class_id,
+    classId: row.block_id,
     judgeId: row.judge_id,
     judgeName: row.judge_name || "",
     claimedBy: row.claimed_by || null,
@@ -418,6 +407,319 @@ function toPaidWarmup(row) {
     sortOrder: row.sort_order || 1,
     updatedAt: row.updated_at || null,
   };
+}
+
+const PUBLIC_SHOW_REALTIME_STATE = Symbol("public-show-realtime-state");
+
+export function isPublicShowViewRealtimeReady(publicView) {
+  return Boolean(publicView?.[PUBLIC_SHOW_REALTIME_STATE]);
+}
+
+function attachPublicShowRealtimeState(publicView, sourceState) {
+  Object.defineProperty(publicView, PUBLIC_SHOW_REALTIME_STATE, {
+    value: sourceState,
+    enumerable: false,
+  });
+
+  return publicView;
+}
+
+function buildPublicShowViewFromSourceState(sourceState) {
+  const {
+    show,
+    days,
+    classes,
+    paidWarmups,
+    scoresheetDocumentsByClassId,
+    publicationsByClassId,
+    officialByClassId,
+    scoringByClassId,
+    judgeScoringByClassId,
+    setupByClassId,
+    announcerLiveByClassId,
+    resultPublicationsByClassId,
+  } = sourceState;
+
+  if (!isShowPubliclyActive(show)) {
+    return attachPublicShowRealtimeState(buildEmptyPublicShowView(), sourceState);
+  }
+
+  const classesByDayId = new Map();
+  classes.forEach((classItem) => {
+    const current = classesByDayId.get(classItem.dayId) || [];
+    current.push(classItem);
+    classesByDayId.set(classItem.dayId, current);
+  });
+  const paidWarmupsByDayId = new Map();
+  paidWarmups.forEach((warmup) => {
+    const current = paidWarmupsByDayId.get(warmup.dayId) || [];
+    current.push(warmup);
+    paidWarmupsByDayId.set(warmup.dayId, current);
+  });
+
+  const sections = days.map((day) => {
+    const dayClasses = sortScheduleItemsByDependencies(
+      classesByDayId.get(day.id) || [],
+      compareScheduleItemsByStart
+    );
+    const dayPaidWarmups = (paidWarmupsByDayId.get(day.id) || [])
+      .slice()
+      .sort((first, second) => {
+        const sortOrder =
+          Number(first.sortOrder || 0) - Number(second.sortOrder || 0);
+        if (sortOrder !== 0) return sortOrder;
+        return String(first.name || "").localeCompare(String(second.name || ""));
+      });
+    const livePaidWarmups = dayPaidWarmups
+      .filter(isPaidWarmupScheduleLiveEligible)
+      .map((warmup) => buildPaidWarmupLiveView(warmup));
+    const classIds = dayClasses.map((classItem) => classItem.id).filter(Boolean);
+    const classEntries = dayClasses.map((classItem) => {
+      const publication = publicationsByClassId.get(classItem.id);
+      const setup = setupByClassId.get(classItem.id) || null;
+      const resultClasses = buildPublicResultClassViews({
+        classItem,
+        resultPublication: resultPublicationsByClassId.get(classItem.id),
+        scoresheetDocument: scoresheetDocumentsByClassId[classItem.id],
+      });
+      const liveClass = buildPublicLiveClassView({
+        classItem,
+        setup,
+        publication,
+        scoringSession: scoringByClassId.get(classItem.id),
+        judgeSessions: judgeScoringByClassId.get(classItem.id) || [],
+        announcerSession: announcerLiveByClassId.get(classItem.id),
+      });
+      const scoringSession = scoringByClassId.get(classItem.id);
+
+      return {
+        classView: buildPublicClassView({
+          classItem,
+          setup,
+          publication,
+          official: officialByClassId.get(classItem.id),
+          scoringRuns: [],
+        }),
+        resultClasses,
+        liveClass,
+        timingClassRow: {
+          classItem,
+          setup,
+          publication,
+          official: officialByClassId.get(classItem.id),
+          scoringRuns: scoringSession?.runs || [],
+          status: "public",
+        },
+      };
+    });
+
+    return {
+      day,
+      classes: classEntries.map((entry) => entry.classView).filter(Boolean),
+      resultClasses: classEntries.flatMap((entry) => entry.resultClasses),
+      timingSection: {
+        day,
+        classRows: classEntries.map((entry) => entry.timingClassRow),
+        paidWarmups: dayPaidWarmups,
+      },
+      liveClasses: classEntries.map((entry) => entry.liveClass).filter(Boolean),
+      livePaidWarmups,
+      classIds,
+    };
+  });
+  const timingSections = sections.map((section) => section.timingSection);
+  const liveClasses = sections.flatMap((section) => section.liveClasses || []);
+  const livePaidWarmups = sections.flatMap(
+    (section) => section.livePaidWarmups || []
+  );
+  const resultSections = sections
+    .map((section) => ({
+      day: section.day,
+      classes: section.resultClasses,
+    }))
+    .filter((section) => section.classes.length > 0);
+  const publishedClassCount = sections.reduce(
+    (total, section) => total + section.classes.length,
+    0
+  );
+  const publishedResultClassCount = resultSections.reduce(
+    (total, section) => total + section.classes.length,
+    0
+  );
+  const scannedScoresheetCount =
+    countUniqueResultScoresheetDocuments(resultSections);
+  const primaryLiveClasses = findPrimaryLiveClassesByArena(liveClasses);
+  const timingByClassId =
+    sourceState.timingByClassId instanceof Map
+      ? sourceState.timingByClassId
+      : buildLocalPublicTimingByClassId(timingSections, primaryLiveClasses);
+  const liveState = buildResolvedPublicLiveState({
+    timingSections,
+    liveClasses: primaryLiveClasses,
+    livePaidWarmups,
+    timingByClassId,
+  });
+  const scheduleSections = show?.isSchedulePublic
+    ? buildShowSchedulePreviewSections({ daySections: timingSections })
+    : [];
+  const allClassIds = classes.map((classItem) => classItem.id).filter(Boolean);
+
+  return attachPublicShowRealtimeState(
+    {
+      show,
+      sections: sections.filter((section) => section.classes.length > 0),
+      resultSections,
+      publishedClassCount,
+      publishedResultClassCount,
+      scannedScoresheetCount,
+      liveClass: liveState.liveClasses[0] || null,
+      liveClasses: liveState.liveClasses,
+      livePaidWarmup: liveState.livePaidWarmups[0] || null,
+      livePaidWarmups: liveState.livePaidWarmups,
+      liveClassCount:
+        liveState.liveClasses.length + liveState.livePaidWarmups.length,
+      scheduleSections,
+      scheduleItemCount: countScheduleItems(scheduleSections),
+      classIds: allClassIds,
+    },
+    sourceState
+  );
+}
+
+function replaceRealtimeMapEntry(map, key, value, isDelete) {
+  const nextMap = new Map(map);
+
+  if (isDelete) {
+    nextMap.delete(key);
+  } else {
+    nextMap.set(key, value);
+  }
+
+  return nextMap;
+}
+
+export function applyPublicShowViewRealtimeChange(publicView, payload) {
+  const sourceState = publicView?.[PUBLIC_SHOW_REALTIME_STATE];
+  const table = payload?.table;
+  const eventType = String(payload?.eventType || "").toUpperCase();
+  const isDelete = eventType === "DELETE";
+  const row = isDelete ? payload?.old : payload?.new;
+
+  if (!sourceState || !table) {
+    return null;
+  }
+
+  if (payload?.show_id && payload.show_id !== sourceState.show?.id) {
+    return publicView;
+  }
+
+  if (table === "public_show_snapshot" || eventType === "INVALIDATE") {
+    return null;
+  }
+
+  const knownClassIds = new Set(
+    (Array.isArray(publicView?.classIds) ? publicView.classIds : []).filter(Boolean)
+  );
+  if (
+    payload?.block_id
+    && table !== "show_score_paid_warmups"
+    && !knownClassIds.has(payload.block_id)
+  ) {
+    return publicView;
+  }
+
+  if (!row || typeof row !== "object") {
+    return null;
+  }
+
+  const eventSequence = Number(payload?.event_seq);
+  const eventRowKey = String(payload?.row_key || "").trim();
+  const sequenceKey =
+    Number.isSafeInteger(eventSequence) && eventSequence > 0 && eventRowKey
+      ? `${table}:${eventRowKey}`
+      : "";
+  const previousSequence = sequenceKey
+    ? Number(sourceState.broadcastSequenceByKey?.get(sequenceKey) || 0)
+    : 0;
+
+  if (sequenceKey && eventSequence <= previousSequence) {
+    return publicView;
+  }
+
+  const nextSourceState = {
+    ...sourceState,
+    timingByClassId: null,
+    broadcastSequenceByKey: new Map(sourceState.broadcastSequenceByKey || []),
+  };
+
+  if (table === "shows") {
+    if (isDelete || row.id !== sourceState.show?.id) return null;
+    nextSourceState.show = toShow(row);
+  } else if (table === "show_score_paid_warmups") {
+    if (!row.id) return null;
+    if (!sourceState.paidWarmups.some((warmup) => warmup.id === row.id)) {
+      return publicView;
+    }
+    const nextPaidWarmups = sourceState.paidWarmups.filter(
+      (warmup) => warmup.id !== row.id
+    );
+    if (!isDelete) nextPaidWarmups.push(toPaidWarmup(row));
+    nextSourceState.paidWarmups = nextPaidWarmups;
+  } else if (table === "show_score_judge_sessions") {
+    const classId = row.block_id;
+    const judgeId = row.judge_id;
+    if (!classId || !judgeId) return null;
+    const nextSessions = (sourceState.judgeScoringByClassId.get(classId) || [])
+      .filter((session) => session.judgeId !== judgeId);
+    if (!isDelete) nextSessions.push(toJudgeScoringSession(row));
+    nextSourceState.judgeScoringByClassId = replaceRealtimeMapEntry(
+      sourceState.judgeScoringByClassId,
+      classId,
+      nextSessions,
+      isDelete && nextSessions.length === 0
+    );
+  } else {
+    const tableConfig = {
+      show_score_scoring_sessions: [
+        "scoringByClassId",
+        "block_id",
+        toScoringSession,
+      ],
+      show_score_block_setups: ["setupByClassId", "block_id", toClassSetup],
+      show_score_publication_states: [
+        "publicationsByClassId",
+        "block_id",
+        toPublicationState,
+      ],
+      show_score_official_results: [
+        "officialByClassId",
+        "block_id",
+        toOfficialResult,
+      ],
+      show_score_announcer_live_sessions: [
+        "announcerLiveByClassId",
+        "class_id",
+        toAnnouncerLiveSession,
+      ],
+    }[table];
+
+    if (!tableConfig) return null;
+    const [stateKey, idColumn, transform] = tableConfig;
+    const classId = row[idColumn];
+    if (!classId) return null;
+    nextSourceState[stateKey] = replaceRealtimeMapEntry(
+      sourceState[stateKey],
+      classId,
+      isDelete ? null : transform(row),
+      isDelete
+    );
+  }
+
+  if (sequenceKey) {
+    nextSourceState.broadcastSequenceByKey.set(sequenceKey, eventSequence);
+  }
+
+  return buildPublicShowViewFromSourceState(nextSourceState);
 }
 
 export function getPublicShowView(showId) {
@@ -653,7 +955,12 @@ export async function getPublicShowViewRepository(showId) {
   };
 }
 
-export function subscribePublicShowViewRepository(showId, classIds, onChange) {
+export function subscribePublicShowViewRepository(
+  showId,
+  classIds,
+  onChange,
+  onStatus
+) {
   const supabase = getSupabaseClient();
 
   if (!supabase || typeof onChange !== "function") {
@@ -663,51 +970,103 @@ export function subscribePublicShowViewRepository(showId, classIds, onChange) {
   const uniqueClassIds = Array.from(
     new Set((Array.isArray(classIds) ? classIds : []).filter(Boolean))
   );
-  const channel = supabase.channel(`public-show:${showId}`);
+  let isDisposed = false;
+  let broadcastChannel = null;
+  let fallbackChannel = null;
+  let fallbackStarted = false;
 
-  channel.on(
-    "postgres_changes",
-    {
-      event: "UPDATE",
-      schema: "public",
-      table: "shows",
-      filter: `id=eq.${showId}`,
-    },
-    onChange
-  );
+  const subscribeToPostgresChangesFallback = () => {
+    if (isDisposed || fallbackStarted) return;
 
-  channel.on(
-    "postgres_changes",
-    {
-      event: "*",
-      schema: "public",
-      table: "show_score_paid_warmups",
-      filter: `show_id=eq.${showId}`,
-    },
-    onChange
-  );
+    fallbackStarted = true;
+    fallbackChannel = supabase.channel(`public-show-fallback:${showId}`);
 
-  uniqueClassIds.forEach((classId) => {
-    channel.on(
+    fallbackChannel.on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "shows",
+        filter: `id=eq.${showId}`,
+      },
+      onChange
+    );
+
+    fallbackChannel.on(
       "postgres_changes",
       {
         event: "*",
         schema: "public",
-        table: "show_score_announcer_live_sessions",
-        filter: `class_id=eq.${classId}`,
+        table: "show_score_paid_warmups",
+        filter: `show_id=eq.${showId}`,
       },
       onChange
     );
+
+    uniqueClassIds.forEach((classId) => {
+      [
+        { table: "show_score_scoring_sessions", idColumn: "block_id" },
+        { table: "show_score_judge_sessions", idColumn: "block_id" },
+        { table: "show_score_block_setups", idColumn: "block_id" },
+        { table: "show_score_publication_states", idColumn: "block_id" },
+        { table: "show_score_official_results", idColumn: "block_id" },
+        { table: "show_score_announcer_live_sessions", idColumn: "class_id" },
+      ].forEach(({ table, idColumn }) => {
+        fallbackChannel.on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table,
+            filter: `${idColumn}=eq.${classId}`,
+          },
+          onChange
+        );
+      });
+    });
+
+    fallbackChannel.subscribe((status) => {
+      if (isDisposed) return;
+      onStatus?.(status);
+      if (status === "SUBSCRIBED") {
+        onChange();
+      } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
+        console.error("Erreur abonnement de secours résultats publics Supabase.");
+      }
+    });
+  };
+
+  broadcastChannel = supabase.channel(`showscore-public:${showId}`, {
+    config: { private: true },
   });
 
-  channel.subscribe((status) => {
-    if (status === "CHANNEL_ERROR") {
-      console.error("Erreur abonnement temps réel résultats publics Supabase.");
+  broadcastChannel.on("broadcast", { event: "change" }, (message) => {
+    if (isDisposed) return;
+    onChange(message?.payload);
+  });
+
+  broadcastChannel.subscribe((status) => {
+    if (isDisposed) return;
+    onStatus?.(status);
+    if (status === "SUBSCRIBED") {
+      onChange();
+    } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
+      console.error(
+        "Broadcast public indisponible; activation de Postgres Changes en secours."
+      );
+      const failedBroadcastChannel = broadcastChannel;
+      broadcastChannel = null;
+      if (failedBroadcastChannel) {
+        void supabase.removeChannel(failedBroadcastChannel);
+      }
+      subscribeToPostgresChangesFallback();
     }
   });
 
   return () => {
-    supabase.removeChannel(channel);
+    isDisposed = true;
+    if (broadcastChannel) supabase.removeChannel(broadcastChannel);
+    if (fallbackChannel) supabase.removeChannel(fallbackChannel);
   };
 }
 
@@ -802,13 +1161,14 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
       ),
       fetchPublicRowsForClasses(
         supabase,
-        "show_score_class_setups",
+        "show_score_block_setups",
         allClassIds
       ),
       fetchPublicRowsForClasses(
         supabase,
         "show_score_announcer_live_sessions",
-        allClassIds
+        allClassIds,
+        "class_id"
       ),
       getPublicResultPublicationMap(supabase, allClassIds),
     ]);
@@ -836,31 +1196,31 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
 
     const publicationsByClassId = new Map(
       (publicationResult.data || []).map((row) => [
-        row.class_id,
+        row.block_id,
         toPublicationState(row),
       ])
     );
     const officialByClassId = new Map(
       (officialResult.data || []).map((row) => [
-        row.class_id,
+        row.block_id,
         toOfficialResult(row),
       ])
     );
     const scoringByClassId = new Map(
       (scoringResult.data || []).map((row) => [
-        row.class_id,
+        row.block_id,
         toScoringSession(row),
       ])
     );
     const judgeScoringByClassId = new Map();
     (judgeScoringResult.data || []).forEach((row) => {
-      const current = judgeScoringByClassId.get(row.class_id) || [];
+      const current = judgeScoringByClassId.get(row.block_id) || [];
       current.push(toJudgeScoringSession(row));
-      judgeScoringByClassId.set(row.class_id, current);
+      judgeScoringByClassId.set(row.block_id, current);
     });
     const setupByClassId = new Map(
       (setupResult.data || []).map((row) => [
-        row.class_id,
+        row.block_id,
         toClassSetup(row),
       ])
     );
@@ -870,145 +1230,22 @@ async function getPublicShowViewFromSupabase(showId, supabase) {
         toAnnouncerLiveSession(row),
       ])
     );
-    const classesByDayId = new Map();
-    classes.forEach((classItem) => {
-      const current = classesByDayId.get(classItem.dayId) || [];
-      current.push(classItem);
-      classesByDayId.set(classItem.dayId, current);
-    });
-    const paidWarmupsByDayId = new Map();
-    paidWarmups.forEach((warmup) => {
-      const current = paidWarmupsByDayId.get(warmup.dayId) || [];
-      current.push(warmup);
-      paidWarmupsByDayId.set(warmup.dayId, current);
-    });
 
-    const sections = days.map((day) => {
-      const dayClasses = (classesByDayId.get(day.id) || [])
-        .slice()
-        .sort(compareScheduleItemsByStart);
-      const dayPaidWarmups = (paidWarmupsByDayId.get(day.id) || [])
-        .slice()
-        .sort((first, second) => {
-          const sortOrder =
-            Number(first.sortOrder || 0) - Number(second.sortOrder || 0);
-          if (sortOrder !== 0) return sortOrder;
-          return String(first.name || "").localeCompare(
-            String(second.name || "")
-          );
-        });
-      const livePaidWarmups = dayPaidWarmups
-        .filter(isPaidWarmupScheduleLiveEligible)
-        .map((warmup) => buildPaidWarmupLiveView(warmup));
-      const classIds = dayClasses
-        .map((classItem) => classItem.id)
-        .filter(Boolean);
-      const classEntries = dayClasses.map((classItem) => {
-        const publication = publicationsByClassId.get(classItem.id);
-        const setup = setupByClassId.get(classItem.id) || null;
-        const resultClasses = buildPublicResultClassViews({
-          classItem,
-          resultPublication: resultPublicationsByClassId.get(classItem.id),
-          scoresheetDocument: scoresheetDocumentsByClassId[classItem.id],
-        });
-        const liveClass = buildPublicLiveClassView({
-          classItem,
-          setup,
-          publication,
-          scoringSession: scoringByClassId.get(classItem.id),
-          judgeSessions: judgeScoringByClassId.get(classItem.id) || [],
-          announcerSession: announcerLiveByClassId.get(classItem.id),
-        });
-        const scoringSession = scoringByClassId.get(classItem.id);
-
-        return {
-          classView: buildPublicClassView({
-            classItem,
-            setup,
-            publication,
-            official: officialByClassId.get(classItem.id),
-            scoringRuns: [],
-          }),
-          resultClasses,
-          liveClass,
-          timingClassRow: {
-            classItem,
-            setup,
-            publication,
-            official: officialByClassId.get(classItem.id),
-            scoringRuns: scoringSession?.runs || [],
-            status: "public",
-          },
-        };
-      });
-
-      return {
-        day,
-        classes: classEntries
-          .map((entry) => entry.classView)
-          .filter(Boolean),
-        resultClasses: classEntries.flatMap((entry) => entry.resultClasses),
-        timingSection: {
-          day,
-          classRows: classEntries.map((entry) => entry.timingClassRow),
-          paidWarmups: dayPaidWarmups,
-        },
-        liveClasses: classEntries
-          .map((entry) => entry.liveClass)
-          .filter(Boolean),
-        livePaidWarmups,
-        classIds,
-      };
-    });
-    const timingSections = sections.map((section) => section.timingSection);
-    const liveClasses = sections.flatMap((section) => section.liveClasses || []);
-    const livePaidWarmups = sections.flatMap(
-      (section) => section.livePaidWarmups || []
-    );
-
-    const resultSections = sections
-      .map((section) => ({
-        day: section.day,
-        classes: section.resultClasses,
-      }))
-      .filter((section) => section.classes.length > 0);
-    const publishedClassCount = sections.reduce(
-      (total, section) => total + section.classes.length,
-      0
-    );
-    const publishedResultClassCount = resultSections.reduce(
-      (total, section) => total + section.classes.length,
-      0
-    );
-    const scannedScoresheetCount =
-      countUniqueResultScoresheetDocuments(resultSections);
-    const primaryLiveClasses = findPrimaryLiveClassesByArena(liveClasses);
-    const liveState = buildResolvedPublicLiveState({
-      timingSections,
-      liveClasses: primaryLiveClasses,
-      livePaidWarmups,
+    return buildPublicShowViewFromSourceState({
+      show,
+      days,
+      classes,
+      paidWarmups,
+      scoresheetDocumentsByClassId,
+      publicationsByClassId,
+      officialByClassId,
+      scoringByClassId,
+      judgeScoringByClassId,
+      setupByClassId,
+      announcerLiveByClassId,
+      resultPublicationsByClassId,
       timingByClassId,
     });
-    const scheduleSections = show?.isSchedulePublic
-      ? buildShowSchedulePreviewSections({ daySections: timingSections })
-      : [];
-
-    return {
-      show,
-      sections: sections.filter((section) => section.classes.length > 0),
-      resultSections,
-      publishedClassCount,
-      publishedResultClassCount,
-      scannedScoresheetCount,
-      liveClass: liveState.liveClasses[0] || null,
-      liveClasses: liveState.liveClasses,
-      livePaidWarmup: liveState.livePaidWarmups[0] || null,
-      livePaidWarmups: liveState.livePaidWarmups,
-      liveClassCount: liveState.liveClasses.length + liveState.livePaidWarmups.length,
-      scheduleSections,
-      scheduleItemCount: countScheduleItems(scheduleSections),
-      classIds: allClassIds,
-    };
   } catch (error) {
     console.error("Erreur chargement résultats publics Supabase:", error);
     return getPublicShowView(showId);
@@ -1040,7 +1277,7 @@ async function getPublicResultPublicationMap(supabase, classIds) {
   try {
     const { data, error } = await fetchPublicRowsForClasses(
       supabase,
-      "class_result_publications",
+      "block_result_publications",
       classIds
     );
 
@@ -1048,7 +1285,7 @@ async function getPublicResultPublicationMap(supabase, classIds) {
 
     return new Map(
       (Array.isArray(data) ? data : []).map((row) => [
-        row.class_id,
+        row.block_id,
         toResultPublication(row),
       ])
     );
@@ -1221,6 +1458,14 @@ function findShowByTvCode(shows, code) {
       matches.set(`${show.id}:livestream`, {
         ...show,
         tvDisplayMode: "livestream",
+        tvDisplayArena: "",
+      });
+    }
+
+    if (buildTvDisplayStandingsShortCode(show?.id) === code) {
+      matches.set(`${show.id}:standings`, {
+        ...show,
+        tvDisplayMode: "standings",
         tvDisplayArena: "",
       });
     }
@@ -1649,6 +1894,7 @@ export function buildPublicLiveClassView({
         classItem,
       })
     : [];
+  const blockClasses = normalizeBlockClasses(setup?.blockClasses);
 
   const activeDragItem = buildActiveClassDragItem({
     activeManoeuvre: selectedScoringSession?.activeManoeuvre,
@@ -1724,6 +1970,7 @@ export function buildPublicLiveClassView({
     upcomingLiveItems: liveQueue.upcomingLiveItems,
     upcomingRuns,
     orderRuns,
+    blockClasses,
     passedRuns,
     lastPassedRuns,
     latestScore: showScores ? lastPassedRuns.find(runHasScore) || null : null,

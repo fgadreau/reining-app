@@ -17,6 +17,10 @@ import { getUniqueScoringClasses } from "../../features/classes/classScoringGrou
 import { PUBLICATION_STATUSES } from "../../features/publication/publicationRepository";
 import { getShowRepository } from "../../features/shows/showRepository";
 import { appStyles as styles } from "../../styles/appStyles";
+import ShowDayTabs, {
+  useShowDaySelection,
+} from "../../components/ShowDayTabs";
+import { filterShowDaySections } from "../../features/days/showDayNavigation";
 
 function ShowScribePage() {
   const { associationId, showId } = useParams();
@@ -26,6 +30,13 @@ function ShowScribePage() {
   const [show, setShow] = useState(null);
   const [sections, setSections] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const daySelection = useShowDaySelection(
+    sections.map((section) => section.day)
+  );
+  const activeSections = filterShowDaySections(
+    sections,
+    daySelection.activeDayId
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -101,9 +112,12 @@ function ShowScribePage() {
     );
   }
 
-  const readyClassCount = sections.reduce(
+  const readyClassCount = activeSections.reduce(
     (total, section) => total + section.classes.length,
     0
+  );
+  const classCountsByDayId = Object.fromEntries(
+    sections.map((section) => [section.day.id, section.classes.length])
   );
 
   return (
@@ -127,13 +141,20 @@ function ShowScribePage() {
         </div>
       </section>
 
+      <ShowDayTabs
+        days={daySelection.days}
+        activeDayId={daySelection.activeDayId}
+        onChange={daySelection.selectDay}
+        countsByDayId={classCountsByDayId}
+      />
+
       {isLoading ? (
         <div style={emptyStateStyle}>{t("management.scribe.loading")}</div>
       ) : readyClassCount === 0 ? (
         <div style={emptyStateStyle}>{t("management.scribe.empty")}</div>
       ) : (
         <div style={{ display: "grid", gap: 16 }}>
-          {sections
+          {activeSections
             .filter((section) => section.classes.length > 0)
             .map((section) => (
               <section key={section.day.id} style={cardStyle}>

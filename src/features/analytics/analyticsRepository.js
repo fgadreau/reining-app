@@ -68,7 +68,7 @@ function normalizeEvent(row) {
     associationId: row.association_id || row.associationId || "",
     showId: row.show_id || row.showId || "",
     dayId: row.day_id || row.dayId || "",
-    classId: row.class_id || row.classId || "",
+    classId: row.block_id || row.class_id || row.classId || "",
     sessionId: row.session_id || row.sessionId || "",
     actorUserId: row.actor_user_id || row.actorUserId || "",
     actorEmail: row.actor_email || row.actorEmail || "",

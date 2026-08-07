@@ -11,6 +11,12 @@ import { usePublicShowViewUpdates } from "../../features/publication/usePublicSh
 import { translate } from "../../features/i18n/i18n";
 import { isLiveDragItem } from "../../features/live/liveQueueItems";
 import {
+  formatPaidWarmupTimer,
+  getPaidWarmupDragRemainingSeconds,
+  getPaidWarmupRemainingSeconds,
+  getPaidWarmupTimerCueType,
+} from "../../features/paidWarmups/paidWarmupLive";
+import {
   buildSponsorLevelSlides,
   getAssociationSponsorGroups,
 } from "../../features/associations/sponsorLogos";
@@ -19,9 +25,10 @@ import { rememberTvDisplayShortcut } from "../../features/tvDisplay/tvDisplaySho
 import { isScheduledLiveViewCurrent } from "../../features/schedule/liveSchedule";
 import "./PublicShowTvPage.css";
 
-const TV_REFRESH_MS = 30_000;
 const SPONSOR_SLIDE_INTERVAL_MS = 9000;
 const SPONSORS_PER_SLIDE = 5;
+const STANDINGS_SLIDE_INTERVAL_MS = 10000;
+const STANDINGS_ENTRIES_PER_SLIDE = 7;
 
 function PublicShowTvPage() {
   const { associationId, showId } = useParams();
@@ -30,15 +37,18 @@ function PublicShowTvPage() {
   const [show, setShow] = useState(null);
   const [publicView, setPublicView] = useState(() => getPublicShowView(showId));
   const [sponsorSlideIndex, setSponsorSlideIndex] = useState(0);
+  const [standingsSlideIndex, setStandingsSlideIndex] = useState(0);
   const publicShowcaseUrl = getPublicShowcaseUrl(associationId, showId);
   const selectedArena = useMemo(
     () => getArenaFromSearch(location.search),
     [location.search]
   );
-  const isCompetitionDisplay = useMemo(
-    () => getDisplayModeFromSearch(location.search) === "competition",
+  const requestedDisplayMode = useMemo(
+    () => getDisplayModeFromSearch(location.search),
     [location.search]
   );
+  const isCompetitionDisplay = requestedDisplayMode === "competition";
+  const isStandingsDisplay = requestedDisplayMode === "standings";
   const sponsorGroups = getAssociationSponsorGroups(association);
   const sponsorSlides = buildSponsorLevelSlides(
     sponsorGroups,
@@ -50,6 +60,20 @@ function PublicShowTvPage() {
     () => pickTvLiveItem(publicView, selectedArena, new Date()),
     [publicView, selectedArena]
   );
+  const standingsClass = useMemo(
+    () => pickTvStandingsClass(publicView, selectedArena, new Date()),
+    [publicView, selectedArena]
+  );
+  const standingsSlides = useMemo(
+    () =>
+      buildTvStandingsSlides(
+        standingsClass?.classStandings,
+        STANDINGS_ENTRIES_PER_SLIDE
+      ),
+    [standingsClass]
+  );
+  const visibleStandingsSlide =
+    standingsSlides[standingsSlideIndex % standingsSlides.length] || null;
   const upcomingScheduleItem = useMemo(
     () => pickTvUpcomingItem(publicView, selectedArena, new Date()),
     [publicView, selectedArena]
@@ -62,7 +86,9 @@ function PublicShowTvPage() {
         normalizeArenaName(selectedArena).toLowerCase()
   );
   const publicClassIdsKey = (publicView?.classIds || []).join("|");
-  const displayMode = isCompetitionDisplay
+  const displayMode = isStandingsDisplay
+    ? "standings"
+    : isCompetitionDisplay
     ? isCompetitionVideoReady
       ? "competition-video"
       : "competition-loading"
@@ -99,7 +125,7 @@ function PublicShowTvPage() {
   usePublicShowViewUpdates({
     showId,
     classIds: publicClassIdsKey ? publicClassIdsKey.split("|") : [],
-    fallbackRefreshMs: TV_REFRESH_MS,
+    data: publicView,
     load: () => getPublicShowViewRepository(showId),
     onData: (nextPublicView) => {
       setShow(nextPublicView.show);
@@ -118,13 +144,18 @@ function PublicShowTvPage() {
       id: show.id,
       associationId: show.associationId || associationId,
       name: show.name || association?.name || "",
-      mode: isCompetitionDisplay ? "competition" : "general",
-      arena: isCompetitionDisplay ? selectedArena : "",
+      mode: isCompetitionDisplay
+        ? "competition"
+        : isStandingsDisplay
+          ? "standings"
+          : "general",
+      arena: isCompetitionDisplay || isStandingsDisplay ? selectedArena : "",
     });
   }, [
     association?.name,
     associationId,
     isCompetitionDisplay,
+    isStandingsDisplay,
     selectedArena,
     show?.associationId,
     show?.id,
@@ -142,6 +173,22 @@ function PublicShowTvPage() {
 
     return () => window.clearInterval(timer);
   }, [sponsorSlides.length]);
+
+  useEffect(() => {
+    setStandingsSlideIndex(0);
+  }, [standingsClass?.classId, standingsSlides.length]);
+
+  useEffect(() => {
+    if (!isStandingsDisplay || standingsSlides.length <= 1) return undefined;
+
+    const timer = window.setInterval(() => {
+      setStandingsSlideIndex(
+        (currentIndex) => (currentIndex + 1) % standingsSlides.length
+      );
+    }, STANDINGS_SLIDE_INTERVAL_MS);
+
+    return () => window.clearInterval(timer);
+  }, [isStandingsDisplay, standingsSlides.length]);
 
   return (
     <main
@@ -183,7 +230,15 @@ function PublicShowTvPage() {
         </header>
       ) : null}
 
-      {displayMode === "competition-video" ? (
+      {displayMode === "standings" ? (
+        <StandingsPanel
+          classView={standingsClass}
+          slide={visibleStandingsSlide}
+          slideIndex={standingsSlideIndex}
+          slideCount={standingsSlides.length}
+          selectedArena={selectedArena}
+        />
+      ) : displayMode === "competition-video" ? (
         <CompetitionVideoPanel
           videoUrl={tvVideoUrl}
           liveItem={liveItem}
@@ -445,6 +500,7 @@ function CompetitionVideoPanel({
               labelFr="En piste"
               labelEn="On course"
               participant={current}
+              timerWarmup={isWarmup ? liveItem.item : null}
               active
             />
             <CompetitionStripParticipant
@@ -479,6 +535,7 @@ function CompetitionStripParticipant({
   labelFr,
   labelEn,
   participant,
+  timerWarmup = null,
   active = false,
 }) {
   return (
@@ -486,6 +543,9 @@ function CompetitionStripParticipant({
       <div style={competitionParticipantLabelStyle}>
         <BilingualText fr={labelFr} en={labelEn} />
       </div>
+      {timerWarmup ? (
+        <WarmupTimer warmup={timerWarmup} variant="competition" />
+      ) : null}
       <CompetitionScrollingText
         style={competitionParticipantNameStyle}
         dataLabel="participant-name"
@@ -601,6 +661,70 @@ function CompetitionScrollingText({
   );
 }
 
+function StandingsPanel({
+  classView,
+  slide,
+  slideIndex,
+  slideCount,
+  selectedArena,
+}) {
+  const entries = Array.isArray(slide?.entries) ? slide.entries : [];
+  const title = slide
+    ? [slide.classCode, slide.className].filter(Boolean).join(" — ")
+    : classView?.className || "Classements / Standings";
+
+  return (
+    <section style={standingsPanelStyle} data-tv-layout="standings">
+      <div style={standingsHeaderStyle}>
+        <div>
+          <div style={sectionKickerStyle}>
+            <BilingualText fr="Classement en direct" en="Live standings" />
+            {selectedArena ? ` · ${selectedArena}` : ""}
+          </div>
+          <h1 style={standingsTitleStyle}>{title}</h1>
+          {classView?.className && classView.className !== slide?.className ? (
+            <div style={standingsBlockStyle}>{classView.className}</div>
+          ) : null}
+        </div>
+        <div style={standingsProgressStyle}>
+          {slideCount > 0 ? `${(slideIndex % slideCount) + 1} / ${slideCount}` : "—"}
+        </div>
+      </div>
+
+      {entries.length ? (
+        <div style={standingsTableStyle} role="table">
+          <div style={standingsTableHeaderStyle} role="row">
+            <span>Pos.</span>
+            <span>Cavalier et cheval / Rider and horse</span>
+            <span>Dossard / Back</span>
+            <span>Score</span>
+          </div>
+          {entries.map((entry) => (
+            <div key={`${slide.id}-${entry.id}`} style={standingsRowStyle} role="row">
+              <strong style={standingsRankStyle}>{entry.rank || "—"}</strong>
+              <div style={standingsIdentityStyle}>
+                <strong>{entry.rider || "Cavalier / Rider"}</strong>
+                <span>{entry.horse || "—"}</span>
+              </div>
+              <span style={standingsBackStyle}>{entry.backNumber || "—"}</span>
+              <strong style={standingsScoreStyle}>{entry.scoreTotal || "—"}</strong>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={standingsEmptyStyle}>
+          <strong>Aucun pointage pour le moment.</strong>
+          <span>No scores yet.</span>
+        </div>
+      )}
+
+      <div style={standingsFooterStyle}>
+        Rotation automatique des classes et des pages · Automatic class and page rotation
+      </div>
+    </section>
+  );
+}
+
 function LivePanel({ liveItem }) {
   const isWarmup = liveItem?.kind === "paidWarmup";
   const title = isWarmup
@@ -651,6 +775,7 @@ function LivePanel({ liveItem }) {
           labelFr="En piste"
           labelEn="On course"
           participant={current}
+          timerWarmup={isWarmup ? liveItem.item : null}
           variant="active"
         />
       </div>
@@ -786,6 +911,7 @@ function ParticipantCard({
   labelFr,
   labelEn,
   participant,
+  timerWarmup = null,
   variant = "next",
   compact = false,
   scrollNameWhenNeeded = false,
@@ -816,6 +942,7 @@ function ParticipantCard({
           {data.meta}
         </div>
       ) : null}
+      {timerWarmup ? <WarmupTimer warmup={timerWarmup} /> : null}
       {scrollNameWhenNeeded ? (
         <CompetitionScrollingText
           style={participantScrollingNameStyle(compact, isDrag, variant)}
@@ -857,6 +984,82 @@ function ParticipantCard({
       {data.score ? <ScoreBlock participant={data} compact={compact} /> : null}
     </article>
   );
+}
+
+function WarmupTimer({ warmup, variant = "general" }) {
+  const timer = useWarmupTimer(warmup);
+
+  if (!timer) return null;
+
+  return (
+    <div
+      style={warmupTimerStyle(timer.cue, variant)}
+      className={`tv-warmup-timer tv-warmup-timer--${variant}`}
+      data-tv-warmup-timer
+      data-tv-warmup-timer-kind={timer.kind}
+      data-tv-warmup-timer-cue={timer.cue || "running"}
+      data-tv-warmup-remaining-seconds={timer.remainingSeconds}
+      role="timer"
+      aria-live="off"
+    >
+      <span style={warmupTimerLabelStyle(variant)}>
+        {timer.kind === "drag" ? (
+          <BilingualText fr="Hersage" en="Drag" />
+        ) : (
+          <BilingualText fr="Chrono warm-up" en="Warm-up timer" />
+        )}
+      </span>
+      <strong style={warmupTimerValueStyle(variant)}>{timer.formatted}</strong>
+    </div>
+  );
+}
+
+function useWarmupTimer(warmup) {
+  const [now, setNow] = useState(() => new Date());
+  const isRunning = Boolean(
+    warmup?.activeStartedAt &&
+      (warmup?.activeEntry || warmup?.activeDragItem || warmup?.activeEntryId)
+  );
+
+  useEffect(() => {
+    setNow(new Date());
+    if (!isRunning) return undefined;
+
+    const interval = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(interval);
+  }, [isRunning, warmup?.activeStartedAt]);
+
+  return getTvWarmupTimerState(warmup, now);
+}
+
+export function getTvWarmupTimerState(warmup, now = new Date()) {
+  if (!warmup?.activeStartedAt) return null;
+
+  const isDrag = Boolean(warmup.activeDragItem);
+  const remainingSeconds = isDrag
+    ? getPaidWarmupDragRemainingSeconds(warmup, now)
+    : warmup.activeEntry || warmup.activeEntryId
+      ? getPaidWarmupRemainingSeconds(warmup, now)
+      : null;
+
+  if (remainingSeconds == null) return null;
+
+  return {
+    kind: isDrag ? "drag" : "rider",
+    remainingSeconds,
+    formatted: formatPaidWarmupTimer(remainingSeconds),
+    cue: getPaidWarmupTimerCueType(
+      isDrag
+        ? {
+            ...warmup,
+            durationSeconds:
+              Number(warmup.dragDurationSeconds) ||
+              Number(warmup.dragDurationMinutes || 0) * 60,
+          }
+        : warmup,
+      remainingSeconds
+    ),
+  };
 }
 
 function ScoreBlock({ participant, compact }) {
@@ -1010,6 +1213,44 @@ export function pickTvLiveItem(publicView, arena = "", now = new Date()) {
   if (classView) return { kind: "class", item: classView };
 
   return null;
+}
+
+export function pickTvStandingsClass(publicView, arena = "", now = new Date()) {
+  const classes = filterByArena(publicView?.liveClasses, arena).filter(
+    (item) => isScheduledLiveViewCurrent(item, now)
+  );
+
+  return (
+    classes.find(
+      (item) => item.activeDragItem || item.dragBreak?.isActive || item.activeRun
+    ) ||
+    classes.find((item) => item.nextRun && item.classStandings?.length) ||
+    classes.find((item) => item.classStandings?.length) ||
+    classes[0] ||
+    null
+  );
+}
+
+export function buildTvStandingsSlides(groups, entriesPerSlide = 7) {
+  const pageSize = Math.max(1, Number.parseInt(entriesPerSlide, 10) || 7);
+
+  return (Array.isArray(groups) ? groups : []).flatMap((group, groupIndex) => {
+    const entries = Array.isArray(group?.entries) ? group.entries : [];
+    if (!entries.length) return [];
+
+    const slides = [];
+    for (let index = 0; index < entries.length; index += pageSize) {
+      slides.push({
+        id: `${group?.id || `standing-${groupIndex + 1}`}-page-${Math.floor(index / pageSize) + 1}`,
+        classCode: group?.classCode || group?.code || "",
+        className: group?.className || "Classe / Class",
+        page: Math.floor(index / pageSize) + 1,
+        pageCount: Math.ceil(entries.length / pageSize),
+        entries: entries.slice(index, index + pageSize),
+      });
+    }
+    return slides;
+  });
 }
 
 export function pickTvUpcomingItem(
@@ -1345,6 +1586,116 @@ function normalizeArenaName(value) {
   return String(value || "").trim();
 }
 
+const standingsPanelStyle = {
+  minHeight: 0,
+  display: "grid",
+  gridTemplateRows: "auto minmax(0, 1fr) auto",
+  gap: "clamp(14px, 1.8vh, 24px)",
+  padding: "clamp(22px, 2.6vw, 44px)",
+  border: "1px solid rgba(148, 163, 184, 0.28)",
+  borderRadius: 22,
+  background:
+    "linear-gradient(145deg, rgba(15, 31, 48, 0.97), rgba(15, 23, 42, 0.95))",
+  boxShadow: "0 24px 70px rgba(0, 0, 0, 0.28)",
+  overflow: "hidden",
+};
+const standingsHeaderStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 24,
+};
+const standingsTitleStyle = {
+  margin: "8px 0 0",
+  color: "#fff",
+  fontSize: "clamp(34px, 3.4vw, 62px)",
+  lineHeight: 1,
+};
+const standingsBlockStyle = {
+  marginTop: 8,
+  color: "#cbd5e1",
+  fontSize: "clamp(15px, 1.2vw, 22px)",
+  fontWeight: 750,
+};
+const standingsProgressStyle = {
+  flex: "0 0 auto",
+  padding: "12px 17px",
+  border: "1px solid rgba(94, 234, 212, 0.4)",
+  borderRadius: 999,
+  color: "#ccfbf1",
+  background: "rgba(15, 118, 110, 0.24)",
+  fontSize: "clamp(16px, 1.25vw, 22px)",
+  fontWeight: 900,
+};
+const standingsTableStyle = {
+  minHeight: 0,
+  display: "grid",
+  gridTemplateRows: "auto repeat(7, minmax(0, 1fr))",
+  border: "1px solid rgba(148, 163, 184, 0.28)",
+  borderRadius: 16,
+  overflow: "hidden",
+};
+const standingsTableHeaderStyle = {
+  display: "grid",
+  gridTemplateColumns: "90px minmax(0, 1fr) 170px 170px",
+  alignItems: "center",
+  gap: 16,
+  padding: "11px 20px",
+  color: "#94a3b8",
+  background: "rgba(2, 6, 23, 0.72)",
+  fontSize: "clamp(12px, 0.95vw, 17px)",
+  fontWeight: 900,
+  letterSpacing: ".06em",
+  textTransform: "uppercase",
+};
+const standingsRowStyle = {
+  minHeight: 0,
+  display: "grid",
+  gridTemplateColumns: "90px minmax(0, 1fr) 170px 170px",
+  alignItems: "center",
+  gap: 16,
+  padding: "9px 20px",
+  borderTop: "1px solid rgba(148, 163, 184, 0.2)",
+  background: "rgba(15, 23, 42, 0.52)",
+};
+const standingsRankStyle = {
+  color: "#5eead4",
+  fontSize: "clamp(24px, 2vw, 38px)",
+  textAlign: "center",
+};
+const standingsIdentityStyle = {
+  minWidth: 0,
+  display: "grid",
+  gap: 3,
+  overflow: "hidden",
+  fontSize: "clamp(17px, 1.45vw, 28px)",
+};
+const standingsBackStyle = {
+  color: "#dbeafe",
+  fontSize: "clamp(18px, 1.45vw, 27px)",
+  fontWeight: 800,
+  textAlign: "center",
+};
+const standingsScoreStyle = {
+  color: "#fef3c7",
+  fontSize: "clamp(25px, 2.2vw, 42px)",
+  textAlign: "right",
+};
+const standingsEmptyStyle = {
+  display: "grid",
+  placeContent: "center",
+  gap: 12,
+  color: "#cbd5e1",
+  fontSize: "clamp(23px, 2.2vw, 40px)",
+  textAlign: "center",
+};
+const standingsFooterStyle = {
+  color: "#94a3b8",
+  fontSize: "clamp(12px, 1vw, 18px)",
+  fontWeight: 750,
+  textAlign: "center",
+};
+
 const pageStyle = {
   position: "fixed",
   inset: 0,
@@ -1525,6 +1876,55 @@ const competitionParticipantScoreStyle = {
   fontSize: "clamp(15px, 1vw, 20px)",
   fontWeight: 950,
 };
+
+const warmupTimerStyle = (cue, variant) => {
+  const colors = {
+    finished: ["#fecaca", "rgba(220, 38, 38, 0.38)", "#ef4444"],
+    one_minute: ["#fef3c7", "rgba(217, 119, 6, 0.38)", "#f59e0b"],
+    half_time: ["#ccfbf1", "rgba(13, 148, 136, 0.34)", "#2dd4bf"],
+  };
+  const [color, background, border] = colors[cue] || [
+    "#dcfce7",
+    "rgba(22, 163, 74, 0.28)",
+    "#22c55e",
+  ];
+
+  return {
+    width: variant === "competition" ? "fit-content" : "min(100%, 520px)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: variant === "competition" ? 10 : 18,
+    padding: variant === "competition" ? "5px 10px" : "9px 16px",
+    border: `2px solid ${border}`,
+    borderRadius: variant === "competition" ? 8 : 12,
+    background,
+    color,
+    boxShadow: `0 0 24px ${background}`,
+    boxSizing: "border-box",
+  };
+};
+
+const warmupTimerLabelStyle = (variant) => ({
+  fontSize:
+    variant === "competition"
+      ? "clamp(11px, 0.8vw, 16px)"
+      : "clamp(15px, 1.2vw, 22px)",
+  fontWeight: 950,
+  textTransform: "uppercase",
+  whiteSpace: "nowrap",
+});
+
+const warmupTimerValueStyle = (variant) => ({
+  fontSize:
+    variant === "competition"
+      ? "clamp(25px, 2.1vw, 42px)"
+      : "clamp(44px, 4.8vw, 82px)",
+  fontVariantNumeric: "tabular-nums",
+  fontWeight: 1000,
+  letterSpacing: "0.03em",
+  lineHeight: 0.9,
+});
 
 const competitionWaitingStyle = {
   gridColumn: "span 3",
