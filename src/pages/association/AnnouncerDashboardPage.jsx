@@ -354,6 +354,7 @@ function AnnouncerDashboardPage() {
       const saved = await savePromise;
       const activationStatus = getAnnouncerLiveActivationStatus({
         session: saved,
+        previousSessionStartedAt: classView.announcerSession?.startedAt,
         publicationStatus: classView.publicationStatus,
         plannedLiveStatus: classView.plannedLiveStatus,
       });

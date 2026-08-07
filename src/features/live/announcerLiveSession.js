@@ -13,7 +13,10 @@ import {
   buildCombinedJudgeScore,
   classUsesCombinedJudgeScore,
 } from "../scoring/multiJudgeScoring";
-import { isLivePublicationStatus } from "../publication/publicationRepository";
+import {
+  isLivePublicationStatus,
+  PUBLICATION_STATUSES,
+} from "../publication/publicationRepository";
 
 export const ANNOUNCER_RUN_STATUSES = {
   PENDING: "pending",
@@ -171,19 +174,28 @@ export function buildAnnouncerJudgeScoreResult({
 
 export function getAnnouncerLiveActivationStatus({
   session = {},
+  previousSessionStartedAt = null,
   publicationStatus = "",
   plannedLiveStatus = "",
 } = {}) {
+  if (!session?.startedAt || session?.completedAt) {
+    return null;
+  }
+
+  const targetStatus = plannedLiveStatus
+    ? isLivePublicationStatus(plannedLiveStatus)
+      ? plannedLiveStatus
+      : null
+    : PUBLICATION_STATUSES.LIVE_SCORING;
+
   if (
-    !session?.startedAt ||
-    session?.completedAt ||
-    isLivePublicationStatus(publicationStatus) ||
-    !isLivePublicationStatus(plannedLiveStatus)
+    !targetStatus ||
+    (previousSessionStartedAt && isLivePublicationStatus(publicationStatus))
   ) {
     return null;
   }
 
-  return plannedLiveStatus;
+  return targetStatus;
 }
 
 export function normalizeAnnouncerLiveRun(run = {}, index = 0) {
