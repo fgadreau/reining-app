@@ -605,13 +605,51 @@ export function applyPublicShowViewRealtimeChange(publicView, payload) {
   const isDelete = eventType === "DELETE";
   const row = isDelete ? payload?.old : payload?.new;
 
-  if (!sourceState || !table || !row || typeof row !== "object") {
+  if (!sourceState || !table) {
     return null;
+  }
+
+  if (payload?.show_id && payload.show_id !== sourceState.show?.id) {
+    return publicView;
+  }
+
+  if (table === "public_show_snapshot" || eventType === "INVALIDATE") {
+    return null;
+  }
+
+  const knownClassIds = new Set(
+    (Array.isArray(publicView?.classIds) ? publicView.classIds : []).filter(Boolean)
+  );
+  if (
+    payload?.block_id
+    && table !== "show_score_paid_warmups"
+    && !knownClassIds.has(payload.block_id)
+  ) {
+    return publicView;
+  }
+
+  if (!row || typeof row !== "object") {
+    return null;
+  }
+
+  const eventSequence = Number(payload?.event_seq);
+  const eventRowKey = String(payload?.row_key || "").trim();
+  const sequenceKey =
+    Number.isSafeInteger(eventSequence) && eventSequence > 0 && eventRowKey
+      ? `${table}:${eventRowKey}`
+      : "";
+  const previousSequence = sequenceKey
+    ? Number(sourceState.broadcastSequenceByKey?.get(sequenceKey) || 0)
+    : 0;
+
+  if (sequenceKey && eventSequence <= previousSequence) {
+    return publicView;
   }
 
   const nextSourceState = {
     ...sourceState,
     timingByClassId: null,
+    broadcastSequenceByKey: new Map(sourceState.broadcastSequenceByKey || []),
   };
 
   if (table === "shows") {
@@ -619,6 +657,9 @@ export function applyPublicShowViewRealtimeChange(publicView, payload) {
     nextSourceState.show = toShow(row);
   } else if (table === "show_score_paid_warmups") {
     if (!row.id) return null;
+    if (!sourceState.paidWarmups.some((warmup) => warmup.id === row.id)) {
+      return publicView;
+    }
     const nextPaidWarmups = sourceState.paidWarmups.filter(
       (warmup) => warmup.id !== row.id
     );
@@ -672,6 +713,10 @@ export function applyPublicShowViewRealtimeChange(publicView, payload) {
       isDelete ? null : transform(row),
       isDelete
     );
+  }
+
+  if (sequenceKey) {
+    nextSourceState.broadcastSequenceByKey.set(sequenceKey, eventSequence);
   }
 
   return buildPublicShowViewFromSourceState(nextSourceState);
@@ -925,66 +970,103 @@ export function subscribePublicShowViewRepository(
   const uniqueClassIds = Array.from(
     new Set((Array.isArray(classIds) ? classIds : []).filter(Boolean))
   );
-  const channel = supabase.channel(`public-show:${showId}`);
   let isDisposed = false;
+  let broadcastChannel = null;
+  let fallbackChannel = null;
+  let fallbackStarted = false;
 
-  channel.on(
-    "postgres_changes",
-    {
-      event: "UPDATE",
-      schema: "public",
-      table: "shows",
-      filter: `id=eq.${showId}`,
-    },
-    onChange
-  );
+  const subscribeToPostgresChangesFallback = () => {
+    if (isDisposed || fallbackStarted) return;
 
-  channel.on(
-    "postgres_changes",
-    {
-      event: "*",
-      schema: "public",
-      table: "show_score_paid_warmups",
-      filter: `show_id=eq.${showId}`,
-    },
-    onChange
-  );
+    fallbackStarted = true;
+    fallbackChannel = supabase.channel(`public-show-fallback:${showId}`);
 
-  uniqueClassIds.forEach((classId) => {
-    [
-      { table: "show_score_scoring_sessions", idColumn: "block_id" },
-      { table: "show_score_judge_sessions", idColumn: "block_id" },
-      { table: "show_score_block_setups", idColumn: "block_id" },
-      { table: "show_score_publication_states", idColumn: "block_id" },
-      { table: "show_score_official_results", idColumn: "block_id" },
-      { table: "show_score_announcer_live_sessions", idColumn: "class_id" },
-    ].forEach(({ table, idColumn }) => {
-      channel.on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table,
-          filter: `${idColumn}=eq.${classId}`,
-        },
-        onChange
-      );
+    fallbackChannel.on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "shows",
+        filter: `id=eq.${showId}`,
+      },
+      onChange
+    );
+
+    fallbackChannel.on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "show_score_paid_warmups",
+        filter: `show_id=eq.${showId}`,
+      },
+      onChange
+    );
+
+    uniqueClassIds.forEach((classId) => {
+      [
+        { table: "show_score_scoring_sessions", idColumn: "block_id" },
+        { table: "show_score_judge_sessions", idColumn: "block_id" },
+        { table: "show_score_block_setups", idColumn: "block_id" },
+        { table: "show_score_publication_states", idColumn: "block_id" },
+        { table: "show_score_official_results", idColumn: "block_id" },
+        { table: "show_score_announcer_live_sessions", idColumn: "class_id" },
+      ].forEach(({ table, idColumn }) => {
+        fallbackChannel.on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table,
+            filter: `${idColumn}=eq.${classId}`,
+          },
+          onChange
+        );
+      });
     });
+
+    fallbackChannel.subscribe((status) => {
+      if (isDisposed) return;
+      onStatus?.(status);
+      if (status === "SUBSCRIBED") {
+        onChange();
+      } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
+        console.error("Erreur abonnement de secours résultats publics Supabase.");
+      }
+    });
+  };
+
+  broadcastChannel = supabase.channel(`showscore-public:${showId}`, {
+    config: { private: true },
   });
 
-  channel.subscribe((status) => {
+  broadcastChannel.on("broadcast", { event: "change" }, (message) => {
+    if (isDisposed) return;
+    onChange(message?.payload);
+  });
+
+  broadcastChannel.subscribe((status) => {
     if (isDisposed) return;
     onStatus?.(status);
     if (status === "SUBSCRIBED") {
       onChange();
     } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
-      console.error("Erreur abonnement temps réel résultats publics Supabase.");
+      console.error(
+        "Broadcast public indisponible; activation de Postgres Changes en secours."
+      );
+      const failedBroadcastChannel = broadcastChannel;
+      broadcastChannel = null;
+      if (failedBroadcastChannel) {
+        void supabase.removeChannel(failedBroadcastChannel);
+      }
+      subscribeToPostgresChangesFallback();
     }
   });
 
   return () => {
     isDisposed = true;
-    supabase.removeChannel(channel);
+    if (broadcastChannel) supabase.removeChannel(broadcastChannel);
+    if (fallbackChannel) supabase.removeChannel(fallbackChannel);
   };
 }
 
