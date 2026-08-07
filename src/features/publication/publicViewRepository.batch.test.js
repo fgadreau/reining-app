@@ -11,7 +11,9 @@ vi.mock("../cloud/supabaseClient", () => ({
 
 import {
   applyPublicShowViewRealtimeChange,
+  getPublicShowView,
   getPublicShowViewRepository,
+  isPublicShowViewRealtimeReady,
   subscribePublicShowViewRepository,
 } from "./publicViewRepository";
 
@@ -138,6 +140,8 @@ test("loads a multi-day public show with one query per table", async () => {
   );
   getSupabaseClientMock.mockReturnValue(supabase.client);
 
+  expect(isPublicShowViewRealtimeReady(getPublicShowView("show-1"))).toBe(false);
+
   const view = await getPublicShowViewRepository("show-1");
 
   expect(view.show).toMatchObject({
@@ -145,6 +149,7 @@ test("loads a multi-day public show with one query per table", async () => {
     name: "Summer Show",
   });
   expect(view.classIds).toEqual(classes.map(({ id }) => id));
+  expect(isPublicShowViewRealtimeReady(view)).toBe(true);
   expect(supabase.rpcCalls).toHaveLength(1);
   expect(supabase.queries).toHaveLength(12);
 
@@ -250,6 +255,7 @@ test("applies a live scoring event without issuing another public read", async (
   });
 
   expect(nextView).not.toBeNull();
+  expect(isPublicShowViewRealtimeReady(nextView)).toBe(true);
   expect(nextView.liveClass).toMatchObject({
     classId: "class-1",
     liveUpdatedAt: "2026-08-05T12:00:05Z",

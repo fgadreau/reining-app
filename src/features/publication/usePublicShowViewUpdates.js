@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import {
   applyPublicShowViewRealtimeChange,
+  isPublicShowViewRealtimeReady,
   subscribePublicShowViewRepository,
 } from "./publicViewRepository";
 
@@ -98,6 +99,9 @@ export function usePublicShowViewUpdates({
   const dataRef = useRef(data);
   const onDataRef = useRef(onData);
   const onDisplayRefreshStateChangeRef = useRef(onDisplayRefreshStateChange);
+  const hasRealtime = Boolean(getSupabaseClient());
+  const isRealtimeReady =
+    !hasRealtime || isPublicShowViewRealtimeReady(data);
   const classIdsKey = Array.from(
     new Set((Array.isArray(classIds) ? classIds : []).filter(Boolean))
   ).join("|");
@@ -119,7 +123,47 @@ export function usePublicShowViewUpdates({
   }, [onDisplayRefreshStateChange]);
 
   useEffect(() => {
-    if (!enabled || !showId) {
+    if (!enabled || !showId || isRealtimeReady) {
+      return undefined;
+    }
+
+    let isHydrationActive = true;
+    let retryTimer = null;
+
+    const retryInitialHydration = () => {
+      retryTimer = window.setTimeout(async () => {
+        let nextData = null;
+
+        try {
+          nextData = await loadRef.current();
+          if (!isHydrationActive) return;
+          dataRef.current = nextData;
+          onDataRef.current(nextData);
+        } catch (error) {
+          if (isHydrationActive) {
+            console.error("Erreur actualisation vue publique:", error);
+          }
+        }
+
+        if (
+          isHydrationActive &&
+          !isPublicShowViewRealtimeReady(nextData)
+        ) {
+          retryInitialHydration();
+        }
+      }, DISCONNECTED_FALLBACK_REFRESH_MS);
+    };
+
+    retryInitialHydration();
+
+    return () => {
+      isHydrationActive = false;
+      window.clearTimeout(retryTimer);
+    };
+  }, [enabled, isRealtimeReady, showId]);
+
+  useEffect(() => {
+    if (!enabled || !showId || !isRealtimeReady) {
       return undefined;
     }
 
@@ -129,7 +173,6 @@ export function usePublicShowViewUpdates({
     let isEffectActive = true;
     let isRealtimeSubscribed = false;
     let reconnectAttempt = 0;
-    const hasRealtime = Boolean(getSupabaseClient());
     const coordinator = createRefreshCoordinator({
       load: () => loadRef.current(),
       onData: (nextData) => {
@@ -219,5 +262,12 @@ export function usePublicShowViewUpdates({
       coordinator.stop();
       unsubscribe();
     };
-  }, [classIdsKey, enabled, fallbackRefreshMs, showId]);
+  }, [
+    classIdsKey,
+    enabled,
+    fallbackRefreshMs,
+    hasRealtime,
+    isRealtimeReady,
+    showId,
+  ]);
 }

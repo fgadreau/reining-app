@@ -411,6 +411,10 @@ function toPaidWarmup(row) {
 
 const PUBLIC_SHOW_REALTIME_STATE = Symbol("public-show-realtime-state");
 
+export function isPublicShowViewRealtimeReady(publicView) {
+  return Boolean(publicView?.[PUBLIC_SHOW_REALTIME_STATE]);
+}
+
 function attachPublicShowRealtimeState(publicView, sourceState) {
   Object.defineProperty(publicView, PUBLIC_SHOW_REALTIME_STATE, {
     value: sourceState,
