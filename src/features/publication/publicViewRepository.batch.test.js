@@ -234,6 +234,10 @@ test("applies a live scoring event without issuing another public read", async (
   const view = await getPublicShowViewRepository("show-1");
   const readCount = supabase.queries.length;
   const nextView = applyPublicShowViewRealtimeChange(view, {
+    event_seq: 10,
+    row_key: "class-1",
+    show_id: "show-1",
+    block_id: "class-1",
     table: "show_score_scoring_sessions",
     eventType: "UPDATE",
     new: {
@@ -267,9 +271,59 @@ test("applies a live scoring event without issuing another public read", async (
   });
   expect(supabase.queries).toHaveLength(readCount);
   expect(supabase.rpcCalls).toHaveLength(1);
+
+  const staleView = applyPublicShowViewRealtimeChange(nextView, {
+    event_seq: 9,
+    row_key: "class-1",
+    show_id: "show-1",
+    block_id: "class-1",
+    table: "show_score_scoring_sessions",
+    eventType: "UPDATE",
+    new: {
+      block_id: "class-1",
+      runs: [
+        {
+          id: "run-1",
+          draw: 1,
+          rider: "Stale Rider",
+          horse: "Stale Horse",
+          scoreTotal: "60",
+          status: "completed",
+          isComplete: true,
+        },
+      ],
+    },
+  });
+  expect(staleView).toBe(nextView);
+  expect(staleView.liveClass.latestScore.scoreTotal).toBe("70");
+
+  expect(
+    applyPublicShowViewRealtimeChange(nextView, {
+      event_seq: 11,
+      row_key: "private-class",
+      show_id: "show-1",
+      block_id: "private-class",
+      table: "show_score_scoring_sessions",
+      eventType: "UPDATE",
+      new: { block_id: "private-class", runs: [] },
+    })
+  ).toBe(nextView);
+
+  expect(
+    applyPublicShowViewRealtimeChange(nextView, {
+      event_seq: 12,
+      row_key: "class-1",
+      show_id: "show-1",
+      block_id: "class-1",
+      table: "public_show_snapshot",
+      eventType: "INVALIDATE",
+      new: null,
+      old: null,
+    })
+  ).toBeNull();
 });
 
-test("subscribes public displays to every table that can change live output", () => {
+test("subscribes public displays to one private broadcast per show", () => {
   const bindings = [];
   const channel = {
     on(event, config, callback) {
@@ -293,7 +347,74 @@ test("subscribes public displays to every table that can change live output", ()
     onStatus
   );
 
-  expect(bindings.map(({ config }) => config).slice(0, 2)).toEqual([
+  expect(supabase.channel).toHaveBeenCalledWith("showscore-public:show-1", {
+    config: { private: true },
+  });
+  expect(bindings).toHaveLength(1);
+  expect(bindings[0]).toMatchObject({
+    event: "broadcast",
+    config: { event: "change" },
+  });
+  expect(channel.subscribe).toHaveBeenCalledOnce();
+
+  const broadcastPayload = {
+    version: 1,
+    table: "show_score_scoring_sessions",
+    eventType: "UPDATE",
+  };
+  bindings[0].callback({ payload: broadcastPayload });
+  expect(onChange).toHaveBeenCalledWith(broadcastPayload);
+
+  const statusCallback = channel.subscribe.mock.calls[0][0];
+  statusCallback("SUBSCRIBED");
+  expect(onStatus).toHaveBeenCalledWith("SUBSCRIBED");
+  expect(onChange).toHaveBeenCalledTimes(2);
+
+  unsubscribe();
+
+  statusCallback("CLOSED");
+
+  expect(supabase.removeChannel).toHaveBeenCalledWith(channel);
+  expect(onStatus).toHaveBeenCalledTimes(1);
+});
+
+test("falls back to the existing Postgres Changes bindings when broadcast fails", () => {
+  const channels = [];
+  const supabase = {
+    channel: vi.fn((topic, options) => {
+      const bindings = [];
+      const channel = {
+        topic,
+        options,
+        bindings,
+        on(event, config, callback) {
+          bindings.push({ event, config, callback });
+          return channel;
+        },
+        subscribe: vi.fn(),
+      };
+      channels.push(channel);
+      return channel;
+    }),
+    removeChannel: vi.fn(),
+  };
+  const onChange = vi.fn();
+  const onStatus = vi.fn();
+  getSupabaseClientMock.mockReturnValue(supabase);
+
+  const unsubscribe = subscribePublicShowViewRepository(
+    "show-1",
+    ["class-1", "class-2", "class-1"],
+    onChange,
+    onStatus
+  );
+
+  expect(channels).toHaveLength(1);
+  channels[0].subscribe.mock.calls[0][0]("CHANNEL_ERROR");
+
+  expect(channels).toHaveLength(2);
+  expect(channels[1].topic).toBe("public-show-fallback:show-1");
+  expect(channels[1].bindings.map(({ config }) => config).slice(0, 2)).toEqual([
     {
       event: "UPDATE",
       schema: "public",
@@ -308,7 +429,10 @@ test("subscribes public displays to every table that can change live output", ()
     },
   ]);
   expect(
-    bindings.slice(2).map(({ config }) => [config.table, config.filter])
+    channels[1].bindings.slice(2).map(({ config }) => [
+      config.table,
+      config.filter,
+    ])
   ).toEqual(
     ["class-1", "class-2"].flatMap((classId) => [
       ["show_score_scoring_sessions", `block_id=eq.${classId}`],
@@ -319,17 +443,11 @@ test("subscribes public displays to every table that can change live output", ()
       ["show_score_announcer_live_sessions", `class_id=eq.${classId}`],
     ])
   );
-  expect(channel.subscribe).toHaveBeenCalledOnce();
 
-  const statusCallback = channel.subscribe.mock.calls[0][0];
-  statusCallback("SUBSCRIBED");
-  expect(onStatus).toHaveBeenCalledWith("SUBSCRIBED");
+  channels[1].subscribe.mock.calls[0][0]("SUBSCRIBED");
   expect(onChange).toHaveBeenCalledOnce();
 
   unsubscribe();
-
-  statusCallback("CLOSED");
-
-  expect(supabase.removeChannel).toHaveBeenCalledWith(channel);
-  expect(onStatus).toHaveBeenCalledTimes(1);
+  expect(supabase.removeChannel).toHaveBeenCalledWith(channels[0]);
+  expect(supabase.removeChannel).toHaveBeenCalledWith(channels[1]);
 });
