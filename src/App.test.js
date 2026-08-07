@@ -1238,7 +1238,7 @@ test("combines announcer scores entered per judge with the existing rules", () =
   expect(fiveJudgeResult.isComplete).toBe(true);
 });
 
-test("stores announcer judge scores and activates only the planned public live", () => {
+test("stores announcer scores and activates public live reliably on first start", () => {
   const session = buildInitialAnnouncerLiveSession({
     classId: "block-multi",
     setupRuns: [{ id: "run-1", draw: 1 }],
@@ -1272,6 +1272,7 @@ test("stores announcer judge scores and activates only the planned public live",
   expect(
     getAnnouncerLiveActivationStatus({
       session: started,
+      previousSessionStartedAt: null,
       publicationStatus: PUBLICATION_STATUSES.HIDDEN,
       plannedLiveStatus: PUBLICATION_STATUSES.LIVE_SCORING,
     })
@@ -1279,10 +1280,28 @@ test("stores announcer judge scores and activates only the planned public live",
   expect(
     getAnnouncerLiveActivationStatus({
       session: started,
+      previousSessionStartedAt: started.startedAt,
       publicationStatus: PUBLICATION_STATUSES.LIVE_SCORING,
       plannedLiveStatus: PUBLICATION_STATUSES.LIVE_SCORING,
     })
   ).toBeNull();
+
+  expect(
+    getAnnouncerLiveActivationStatus({
+      session: started,
+      previousSessionStartedAt: null,
+      publicationStatus: PUBLICATION_STATUSES.LIVE_SCORING,
+      plannedLiveStatus: PUBLICATION_STATUSES.LIVE_SCORING,
+    })
+  ).toBe(PUBLICATION_STATUSES.LIVE_SCORING);
+
+  expect(
+    getAnnouncerLiveActivationStatus({
+      session: started,
+      previousSessionStartedAt: null,
+      publicationStatus: PUBLICATION_STATUSES.HIDDEN,
+    })
+  ).toBe(PUBLICATION_STATUSES.LIVE_SCORING);
 });
 
 test("builds a unique classified-rider call list with cutoff ties", () => {
