@@ -17,8 +17,10 @@ import {
   CLASS_START_MODE_AFTER_PREVIOUS,
   CLASS_START_MODE_FIXED,
   compareMixedScheduleItemsByStart,
+  getSchedulePredecessorName,
   normalizeClassScheduleDetails,
   normalizeClassScheduleStart,
+  sortScheduleItemsByDependencies,
 } from "../../features/classes/classSchedule";
 import {
   deletePaidWarmupRepository,
@@ -426,7 +428,7 @@ function DayClassesPage({ dayId, day, show }) {
   const scheduleItems = useMemo(() => {
     const scoringClasses = getUniqueScoringClasses(classes);
 
-    return [
+    return sortScheduleItemsByDependencies([
       ...scoringClasses.map((item) => ({
         id: item.id,
         type: "class",
@@ -439,7 +441,7 @@ function DayClassesPage({ dayId, day, show }) {
         sortOrder: item.sortOrder || 1,
         item,
       })),
-    ].sort(compareMixedScheduleItemsByStart);
+    ], compareMixedScheduleItemsByStart);
   }, [classes, paidWarmups]);
 
   const handleOpenScoring = (event, item) => {
@@ -578,7 +580,11 @@ function DayClassesPage({ dayId, day, show }) {
                       </div>
                       <div style={scheduleMetaStyle}>
                         {t("management.classes.scheduleStartLabel")}:{" "}
-                        {formatClassScheduleStart(warmupScheduleStart, t)}
+                        {formatClassScheduleStart(
+                          warmupScheduleStart,
+                          t,
+                          getSchedulePredecessorName(scheduleItem, scheduleItems)
+                        )}
                       </div>
                       <div style={warmupStatsStyle}>
                         {t("management.classes.warmupStats", {
@@ -676,7 +682,11 @@ function DayClassesPage({ dayId, day, show }) {
                         </div>
                         <div style={scheduleMetaStyle}>
                           {t("management.classes.scheduleStartLabel")}:{" "}
-                          {formatClassScheduleStart(scheduleDetails, t)}
+                          {formatClassScheduleStart(
+                            scheduleDetails,
+                            t,
+                            getSchedulePredecessorName(scheduleItem, scheduleItems)
+                          )}
                         </div>
                       </div>
 
@@ -1109,7 +1119,7 @@ function formatPaidWarmupDrag(warmup, t) {
   });
 }
 
-function formatClassScheduleStart(scheduleDetails, t) {
+function formatClassScheduleStart(scheduleDetails, t, precedingBlockName = "") {
   const details = normalizeClassScheduleDetails(scheduleDetails);
 
   if (details.startMode === CLASS_START_MODE_FIXED) {
@@ -1118,7 +1128,9 @@ function formatClassScheduleStart(scheduleDetails, t) {
       : t("management.classes.startFixedMissing");
   }
 
-  return t("management.classes.startAfterPrevious");
+  return precedingBlockName
+    ? t("management.classes.startAfterBlock", { name: precedingBlockName })
+    : t("management.classes.startAfterPrevious");
 }
 
 function getClassStatusLabel(status, t) {

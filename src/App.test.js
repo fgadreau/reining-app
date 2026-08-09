@@ -339,7 +339,9 @@ import {
   CLASS_START_MODE_AFTER_PREVIOUS,
   CLASS_START_MODE_FIXED,
   compareScheduleItemsByStart,
+  getSchedulePredecessorName,
   normalizeClassScheduleDetails,
+  sortScheduleItemsByDependencies,
 } from "./features/classes/classSchedule";
 import { getClassesByDayId } from "./features/classes/classSelectors";
 import {
@@ -9001,6 +9003,59 @@ test("sorts schedule items by fixed time before HSP order", () => {
     "after-first",
     "after-second",
   ]);
+});
+
+test("keeps explicit HSP follow-up blocks immediately after their predecessor", () => {
+  const blocks = [
+    {
+      id: "beginner",
+      name: "Débutant",
+      scheduleStartMode: CLASS_START_MODE_FIXED,
+      scheduleStartTime: "07:00",
+      sortOrder: 1,
+    },
+    {
+      id: "pro-am",
+      name: "Pro-Am",
+      scheduleStartMode: CLASS_START_MODE_FIXED,
+      scheduleStartTime: "19:00",
+      sortOrder: 2,
+    },
+    {
+      id: "non-pro",
+      name: "Non-Pro",
+      scheduleStartMode: CLASS_START_MODE_AFTER_PREVIOUS,
+      followsBlockId: "beginner",
+      sortOrder: 3,
+    },
+    {
+      id: "open",
+      name: "Omnium / Open",
+      scheduleStartMode: CLASS_START_MODE_AFTER_PREVIOUS,
+      followsBlockId: "non-pro",
+      sortOrder: 4,
+    },
+  ];
+  const items = blocks.map((item) => ({
+    id: item.id,
+    type: "class",
+    sortOrder: item.sortOrder,
+    item,
+  }));
+
+  const sorted = sortScheduleItemsByDependencies(
+    items,
+    compareScheduleItemsByStart
+  );
+
+  expect(sorted.map((item) => item.id)).toEqual([
+    "beginner",
+    "non-pro",
+    "open",
+    "pro-am",
+  ]);
+  expect(getSchedulePredecessorName(sorted[1], sorted)).toBe("Débutant");
+  expect(getSchedulePredecessorName(sorted[2], sorted)).toBe("Non-Pro");
 });
 
 test("returns day classes in fixed-time schedule order", () => {
