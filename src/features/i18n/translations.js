@@ -1049,6 +1049,7 @@ export const translations = {
         scheduleStartLabel: "Départ",
         scoringNotReady:
           "Ce bloc n’est pas prêt pour le scoring. Complète d’abord le setup avec un pattern et des runs.",
+        startAfterBlock: "À la suite de « {{name}} »",
         startAfterPrevious: "À la suite du bloc précédent",
         startFixed: "Heure fixe",
         startFixedAt: "Heure fixe: {{time}}",
@@ -3099,6 +3100,7 @@ export const translations = {
         scheduleStartLabel: "Start",
         scoringNotReady:
           "This block is not ready for scoring. Complete the setup with a pattern and runs first.",
+        startAfterBlock: "After “{{name}}”",
         startAfterPrevious: "After previous block",
         startFixed: "Fixed time",
         startFixedAt: "Fixed time: {{time}}",

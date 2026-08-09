@@ -82,6 +82,17 @@ function getScheduleFollowsBlockId(item = {}) {
   );
 }
 
+export function getSchedulePredecessorName(item, scheduleItems = []) {
+  const precedingId = getScheduleFollowsBlockId(item);
+  if (!precedingId) return "";
+
+  const precedingItem = (Array.isArray(scheduleItems) ? scheduleItems : []).find(
+    (candidate) => getScheduleItemId(candidate) === precedingId
+  );
+
+  return precedingItem ? getScheduleSortName(precedingItem) : "";
+}
+
 function compareScheduleItemsByOrder(first, second) {
   return (
     getScheduleSortOrder(first) - getScheduleSortOrder(second) ||
