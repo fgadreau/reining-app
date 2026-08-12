@@ -1,5 +1,6 @@
 import {
   getChampionshipClassByCode,
+  getChampionshipClassById,
   getChampionshipClassLabel,
   getExcludedClassCodeReason,
   normalizeClassCode,
@@ -967,7 +968,9 @@ function analyzeRows(rows) {
       return;
     }
 
-    const championshipClass = getChampionshipClassByCode(row.classCode);
+    const championshipClass = row.championshipClassId
+      ? getChampionshipClassById(row.championshipClassId)
+      : getChampionshipClassByCode(row.classCode);
     if (!championshipClass) {
       addClassSummary(unmappedByCode, row, "Classe non mappee au championnat.");
       return;
@@ -994,7 +997,9 @@ function analyzeRows(rows) {
     includedRows.push({
       ...row,
       championshipClassId: championshipClass.id,
-      championshipClassName: getChampionshipClassLabel(championshipClass),
+      championshipClassName:
+        String(row.championshipClassName || "").trim() ||
+        getChampionshipClassLabel(championshipClass),
       championshipClassOrder: championshipClass.order,
     });
   });

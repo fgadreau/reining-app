@@ -20,6 +20,7 @@ export function buildShowScoreChampionshipImportPreview({
   association,
   classDataItems = [],
   generatedAt = "",
+  classMappings = {},
 } = {}) {
   const generatedOn = generatedAt || new Date().toISOString();
   const rows = [];
@@ -40,6 +41,7 @@ export function buildShowScoreChampionshipImportPreview({
         code: group.classCode || group.code,
         name: group.className,
         entryCount: group.entries.length,
+        classMappings,
       });
       const sourceClassKey = buildSourceClassKey(classData, group);
       const canInclude =
@@ -120,6 +122,8 @@ export function buildShowScoreChampionshipImportPreview({
           showName: showMeta.showName,
           className: match?.championshipClassName || group.className || "",
           classCode: match?.championshipClassCode || group.classCode || group.code || "",
+          championshipClassId: match?.championshipClassId || "",
+          championshipClassName: match?.championshipClassName || "",
           importedClassName: group.className || "",
           importedClassCode: group.classCode || group.code || "",
           patternNum: group.pattern || official.pattern || "",
@@ -175,6 +179,7 @@ export function buildShowScoreChampionshipImportPreview({
     defaultExcludedClassKeys: classes
       .filter((classEntry) => !classEntry.canInclude)
       .map((classEntry) => classEntry.key),
+    classMappings,
   };
 }
 
