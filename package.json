@@ -22,7 +22,7 @@
     "start": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "VITE_SUPABASE_URL= VITE_SUPABASE_PUBLISHABLE_KEY= VITE_SUPABASE_ANON_KEY= vitest run src/App.test.js src/features/classes/officialResultRepository.test.js src/features/days/showDayNavigation.test.js src/features/localRelay/localDisplaySnapshot.test.js src/features/localRelay/localRelayClient.test.js src/features/publication/publicViewRepository.batch.test.js src/features/publication/usePublicShowViewUpdates.test.js src/components/ShowDayTabs.test.jsx --environment jsdom --globals",
+    "test": "VITE_SUPABASE_URL= VITE_SUPABASE_PUBLISHABLE_KEY= VITE_SUPABASE_ANON_KEY= vitest run src/App.test.js src/features/championship/championshipRepository.test.js src/features/classes/officialResultRepository.test.js src/features/days/showDayNavigation.test.js src/features/localRelay/localDisplaySnapshot.test.js src/features/localRelay/localRelayClient.test.js src/features/publication/publicViewRepository.batch.test.js src/features/publication/usePublicShowViewUpdates.test.js src/components/ShowDayTabs.test.jsx --environment jsdom --globals",
     "relay:install": "npm --prefix local-relay ci --omit=dev",
     "relay:start": "npm --prefix local-relay start",
     "relay:test": "npm --prefix local-relay test",

@@ -92,7 +92,11 @@ export async function saveChampionshipSeasonRepository(season) {
     updatedAt: now,
     createdAt: normalizedSeason.createdAt || now,
   };
-  const savedLocal = saveChampionshipSeasonLocally(nextSeason);
+  // Supabase is authoritative when configured. Keeping imports and derived
+  // standings in localStorage duplicates a potentially very large payload.
+  // Local persistence is therefore only a lightweight cache in that mode.
+  saveChampionshipSeasonLocally(nextSeason, { compact: Boolean(supabase) });
+  const savedLocal = nextSeason;
   let syncStatus = supabase
     ? LOCAL_FIRST_SYNC_STATUSES.SYNCED
     : LOCAL_FIRST_SYNC_STATUSES.LOCAL;
@@ -125,7 +129,7 @@ export async function saveChampionshipSeasonRepository(season) {
         if (deletePublicError) throw deletePublicError;
       }
 
-      saveChampionshipSeasonLocally(remoteSeason);
+      saveChampionshipSeasonLocally(remoteSeason, { compact: true });
       trackChampionshipSave(remoteSeason);
 
       return withLocalFirstSyncState(remoteSeason, {
@@ -249,7 +253,13 @@ function compareSeasons(a, b) {
 
 function toPublicChampionshipSeason(season) {
   const normalizedSeason = ensureChampionshipOccurrenceResults(season);
-  const { imports, validation, _localFirstSync, ...publicSeason } =
+  const {
+    imports,
+    validation,
+    championshipClassMappings,
+    _localFirstSync,
+    ...publicSeason
+  } =
     normalizedSeason;
 
   return stripChampionshipMoneyData(publicSeason);
@@ -267,17 +277,29 @@ function getLocalChampionshipSeasons(associationId) {
     );
 }
 
-function saveChampionshipSeasonLocally(season) {
+function saveChampionshipSeasonLocally(season, { compact = false } = {}) {
   const seasons = readSeasons();
   const index = seasons.findIndex((item) => item.id === season.id);
+  const localSeason = compact ? toLocalSeasonMetadata(season) : season;
 
   if (index === -1) {
-    seasons.push(season);
+    seasons.push(localSeason);
   } else {
-    seasons[index] = season;
+    seasons[index] = localSeason;
   }
 
-  writeSeasons(seasons);
+  try {
+    writeSeasons(seasons);
+  } catch (error) {
+    // localStorage is a best-effort cache. A quota failure must never prevent
+    // the authoritative server write. Retry with metadata-only seasons so
+    // useful season identity/preferences remain available offline.
+    try {
+      writeSeasons(seasons.map(toLocalSeasonMetadata));
+    } catch (fallbackError) {
+      console.warn("Cache local du championnat indisponible:", fallbackError);
+    }
+  }
   return season;
 }
 
@@ -287,10 +309,30 @@ function mergeLocalSeasons(remoteSeasons) {
   const seasonsById = new Map(readSeasons().map((season) => [season.id, season]));
 
   remoteSeasons.forEach((season) => {
-    seasonsById.set(season.id, season);
+    seasonsById.set(season.id, toLocalSeasonMetadata(season));
   });
 
   writeSeasons(Array.from(seasonsById.values()));
+}
+
+function toLocalSeasonMetadata(season) {
+  return {
+    id: season?.id || "",
+    associationId: season?.associationId || "",
+    title: season?.title || "",
+    year: season?.year || "",
+    status: season?.status || "draft",
+    createdAt: season?.createdAt || null,
+    updatedAt: season?.updatedAt || null,
+    classCount: season?.classCount || 0,
+    eventCount: season?.eventCount || 0,
+    showCount: season?.showCount || 0,
+    teamCount: season?.teamCount || 0,
+    importCount: season?.importCount || 0,
+    publicEventLabels: season?.publicEventLabels || {},
+    publicEventOrder: season?.publicEventOrder || {},
+    championshipClassMappings: season?.championshipClassMappings || {},
+  };
 }
 
 function sanitizeJsonPayload(value) {

@@ -55,6 +55,7 @@ import {
   CHAMPIONSHIP_CLASS_NOTE_MAX_LENGTH,
   normalizeChampionshipClassNotes,
 } from "../../features/championship/championshipClassNotes";
+import { getChampionshipClassOptions } from "../../features/championship/championshipClasses";
 
 function AssociationChampionshipPage() {
   const { associationId } = useParams();
@@ -78,7 +79,9 @@ function AssociationChampionshipPage() {
   const [multipleInputKey, setMultipleInputKey] = useState(0);
   const [preview, setPreview] = useState(null);
   const [showScoreImportPreview, setShowScoreImportPreview] = useState(null);
+  const [showScoreClassDataItems, setShowScoreClassDataItems] = useState([]);
   const [showScoreExcludedClassKeys, setShowScoreExcludedClassKeys] = useState([]);
+  const [championshipClassMappings, setChampionshipClassMappings] = useState({});
   const [dqForm, setDqForm] = useState({
     classId: "",
     eventKey: "",
@@ -154,6 +157,7 @@ function AssociationChampionshipPage() {
         setClassNotes(
           normalizeChampionshipClassNotes(nextSeason.classNotes)
         );
+        setChampionshipClassMappings(nextSeason.championshipClassMappings || {});
         setClassNoteClassId(nextSeason.classes?.[0]?.id || "");
         setEventLabels(nextEventLabels);
         setEventOrder(nextEventOrder);
@@ -186,6 +190,10 @@ function AssociationChampionshipPage() {
   const technicalShows = useMemo(
     () => getChampionshipIncludedShows(preview),
     [preview]
+  );
+  const championshipClassOptions = useMemo(
+    () => getChampionshipClassOptions(),
+    []
   );
   const showScoreSelection = useMemo(
     () =>
@@ -404,8 +412,10 @@ function AssociationChampionshipPage() {
       const nextPreview = buildShowScoreChampionshipImportPreview({
         association,
         classDataItems,
+        classMappings: championshipClassMappings,
       });
 
+      setShowScoreClassDataItems(classDataItems);
       setShowScoreImportPreview(nextPreview);
       setShowScoreExcludedClassKeys(nextPreview.defaultExcludedClassKeys || []);
 
@@ -419,6 +429,32 @@ function AssociationChampionshipPage() {
     } finally {
       setIsLoadingShowScoreImport(false);
     }
+  };
+
+  const updateShowScoreClassMapping = (classEntry, patch) => {
+    const code = String(classEntry.importedClassCode || "").trim().toUpperCase();
+    if (!code || /^[26]/.test(code)) return;
+
+    const currentMapping = championshipClassMappings[code] || {
+      enabled: classEntry.canInclude,
+      championshipClassId: classEntry.championshipClassId || "",
+      label: classEntry.championshipClassName || classEntry.importedClassName || "",
+    };
+    const nextMapping = { ...currentMapping, ...patch };
+    const nextMappings = {
+      ...championshipClassMappings,
+      [code]: nextMapping,
+    };
+    const nextPreview = buildShowScoreChampionshipImportPreview({
+      association,
+      classDataItems: showScoreClassDataItems,
+      classMappings: nextMappings,
+    });
+
+    setChampionshipClassMappings(nextMappings);
+    setShowScoreImportPreview(nextPreview);
+    setShowScoreExcludedClassKeys(nextPreview.defaultExcludedClassKeys || []);
+    setSaveMessage("");
   };
 
   const toggleShowScoreClassInclusion = (classKey, include) => {
@@ -781,6 +817,7 @@ function AssociationChampionshipPage() {
           pointsExplanation,
         }),
         classNotes: normalizeChampionshipClassNotes(notes),
+        championshipClassMappings,
       });
       setSeason(saved);
       setPreview(saved);
@@ -1291,9 +1328,14 @@ function AssociationChampionshipPage() {
                     classEntry.key
                   );
                   const isSelected = classEntry.canInclude && !isExcluded;
+                  const importedCode = String(
+                    classEntry.importedClassCode || ""
+                  ).trim().toUpperCase();
+                  const configuredMapping = championshipClassMappings[importedCode];
+                  const isMandatoryExclusion = /^[26]/.test(importedCode);
 
                   return (
-                    <label
+                    <div
                       key={classEntry.key}
                       style={{
                         ...showScoreImportClassRowStyle,
@@ -1329,8 +1371,52 @@ function AssociationChampionshipPage() {
                           {" · "}
                           {getShowScoreClassStatusLabel(classEntry, t)}
                         </div>
+                        <div style={showScoreMappingFieldsStyle}>
+                          <label style={fieldStyle}>
+                            <span style={labelStyle}>
+                              {t("championship.admin.showScoreImportTargetClass")}
+                            </span>
+                            <select
+                              value={configuredMapping?.enabled === false
+                                ? ""
+                                : classEntry.championshipClassId || ""}
+                              disabled={isMandatoryExclusion}
+                              onChange={(event) =>
+                                updateShowScoreClassMapping(classEntry, {
+                                  enabled: Boolean(event.target.value),
+                                  championshipClassId: event.target.value,
+                                })
+                              }
+                              style={inputStyle}
+                            >
+                              <option value="">
+                                {t("championship.admin.showScoreImportDoNotInclude")}
+                              </option>
+                              {championshipClassOptions.map((option) => (
+                                <option key={option.id} value={option.id}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label style={fieldStyle}>
+                            <span style={labelStyle}>
+                              {t("championship.admin.showScoreImportClassLabel")}
+                            </span>
+                            <input
+                              value={configuredMapping?.label ?? classEntry.championshipClassName ?? ""}
+                              disabled={!classEntry.canInclude || isMandatoryExclusion}
+                              onChange={(event) =>
+                                updateShowScoreClassMapping(classEntry, {
+                                  label: event.target.value,
+                                })
+                              }
+                              style={inputStyle}
+                            />
+                          </label>
+                        </div>
                       </div>
-                    </label>
+                    </div>
                   );
                 })}
               </div>
@@ -3028,6 +3114,13 @@ const showScoreImportClassMetaStyle = {
   color: "#475569",
   fontSize: 13,
   fontWeight: 800,
+};
+
+const showScoreMappingFieldsStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: 10,
+  marginTop: 8,
 };
 
 const textareaStyle = {

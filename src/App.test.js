@@ -2498,6 +2498,133 @@ test("keeps unrecognized ShowScore classes ignored for championship imports", ()
   });
 });
 
+test("excludes AQR category 2 and 6 classes before unmapped detection", () => {
+  const excludedCodes = ["2100", "2325", "2400", "2625", "6210", "6231", "6240", "6261"];
+  const summary = buildAssociationChampionshipClassSummary({
+    association: { id: "aqr", shortName: "AQR" },
+    blockClasses: excludedCodes.map((code) => ({
+      code,
+      name: `Excluded ${code}`,
+      entryCount: 1,
+    })),
+  });
+
+  expect(summary.excludedCount).toBe(excludedCodes.length);
+  expect(summary.unknownCount).toBe(0);
+  expect(summary.rows.map((row) => row.status)).toEqual(
+    excludedCodes.map(() => "excluded")
+  );
+});
+
+test("maps ShowScore 3999 Ranch Riding Non Pro and omits excluded categories from standings", () => {
+  const codes = ["3999", "2100", "2325", "2400", "2625", "6210", "6231", "6240", "6261"];
+  const classDataItems = codes.map((code, index) => ({
+    classItem: {
+      id: `class-${code}`,
+      showId: "show-1",
+      dayId: "day-1",
+      name: code === "3999" ? "RANCH RIDING - NON PRO" : `Excluded ${code}`,
+    },
+    show: { id: "show-1", name: "AQR SHOW" },
+    setup: {
+      blockClasses: [{
+        code,
+        name: code === "3999" ? "RANCH RIDING - NON PRO" : `Excluded ${code}`,
+      }],
+      runs: [{
+        id: `run-${index}`,
+        rider: `Rider ${index}`,
+        horse: `Horse ${index}`,
+        classCodes: [code],
+      }],
+    },
+    official: {
+      isSecretariatValidated: true,
+      officialRuns: [{
+        id: `run-${index}`,
+        rider: `Rider ${index}`,
+        horse: `Horse ${index}`,
+        scoreTotal: "72",
+      }],
+    },
+  }));
+  const preview = buildShowScoreChampionshipImportPreview({
+    association: { id: "aqr", shortName: "AQR" },
+    classDataItems,
+  });
+
+  expect(preview.classes.find((item) => item.importedClassCode === "3999"))
+    .toMatchObject({
+      championshipClassId: "ranch-riding-non-pro",
+      championshipClassCode: "3999",
+      canInclude: true,
+    });
+  expect(preview.classes.filter((item) => item.matchStatus === "excluded"))
+    .toHaveLength(8);
+  expect(preview.classes.filter((item) => item.matchStatus === "unknown"))
+    .toHaveLength(0);
+
+  const batch = buildShowScoreChampionshipImportBatch({ preview });
+  const dataset = buildChampionshipDatasetFromImports({ imports: [batch] });
+  expect(dataset.classes).toHaveLength(1);
+  expect(dataset.classes[0].id).toBe("ranch-riding-non-pro");
+  expect(dataset.classes.flatMap((item) => item.events)
+    .some((event) => /^[26]/.test(String(event.classCode || ""))))
+    .toBe(false);
+});
+
+test("applies an association-managed ShowScore mapping and custom standings label", () => {
+  const classDataItems = [{
+    classItem: { id: "rr-open", showId: "show-1", name: "RANCH RIDING OPEN" },
+    show: { id: "show-1", name: "AQR SHOW" },
+    setup: {
+      blockClasses: [{ code: "OPEN-SOURCE", name: "RANCH RIDING OPEN" }],
+      runs: [{
+        id: "run-open",
+        rider: "Open Rider",
+        horse: "Open Horse",
+        classCodes: ["OPEN-SOURCE"],
+      }],
+    },
+    official: {
+      isSecretariatValidated: true,
+      officialRuns: [{
+        id: "run-open",
+        rider: "Open Rider",
+        horse: "Open Horse",
+        scoreTotal: "74",
+      }],
+    },
+  }];
+  const preview = buildShowScoreChampionshipImportPreview({
+    association: { id: "aqr", shortName: "AQR" },
+    classDataItems,
+    classMappings: {
+      "OPEN-SOURCE": {
+        enabled: true,
+        championshipClassId: "ranch-riding-open",
+        label: "Ranch Riding Open AQR",
+      },
+    },
+  });
+  const dataset = buildChampionshipDatasetFromImports({
+    imports: [buildShowScoreChampionshipImportBatch({ preview })],
+  });
+
+  expect(preview.classes[0]).toMatchObject({
+    canInclude: true,
+    matchType: "associationMapping",
+    championshipClassId: "ranch-riding-open",
+    championshipClassName: "Ranch Riding Open AQR",
+  });
+  expect(dataset.classes).toEqual([
+    expect.objectContaining({
+      id: "ranch-riding-open",
+      name: "Ranch Riding Open AQR",
+    }),
+  ]);
+});
+
 test("generates a season championship PDF with a class table of contents", () => {
   const csv = [
     "ShowNum,ShowName,ClassName,ClassCode,PatternNum,EntryCount,ShownCount,GoType,GoNum,Horse,HorseNrha,Member,MemberNrha,BackNum,PlaceNum,TotalScore,MoneyWon",
