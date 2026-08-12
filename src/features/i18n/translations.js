@@ -411,6 +411,8 @@ export const translations = {
         showScoreImportAdd: "Ajouter au championnat",
         showScoreImportClassMeta:
           "{{entries}} inscrits · {{scored}} résultats scorés",
+        showScoreImportClassLabel: "Libellé du classement",
+        showScoreImportDoNotInclude: "Ne pas inclure au championnat",
         showScoreImportEmpty:
           "Aucun résultat ShowScore validé par le secrétariat n’a été trouvé.",
         showScoreImportExcluded: "Exclue du championnat",
@@ -421,6 +423,7 @@ export const translations = {
         showScoreImportLoading: "Analyse en cours...",
         showScoreImportMapping:
           "Code import {{importedCode}} → championnat {{championshipCode}} · {{championshipClass}}",
+        showScoreImportTargetClass: "Classement de destination",
         showScoreImportMatched: "Prête à importer",
         showScoreImportNoScores: "Aucun score à importer",
         showScoreImportNoSelectedRows:
@@ -2469,6 +2472,8 @@ export const translations = {
         showScoreImportAdd: "Add to championship",
         showScoreImportClassMeta:
           "{{entries}} entries · {{scored}} scored results",
+        showScoreImportClassLabel: "Standings label",
+        showScoreImportDoNotInclude: "Do not include in championship",
         showScoreImportEmpty:
           "No ShowScore result validated by the show secretary was found.",
         showScoreImportExcluded: "Excluded from championship",
@@ -2478,6 +2483,7 @@ export const translations = {
         showScoreImportLoading: "Analyzing...",
         showScoreImportMapping:
           "Import code {{importedCode}} → championship {{championshipCode}} · {{championshipClass}}",
+        showScoreImportTargetClass: "Destination standings class",
         showScoreImportMatched: "Ready to import",
         showScoreImportNoScores: "No score to import",
         showScoreImportNoSelectedRows:

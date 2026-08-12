@@ -15,6 +15,7 @@ export const ASSOCIATION_CLASS_MATCH_TYPES = {
   FUNWARE_CODE: "funwareCode",
   CHAMPIONSHIP_CODE: "championshipCode",
   ALIAS: "alias",
+  ASSOCIATION_MAPPING: "associationMapping",
 };
 
 const AQR_CLASS_DICTIONARY = [
@@ -280,6 +281,7 @@ export function resolveAssociationChampionshipClass({
   code = "",
   name = "",
   entryCount = 0,
+  classMappings = {},
 } = {}) {
   const dictionary = getAssociationClassDictionary(association);
 
@@ -288,7 +290,7 @@ export function resolveAssociationChampionshipClass({
   }
 
   const index = buildDictionaryIndex(dictionary.entries);
-  return resolveImportedClass({ code, name, entryCount }, index);
+  return resolveImportedClass({ code, name, entryCount }, index, classMappings);
 }
 
 function getAssociationClassDictionary(association) {
@@ -354,13 +356,75 @@ function normalizeDictionaryEntry(entry) {
   };
 }
 
-function resolveImportedClass(classEntry, index) {
+function resolveImportedClass(classEntry, index, classMappings = {}) {
   const code = normalizeClassDictionaryCode(classEntry?.code);
   const name = String(classEntry?.name || "").trim();
   const alias = normalizeClassDictionaryAlias(name);
   const entryCount = Number.parseInt(classEntry?.entryCount, 10) || 0;
 
   if (!code && !alias) return null;
+
+  // Category exclusions are business rules, not failed mappings. Apply them
+  // before any dictionary lookup so 2xxx/6xxx never surface as unmapped.
+  const excluded = code ? getExcludedClassCodeReason(code) : null;
+  if (excluded) {
+    return {
+      code,
+      importName: name,
+      entryCount,
+      status: ASSOCIATION_CLASS_MATCH_STATUSES.EXCLUDED,
+      reason: excluded.reason || "",
+      matchType: ASSOCIATION_CLASS_MATCH_TYPES.CHAMPIONSHIP_CODE,
+      matchedValue: code,
+      championshipClassId: "",
+      championshipClassName: "",
+      championshipClassCode: "",
+      championshipCodes: [],
+    };
+  }
+
+
+  const configuredMapping = classMappings?.[code];
+  if (configuredMapping) {
+    if (configuredMapping.enabled === false) {
+      return {
+        code,
+        importName: name,
+        entryCount,
+        status: ASSOCIATION_CLASS_MATCH_STATUSES.EXCLUDED,
+        reason: "Classe exclue par la configuration du championnat.",
+        matchType: ASSOCIATION_CLASS_MATCH_TYPES.ASSOCIATION_MAPPING,
+        matchedValue: code,
+        championshipClassId: "",
+        championshipClassName: "",
+        championshipClassCode: "",
+        championshipCodes: [],
+      };
+    }
+
+    const configuredClass = getChampionshipClassById(
+      configuredMapping.championshipClassId
+    );
+    if (configuredClass) {
+      return {
+        code,
+        importName: name,
+        entryCount,
+        status: ASSOCIATION_CLASS_MATCH_STATUSES.MATCHED,
+        reason: "",
+        matchType: ASSOCIATION_CLASS_MATCH_TYPES.ASSOCIATION_MAPPING,
+        matchedValue: code,
+        championshipClassId: configuredClass.id,
+        championshipClassName:
+          String(configuredMapping.label || "").trim() ||
+          getChampionshipClassLabel(configuredClass),
+        championshipClassCode: normalizeClassDictionaryCode(
+          configuredClass.classCodes?.[0]
+        ),
+        championshipCodes: normalizeCodeList(configuredClass.classCodes),
+      };
+    }
+  }
 
   const funwareMatch = code ? index.funwareCodes.get(code) : null;
   if (funwareMatch) {
@@ -380,23 +444,6 @@ function resolveImportedClass(classEntry, index) {
       matchedValue: code,
       entryCount,
     });
-  }
-
-  const excluded = code ? getExcludedClassCodeReason(code) : null;
-  if (excluded) {
-    return {
-      code,
-      importName: name,
-      entryCount,
-      status: ASSOCIATION_CLASS_MATCH_STATUSES.EXCLUDED,
-      reason: excluded.reason || "",
-      matchType: ASSOCIATION_CLASS_MATCH_TYPES.CHAMPIONSHIP_CODE,
-      matchedValue: code,
-      championshipClassId: "",
-      championshipClassName: "",
-      championshipClassCode: "",
-      championshipCodes: [],
-    };
   }
 
   const championshipClass = code ? getChampionshipClassByCode(code) : null;

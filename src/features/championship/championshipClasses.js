@@ -205,9 +205,38 @@ export const CHAMPIONSHIP_CLASSES = [
     name: "Ranch Riding",
     englishName: "Ranch Riding",
     order: 290,
+    // Keep the canonical championship codes with the class definition. Import
+    // dictionaries only need to describe source-system aliases.
     classCodes: ["399"],
   },
+  {
+    id: "ranch-riding-open",
+    name: "Ranch Riding Open",
+    englishName: "Ranch Riding Open",
+    order: 300,
+    // This internal canonical code can receive any imported source code through
+    // the association-managed mapping UI.
+    classCodes: ["RR-OPEN"],
+  },
+  {
+    id: "ranch-riding-non-pro",
+    name: "Ranch Riding Non Pro",
+    englishName: "Ranch Riding Non Pro",
+    order: 310,
+    classCodes: ["3999"],
+  },
 ];
+
+export const EXCLUDED_CHAMPIONSHIP_CLASS_CODE_PREFIXES = {
+  2: {
+    status: CHAMPIONSHIP_CLASS_STATUSES.EXCLUDED,
+    reason: "Classe de catégorie 2 exclue du championnat AQR.",
+  },
+  6: {
+    status: CHAMPIONSHIP_CLASS_STATUSES.EXCLUDED,
+    reason: "Classe de catégorie 6 exclue du championnat AQR.",
+  },
+};
 
 export const EXCLUDED_CHAMPIONSHIP_CLASS_CODES = {
   5393: {
@@ -235,12 +264,26 @@ export function getChampionshipClassById(classId) {
   return classById.get(classId) || null;
 }
 
+export function getChampionshipClassOptions() {
+  return CHAMPIONSHIP_CLASSES.map((championshipClass) => ({
+    id: championshipClass.id,
+    code: normalizeClassCode(championshipClass.classCodes?.[0]),
+    label: getChampionshipClassLabel(championshipClass),
+  }));
+}
+
 export function getChampionshipClassByCode(classCode) {
   return classByCode.get(normalizeClassCode(classCode)) || null;
 }
 
 export function getExcludedClassCodeReason(classCode) {
-  return EXCLUDED_CHAMPIONSHIP_CLASS_CODES[normalizeClassCode(classCode)] || null;
+  const normalizedCode = normalizeClassCode(classCode);
+
+  return (
+    EXCLUDED_CHAMPIONSHIP_CLASS_CODES[normalizedCode] ||
+    EXCLUDED_CHAMPIONSHIP_CLASS_CODE_PREFIXES[normalizedCode.charAt(0)] ||
+    null
+  );
 }
 
 export function normalizeClassCode(classCode) {
