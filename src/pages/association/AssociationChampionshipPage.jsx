@@ -56,6 +56,11 @@ import {
   normalizeChampionshipClassNotes,
 } from "../../features/championship/championshipClassNotes";
 import { getChampionshipClassOptions } from "../../features/championship/championshipClasses";
+import {
+  applyChampionshipClassLabels,
+  CHAMPIONSHIP_CLASS_LABEL_MAX_LENGTH,
+  normalizeChampionshipClassLabels,
+} from "../../features/championship/championshipClassLabels";
 
 function AssociationChampionshipPage() {
   const { associationId } = useParams();
@@ -71,6 +76,7 @@ function AssociationChampionshipPage() {
   const [rulesStatement, setRulesStatement] = useState("");
   const [pointsExplanation, setPointsExplanation] = useState("");
   const [classNotes, setClassNotes] = useState({});
+  const [classLabels, setClassLabels] = useState({});
   const [classNoteClassId, setClassNoteClassId] = useState("");
   const [csvText, setCsvText] = useState("");
   const [fileName, setFileName] = useState("");
@@ -142,10 +148,12 @@ function AssociationChampionshipPage() {
           getChampionshipIncludedShows(nextSeason),
           nextSeason.publicEventOrder || {}
         );
-        const nextPreview = applyChampionshipEventLabels(
-          nextSeason,
-          nextEventLabels,
-          nextEventOrder
+        const nextClassLabels = normalizeChampionshipClassLabels(
+          nextSeason.championshipClassLabels
+        );
+        const nextPreview = applyChampionshipClassLabels(
+          applyChampionshipEventLabels(nextSeason, nextEventLabels, nextEventOrder),
+          nextClassLabels
         );
 
         setSeasonTitle(nextSeason.title || "Championnat de saison");
@@ -157,6 +165,7 @@ function AssociationChampionshipPage() {
         setClassNotes(
           normalizeChampionshipClassNotes(nextSeason.classNotes)
         );
+        setClassLabels(nextClassLabels);
         setChampionshipClassMappings(nextSeason.championshipClassMappings || {});
         setClassNoteClassId(nextSeason.classes?.[0]?.id || "");
         setEventLabels(nextEventLabels);
@@ -269,6 +278,23 @@ function AssociationChampionshipPage() {
     setSaveMessage("");
   };
 
+  const updateClassLabel = (classId, value) => {
+    const label = String(value || "").slice(
+      0,
+      CHAMPIONSHIP_CLASS_LABEL_MAX_LENGTH
+    );
+    const nextLabels = { ...classLabels };
+
+    if (label.trim()) nextLabels[classId] = label;
+    else delete nextLabels[classId];
+
+    setClassLabels(nextLabels);
+    setPreview((current) =>
+      applyChampionshipClassLabels(current, nextLabels)
+    );
+    setSaveMessage("");
+  };
+
   const removeClassNote = async () => {
     if (!classNoteClassId || !classNotes[classNoteClassId]) return;
 
@@ -307,14 +333,13 @@ function AssociationChampionshipPage() {
       order
     );
 
-    return applyChampionshipEventLabels(
-      {
+    return applyChampionshipClassLabels(
+      applyChampionshipEventLabels({
         ...dataset,
         id: season?.id || preview?.id || "",
         associationId,
-      },
-      nextEventLabels,
-      nextEventOrder
+      }, nextEventLabels, nextEventOrder),
+      classLabels
     );
   };
 
@@ -817,11 +842,15 @@ function AssociationChampionshipPage() {
           pointsExplanation,
         }),
         classNotes: normalizeChampionshipClassNotes(notes),
+        championshipClassLabels: normalizeChampionshipClassLabels(classLabels),
         championshipClassMappings,
       });
       setSeason(saved);
       setPreview(saved);
       setClassNotes(normalizeChampionshipClassNotes(saved.classNotes));
+      setClassLabels(
+        normalizeChampionshipClassLabels(saved.championshipClassLabels)
+      );
       setEventLabels(nextEventLabels);
       setEventOrder(nextEventOrder);
       setSeasonStatus(saved.status || nextStatus);
@@ -1533,6 +1562,19 @@ function AssociationChampionshipPage() {
             </CollapsiblePanel>
           )}
 
+          <ChampionshipClassLabelsPanel
+            classes={classSummaries}
+            labels={classLabels}
+            onChangeLabel={updateClassLabel}
+            onSave={() =>
+              savePreviewSeason({
+                successMessage: t("championship.admin.classLabelsSaved"),
+              })
+            }
+            isSaving={isSaving}
+            t={t}
+          />
+
           <ChampionshipClassNotesPanel
             classes={classSummaries}
             notes={classNotes}
@@ -1761,6 +1803,60 @@ function SummaryCard({ label, value }) {
       <div style={summaryValueStyle}>{value}</div>
       <div style={mutedTextStyle}>{label}</div>
     </div>
+  );
+}
+
+function ChampionshipClassLabelsPanel({
+  classes,
+  labels,
+  onChangeLabel,
+  onSave,
+  isSaving,
+  t,
+}) {
+  const classOptions = Array.isArray(classes) ? classes : [];
+
+  return (
+    <CollapsiblePanel
+      title={t("championship.admin.classLabelsTitle")}
+      summary={`${classOptions.length} · ${t("championship.admin.classes")}`}
+    >
+      <div style={mutedTextStyle}>
+        {t("championship.admin.classLabelsHelp")}
+      </div>
+      <div style={championshipClassLabelsListStyle}>
+        {classOptions.map((classEntry) => {
+          const originalName = classEntry.originalName || classEntry.name;
+
+          return (
+            <label key={classEntry.id} style={fieldStyle}>
+              <span style={labelStyle}>{originalName}</span>
+              <input
+                value={labels?.[classEntry.id] || ""}
+                onChange={(event) =>
+                  onChangeLabel(classEntry.id, event.target.value)
+                }
+                maxLength={CHAMPIONSHIP_CLASS_LABEL_MAX_LENGTH}
+                placeholder={originalName}
+                style={inputStyle}
+              />
+            </label>
+          );
+        })}
+      </div>
+      <div style={formActionsStyle}>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={isSaving || !classOptions.length}
+          style={primaryButtonStyle}
+        >
+          {isSaving
+            ? t("championship.admin.saving")
+            : t("championship.admin.classLabelsSave")}
+        </button>
+      </div>
+    </CollapsiblePanel>
   );
 }
 
@@ -3149,6 +3245,13 @@ const textareaStyle = {
 };
 
 const championshipRulesGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+  gap: 12,
+  marginTop: 14,
+};
+
+const championshipClassLabelsListStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
   gap: 12,
