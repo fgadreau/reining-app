@@ -1844,7 +1844,7 @@ function ChampionshipClassLabelsPanel({
           );
         })}
       </div>
-      <div style={formActionsStyle}>
+      <div style={championshipActionBarStyle}>
         <button
           type="button"
           onClick={onSave}
