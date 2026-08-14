@@ -310,6 +310,11 @@ export const translations = {
         classNotesRemove: "Retirer la note",
         classNotesRemoved: "La note de la classe a été retirée.",
         classNotesTitle: "Notes par classe",
+        classLabelsHelp:
+          "Modifie uniquement le nom affiché d’une classe déjà présente. Les points, rangs, équipes et résultats ne sont pas recalculés.",
+        classLabelsSave: "Enregistrer les libellés",
+        classLabelsSaved: "Les libellés des classes ont été enregistrés.",
+        classLabelsTitle: "Libellés des classes",
         csvPlaceholder:
           "Colle ici un CSV de résultats AQR à ajouter à la saison ou importe un fichier .csv.",
         duplicateCancel: "Annuler",
@@ -2372,6 +2377,11 @@ export const translations = {
         classNotesRemove: "Remove note",
         classNotesRemoved: "The class note was removed.",
         classNotesTitle: "Class notes",
+        classLabelsHelp:
+          "Changes only the displayed name of an existing class. Points, ranks, teams, and results are not recalculated.",
+        classLabelsSave: "Save class labels",
+        classLabelsSaved: "Class labels have been saved.",
+        classLabelsTitle: "Class labels",
         csvPlaceholder:
           "Paste an AQR results CSV to add to the season or import a .csv file.",
         duplicateCancel: "Cancel",
