@@ -961,16 +961,27 @@ function analyzeRows(rows) {
   const excludedByCode = new Map();
 
   rows.forEach((row) => {
-    const excluded = getExcludedClassCodeReason(row.classCode);
+    const hasExplicitMapping = Boolean(row.championshipClassId);
+    const excluded = hasExplicitMapping
+      ? null
+      : getExcludedClassCodeReason(row.classCode);
     if (excluded) {
       validation.excludedRows += 1;
       addClassSummary(excludedByCode, row, excluded.reason);
       return;
     }
 
-    const championshipClass = row.championshipClassId
+    const catalogClass = row.championshipClassId
       ? getChampionshipClassById(row.championshipClassId)
       : getChampionshipClassByCode(row.classCode);
+    const championshipClass =
+      catalogClass ||
+      (row.championshipClassId && row.championshipClassName
+        ? {
+            id: row.championshipClassId,
+            order: Number(row.championshipClassOrder) || 10000,
+          }
+        : null);
     if (!championshipClass) {
       addClassSummary(unmappedByCode, row, "Classe non mappee au championnat.");
       return;
