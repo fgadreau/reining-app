@@ -364,26 +364,6 @@ function resolveImportedClass(classEntry, index, classMappings = {}) {
 
   if (!code && !alias) return null;
 
-  // Category exclusions are business rules, not failed mappings. Apply them
-  // before any dictionary lookup so 2xxx/6xxx never surface as unmapped.
-  const excluded = code ? getExcludedClassCodeReason(code) : null;
-  if (excluded) {
-    return {
-      code,
-      importName: name,
-      entryCount,
-      status: ASSOCIATION_CLASS_MATCH_STATUSES.EXCLUDED,
-      reason: excluded.reason || "",
-      matchType: ASSOCIATION_CLASS_MATCH_TYPES.CHAMPIONSHIP_CODE,
-      matchedValue: code,
-      championshipClassId: "",
-      championshipClassName: "",
-      championshipClassCode: "",
-      championshipCodes: [],
-    };
-  }
-
-
   const configuredMapping = classMappings?.[code];
   if (configuredMapping) {
     if (configuredMapping.enabled === false) {
@@ -424,6 +404,45 @@ function resolveImportedClass(classEntry, index, classMappings = {}) {
         championshipCodes: normalizeCodeList(configuredClass.classCodes),
       };
     }
+
+    if (configuredMapping.enabled !== false && configuredMapping.custom) {
+      const label =
+        String(configuredMapping.label || "").trim() || name || code;
+      return {
+        code,
+        importName: name,
+        entryCount,
+        status: ASSOCIATION_CLASS_MATCH_STATUSES.MATCHED,
+        reason: "",
+        matchType: ASSOCIATION_CLASS_MATCH_TYPES.ASSOCIATION_MAPPING,
+        matchedValue: code,
+        championshipClassId: `custom:${code}`,
+        championshipClassName: label,
+        championshipClassCode: code,
+        championshipCodes: [code],
+        championshipClassOrder: Number(configuredMapping.order) || 10000,
+        custom: true,
+      };
+    }
+  }
+
+  // Default exclusions remain in effect until an association explicitly
+  // overrides the source code with a configured catalog or custom class.
+  const excluded = code ? getExcludedClassCodeReason(code) : null;
+  if (excluded) {
+    return {
+      code,
+      importName: name,
+      entryCount,
+      status: ASSOCIATION_CLASS_MATCH_STATUSES.EXCLUDED,
+      reason: excluded.reason || "",
+      matchType: ASSOCIATION_CLASS_MATCH_TYPES.CHAMPIONSHIP_CODE,
+      matchedValue: code,
+      championshipClassId: "",
+      championshipClassName: "",
+      championshipClassCode: "",
+      championshipCodes: [],
+    };
   }
 
   const funwareMatch = code ? index.funwareCodes.get(code) : null;

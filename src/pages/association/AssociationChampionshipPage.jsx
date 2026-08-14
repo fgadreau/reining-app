@@ -433,7 +433,7 @@ function AssociationChampionshipPage() {
 
   const updateShowScoreClassMapping = (classEntry, patch) => {
     const code = String(classEntry.importedClassCode || "").trim().toUpperCase();
-    if (!code || /^[26]/.test(code)) return;
+    if (!code) return;
 
     const currentMapping = championshipClassMappings[code] || {
       enabled: classEntry.canInclude,
@@ -1332,7 +1332,6 @@ function AssociationChampionshipPage() {
                     classEntry.importedClassCode || ""
                   ).trim().toUpperCase();
                   const configuredMapping = championshipClassMappings[importedCode];
-                  const isMandatoryExclusion = /^[26]/.test(importedCode);
 
                   return (
                     <div
@@ -1379,18 +1378,33 @@ function AssociationChampionshipPage() {
                             <select
                               value={configuredMapping?.enabled === false
                                 ? ""
-                                : classEntry.championshipClassId || ""}
-                              disabled={isMandatoryExclusion}
-                              onChange={(event) =>
+                                : configuredMapping?.custom
+                                  ? "__custom__"
+                                  : classEntry.championshipClassId || ""}
+                              onChange={(event) => {
+                                const value = event.target.value;
                                 updateShowScoreClassMapping(classEntry, {
-                                  enabled: Boolean(event.target.value),
-                                  championshipClassId: event.target.value,
-                                })
-                              }
+                                  enabled: Boolean(value),
+                                  custom: value === "__custom__",
+                                  championshipClassId:
+                                    value === "__custom__" ? "" : value,
+                                  ...(value === "__custom__" &&
+                                  !String(configuredMapping?.label || "").trim()
+                                    ? {
+                                        label:
+                                          classEntry.importedClassName ||
+                                          classEntry.importedClassCode,
+                                      }
+                                    : {}),
+                                });
+                              }}
                               style={inputStyle}
                             >
                               <option value="">
                                 {t("championship.admin.showScoreImportDoNotInclude")}
+                              </option>
+                              <option value="__custom__">
+                                {t("championship.admin.showScoreImportCreateClass")}
                               </option>
                               {championshipClassOptions.map((option) => (
                                 <option key={option.id} value={option.id}>
@@ -1405,7 +1419,7 @@ function AssociationChampionshipPage() {
                             </span>
                             <input
                               value={configuredMapping?.label ?? classEntry.championshipClassName ?? ""}
-                              disabled={!classEntry.canInclude || isMandatoryExclusion}
+                              disabled={!classEntry.canInclude}
                               onChange={(event) =>
                                 updateShowScoreClassMapping(classEntry, {
                                   label: event.target.value,

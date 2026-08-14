@@ -412,6 +412,7 @@ export const translations = {
         showScoreImportClassMeta:
           "{{entries}} inscrits · {{scored}} résultats scorés",
         showScoreImportClassLabel: "Libellé du classement",
+        showScoreImportCreateClass: "Incorporer comme nouvelle classe",
         showScoreImportDoNotInclude: "Ne pas inclure au championnat",
         showScoreImportEmpty:
           "Aucun résultat ShowScore validé par le secrétariat n’a été trouvé.",
@@ -419,7 +420,7 @@ export const translations = {
         showScoreImportFailed:
           "Impossible d’analyser les résultats ShowScore.",
         showScoreImportHelp:
-          "Analyse les feuilles officielles validées, reconnaît les classes par code de draw, puis laisse choisir les classes à inclure avant de les ajouter.",
+          "Analyse les feuilles officielles validées, puis permet de relier chaque code à un classement, de choisir son nom affiché ou d’incorporer une classe inconnue ou exclue.",
         showScoreImportLoading: "Analyse en cours...",
         showScoreImportMapping:
           "Code import {{importedCode}} → championnat {{championshipCode}} · {{championshipClass}}",
@@ -2473,13 +2474,14 @@ export const translations = {
         showScoreImportClassMeta:
           "{{entries}} entries · {{scored}} scored results",
         showScoreImportClassLabel: "Standings label",
+        showScoreImportCreateClass: "Include as a new class",
         showScoreImportDoNotInclude: "Do not include in championship",
         showScoreImportEmpty:
           "No ShowScore result validated by the show secretary was found.",
         showScoreImportExcluded: "Excluded from championship",
         showScoreImportFailed: "Unable to analyze ShowScore results.",
         showScoreImportHelp:
-          "Analyzes validated official score sheets, recognizes classes by draw code, then lets you choose which classes to include before adding them.",
+          "Analyzes validated official score sheets, then lets you link each code to standings, choose its display name, or include an unknown or excluded class.",
         showScoreImportLoading: "Analyzing...",
         showScoreImportMapping:
           "Import code {{importedCode}} → championship {{championshipCode}} · {{championshipClass}}",
