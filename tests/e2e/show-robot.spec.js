@@ -1,4 +1,4 @@
-const { expect, test } = require("@playwright/test");
+const { devices, expect, test } = require("@playwright/test");
 const fs = require("fs");
 const path = require("path");
 const {
@@ -998,6 +998,97 @@ test.describe("robot de show local", () => {
         scoreTotal: "70½",
         nextActiveDraw: 4,
       });
+  });
+
+  test("optimise le contrôle annonceur et le pavé de score sur plusieurs iPad", async ({
+    browser,
+  }, testInfo) => {
+    const ipadProfiles = ["iPad Mini", "iPad Pro 11 landscape"];
+
+    for (const profileName of ipadProfiles) {
+      const context = await browser.newContext({
+        ...devices[profileName],
+        baseURL: testInfo.project.use.baseURL,
+      });
+      const ipadPage = await context.newPage();
+      await ipadPage.route("**/rest/v1/**", (route) => route.abort());
+      const seed = await seedActiveSingleJudgeAnnouncerShow(ipadPage);
+      const upcomingClassId = `e2e-upcoming-${profileName}`;
+      seed.json["reining_classes_v1"].push({
+        id: upcomingClassId,
+        associationId: ASSOCIATION_ID,
+        showId: SHOW_ID,
+        dayId: "e2e-robot-day",
+        name: "Classe suivante simple",
+        classCode: "NEXT",
+        arena: "Manege Robot",
+        pattern: "R5",
+        sortOrder: 99,
+      });
+      seed.json["reining_class_setup_v1"][upcomingClassId] = {
+        ...seed.json["reining_class_setup_v1"][CLASS_ID],
+        liveDataSource: "scribes",
+        startedAt: null,
+        runs: seed.json["reining_class_setup_v1"][CLASS_ID].runs.map((run) => ({
+          ...run,
+          status: "",
+          scoreTotal: "",
+          startedAt: null,
+          completedAt: null,
+        })),
+      };
+      await seedStorage(ipadPage, seed);
+
+      await ipadPage.goto(
+        `/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/announcer`
+      );
+
+      await expect(ipadPage.getByText("Classes à venir")).toBeVisible();
+      const upcomingCard = ipadPage.locator(".announcer-class-card--upcoming").filter({
+        hasText: "Classe suivante simple",
+      });
+      await expect(upcomingCard.getByRole("button").first()).toHaveAttribute(
+        "aria-expanded",
+        "false"
+      );
+      await expectNoHorizontalOverflow(ipadPage);
+
+      if (process.env.E2E_CAPTURE_ANNOUNCER_IPAD === "1") {
+        await ipadPage.screenshot({
+          path: `/tmp/announcer-${profileName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-dashboard.png`,
+        });
+      }
+
+      await ipadPage.getByRole("button", { name: "Entrer le résultat" }).click();
+      const scorePad = ipadPage.getByLabel("Pavé numérique du pointage");
+      await expect(scorePad).toBeVisible();
+      await expect
+        .poll(() =>
+          ipadPage.evaluate(() => ({
+            coarsePointer: window.matchMedia("(pointer: coarse)").matches,
+            scorePadDisplay: window.getComputedStyle(
+              document.querySelector(".announcer-score-pad")
+            ).display,
+          }))
+        )
+        .toEqual({ coarsePointer: true, scorePadDisplay: "grid" });
+      await scorePad.getByRole("button", { name: "7", exact: true }).click();
+      await scorePad.getByRole("button", { name: "0", exact: true }).click();
+      await scorePad.getByRole("button", { name: "½", exact: true }).click();
+      await expect(ipadPage.getByLabel("Juge Alpha")).toHaveValue("70½");
+      await expect(
+        ipadPage.getByRole("button", { name: "Enregistrer le score" })
+      ).toBeEnabled();
+      await expectNoHorizontalOverflow(ipadPage);
+
+      if (process.env.E2E_CAPTURE_ANNOUNCER_IPAD === "1") {
+        await ipadPage.locator(".announcer-score-modal").screenshot({
+          path: `/tmp/announcer-${profileName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-score.png`,
+        });
+      }
+
+      await context.close();
+    }
   });
 
   test("garde la TV synchronisée quand le score annonceur démarre le suivant", async ({

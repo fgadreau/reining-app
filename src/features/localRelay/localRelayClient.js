@@ -1,5 +1,6 @@
 const STORAGE_KEY = "showscore_local_relay_v1";
-const DEFAULT_RELAY_URL = "ws://127.0.0.1:3000/ws/producer";
+const DEFAULT_RELAY_URL = "ws://127.0.0.1:9874/ws/producer";
+const LEGACY_DEFAULT_RELAY_URL = "ws://127.0.0.1:3000/ws/producer";
 const MAX_RECONNECT_DELAY_MS = 15_000;
 
 const listeners = new Set();
@@ -61,10 +62,14 @@ function loadSettings() {
 
   try {
     const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "{}");
+    const savedRelayUrl = normalizeRelayUrl(parsed.relayUrl);
     state = {
       ...state,
       enabled: Boolean(parsed.enabled),
-      relayUrl: normalizeRelayUrl(parsed.relayUrl),
+      relayUrl:
+        savedRelayUrl === LEGACY_DEFAULT_RELAY_URL
+          ? DEFAULT_RELAY_URL
+          : savedRelayUrl,
       pairingCode: String(parsed.pairingCode || "").trim(),
       producerId: String(parsed.producerId || "") || createProducerId(),
       lastVersion: String(parsed.lastVersion || "0"),

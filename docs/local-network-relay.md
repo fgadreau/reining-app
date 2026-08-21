@@ -16,7 +16,7 @@ Le logiciel ne coûte rien. Il faut seulement le Chromebook, le routeur et les c
    chmod +x start-relay.sh
    ```
 
-4. Dans **Paramètres ChromeOS → Développeurs → Environnement de développement Linux → Transfert de ports**, ajoute le port TCP `3000` et active-le.
+4. Dans **Paramètres ChromeOS → Développeurs → Environnement de développement Linux → Transfert de ports**, ajoute le port TCP `9874` et active-le.
 5. Trouve l’adresse IPv4 du Chromebook dans les détails du réseau ChromeOS. Par exemple : `192.168.50.10`.
 
 ## Démarrage avant un show
@@ -33,21 +33,21 @@ Le terminal affiche un code de jumelage à six chiffres et les adresses OBS. Lai
 Dans le tableau de l’annonceur :
 
 1. Ouvre **Relais réseau local**.
-2. Garde `ws://127.0.0.1:3000/ws/producer` comme adresse.
+2. Garde `ws://127.0.0.1:9874/ws/producer` comme adresse.
 3. Entre le code à six chiffres affiché dans le terminal et clique **Configurer**.
 4. Autorise l’accès au réseau local si Chrome le demande.
 5. Vérifie que **Relais local** indique « Connecté ».
 
 Sur le Mac du vidéographe, ajoute une source **Navigateur** dans OBS :
 
-- URL : `http://ADRESSE_DU_CHROMEBOOK:3000/overlay`
+- URL : `http://ADRESSE_DU_CHROMEBOOK:9874/overlay`
 - largeur : `1920`
 - hauteur : `1080`
 
 Pour limiter l’affichage à un manège, ajoute le paramètre `arena`, par exemple :
 
 ```text
-http://192.168.50.10:3000/overlay?arena=Manège%201
+http://192.168.50.10:9874/overlay?arena=Manège%201
 ```
 
 Le nombre **Écrans OBS connectés** passe à `1` quand la source OBS est ouverte. Pendant un drag actif, l’overlay affiche « Drag en cours » et les commanditaires occupent toute la page. Il revient automatiquement aux concurrents lorsque le drag se termine.
@@ -56,10 +56,10 @@ Le nombre **Écrans OBS connectés** passe à `1` quand la source OBS est ouvert
 
 Après la première transmission de ShowScore, le panneau du relais affiche automatiquement les liens correspondant aux manèges détectés :
 
-- **Vue générale** : `http://ADRESSE_DU_CHROMEBOOK:3000/tv`
-- **Vue d’un manège** : `http://ADRESSE_DU_CHROMEBOOK:3000/tv?arena=Manège%201`
-- **Vue compétition d’un manège** : `http://ADRESSE_DU_CHROMEBOOK:3000/tv?arena=Manège%201&mode=competition`
-- **Classements du bloc actif** : `http://ADRESSE_DU_CHROMEBOOK:3000/tv?arena=Manège%201&mode=standings`
+- **Vue générale** : `http://ADRESSE_DU_CHROMEBOOK:9874/tv`
+- **Vue d’un manège** : `http://ADRESSE_DU_CHROMEBOOK:9874/tv?arena=Manège%201`
+- **Vue compétition d’un manège** : `http://ADRESSE_DU_CHROMEBOOK:9874/tv?arena=Manège%201&mode=competition`
+- **Classements du bloc actif** : `http://ADRESSE_DU_CHROMEBOOK:9874/tv?arena=Manège%201&mode=standings`
 
 Chaque téléviseur peut ouvrir son propre lien dans Chrome. Les vues restent à jour et se reconnectent automatiquement sans Internet. La vue générale conserve l’accueil, la pause bilingue, le cavalier en piste, les prochains concurrents, les derniers pointages, les paid warm-ups, les drags, les chronos et la rotation des commanditaires.
 
@@ -78,7 +78,7 @@ Avant le show, fais ce test avec les deux ordinateurs branchés au routeur :
 5. Actualise la source OBS; le dernier état doit réapparaître.
 6. Rebranche le WAN; les changements en attente doivent se synchroniser avec Supabase.
 
-Si le Mac ne rejoint pas le relais, vérifie le transfert du port `3000`, le pare-feu, l’adresse IP ChromeOS et l’option d’isolation des clients du routeur. L’adresse Linux affichée en `100.115.x.x` n’est généralement pas celle à utiliser depuis le Mac.
+Si le Mac ne rejoint pas le relais, vérifie le transfert du port `9874`, le pare-feu, l’adresse IP ChromeOS et l’option d’isolation des clients du routeur. L’adresse Linux affichée en `100.115.x.x` n’est généralement pas celle à utiliser depuis le Mac.
 
 ## Limites de cette première version
 

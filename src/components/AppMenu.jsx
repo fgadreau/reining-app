@@ -19,11 +19,17 @@ function parseContext(pathname) {
   };
 }
 
-function getIsMobileMenuViewport() {
+function getMenuMediaQuery(pathname = "") {
+  return /\/announcer(?:\/|$)/.test(pathname)
+    ? "(max-width: 1366px) and (pointer: coarse)"
+    : "(max-width: 640px)";
+}
+
+function getIsMobileMenuViewport(pathname = "") {
   return (
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&
-    window.matchMedia("(max-width: 640px)").matches
+    window.matchMedia(getMenuMediaQuery(pathname)).matches
   );
 }
 
@@ -37,7 +43,9 @@ function AppMenu() {
     );
   const { associationId, showId } = parseContext(location.pathname);
   const [association, setAssociation] = useState(null);
-  const [isMobile, setIsMobile] = useState(getIsMobileMenuViewport);
+  const [isMobile, setIsMobile] = useState(() =>
+    getIsMobileMenuViewport(location.pathname)
+  );
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const access = useAssociationAccess(associationId);
   const isPublicPath = location.pathname.startsWith("/public");
@@ -92,7 +100,7 @@ function AppMenu() {
       return undefined;
     }
 
-    const mediaQuery = window.matchMedia("(max-width: 640px)");
+    const mediaQuery = window.matchMedia(getMenuMediaQuery(location.pathname));
     const handleChange = (event) => {
       setIsMobile(event.matches);
       if (!event.matches) {
@@ -103,7 +111,7 @@ function AppMenu() {
     setIsMobile(mediaQuery.matches);
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
-  }, []);
+  }, [location.pathname]);
 
   useEffect(() => {
     setIsMenuOpen(false);
