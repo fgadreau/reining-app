@@ -112,7 +112,7 @@ function LocalNetworkStatusPanel({ supabaseStatus, t }) {
           <input
             value={relayUrl}
             onChange={(event) => setRelayUrl(event.target.value)}
-            placeholder="ws://127.0.0.1:3000/ws/producer"
+            placeholder="ws://127.0.0.1:9874/ws/producer"
             style={inputStyle}
           />
         </label>
