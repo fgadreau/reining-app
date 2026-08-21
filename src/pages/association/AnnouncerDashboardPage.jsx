@@ -76,6 +76,7 @@ import {
 } from "../../features/days/showDayNavigation";
 import { buildLocalDisplaySnapshot } from "../../features/localRelay/localDisplaySnapshot";
 import { publishLocalRelaySnapshot } from "../../features/localRelay/localRelayClient";
+import "./AnnouncerDashboardPage.css";
 
 let paidWarmupAudioContext = null;
 
@@ -576,7 +577,7 @@ function AnnouncerDashboardPage() {
   }
 
   return (
-    <div style={announcerPageStyle}>
+    <div className="announcer-dashboard" style={announcerPageStyle}>
       <div style={announcerBackRowStyle}>
         <button onClick={() => navigate(-1)} style={secondaryButtonStyle}>
           {t("public.results.back")}
@@ -615,8 +616,6 @@ function AnnouncerDashboardPage() {
         </div>
       </section>
 
-      <LocalNetworkStatusPanel supabaseStatus={supabaseStatus} t={t} />
-
       <ShowDayTabs
         days={daySelection.days}
         activeDayId={daySelection.activeDayId}
@@ -625,7 +624,7 @@ function AnnouncerDashboardPage() {
       />
 
       {priorityLiveItems.length > 0 && (
-        <section style={prioritySectionStyle}>
+        <section className="announcer-priority-section" style={prioritySectionStyle}>
           <div style={priorityHeaderStyle}>
             <div>
               <h2 style={priorityTitleStyle}>{t("public.results.inProgress")}</h2>
@@ -673,10 +672,19 @@ function AnnouncerDashboardPage() {
         </section>
       )}
 
-      <div style={remainingSectionListStyle}>
+      <LocalNetworkStatusPanel supabaseStatus={supabaseStatus} t={t} />
+
+      {remainingSections.length > 0 && (
+        <div className="announcer-upcoming-heading">
+          <h2>{t("management.announcer.upcomingClasses")}</h2>
+          <span>{t("management.announcer.upcomingClassesHelp")}</span>
+        </div>
+      )}
+
+      <div className="announcer-upcoming-sections" style={remainingSectionListStyle}>
         {remainingSections.map((section) => (
           <section key={section.day.id} style={cardStyle}>
-            <div style={sectionHeaderStyle}>
+            <div className="announcer-upcoming-day-header" style={sectionHeaderStyle}>
               <div>
                 <h2 style={sectionTitleStyle}>
                   {section.day.label || t("management.days.dayFallback")}
@@ -697,7 +705,7 @@ function AnnouncerDashboardPage() {
                 {t("management.classes.emptyDay")}
               </div>
             ) : (
-              <div style={classListStyle}>
+              <div className="announcer-upcoming-list" style={classListStyle}>
                 {section.classes.map((classView) => (
                   <ClassLiveCard
                     key={classView.classId}
@@ -1156,6 +1164,7 @@ function PaidWarmupLiveCard({
 
   return (
     <div
+      className={isPriority ? "announcer-class-card announcer-class-card--priority" : "announcer-class-card announcer-class-card--upcoming"}
       style={isPriority ? priorityClassCardStyle : classCardStyle}
       data-announcer-warmup-id={warmup.id}
     >
@@ -1165,6 +1174,7 @@ function PaidWarmupLiveCard({
         aria-expanded={canToggle ? isExpanded : undefined}
         onClick={canToggle ? toggleCard : undefined}
         onKeyDown={canToggle ? handleCardKeyDown : undefined}
+        className="announcer-class-card__header"
         style={classCardHeaderToggleStyle(isExpanded, canToggle)}
       >
         <div style={classCardIdentityStyle}>
@@ -1181,7 +1191,7 @@ function PaidWarmupLiveCard({
               : t("management.classes.noDragPlanned")}
           </div>
         </div>
-        <div style={badgeStackStyle}>
+        <div className="announcer-class-card__badges" style={badgeStackStyle}>
           <LiveFreshnessBadge updatedAt={warmup.updatedAt} now={now} />
           <Badge tone={activeEntry || isActiveDrag ? "warn" : "muted"}>
             {isActiveDrag
@@ -1575,6 +1585,7 @@ function ClassLiveCard({
 
   return (
     <div
+      className={isPriority ? "announcer-class-card announcer-class-card--priority" : "announcer-class-card announcer-class-card--upcoming"}
       style={isPriority ? priorityClassCardStyle : classCardStyle}
       data-announcer-class-id={classView.classId || ""}
       data-announcer-class-complete={classView.isComplete ? "true" : "false"}
@@ -1588,6 +1599,7 @@ function ClassLiveCard({
         aria-controls={cardDetailsId}
         onClick={canToggle ? toggleCard : undefined}
         onKeyDown={canToggle ? handleCardKeyDown : undefined}
+        className="announcer-class-card__header"
         style={classCardHeaderToggleStyle(isExpanded, canToggle)}
       >
         <div style={classCardIdentityStyle}>
@@ -1610,7 +1622,7 @@ function ClassLiveCard({
                 )}`}
           </div>
         </div>
-        <div style={badgeStackStyle}>
+        <div className="announcer-class-card__badges" style={badgeStackStyle}>
           {!isScheduleOnly && (
             <Badge tone={isAnnouncerSource ? "warn" : "muted"}>
               {isAnnouncerSource
@@ -1651,7 +1663,7 @@ function ClassLiveCard({
       )}
 
       {!isExpanded ? null : (
-        <div id={cardDetailsId}>
+        <div className="announcer-class-card__details" id={cardDetailsId}>
           {isScheduleOnly ? (
             <ScheduleOnlyAnnouncerPanel
               classView={classView}
@@ -1662,6 +1674,7 @@ function ClassLiveCard({
           ) : (
             <>
               <div
+                className="announcer-minimal-display"
                 style={
                   isOrderOnlyDisplay
                     ? minimalDisplayActiveStyle
@@ -1706,7 +1719,18 @@ function ClassLiveCard({
                 </button>
               </div>
 
-              <div style={runGridStyle}>
+              {isAnnouncerSource && (
+                <AnnouncerManualLiveControls
+                  classView={classView}
+                  syncStatus={announcerSyncStatus}
+                  updatedBy={updatedBy}
+                  onSaveSession={(nextSession) =>
+                    onSaveAnnouncerSession(classView, nextSession)
+                  }
+                />
+              )}
+
+              <div className="announcer-run-grid" style={runGridStyle}>
                 <QueueItemBlock
                   label={t("management.announcer.active")}
                   item={activeLiveItem}
@@ -1732,17 +1756,6 @@ function ClassLiveCard({
                 />
               </div>
               <ClassPaceSummary pace={classView.pace} />
-
-              {isAnnouncerSource && (
-                <AnnouncerManualLiveControls
-                  classView={classView}
-                  syncStatus={announcerSyncStatus}
-                  updatedBy={updatedBy}
-                  onSaveSession={(nextSession) =>
-                    onSaveAnnouncerSession(classView, nextSession)
-                  }
-                />
-              )}
 
               {hasClassStandings && (
                 <AnnouncerClassStandings
@@ -1936,7 +1949,7 @@ function AnnouncerManualLiveControls({
   }
 
   return (
-    <div style={manualLivePanelStyle}>
+    <div className="announcer-manual-live" style={manualLivePanelStyle}>
       <div style={manualLiveHeaderStyle}>
         <div>
           <div style={manualLiveTitleStyle}>
@@ -1958,7 +1971,7 @@ function AnnouncerManualLiveControls({
       )}
 
       <div style={manualControlBodyStyle}>
-        <div style={manualPrimaryActionStyle}>
+          <div className="announcer-manual-primary" style={manualPrimaryActionStyle}>
           <div style={manualPrimaryActionContentStyle}>
             <div style={runLabelStyle}>
               {classView.activeDragItem
@@ -1984,7 +1997,7 @@ function AnnouncerManualLiveControls({
             )}
           </div>
 
-          <div style={manualPrimaryButtonWrapStyle}>
+          <div className="announcer-manual-actions" style={manualPrimaryButtonWrapStyle}>
             {classView.activeDragItem ? (
               <button
                 type="button"
@@ -2212,6 +2225,7 @@ function AnnouncerRunResultModal({
       }, {})
   );
   const [note, setNote] = useState(run.note || "");
+  const [activeJudgeId, setActiveJudgeId] = useState(judgeRows[0]?.id || "");
   const scoreResult = buildAnnouncerJudgeScoreResult({
     judges: judgeRows,
     judgeScores: judgeRows.map((judge) => ({
@@ -2241,10 +2255,18 @@ function AnnouncerRunResultModal({
     });
   }
 
+  function handleScoreKey(key) {
+    if (!activeJudgeId) return;
+    setJudgeScoreValues((current) => ({
+      ...current,
+      [activeJudgeId]: applyAnnouncerScoreKey(current[activeJudgeId], key),
+    }));
+  }
+
   return (
-    <div style={modalBackdropStyle} role="dialog" aria-modal="true">
-      <form style={compactModalStyle} onSubmit={handleSubmit}>
-        <div style={modalHeaderStyle}>
+    <div className="announcer-score-backdrop" style={modalBackdropStyle} role="dialog" aria-modal="true">
+      <form className="announcer-score-modal" style={compactModalStyle} onSubmit={handleSubmit}>
+        <div className="announcer-score-header" style={modalHeaderStyle}>
           <div>
             <h2 style={sectionTitleStyle}>
               {t("management.announcer.enterResult")}
@@ -2282,16 +2304,56 @@ function AnnouncerRunResultModal({
                     [judge.id]: event.target.value,
                   }))
                 }
-                onFocus={(event) => event.currentTarget.select()}
+                onFocus={(event) => {
+                  setActiveJudgeId(judge.id);
+                  event.currentTarget.select();
+                }}
                 placeholder="70"
                 style={scoreInputStyle}
                 autoFocus={index === 0}
+                aria-current={activeJudgeId === judge.id ? "true" : undefined}
               />
             </label>
           ))}
         </div>
 
-        <div style={scoreKeyboardHintStyle}>
+        <div className="announcer-score-pad" aria-label={t("management.announcer.scorePadLabel")}>
+          <div className="announcer-score-pad__hint">
+            {t("management.announcer.scorePadHint")}
+          </div>
+          <div className="announcer-score-pad__keys">
+            {["7", "8", "9", "4", "5", "6", "1", "2", "3", "0", ",", "½"].map((key) => (
+              <button
+                key={key}
+                type="button"
+                className={key === "½" ? "announcer-score-key announcer-score-key--half" : "announcer-score-key"}
+                onPointerDown={(event) => event.preventDefault()}
+                onClick={() => handleScoreKey(key)}
+              >
+                {key}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="announcer-score-key announcer-score-key--utility"
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={() => handleScoreKey("backspace")}
+              aria-label={t("management.announcer.scorePadBackspace")}
+            >
+              {t("management.announcer.scorePadBackspaceShort")}
+            </button>
+            <button
+              type="button"
+              className="announcer-score-key announcer-score-key--utility announcer-score-key--clear"
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={() => handleScoreKey("clear")}
+            >
+              {t("management.announcer.scorePadClear")}
+            </button>
+          </div>
+        </div>
+
+        <div className="announcer-score-keyboard-hint" style={scoreKeyboardHintStyle}>
           {t("management.announcer.scoreKeyboardHint")}
         </div>
 
@@ -2324,7 +2386,7 @@ function AnnouncerRunResultModal({
           />
         </label>
 
-        <div style={actionRowStyle}>
+        <div className="announcer-score-actions" style={actionRowStyle}>
           <button
             type="submit"
             disabled={!hasValidScore}
@@ -2372,6 +2434,24 @@ function AnnouncerRunResultModal({
       </form>
     </div>
   );
+}
+
+export function applyAnnouncerScoreKey(value, key) {
+  const current = String(value || "");
+
+  if (key === "clear") return "";
+  if (key === "backspace") return Array.from(current).slice(0, -1).join("");
+  if (key === "½") {
+    if (!current || current.endsWith("½")) return current;
+    return `${current.replace(/[.,]\d*$/, "")}½`;
+  }
+  if (key === ",") {
+    if (!current || /[.,½]/.test(current)) return current;
+    return `${current},`;
+  }
+  if (/^\d$/.test(key) && !current.includes("½")) return `${current}${key}`;
+
+  return current;
 }
 
 function getAnnouncerSyncStatusLabel(status, t) {

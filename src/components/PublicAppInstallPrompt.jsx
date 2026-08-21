@@ -7,6 +7,8 @@ const INSTALL_DISMISS_KEY = "showscore.publicInstallPromptDismissed";
 const INSTALL_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
 const PUBLIC_OVERLAY_PATH_PATTERN =
   /^\/public\/associations\/[^/]+\/shows\/[^/]+\/overlay/;
+const ANNOUNCER_PATH_PATTERN =
+  /^\/associations\/[^/]+\/shows\/[^/]+\/announcer/;
 
 function getPublicAssetPath(path) {
   const publicUrl = (import.meta.env.BASE_URL || "").replace(/\/+$/, "");
@@ -176,6 +178,7 @@ function PublicAppInstallPrompt() {
 
   if (
     PUBLIC_OVERLAY_PATH_PATTERN.test(location.pathname) ||
+    ANNOUNCER_PATH_PATTERN.test(location.pathname) ||
     !canInstall
   ) {
     return null;
