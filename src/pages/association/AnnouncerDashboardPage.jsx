@@ -46,6 +46,7 @@ import {
 } from "../../features/live/announcerLiveSession";
 import {
   activateAnnouncerLivePublicationRepository,
+  flushAnnouncerLiveSyncQueue,
   getAnnouncerLiveSessionSyncStatus,
   saveAnnouncerLiveSessionRepository,
 } from "../../features/live/announcerLiveRepository";
@@ -76,6 +77,7 @@ import {
 } from "../../features/days/showDayNavigation";
 import { buildLocalDisplaySnapshot } from "../../features/localRelay/localDisplaySnapshot";
 import { publishLocalRelaySnapshot } from "../../features/localRelay/localRelayClient";
+import { getTvDisplayVideoPublicUrl } from "../../features/tvDisplay/tvDisplayVideo";
 import "./AnnouncerDashboardPage.css";
 
 let paidWarmupAudioContext = null;
@@ -288,40 +290,75 @@ function AnnouncerDashboardPage() {
     return refreshPromise;
   }, [showId]);
 
-  const savePaidWarmupUpdate = useCallback(async (nextWarmup) => {
-    const saved = await savePaidWarmupLiveRepository(nextWarmup);
+  const savePaidWarmupUpdate = useCallback((nextWarmup) => {
+    const syncPromise = savePaidWarmupLiveRepository(nextWarmup);
 
-    if (saved?.isPublicLive && isPaidWarmupComplete(saved)) {
-      await advanceArenaLivePaidWarmupAfterCompletionRepository({
-        showId,
-        arena: saved.arena,
-        paidWarmupId: saved.id,
-      });
-    }
+    liveViewRefreshGenerationRef.current += 1;
+    setLiveView(getAnnouncerShowView(showId));
 
-    await refreshLiveViewNow();
+    void (async () => {
+      try {
+        const saved = await syncPromise;
+
+        if (saved?.isPublicLive && isPaidWarmupComplete(saved)) {
+          await advanceArenaLivePaidWarmupAfterCompletionRepository({
+            showId,
+            arena: saved.arena,
+            paidWarmupId: saved.id,
+          });
+        }
+
+        await refreshLiveViewNow();
+      } catch (error) {
+        console.error("Erreur synchronisation paid warmup annonceur:", error);
+      }
+    })();
+
+    return Promise.resolve(nextWarmup);
   }, [refreshLiveViewNow, showId]);
 
-  const saveScheduleDetailsUpdate = useCallback(async (classView, details) => {
-    await saveClassScheduleDetailsRepository(classView.classId, details);
+  const saveScheduleDetailsUpdate = useCallback((classView, details) => {
+    const syncPromise = saveClassScheduleDetailsRepository(
+      classView.classId,
+      details
+    );
 
-    if (details?.isCompleted) {
-      await advanceArenaLiveClassAfterCompletionRepository({
-        showId,
-        arena: classView.arena,
-        classId: classView.classId,
-      });
-    }
+    liveViewRefreshGenerationRef.current += 1;
+    setLiveView(getAnnouncerShowView(showId));
 
-    await refreshLiveViewNow();
+    void (async () => {
+      await syncPromise;
+
+      if (details?.isCompleted) {
+        await advanceArenaLiveClassAfterCompletionRepository({
+          showId,
+          arena: classView.arena,
+          classId: classView.classId,
+        });
+      }
+
+      await refreshLiveViewNow();
+    })().catch((error) => {
+      console.error("Erreur synchronisation horaire annonceur:", error);
+    });
+
+    return Promise.resolve(details);
   }, [refreshLiveViewNow, showId]);
 
   const saveLiveDisplayModeUpdate = useCallback(
-    async (classView, mode) => {
-      await saveClassLiveDisplayModeRepository(classView.classId, mode);
-      await refreshLiveViewNow();
+    (classView, mode) => {
+      const syncPromise = saveClassLiveDisplayModeRepository(
+        classView.classId,
+        mode
+      );
+      liveViewRefreshGenerationRef.current += 1;
+      setLiveView(getAnnouncerShowView(showId));
+      void syncPromise.then(refreshLiveViewNow).catch((error) => {
+        console.error("Erreur synchronisation mode d’affichage live:", error);
+      });
+      return Promise.resolve(mode);
     },
-    [refreshLiveViewNow]
+    [refreshLiveViewNow, showId]
   );
 
   const saveAnnouncerSessionUpdate = useCallback(
@@ -360,15 +397,20 @@ function AnnouncerDashboardPage() {
         plannedLiveStatus: classView.plannedLiveStatus,
       });
 
-      if (activationStatus) {
-        try {
-          await activateAnnouncerLivePublicationRepository(classView.classId);
-        } catch (error) {
-          console.error("Erreur activation live annonceur Supabase:", error);
+      // Everything below is cloud maintenance. Keep it detached from the
+      // operator action so the buttons and local relay stay responsive when
+      // the venue LAN has no Internet access.
+      void (async () => {
+        if (activationStatus) {
+          try {
+            await activateAnnouncerLivePublicationRepository(classView.classId);
+          } catch (error) {
+            console.error("Erreur activation live annonceur Supabase:", error);
+          }
         }
-      }
 
-      await refreshLiveViewNow();
+        await refreshLiveViewNow();
+      })();
       return saved;
     },
     [refreshLiveViewNow]
@@ -499,15 +541,32 @@ function AnnouncerDashboardPage() {
   useEffect(() => {
     const association =
       loadAssociations().find((item) => item.id === associationId) || null;
+    const localShow = getShowById(showId);
 
     publishLocalRelaySnapshot(
       buildLocalDisplaySnapshot({
         association,
-        show: getShowById(showId),
+        show: {
+          ...localShow,
+          tvDisplayVideoUrl: getTvDisplayVideoPublicUrl(
+            localShow?.tvDisplayVideoPath
+          ),
+        },
         liveView,
       })
     );
   }, [associationId, showId, liveView]);
+
+  useEffect(() => {
+    const retryPendingCloudSync = () => {
+      void flushAnnouncerLiveSyncQueue().catch((error) => {
+        console.error("Erreur reprise synchronisation live annonceur:", error);
+      });
+    };
+
+    window.addEventListener("online", retryPendingCloudSync);
+    return () => window.removeEventListener("online", retryPendingCloudSync);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;

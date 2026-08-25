@@ -31,6 +31,11 @@ describe("local display snapshot", () => {
         obsOverlayMode: "live",
         isTvDisplayPaused: true,
         tvDisplayMessageFr: "Retour bientôt",
+        tvDisplayVideoArena: "Manège 1",
+        tvDisplayVideoUrl:
+          "https://example.supabase.co/storage/v1/object/public/tv-display-media/video.mp4",
+        tvDisplayVideoName: "video.mp4",
+        tvDisplayVideoSize: 123456,
       },
       liveView: {
         sections: [
@@ -79,6 +84,11 @@ describe("local display snapshot", () => {
         obsOverlayMode: "live",
         isTvDisplayPaused: true,
         tvDisplayMessageFr: "Retour bientôt",
+        tvDisplayVideoArena: "Manège 1",
+        tvDisplayVideoUrl:
+          "https://example.supabase.co/storage/v1/object/public/tv-display-media/video.mp4",
+        tvDisplayVideoName: "video.mp4",
+        tvDisplayVideoSize: 123456,
       },
       liveClasses: [
         {

@@ -65,7 +65,7 @@ Chaque téléviseur peut ouvrir son propre lien dans Chrome. Les vues restent à
 
 La vue Classement fait défiler automatiquement chaque classe ou division du bloc actif. Une classe de plus de sept concurrents classés est séparée en plusieurs pages. Les positions, cavaliers, chevaux, dossards et scores suivent les corrections transmises par l’annonceur.
 
-La vue compétition locale conserve la bande d’information en direct et l’identité du manège. La vidéo MP4 de compétition hébergée dans le cloud n’est pas copiée dans le relais; hors ligne, la vue utilise donc un fond ShowScore local à la place de la vidéo. La télévision du livestream YouTube nécessite toujours Internet puisque sa source vidéo est externe.
+La vue compétition locale conserve la bande d’information en direct et l’identité du manège. Dès que le tableau annonceur transmet sa configuration, le relais télécharge la vidéo MP4 de compétition dans son cache local. La première préparation doit donc se faire avec Internet; une fois le téléchargement terminé, la vidéo continue de jouer et peut être rechargée sans Internet. Son état est visible à `http://ADRESSE_DU_CHROMEBOOK:9874/api/video-status`. La télévision du livestream YouTube nécessite toujours Internet puisque sa source vidéo est externe.
 
 ## Vérification hors ligne
 
@@ -83,6 +83,7 @@ Si le Mac ne rejoint pas le relais, vérifie le transfert du port `9874`, le par
 ## Limites de cette première version
 
 - L’overlay OBS et les vues TV générales, par manège et compétition sont disponibles localement.
+- Le relais garde une copie locale de la vidéo MP4 de compétition après sa première synchronisation.
 - Le site public et la vidéo YouTube continuent de dépendre d’Internet.
 - Le relais ne contient aucune clé Supabase et ne lit jamais le stockage du navigateur.
 - Les logos nécessaires à l’overlay sont inclus dans chaque instantané; l’overlay ne charge aucune ressource Internet.

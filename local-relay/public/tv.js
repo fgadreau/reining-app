@@ -37,6 +37,8 @@ const elements = {
   sponsorLevel: document.querySelector("#sponsor-level"),
   sponsorList: document.querySelector("#sponsor-list"),
   competitionPanel: document.querySelector("#competition-panel"),
+  competitionVideo: document.querySelector("#competition-video"),
+  competitionFallback: document.querySelector("#competition-fallback"),
   competitionShow: document.querySelector("#competition-show"),
   competitionArena: document.querySelector("#competition-arena"),
   competitionStatus: document.querySelector("#competition-status"),
@@ -64,6 +66,7 @@ let sponsorSignature = "";
 let standingsSlides = [];
 let standingsSlideIndex = 0;
 let standingsSignature = "";
+let competitionVideoSource = "";
 
 document.body.dataset.tvMode = displayMode;
 elements.competitionPanel.hidden = displayMode !== "competition";
@@ -255,6 +258,7 @@ function renderCompetition(association, show, liveItem) {
   elements.competitionPanel.hidden = false;
   elements.competitionShow.textContent = show.name || association.name || "ShowScore";
   elements.competitionArena.textContent = selectedArena ? `Manège / Arena · ${selectedArena}` : "";
+  renderCompetitionVideo(show);
   const current = liveItem ? getCurrent(liveItem) : null;
   const upcoming = liveItem ? getUpcoming(liveItem) : [];
   const previous = liveItem ? getPrevious(liveItem) : [];
@@ -271,6 +275,45 @@ function renderCompetition(association, show, liveItem) {
   renderCompetitionParticipant("Current", current);
   renderCompetitionParticipant("Next", upcoming[0]);
   renderCompetitionParticipant("Last", previous[0]);
+}
+
+function renderCompetitionVideo(show) {
+  const videoUrl = String(show.tvDisplayVideoUrl || "").trim();
+  const configuredArena = normalize(show.tvDisplayVideoArena);
+  const matchesArena = Boolean(
+    videoUrl && selectedArena && configuredArena === normalize(selectedArena)
+  );
+
+  if (!matchesArena) {
+    competitionVideoSource = "";
+    elements.competitionVideo.pause();
+    elements.competitionVideo.removeAttribute("src");
+    elements.competitionVideo.hidden = true;
+    elements.competitionFallback.hidden = false;
+    return;
+  }
+
+  const localSource = `/media/competition-video.mp4?source=${encodeURIComponent(videoUrl)}`;
+  if (competitionVideoSource !== localSource) {
+    competitionVideoSource = localSource;
+    elements.competitionVideo.src = localSource;
+    elements.competitionVideo.load();
+  }
+
+  const showVideo = () => {
+    elements.competitionVideo.hidden = false;
+    elements.competitionFallback.hidden = true;
+  };
+  const showFallback = () => {
+    elements.competitionVideo.hidden = true;
+    elements.competitionFallback.hidden = false;
+  };
+  elements.competitionVideo.oncanplay = () => {
+    showVideo();
+    elements.competitionVideo.play().catch(() => {});
+  };
+  elements.competitionVideo.onerror = showFallback;
+  elements.competitionVideo.play().then(showVideo).catch(() => {});
 }
 
 function renderCompetitionParticipant(slot, participant) {

@@ -1796,8 +1796,10 @@ const competitionVideoWrapStyle = {
 };
 
 const competitionVideoStyle = {
-  width: "100%",
-  height: "100%",
+  width: "90%",
+  height: "90%",
+  maxWidth: "90%",
+  maxHeight: "90%",
   display: "block",
   objectFit: "contain",
   background: "#000",

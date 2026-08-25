@@ -93,10 +93,23 @@
 
       <section id="competition-panel" class="competition" hidden>
         <div class="competition__stage">
-          <div id="competition-logo" class="competition__logo">SS</div>
-          <div class="section-kicker">Affichage local de compétition / Local competition display</div>
-          <div id="competition-show" class="competition__show">ShowScore</div>
-          <div id="competition-arena" class="competition__arena"></div>
+          <video
+            id="competition-video"
+            class="competition__video"
+            autoplay
+            muted
+            loop
+            playsinline
+            preload="auto"
+            disablepictureinpicture
+            hidden
+          ></video>
+          <div id="competition-fallback" class="competition__fallback">
+            <div id="competition-logo" class="competition__logo">SS</div>
+            <div class="section-kicker">Écran du manège de compétition / Competition arena screen</div>
+            <div id="competition-show" class="competition__show">ShowScore</div>
+            <div id="competition-arena" class="competition__arena"></div>
+          </div>
         </div>
         <div class="competition__strip">
           <div class="strip-block strip-block--title">
