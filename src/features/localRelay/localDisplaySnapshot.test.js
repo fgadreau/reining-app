@@ -186,4 +186,31 @@ describe("local display snapshot", () => {
 
     expect(snapshot.liveClasses[0].classStandings).toEqual([]);
   });
+
+  test("preserves completed-run scores, including a numeric zero", () => {
+    const snapshot = buildLocalDisplaySnapshot({
+      show: { id: "show-1" },
+      liveView: {
+        sections: [
+          {
+            paidWarmups: [],
+            classes: [
+              {
+                classId: "class-1",
+                lastPassedRuns: [
+                  { id: "run-1", rider: "Sam", scoreTotal: "73.5" },
+                  { id: "run-2", rider: "Alex", scoreTotal: 0 },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(snapshot.liveClasses[0].lastPassedRuns).toMatchObject([
+      { id: "run-1", scoreTotal: "73.5" },
+      { id: "run-2", scoreTotal: "0" },
+    ]);
+  });
 });
