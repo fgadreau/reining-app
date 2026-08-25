@@ -322,7 +322,9 @@ export async function getShowRepository(showId) {
 
 export async function saveShowRepository(show, options = {}) {
   const supabase = getSupabaseClient();
-  const isExistingShow = Boolean(getShowById(show.id));
+  const isExistingShow = options.forceInsert
+    ? false
+    : Boolean(getShowById(show.id));
   const saveScope =
     options.scope === SHOW_SAVE_SCOPES.PUBLIC_SETTINGS
       ? SHOW_SAVE_SCOPES.PUBLIC_SETTINGS
@@ -394,6 +396,17 @@ export async function saveShowRepository(show, options = {}) {
         syncError = error;
       }
     }
+  }
+
+  if (options.requireCloudSync && syncStatus === LOCAL_FIRST_SYNC_STATUSES.ERROR) {
+    if (syncError instanceof Error) {
+      throw syncError;
+    }
+
+    throw createShowWriteNotConfirmedError(
+      String(syncError || "Le show n'a pas été enregistré dans Supabase."),
+      "SHOWSCORE_SHOW_SYNC_REQUIRED"
+    );
   }
 
   const savedShow = saveShowLocally(persistedShow || show);

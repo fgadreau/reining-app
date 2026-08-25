@@ -15,7 +15,7 @@ import {
   advanceArenaLiveClassAfterCompletionRepository,
   advanceArenaLivePaidWarmupAfterCompletionRepository,
 } from "../../features/publication/publicationCloudRepository";
-import { savePaidWarmupRepository } from "../../features/paidWarmups/paidWarmupRepository";
+import { savePaidWarmupLiveRepository } from "../../features/paidWarmups/paidWarmupRepository";
 import {
   PAID_WARMUP_TIMER_CUES,
   formatPaidWarmupTimer,
@@ -289,7 +289,7 @@ function AnnouncerDashboardPage() {
   }, [showId]);
 
   const savePaidWarmupUpdate = useCallback(async (nextWarmup) => {
-    const saved = await savePaidWarmupRepository(nextWarmup);
+    const saved = await savePaidWarmupLiveRepository(nextWarmup);
 
     if (saved?.isPublicLive && isPaidWarmupComplete(saved)) {
       await advanceArenaLivePaidWarmupAfterCompletionRepository({
