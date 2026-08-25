@@ -1,4 +1,4 @@
-SHOWSCORE - RELAIS WINDOWS 0.2.1
+SHOWSCORE - RELAIS WINDOWS 0.2.2
 ================================
 
 1. Fermez l'ancienne fenêtre du relais.
@@ -11,7 +11,7 @@ SHOWSCORE - RELAIS WINDOWS 0.2.1
 
 Sur le tableau du relais, vérifiez :
 
-- Version du relais : 0.2.1
+- Version du relais : 0.2.2
 - ShowScore : Connecté
 - Vidéo MP4 locale : Prête, lorsqu'une vidéo de compétition est configurée
 

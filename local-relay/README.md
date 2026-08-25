@@ -10,7 +10,7 @@ Dans le terminal Linux du Chromebook, exécutez une seule commande :
 curl -fsSL https://raw.githubusercontent.com/fgadreau/reining-app/main/local-relay/update-relay.sh | bash
 ```
 
-La commande télécharge la version publiée sur `main`, conserve le dossier `~/local-relay/data` ainsi que l’adresse réseau déjà configurée, réinstalle le lanceur ChromeOS et redémarre le service. La page `http://127.0.0.1:9875/` doit ensuite afficher la version `0.2.1` ou une version plus récente.
+La commande télécharge la version publiée sur `main`, conserve le dossier `~/local-relay/data` ainsi que l’adresse réseau déjà configurée, réinstalle le lanceur ChromeOS et redémarre le service. La page `http://127.0.0.1:9875/` doit ensuite afficher la version `0.2.2` ou une version plus récente.
 
 ## Première installation
 
