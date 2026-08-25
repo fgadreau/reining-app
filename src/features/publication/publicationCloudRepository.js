@@ -383,9 +383,11 @@ async function savePaidWarmupLiveStateRepository({
   if (supabase) {
     try {
       const { error } = await supabase
-        .from("show_score_paid_warmups")
-        .update({ is_public_live: Boolean(isPublicLive) })
-        .eq("id", normalizedPaidWarmupId);
+        .rpc("save_show_score_paid_warmup_live", {
+          target_paid_warmup_id: normalizedPaidWarmupId,
+          target_is_public_live: Boolean(isPublicLive),
+          target_update_queue: false,
+        });
 
       if (error) throw error;
     } catch (error) {

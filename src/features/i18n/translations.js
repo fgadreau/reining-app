@@ -820,6 +820,11 @@ export const translations = {
           "Entre un pointage numérique valide pour chaque juge.",
         scoreKeyboardHint:
           "Au clavier : entre le pointage, puis appuie sur Entrée pour l’enregistrer.",
+        scorePadLabel: "Pavé numérique du pointage",
+        scorePadHint: "Touchez le juge à remplir, puis entrez son pointage.",
+        scorePadBackspace: "Effacer le dernier caractère",
+        scorePadBackspaceShort: "Effacer 1",
+        scorePadClear: "Effacer",
         saveScore: "Enregistrer le score",
         savedLocally: "Sauvegardé localement",
         soundAlertsReady: "Sons actifs",
@@ -839,6 +844,9 @@ export const translations = {
         synced: "Synchronisé",
         syncing: "Synchronisation…",
         syncPending: "Sync en attente",
+        upcomingClasses: "Classes à venir",
+        upcomingClassesHelp:
+          "Touchez une classe seulement lorsque vous en avez besoin.",
         totalScore: "Pointage total",
         videoReview: "Révision vidéo",
         reopenClass: "Réouvrir le bloc",
@@ -1617,6 +1625,8 @@ export const translations = {
         edit: "Modifier",
         empty: "Aucun show pour cette association.",
         endDateLabel: "Date fin",
+        datesRequired:
+          "Les dates de début et de fin sont obligatoires pour créer le show.",
         invalidDateRange:
           "La date de fin doit être la même journée ou après la date de début.",
         copyObsOverlayLink: "Copier le lien OBS",
@@ -2881,6 +2891,11 @@ export const translations = {
           "Enter a valid numeric score for every judge.",
         scoreKeyboardHint:
           "Keyboard: enter the score, then press Enter to save it.",
+        scorePadLabel: "Score number pad",
+        scorePadHint: "Tap the judge to fill, then enter the score.",
+        scorePadBackspace: "Delete the last character",
+        scorePadBackspaceShort: "Delete 1",
+        scorePadClear: "Clear",
         saveScore: "Save score",
         savedLocally: "Saved locally",
         soundAlertsReady: "Sounds active",
@@ -2900,6 +2915,8 @@ export const translations = {
         synced: "Synced",
         syncing: "Syncing…",
         syncPending: "Sync pending",
+        upcomingClasses: "Upcoming classes",
+        upcomingClassesHelp: "Open a class only when you need it.",
         totalScore: "Total score",
         videoReview: "Video review",
         reopenClass: "Reopen block",
@@ -3676,6 +3693,8 @@ export const translations = {
         edit: "Edit",
         empty: "No show for this association.",
         endDateLabel: "End date",
+        datesRequired:
+          "Start and end dates are required to create the show.",
         invalidDateRange:
           "The end date must be the same day as the start date or later.",
         copyObsOverlayLink: "Copy OBS link",

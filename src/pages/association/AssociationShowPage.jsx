@@ -26,6 +26,7 @@ function AssociationShowPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [creatingId, setCreatingId] = useState(null);
   const [draft, setDraft] = useState({
     name: "",
     location: "",
@@ -65,7 +66,7 @@ function AssociationShowPage() {
     };
   }, [associationId]);
 
-  const startCreateShow = async () => {
+  const startCreateShow = () => {
     const newShow = {
       id: createId("show"),
       associationId,
@@ -81,29 +82,21 @@ function AssociationShowPage() {
       isSchedulePublic: false,
     };
 
-    setIsSaving(true);
-    try {
-      await saveShowRepository(newShow);
-      setShows((current) => [...current, newShow]);
-      setEditingId(newShow.id);
-      setDraft({
-        name: newShow.name,
-        location: newShow.location,
-        venue: newShow.venue,
-        startDate: newShow.startDate,
-        endDate: newShow.endDate,
-        status: newShow.status,
-        isLivestreamPublic: newShow.isLivestreamPublic,
-        livestreamUrl: newShow.livestreamUrl,
-        livestreamUrlsByDate: newShow.livestreamUrlsByDate,
-        isSchedulePublic: newShow.isSchedulePublic,
-      });
-    } catch (error) {
-      console.error("Erreur création show:", error);
-      alert(t("common.saveFailed", { message: error?.message || "" }));
-    } finally {
-      setIsSaving(false);
-    }
+    setShows((current) => [...current, newShow]);
+    setCreatingId(newShow.id);
+    setEditingId(newShow.id);
+    setDraft({
+      name: newShow.name,
+      location: newShow.location,
+      venue: newShow.venue,
+      startDate: newShow.startDate,
+      endDate: newShow.endDate,
+      status: newShow.status,
+      isLivestreamPublic: newShow.isLivestreamPublic,
+      livestreamUrl: newShow.livestreamUrl,
+      livestreamUrlsByDate: newShow.livestreamUrlsByDate,
+      isSchedulePublic: newShow.isSchedulePublic,
+    });
   };
 
   const startEditShow = (show) => {
@@ -123,6 +116,10 @@ function AssociationShowPage() {
   };
 
   const cancelEdit = () => {
+    if (creatingId && editingId === creatingId) {
+      setShows((current) => current.filter((show) => show.id !== creatingId));
+      setCreatingId(null);
+    }
     setEditingId(null);
     setDraft({
       name: "",
@@ -140,6 +137,10 @@ function AssociationShowPage() {
 
   const saveEdit = async () => {
     if (!editingId) return;
+    if (!draft.startDate || !draft.endDate) {
+      alert(t("management.shows.datesRequired"));
+      return;
+    }
     if (
       draft.startDate &&
       draft.endDate &&
@@ -167,11 +168,16 @@ function AssociationShowPage() {
 
     setIsSaving(true);
     try {
-      const savedShow = await saveShowRepository(nextShow);
-      await syncDaysForShowDateRangeRepository(nextShow, { language });
+      const isCreating = editingId === creatingId;
+      const savedShow = await saveShowRepository(nextShow, {
+        forceInsert: isCreating,
+        requireCloudSync: isCreating,
+      });
+      await syncDaysForShowDateRangeRepository(savedShow, { language });
       setShows((current) =>
         current.map((show) => (show.id === editingId ? savedShow : show))
       );
+      setCreatingId(null);
       setEditingId(null);
     } catch (error) {
       console.error("Erreur sauvegarde show:", error);

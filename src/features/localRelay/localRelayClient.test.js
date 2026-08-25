@@ -43,6 +43,27 @@ afterEach(() => {
 });
 
 describe("local relay client", () => {
+  test("migrates the former default port while preserving relay settings", async () => {
+    localStorage.setItem(
+      "showscore_local_relay_v1",
+      JSON.stringify({
+        enabled: true,
+        relayUrl: "ws://127.0.0.1:3000/ws/producer",
+        pairingCode: "482731",
+        producerId: "producer-1",
+      })
+    );
+
+    const client = await import("./localRelayClient");
+
+    expect(client.getLocalRelayState()).toMatchObject({
+      enabled: true,
+      relayUrl: "ws://127.0.0.1:9874/ws/producer",
+      pairingCode: "482731",
+      producerId: "producer-1",
+    });
+  });
+
   test("publishes the newest snapshot after pairing and advances past relay state", async () => {
     const client = await import("./localRelayClient");
     client.publishLocalRelaySnapshot({ schemaVersion: 1, show: { id: "show-1" } });
