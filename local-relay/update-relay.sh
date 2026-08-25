@@ -46,4 +46,4 @@ fi
 
 relay_version="$(node -p "require('$install_directory/package.json').version")"
 echo "Relais ShowScore $relay_version installé et démarré."
-echo "Vérification : http://127.0.0.1:9874/"
+echo "Vérification : http://127.0.0.1:9875/"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-status_url="http://127.0.0.1:9874/"
+status_url="http://127.0.0.1:9875/"
 no_open=false
 
 if [[ "${1:-}" == "--no-open" ]]; then
@@ -13,7 +13,7 @@ systemctl --user restart showscore-relay.service
 
 relay_ready=false
 for _attempt in {1..30}; do
-  if curl --fail --silent --max-time 1 http://127.0.0.1:9874/api/status >/dev/null; then
+  if curl --fail --silent --max-time 1 http://127.0.0.1:9875/api/status >/dev/null; then
     relay_ready=true
     break
   fi

@@ -12,7 +12,7 @@ Le déploiement Vercel met à jour l’application Web, mais pas le programme lo
 curl -fsSL https://raw.githubusercontent.com/fgadreau/reining-app/main/local-relay/update-relay.sh | bash
 ```
 
-La page `http://127.0.0.1:9874/` affiche ensuite la version installée et l’état de la vidéo MP4 locale.
+La page `http://127.0.0.1:9875/` affiche ensuite la version installée et l’état de la vidéo MP4 locale.
 
 ## Première installation sur le Chromebook
 
@@ -23,7 +23,7 @@ La page `http://127.0.0.1:9874/` affiche ensuite la version installée et l’é
    curl -fsSL https://raw.githubusercontent.com/fgadreau/reining-app/main/local-relay/update-relay.sh | bash -s -- 192.168.50.10
    ```
 
-3. Dans **Paramètres ChromeOS → Développeurs → Environnement de développement Linux → Transfert de ports**, ajoute le port TCP `9874` et active-le.
+3. Dans **Paramètres ChromeOS → Développeurs → Environnement de développement Linux → Transfert de ports**, ajoute le port TCP `9875` et active-le.
 4. Une application **ShowScore – Relais local** apparaît dans les applications Linux. Elle démarre le service et ouvre automatiquement son tableau d’état.
 
 ## Démarrage avant un show
@@ -40,21 +40,21 @@ Le démarrage manuel affiche un code de jumelage à six chiffres et les adresses
 Dans le tableau de l’annonceur :
 
 1. Ouvre **Relais réseau local**.
-2. Garde `ws://127.0.0.1:9874/ws/producer` comme adresse.
+2. Garde `ws://127.0.0.1:9875/ws/producer` comme adresse.
 3. Entre le code à six chiffres affiché dans le terminal et clique **Configurer**.
 4. Autorise l’accès au réseau local si Chrome le demande.
 5. Vérifie que **Relais local** indique « Connecté ».
 
 Sur le Mac du vidéographe, ajoute une source **Navigateur** dans OBS :
 
-- URL : `http://ADRESSE_DU_CHROMEBOOK:9874/overlay`
+- URL : `http://ADRESSE_DU_CHROMEBOOK:9875/overlay`
 - largeur : `1920`
 - hauteur : `1080`
 
 Pour limiter l’affichage à un manège, ajoute le paramètre `arena`, par exemple :
 
 ```text
-http://192.168.50.10:9874/overlay?arena=Manège%201
+http://192.168.50.10:9875/overlay?arena=Manège%201
 ```
 
 Le nombre **Écrans OBS connectés** passe à `1` quand la source OBS est ouverte. Pendant un drag actif, l’overlay affiche « Drag en cours » et les commanditaires occupent toute la page. Il revient automatiquement aux concurrents lorsque le drag se termine.
@@ -63,16 +63,16 @@ Le nombre **Écrans OBS connectés** passe à `1` quand la source OBS est ouvert
 
 Après la première transmission de ShowScore, le panneau du relais affiche automatiquement les liens correspondant aux manèges détectés :
 
-- **Vue générale** : `http://ADRESSE_DU_CHROMEBOOK:9874/tv`
-- **Vue d’un manège** : `http://ADRESSE_DU_CHROMEBOOK:9874/tv?arena=Manège%201`
-- **Vue compétition d’un manège** : `http://ADRESSE_DU_CHROMEBOOK:9874/tv?arena=Manège%201&mode=competition`
-- **Classements du bloc actif** : `http://ADRESSE_DU_CHROMEBOOK:9874/tv?arena=Manège%201&mode=standings`
+- **Vue générale** : `http://ADRESSE_DU_CHROMEBOOK:9875/tv`
+- **Vue d’un manège** : `http://ADRESSE_DU_CHROMEBOOK:9875/tv?arena=Manège%201`
+- **Vue compétition d’un manège** : `http://ADRESSE_DU_CHROMEBOOK:9875/tv?arena=Manège%201&mode=competition`
+- **Classements du bloc actif** : `http://ADRESSE_DU_CHROMEBOOK:9875/tv?arena=Manège%201&mode=standings`
 
 Chaque téléviseur peut ouvrir son propre lien dans Chrome. Les vues restent à jour et se reconnectent automatiquement sans Internet. La vue générale conserve l’accueil, la pause bilingue, le cavalier en piste, les prochains concurrents, les derniers pointages, les paid warm-ups, les drags, les chronos et la rotation des commanditaires.
 
 La vue Classement fait défiler automatiquement chaque classe ou division du bloc actif. Une classe de plus de sept concurrents classés est séparée en plusieurs pages. Les positions, cavaliers, chevaux, dossards et scores suivent les corrections transmises par l’annonceur.
 
-La vue compétition locale conserve la bande d’information en direct et l’identité du manège. La vidéo est réduite à 90 % afin que la bande live ne la masque pas. Dès que le tableau annonceur transmet sa configuration, le relais télécharge la vidéo MP4 de compétition dans son cache local. La première préparation doit donc se faire avec Internet; une fois le téléchargement terminé, la vidéo continue de jouer et peut être rechargée sans Internet. Son état apparaît sur le tableau du relais et à `http://ADRESSE_DU_CHROMEBOOK:9874/api/video-status`. La télévision du livestream YouTube nécessite toujours Internet puisque sa source vidéo est externe.
+La vue compétition locale conserve la bande d’information en direct et l’identité du manège. La vidéo est réduite à 90 % afin que la bande live ne la masque pas. Dès que le tableau annonceur transmet sa configuration, le relais télécharge la vidéo MP4 de compétition dans son cache local. La première préparation doit donc se faire avec Internet; une fois le téléchargement terminé, la vidéo continue de jouer et peut être rechargée sans Internet. Son état apparaît sur le tableau du relais et à `http://ADRESSE_DU_CHROMEBOOK:9875/api/video-status`. La télévision du livestream YouTube nécessite toujours Internet puisque sa source vidéo est externe.
 
 ## Vérification hors ligne
 
@@ -87,7 +87,7 @@ Avant le show, fais ce test avec les deux ordinateurs branchés au routeur :
 
 Le client ShowScore attend maintenant l’accusé de réception de chaque snapshot. Si la connexion locale est devenue silencieuse pendant la coupure WAN, il la remplace automatiquement et republie le dernier snapshot, sans utiliser le bouton « Reconnecter ».
 
-Si le Mac ne rejoint pas le relais, vérifie le transfert du port `9874`, le pare-feu, l’adresse IP ChromeOS et l’option d’isolation des clients du routeur. L’adresse Linux affichée en `100.115.x.x` n’est généralement pas celle à utiliser depuis le Mac.
+Si le Mac ne rejoint pas le relais, vérifie le transfert du port `9875`, le pare-feu, l’adresse IP ChromeOS et l’option d’isolation des clients du routeur. L’adresse Linux affichée en `100.115.x.x` n’est généralement pas celle à utiliser depuis le Mac.
 
 ## Limites de cette première version
 

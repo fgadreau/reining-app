@@ -10,7 +10,7 @@ Dans le terminal Linux du Chromebook, exécutez une seule commande :
 curl -fsSL https://raw.githubusercontent.com/fgadreau/reining-app/main/local-relay/update-relay.sh | bash
 ```
 
-La commande télécharge la version publiée sur `main`, conserve le dossier `~/local-relay/data` ainsi que l’adresse réseau déjà configurée, réinstalle le lanceur ChromeOS et redémarre le service. La page `http://127.0.0.1:9874/` doit ensuite afficher la version `0.2.0` ou une version plus récente.
+La commande télécharge la version publiée sur `main`, conserve le dossier `~/local-relay/data` ainsi que l’adresse réseau déjà configurée, réinstalle le lanceur ChromeOS et redémarre le service. La page `http://127.0.0.1:9875/` doit ensuite afficher la version `0.2.1` ou une version plus récente.
 
 ## Première installation
 
@@ -20,20 +20,24 @@ Pour une première installation, ajoutez l’adresse IPv4 du Chromebook à la m�
 curl -fsSL https://raw.githubusercontent.com/fgadreau/reining-app/main/local-relay/update-relay.sh | bash -s -- 192.168.50.10
 ```
 
-Utilisez l’adresse Wi-Fi ou Ethernet affichée dans ChromeOS, jamais l’adresse Linux `100.115.x.x`. Activez aussi le transfert du port TCP `9874` dans les paramètres de l’environnement Linux de ChromeOS.
+Utilisez l’adresse Wi-Fi ou Ethernet affichée dans ChromeOS, jamais l’adresse Linux `100.115.x.x`. Activez aussi le transfert du port TCP `9875` dans les paramètres de l’environnement Linux de ChromeOS.
 
 L’installation ajoute **ShowScore – Relais local** aux applications Linux. Cette icône démarre le relais, attend qu’il réponde puis ouvre sa page d’état. Node.js `20.19.x` ou `22.13+`, npm et `curl` doivent être installés.
 
 ## Adresses utiles
 
-- Tableau du relais : `http://127.0.0.1:9874/`
-- État JSON : `http://127.0.0.1:9874/api/status`
-- État du cache MP4 : `http://127.0.0.1:9874/api/video-status`
-- Producteur ShowScore : `ws://127.0.0.1:9874/ws/producer`
-- OBS : `http://ADRESSE_DU_CHROMEBOOK:9874/overlay`
-- TV : `http://ADRESSE_DU_CHROMEBOOK:9874/tv`
+- Tableau du relais : `http://127.0.0.1:9875/`
+- État JSON : `http://127.0.0.1:9875/api/status`
+- État du cache MP4 : `http://127.0.0.1:9875/api/video-status`
+- Producteur ShowScore : `ws://127.0.0.1:9875/ws/producer`
+- OBS : `http://ADRESSE_DU_RELAIS:9875/overlay`
+- TV : `http://ADRESSE_DU_RELAIS:9875/tv`
 
 Le code de jumelage, le dernier snapshot et le cache MP4 se trouvent dans `~/local-relay/data`. La mise à jour ne supprime jamais ce dossier.
+
+## Windows
+
+Le paquet Windows contient `Demarrer-ShowScore-Relais-Windows.cmd`. Un double-clic détecte automatiquement l’adresse IPv4 du PC, démarre le relais sur le port `9875` et affiche les adresses à utiliser dans ShowScore, OBS et les téléviseurs. Si le pare-feu Windows le demande, autorisez Node.js sur les réseaux privés.
 
 ## Démarrage manuel
 
