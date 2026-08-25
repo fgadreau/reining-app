@@ -144,4 +144,57 @@ describe("local relay client", () => {
     expect(FakeWebSocket.instances).toHaveLength(0);
     expect(client.getLocalRelayState().status).toBe("disabled");
   });
+
+  test("reconnects and republishes when a stale local socket stops acknowledging snapshots", async () => {
+    vi.useFakeTimers();
+    const client = await import("./localRelayClient");
+    client.publishLocalRelaySnapshot({ schemaVersion: 1, show: { id: "show-1" } });
+    client.configureLocalRelay({
+      relayUrl: "ws://127.0.0.1:9874/ws/producer",
+      pairingCode: "482731",
+      enabled: true,
+    });
+
+    const staleSocket = FakeWebSocket.instances[0];
+    staleSocket.open();
+    staleSocket.receive({ type: "producer.ready", lastVersion: "0" });
+    expect(staleSocket.sent.at(-1).type).toBe("snapshot.publish");
+
+    await vi.advanceTimersByTimeAsync(4_100);
+
+    expect(FakeWebSocket.instances).toHaveLength(2);
+    const replacementSocket = FakeWebSocket.instances[1];
+    replacementSocket.open();
+    replacementSocket.receive({ type: "producer.ready", lastVersion: "0" });
+    expect(replacementSocket.sent.at(-1)).toMatchObject({
+      type: "snapshot.publish",
+      snapshot: { show: { id: "show-1" } },
+    });
+  });
+
+  test("keeps a healthy relay connection after its snapshot acknowledgement", async () => {
+    vi.useFakeTimers();
+    const client = await import("./localRelayClient");
+    client.publishLocalRelaySnapshot({ schemaVersion: 1, show: { id: "show-1" } });
+    client.configureLocalRelay({
+      relayUrl: "ws://127.0.0.1:9874/ws/producer",
+      pairingCode: "482731",
+      enabled: true,
+    });
+
+    const socket = FakeWebSocket.instances[0];
+    socket.open();
+    socket.receive({ type: "producer.ready", lastVersion: "0" });
+    const publication = socket.sent.at(-1);
+    socket.receive({
+      type: "snapshot.ack",
+      accepted: true,
+      version: publication.version,
+      currentVersion: publication.version,
+    });
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    expect(client.getLocalRelayState().status).toBe("connected");
+  });
 });

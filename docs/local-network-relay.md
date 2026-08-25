@@ -4,31 +4,38 @@ Le relais tourne dans Linux sur le Chromebook de l’annonceur. ShowScore contin
 
 Le logiciel ne coûte rien. Il faut seulement le Chromebook, le routeur et les câbles réseau déjà prévus.
 
-## Installation sur le Chromebook
+## Mise à jour du Chromebook déjà configuré
 
-1. Active l’environnement Linux dans les paramètres ChromeOS.
-2. Installe Node.js 20.19 ou une version compatible plus récente et copie le projet ShowScore sur le Chromebook.
-3. Dans un terminal Linux, place-toi dans le projet puis exécute :
+Le déploiement Vercel met à jour l’application Web, mais pas le programme local déjà copié dans Linux. Pour mettre ce relais à jour tout en conservant son jumelage, son dernier état, son adresse réseau et son cache MP4, exécute une seule fois :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/fgadreau/reining-app/main/local-relay/update-relay.sh | bash
+```
+
+La page `http://127.0.0.1:9874/` affiche ensuite la version installée et l’état de la vidéo MP4 locale.
+
+## Première installation sur le Chromebook
+
+1. Active l’environnement Linux dans les paramètres ChromeOS et installe Node.js 20.19 ou une version compatible plus récente, npm et `curl`.
+2. Trouve l’adresse IPv4 du Chromebook dans les détails du réseau ChromeOS, par exemple `192.168.50.10`, puis exécute :
 
    ```bash
-   cd local-relay
-   npm ci --omit=dev
-   chmod +x start-relay.sh
+   curl -fsSL https://raw.githubusercontent.com/fgadreau/reining-app/main/local-relay/update-relay.sh | bash -s -- 192.168.50.10
    ```
 
-4. Dans **Paramètres ChromeOS → Développeurs → Environnement de développement Linux → Transfert de ports**, ajoute le port TCP `9874` et active-le.
-5. Trouve l’adresse IPv4 du Chromebook dans les détails du réseau ChromeOS. Par exemple : `192.168.50.10`.
+3. Dans **Paramètres ChromeOS → Développeurs → Environnement de développement Linux → Transfert de ports**, ajoute le port TCP `9874` et active-le.
+4. Une application **ShowScore – Relais local** apparaît dans les applications Linux. Elle démarre le service et ouvre automatiquement son tableau d’état.
 
 ## Démarrage avant un show
 
-Dans Linux, démarre le relais en lui donnant l’adresse du Chromebook :
+Clique sur l’application **ShowScore – Relais local**. Pour un démarrage manuel seulement :
 
 ```bash
 cd local-relay
 ./start-relay.sh 192.168.50.10
 ```
 
-Le terminal affiche un code de jumelage à six chiffres et les adresses OBS. Laisse ce terminal ouvert pendant le show.
+Le démarrage manuel affiche un code de jumelage à six chiffres et les adresses OBS; dans ce mode seulement, laisse le terminal ouvert pendant le show.
 
 Dans le tableau de l’annonceur :
 
@@ -65,7 +72,7 @@ Chaque téléviseur peut ouvrir son propre lien dans Chrome. Les vues restent à
 
 La vue Classement fait défiler automatiquement chaque classe ou division du bloc actif. Une classe de plus de sept concurrents classés est séparée en plusieurs pages. Les positions, cavaliers, chevaux, dossards et scores suivent les corrections transmises par l’annonceur.
 
-La vue compétition locale conserve la bande d’information en direct et l’identité du manège. Dès que le tableau annonceur transmet sa configuration, le relais télécharge la vidéo MP4 de compétition dans son cache local. La première préparation doit donc se faire avec Internet; une fois le téléchargement terminé, la vidéo continue de jouer et peut être rechargée sans Internet. Son état est visible à `http://ADRESSE_DU_CHROMEBOOK:9874/api/video-status`. La télévision du livestream YouTube nécessite toujours Internet puisque sa source vidéo est externe.
+La vue compétition locale conserve la bande d’information en direct et l’identité du manège. La vidéo est réduite à 90 % afin que la bande live ne la masque pas. Dès que le tableau annonceur transmet sa configuration, le relais télécharge la vidéo MP4 de compétition dans son cache local. La première préparation doit donc se faire avec Internet; une fois le téléchargement terminé, la vidéo continue de jouer et peut être rechargée sans Internet. Son état apparaît sur le tableau du relais et à `http://ADRESSE_DU_CHROMEBOOK:9874/api/video-status`. La télévision du livestream YouTube nécessite toujours Internet puisque sa source vidéo est externe.
 
 ## Vérification hors ligne
 
@@ -77,6 +84,8 @@ Avant le show, fais ce test avec les deux ordinateurs branchés au routeur :
 4. Change le concurrent et corrige un pointage; OBS doit continuer à suivre.
 5. Actualise la source OBS; le dernier état doit réapparaître.
 6. Rebranche le WAN; les changements en attente doivent se synchroniser avec Supabase.
+
+Le client ShowScore attend maintenant l’accusé de réception de chaque snapshot. Si la connexion locale est devenue silencieuse pendant la coupure WAN, il la remplace automatiquement et republie le dernier snapshot, sans utiliser le bouton « Reconnecter ».
 
 Si le Mac ne rejoint pas le relais, vérifie le transfert du port `9874`, le pare-feu, l’adresse IP ChromeOS et l’option d’isolation des clients du routeur. L’adresse Linux affichée en `100.115.x.x` n’est généralement pas celle à utiliser depuis le Mac.
 
