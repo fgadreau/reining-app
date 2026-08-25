@@ -303,6 +303,38 @@ export async function savePaidWarmupRepository(item) {
   });
 }
 
+export async function savePaidWarmupLiveRepository(item) {
+  const savedLocal = savePaidWarmup(item);
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return withLocalFirstSyncState(savedLocal, {
+      status: LOCAL_FIRST_SYNC_STATUSES.LOCAL,
+    });
+  }
+
+  const warmup = normalizePaidWarmup(savedLocal);
+  const { data, error } = await supabase.rpc(
+    "save_show_score_paid_warmup_live",
+    {
+      target_paid_warmup_id: warmup.id,
+      target_is_public_live: Boolean(warmup.isPublicLive),
+      target_update_queue: true,
+      target_active_entry_id: warmup.activeEntryId || null,
+      target_active_started_at: warmup.activeStartedAt || null,
+      target_entries: warmup.entries,
+    }
+  );
+
+  if (error) throw error;
+
+  const persisted = data ? toPaidWarmup(data, warmup) : warmup;
+  cachePaidWarmupSnapshot(persisted);
+  return withLocalFirstSyncState(persisted, {
+    status: LOCAL_FIRST_SYNC_STATUSES.SYNCED,
+  });
+}
+
 async function upsertPaidWarmupWithActiveEntryFallback(supabase, item) {
   const options = {
     includeActiveEntry: true,

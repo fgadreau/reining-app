@@ -1625,6 +1625,8 @@ export const translations = {
         edit: "Modifier",
         empty: "Aucun show pour cette association.",
         endDateLabel: "Date fin",
+        datesRequired:
+          "Les dates de début et de fin sont obligatoires pour créer le show.",
         invalidDateRange:
           "La date de fin doit être la même journée ou après la date de début.",
         copyObsOverlayLink: "Copier le lien OBS",
@@ -3691,6 +3693,8 @@ export const translations = {
         edit: "Edit",
         empty: "No show for this association.",
         endDateLabel: "End date",
+        datesRequired:
+          "Start and end dates are required to create the show.",
         invalidDateRange:
           "The end date must be the same day as the start date or later.",
         copyObsOverlayLink: "Copy OBS link",
