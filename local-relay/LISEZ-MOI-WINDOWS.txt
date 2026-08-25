@@ -1,0 +1,18 @@
+SHOWSCORE - RELAIS WINDOWS 0.2.1
+================================
+
+1. Fermez l'ancienne fenêtre du relais.
+2. Extrayez le ZIP. Vous pouvez remplacer les fichiers de l'ancien dossier;
+   le dossier data existant peut être conservé.
+3. Double-cliquez sur Demarrer-ShowScore-Relais-Windows.cmd.
+4. Si le pare-feu Windows le demande, autorisez Node.js sur les réseaux privés.
+5. Le lanceur affiche l'adresse exacte à entrer dans ShowScore ainsi que
+   l'adresse du tableau local. Toutes les adresses utilisent le port 9875.
+
+Sur le tableau du relais, vérifiez :
+
+- Version du relais : 0.2.1
+- ShowScore : Connecté
+- Vidéo MP4 locale : Prête, lorsqu'une vidéo de compétition est configurée
+
+Gardez la fenêtre noire du relais ouverte pendant le show.
