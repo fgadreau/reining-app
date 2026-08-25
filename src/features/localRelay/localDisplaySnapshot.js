@@ -180,6 +180,9 @@ export function buildLocalDisplaySnapshot({
       tvDisplayMessageFr: text(show?.tvDisplayMessageFr),
       tvDisplayMessageEn: text(show?.tvDisplayMessageEn),
       tvDisplayVideoArena: text(show?.tvDisplayVideoArena),
+      tvDisplayVideoUrl: text(show?.tvDisplayVideoUrl),
+      tvDisplayVideoName: text(show?.tvDisplayVideoName),
+      tvDisplayVideoSize: Number(show?.tvDisplayVideoSize) || 0,
     },
     liveClasses: sections
       .flatMap((section) => section?.classes || [])

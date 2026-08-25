@@ -11,6 +11,7 @@ import {
   validateSnapshotEnvelope,
 } from "./protocol.mjs";
 import { createStateStore } from "./stateStore.mjs";
+import { createCompetitionVideoCache } from "./videoCache.mjs";
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
 const relayRoot = path.resolve(moduleDirectory, "..");
@@ -20,6 +21,7 @@ const host = process.env.SHOWSCORE_RELAY_HOST || "0.0.0.0";
 const port = Number(process.env.SHOWSCORE_RELAY_PORT || 9874);
 const publicHost = String(process.env.SHOWSCORE_RELAY_PUBLIC_HOST || "").trim();
 const store = createStateStore({ dataDirectory });
+const videoCache = createCompetitionVideoCache({ dataDirectory });
 const viewers = new Set();
 let producer = null;
 
@@ -31,6 +33,15 @@ const server = http.createServer((request, response) => {
   }
   if (request.method === "GET" && url.pathname === "/api/state") {
     return sendJson(response, 200, store.getEnvelope() || { type: "snapshot", version: "0", snapshot: null });
+  }
+  if (request.method === "GET" && url.pathname === "/api/video-status") {
+    return sendJson(response, 200, videoCache.getStatus());
+  }
+  if (
+    ["GET", "HEAD"].includes(request.method) &&
+    url.pathname === "/media/competition-video.mp4"
+  ) {
+    return videoCache.serve(request, response, store.getEnvelope()?.snapshot);
   }
 
   const route = STATIC_ROUTES[url.pathname] || null;
@@ -144,6 +155,7 @@ function registerProducerCandidate(webSocket, request) {
     if (accepted) {
       broadcastToViewers(validation.envelope);
       broadcastStatus();
+      void videoCache.ensureSnapshot(validation.envelope.snapshot);
     }
     send(webSocket, {
       type: "snapshot.ack",
@@ -190,6 +202,7 @@ function relayStatus() {
     tvUrls: getTvUrls(),
     lastVersion: store.getEnvelope()?.version || "0",
     lastReceivedAt: store.getEnvelope()?.receivedAt || null,
+    competitionVideo: videoCache.getStatus(),
   };
 }
 
@@ -308,6 +321,7 @@ server.listen(port, host, () => {
     console.log("ChromeOS : relance avec ./start-relay.sh ADRESSE_IP_DU_CHROMEBOOK pour afficher la bonne adresse OBS.");
   }
   console.log(`${line}\n`);
+  void videoCache.ensureSnapshot(store.getEnvelope()?.snapshot);
 });
 
 function stop() {
