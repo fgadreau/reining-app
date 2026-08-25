@@ -58,10 +58,28 @@ describe("local relay client", () => {
 
     expect(client.getLocalRelayState()).toMatchObject({
       enabled: true,
-      relayUrl: "ws://127.0.0.1:9874/ws/producer",
+      relayUrl: "ws://127.0.0.1:9875/ws/producer",
       pairingCode: "482731",
       producerId: "producer-1",
     });
+  });
+
+  test("migrates the previous relay port while preserving its network address", async () => {
+    localStorage.setItem(
+      "showscore_local_relay_v1",
+      JSON.stringify({
+        enabled: true,
+        relayUrl: "ws://192.168.50.24:9874/ws/producer",
+        pairingCode: "482731",
+        producerId: "producer-1",
+      })
+    );
+
+    const client = await import("./localRelayClient");
+
+    expect(client.getLocalRelayState().relayUrl).toBe(
+      "ws://192.168.50.24:9875/ws/producer"
+    );
   });
 
   test("publishes the newest snapshot after pairing and advances past relay state", async () => {
@@ -150,7 +168,7 @@ describe("local relay client", () => {
     const client = await import("./localRelayClient");
     client.publishLocalRelaySnapshot({ schemaVersion: 1, show: { id: "show-1" } });
     client.configureLocalRelay({
-      relayUrl: "ws://127.0.0.1:9874/ws/producer",
+      relayUrl: "ws://127.0.0.1:9875/ws/producer",
       pairingCode: "482731",
       enabled: true,
     });
@@ -177,7 +195,7 @@ describe("local relay client", () => {
     const client = await import("./localRelayClient");
     client.publishLocalRelaySnapshot({ schemaVersion: 1, show: { id: "show-1" } });
     client.configureLocalRelay({
-      relayUrl: "ws://127.0.0.1:9874/ws/producer",
+      relayUrl: "ws://127.0.0.1:9875/ws/producer",
       pairingCode: "482731",
       enabled: true,
     });

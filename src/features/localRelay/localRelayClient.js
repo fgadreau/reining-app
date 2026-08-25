@@ -1,6 +1,7 @@
 const STORAGE_KEY = "showscore_local_relay_v1";
-const DEFAULT_RELAY_URL = "ws://127.0.0.1:9874/ws/producer";
+const DEFAULT_RELAY_URL = "ws://127.0.0.1:9875/ws/producer";
 const LEGACY_DEFAULT_RELAY_URL = "ws://127.0.0.1:3000/ws/producer";
+const PREVIOUS_DEFAULT_RELAY_PORT = "9874";
 const MAX_RECONNECT_DELAY_MS = 15_000;
 const SNAPSHOT_ACK_TIMEOUT_MS = 4_000;
 
@@ -65,14 +66,11 @@ function loadSettings() {
 
   try {
     const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "{}");
-    const savedRelayUrl = normalizeRelayUrl(parsed.relayUrl);
+    const savedRelayUrl = migrateSavedRelayUrl(parsed.relayUrl);
     state = {
       ...state,
       enabled: Boolean(parsed.enabled),
-      relayUrl:
-        savedRelayUrl === LEGACY_DEFAULT_RELAY_URL
-          ? DEFAULT_RELAY_URL
-          : savedRelayUrl,
+      relayUrl: savedRelayUrl,
       pairingCode: String(parsed.pairingCode || "").trim(),
       producerId: String(parsed.producerId || "") || createProducerId(),
       lastVersion: String(parsed.lastVersion || "0"),
@@ -83,6 +81,19 @@ function loadSettings() {
   }
 
   return state;
+}
+
+function migrateSavedRelayUrl(value) {
+  const normalizedUrl = normalizeRelayUrl(value);
+  if (normalizedUrl === LEGACY_DEFAULT_RELAY_URL) return DEFAULT_RELAY_URL;
+
+  try {
+    const url = new URL(normalizedUrl);
+    if (url.port === PREVIOUS_DEFAULT_RELAY_PORT) url.port = "9875";
+    return url.toString();
+  } catch (error) {
+    return DEFAULT_RELAY_URL;
+  }
 }
 
 function saveSettings() {
