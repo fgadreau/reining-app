@@ -16,6 +16,7 @@ import { createCompetitionVideoCache } from "./videoCache.mjs";
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
 const relayRoot = path.resolve(moduleDirectory, "..");
 const publicDirectory = path.join(relayRoot, "public");
+const relayVersion = readRelayVersion();
 const dataDirectory = process.env.SHOWSCORE_RELAY_DATA_DIR || path.join(relayRoot, "data");
 const host = process.env.SHOWSCORE_RELAY_HOST || "0.0.0.0";
 const port = Number(process.env.SHOWSCORE_RELAY_PORT || 9874);
@@ -190,6 +191,7 @@ function relayStatus() {
     (viewer) => viewer.readyState === WebSocket.OPEN
   );
   return {
+    relayVersion,
     producerConnected: Boolean(producer),
     viewerCount: openViewers.length,
     overlayViewerCount: openViewers.filter(
@@ -204,6 +206,17 @@ function relayStatus() {
     lastReceivedAt: store.getEnvelope()?.receivedAt || null,
     competitionVideo: videoCache.getStatus(),
   };
+}
+
+function readRelayVersion() {
+  try {
+    const packageJson = JSON.parse(
+      fs.readFileSync(path.join(relayRoot, "package.json"), "utf8")
+    );
+    return String(packageJson.version || "inconnue");
+  } catch (error) {
+    return "inconnue";
+  }
 }
 
 function getTvUrls() {

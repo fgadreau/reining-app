@@ -1,7 +1,9 @@
+const relayVersion = document.querySelector("#relay-version");
 const producer = document.querySelector("#producer");
 const overlayViewers = document.querySelector("#overlay-viewers");
 const tvViewers = document.querySelector("#tv-viewers");
 const updated = document.querySelector("#updated");
+const videoStatus = document.querySelector("#video-status");
 const urls = document.querySelector("#urls");
 const tvUrls = document.querySelector("#tv-urls");
 
@@ -9,10 +11,12 @@ async function refresh() {
   try {
     const response = await fetch("/api/status", { cache: "no-store" });
     const status = await response.json();
+    relayVersion.textContent = status.relayVersion || "Inconnue";
     producer.textContent = status.producerConnected ? "Connecté" : "En attente";
     overlayViewers.textContent = String(status.overlayViewerCount || 0);
     tvViewers.textContent = String(status.tvViewerCount || 0);
     updated.textContent = status.lastReceivedAt ? new Date(status.lastReceivedAt).toLocaleTimeString("fr-CA") : "Aucune donnée";
+    videoStatus.textContent = formatVideoStatus(status.competitionVideo);
     urls.replaceChildren(...(status.overlayUrls || []).map((url) => {
       const link = document.createElement("a");
       link.href = url;
@@ -28,6 +32,13 @@ async function refresh() {
   } catch (error) {
     producer.textContent = "Relais indisponible";
   }
+}
+
+function formatVideoStatus(video) {
+  if (video?.status === "ready") return "Prête";
+  if (video?.status === "downloading") return "Téléchargement…";
+  if (video?.status === "error") return "Erreur";
+  return "Non configurée";
 }
 
 function getTvLabel(item) {

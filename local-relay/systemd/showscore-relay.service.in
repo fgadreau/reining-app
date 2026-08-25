@@ -1,0 +1,17 @@
+[Unit]
+Description=ShowScore - Relais réseau local
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=@RELAY_DIRECTORY@
+EnvironmentFile=-%h/.config/showscore-relay.env
+ExecStart=@RELAY_DIRECTORY@/run-relay-service.sh
+Restart=on-failure
+RestartSec=2
+KillMode=control-group
+TimeoutStopSec=10
+
+[Install]
+WantedBy=default.target

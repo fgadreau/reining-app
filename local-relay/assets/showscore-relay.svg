@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="ShowScore Relais local">
+  <defs>
+    <linearGradient id="background" x1="32" y1="24" x2="224" y2="232" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#11233d"/>
+      <stop offset="1" stop-color="#071423"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="64" y1="190" x2="194" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#31d9c5"/>
+      <stop offset="1" stop-color="#72f1d8"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="54" fill="url(#background)"/>
+  <path d="M51 69v118" stroke="#31d9c5" stroke-width="12" stroke-linecap="round"/>
+  <path d="M76 128h34m36-44 30-19m-30 107 30 19" stroke="url(#signal)" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="126" cy="128" r="27" fill="#f8fbff"/>
+  <circle cx="190" cy="57" r="20" fill="#31d9c5"/>
+  <circle cx="190" cy="199" r="20" fill="#31d9c5"/>
+  <path d="M117 128h18" stroke="#11233d" stroke-width="9" stroke-linecap="round"/>
+</svg>
