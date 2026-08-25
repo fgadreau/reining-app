@@ -1,0 +1,15 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=ShowScore – Relais local
+Comment=Démarrer le relais réseau local ShowScore
+Exec=@RELAY_DIRECTORY@/launch-relay-app.sh
+Icon=@RELAY_DIRECTORY@/assets/showscore-relay.svg
+Terminal=false
+Categories=Utility;
+StartupNotify=true
+Actions=Stop;
+
+[Desktop Action Stop]
+Name=Arrêter le relais ShowScore
+Exec=@RELAY_DIRECTORY@/stop-relay-app.sh

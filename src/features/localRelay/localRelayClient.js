@@ -2,12 +2,15 @@ const STORAGE_KEY = "showscore_local_relay_v1";
 const DEFAULT_RELAY_URL = "ws://127.0.0.1:9874/ws/producer";
 const LEGACY_DEFAULT_RELAY_URL = "ws://127.0.0.1:3000/ws/producer";
 const MAX_RECONNECT_DELAY_MS = 15_000;
+const SNAPSHOT_ACK_TIMEOUT_MS = 4_000;
 
 const listeners = new Set();
 let socket = null;
 let reconnectTimer = null;
+let acknowledgementTimer = null;
 let reconnectAttempt = 0;
 let latestSnapshot = null;
+let pendingAcknowledgementVersion = "0";
 let connectionGeneration = 0;
 
 let state = {
@@ -108,9 +111,17 @@ function clearReconnectTimer() {
   reconnectTimer = null;
 }
 
+function clearAcknowledgementTimer() {
+  if (!acknowledgementTimer) return;
+  window.clearTimeout(acknowledgementTimer);
+  acknowledgementTimer = null;
+  pendingAcknowledgementVersion = "0";
+}
+
 function closeSocket() {
   connectionGeneration += 1;
   clearReconnectTimer();
+  clearAcknowledgementTimer();
   const activeSocket = socket;
   socket = null;
   if (activeSocket) {
@@ -147,14 +158,38 @@ function sendLatestSnapshot() {
   }
 
   const version = nextVersion();
-  socket.send(
-    JSON.stringify({
-      type: "snapshot.publish",
-      producerId: state.producerId,
-      version,
-      snapshot: latestSnapshot,
-    })
-  );
+  const publishingSocket = socket;
+
+  try {
+    publishingSocket.send(
+      JSON.stringify({
+        type: "snapshot.publish",
+        producerId: state.producerId,
+        version,
+        snapshot: latestSnapshot,
+      })
+    );
+  } catch (error) {
+    emit({ status: "disconnected", error: "Connexion au relais local interrompue." });
+    connect();
+    return;
+  }
+
+  clearAcknowledgementTimer();
+  pendingAcknowledgementVersion = version;
+  acknowledgementTimer = window.setTimeout(() => {
+    if (
+      state.enabled &&
+      socket === publishingSocket &&
+      pendingAcknowledgementVersion === version
+    ) {
+      emit({
+        status: "disconnected",
+        error: "Le relais local ne répond plus. Reconnexion automatique…",
+      });
+      connect();
+    }
+  }, SNAPSHOT_ACK_TIMEOUT_MS);
 }
 
 function scheduleReconnect(generation) {
@@ -222,7 +257,14 @@ function handleMessage(event) {
       sendLatestSnapshot();
       return;
     }
-    emit({ lastAcknowledgedVersion: String(message.version || "0") });
+    const acknowledgedVersion = String(message.version || "0");
+    if (
+      pendingAcknowledgementVersion !== "0" &&
+      !newerVersion(pendingAcknowledgementVersion, acknowledgedVersion)
+    ) {
+      clearAcknowledgementTimer();
+    }
+    emit({ lastAcknowledgedVersion: acknowledgedVersion });
     return;
   }
 
@@ -266,6 +308,7 @@ function connect() {
     nextSocket.onerror = () => {
       if (generation === connectionGeneration) {
         emit({ status: "error", error: "Impossible de joindre le relais local." });
+        scheduleReconnect(generation);
       }
     };
     nextSocket.onclose = (event) => {
