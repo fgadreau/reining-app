@@ -46,7 +46,7 @@ test("relays current state, rejects stale updates, and restores state after rest
 
   const statusResponse = await fetch(`http://127.0.0.1:${port}/api/status`);
   const status = await statusResponse.json();
-  assert.equal(status.relayVersion, "0.2.1");
+  assert.equal(status.relayVersion, "0.2.2");
   assert.equal(status.overlayViewerCount, 1);
   assert.equal(status.tvViewerCount, 1);
   assert.ok(status.tvUrls.some((item) => item.url.endsWith("/tv")));

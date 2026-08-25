@@ -4,6 +4,10 @@ function text(value) {
   return String(value || "").trim();
 }
 
+function scoreText(value) {
+  return String(value ?? "").trim();
+}
+
 function copyRun(run) {
   if (!run || typeof run !== "object") return null;
 
@@ -14,7 +18,7 @@ function copyRun(run) {
     rider: text(run.rider),
     horse: text(run.horse),
     owner: text(run.owner),
-    scoreTotal: text(run.scoreTotal),
+    scoreTotal: scoreText(run.scoreTotal),
     status: text(run.status),
     identityHidden: Boolean(run.identityHidden),
     isReview: Boolean(run.isReview),
@@ -55,7 +59,7 @@ function copyStandingGroup(group, groupIndex) {
         rider: text(entry?.rider),
         horse: text(entry?.horse),
         owner: text(entry?.owner),
-        scoreTotal: text(entry?.scoreTotal),
+        scoreTotal: scoreText(entry?.scoreTotal),
       }))
       .filter((entry) => entry.scoreTotal),
   };

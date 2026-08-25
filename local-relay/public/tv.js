@@ -49,6 +49,7 @@ const elements = {
   competitionNextDetails: document.querySelector("#competition-next-details"),
   competitionLast: document.querySelector("#competition-last"),
   competitionLastDetails: document.querySelector("#competition-last-details"),
+  competitionLastScore: document.querySelector("#competition-last-score"),
 };
 
 const params = new URLSearchParams(location.search);
@@ -200,7 +201,12 @@ function renderLive(liveItem) {
 function renderParticipant(slot, participant) {
   const data = participant || { name: "—", meta: "", details: "", score: "" };
   elements[`${slot}Meta`].textContent = data.meta || "";
-  elements[`${slot}Name`].textContent = data.name || "—";
+  renderScrollingText(elements[`${slot}Name`], data.name || "—", {
+    pixelsPerSecond: 28,
+    minDurationSeconds: 7,
+    maxDurationSeconds: 14,
+    padding: 28,
+  });
   elements[`${slot}Details`].textContent = data.details || "";
   if (slot === "current") {
     elements.currentScore.hidden = !data.score;
@@ -212,19 +218,33 @@ function renderPrevious(previous) {
   const cards = previous.slice(0, 2).map((participant) => {
     const card = document.createElement("article");
     card.className = "previous";
+    const heading = document.createElement("div");
+    heading.className = "previous__heading";
     const name = document.createElement("strong");
-    name.textContent = participant.name || "—";
+    name.className = "previous__name";
+    renderScrollingText(name, participant.name || "—", {
+      pixelsPerSecond: 28,
+      minDurationSeconds: 7,
+      maxDurationSeconds: 14,
+      padding: 28,
+    });
+    const score = document.createElement("strong");
+    score.className = "previous__score";
+    score.hidden = !participant.score;
+    score.textContent = participant.score ? `Score · ${participant.score}` : "";
+    heading.append(name, score);
     const details = document.createElement("span");
-    details.textContent = [participant.meta, participant.details, participant.score ? `Score · ${participant.score}` : ""]
+    details.className = "previous__details";
+    details.textContent = [participant.meta, participant.details]
       .filter(Boolean)
       .join(" · ");
-    card.append(name, details);
+    card.append(heading, details);
     return card;
   });
   while (cards.length < 2) {
     const empty = document.createElement("article");
     empty.className = "previous";
-    empty.innerHTML = "<strong>—</strong><span>Aucun passage / No completed run</span>";
+    empty.innerHTML = "<div class=\"previous__heading\"><strong class=\"previous__name\">—</strong></div><span class=\"previous__details\">Aucun passage / No completed run</span>";
     cards.push(empty);
   }
   elements.previousList.replaceChildren(...cards);
@@ -317,10 +337,53 @@ function renderCompetitionVideo(show) {
 }
 
 function renderCompetitionParticipant(slot, participant) {
-  elements[`competition${slot}`].textContent = participant?.name || "—";
+  renderScrollingText(elements[`competition${slot}`], participant?.name || "—");
   elements[`competition${slot}Details`].textContent = participant
-    ? [participant.meta, participant.details, participant.score ? `Score · ${participant.score}` : ""].filter(Boolean).join(" · ")
+    ? [participant.meta, participant.details].filter(Boolean).join(" · ")
     : "";
+  if (slot === "Last") {
+    elements.competitionLastScore.hidden = !participant?.score;
+    elements.competitionLastScore.textContent = participant?.score
+      ? `Score · ${participant.score}`
+      : "";
+  }
+}
+
+function renderScrollingText(target, value, options = {}) {
+  const content = String(value || "—");
+  const inner = document.createElement("span");
+  inner.className = "scrolling-text__inner";
+  inner.textContent = content;
+  target.classList.add("scrolling-text");
+  target.dataset.scrollPadding = String(options.padding || 36);
+  target.dataset.scrollPixelsPerSecond = String(options.pixelsPerSecond || 18);
+  target.dataset.scrollMinDuration = String(options.minDurationSeconds || 9);
+  target.dataset.scrollMaxDuration = String(options.maxDurationSeconds || 24);
+  target.style.setProperty("--showscore-marquee-padding", `${options.padding || 36}px`);
+  target.replaceChildren(inner);
+  requestAnimationFrame(() => measureScrollingText(target));
+}
+
+function measureScrollingText(target) {
+  const inner = target.querySelector(".scrolling-text__inner");
+  if (!inner) return;
+
+  target.dataset.scrolling = "false";
+  target.style.removeProperty("--showscore-marquee-distance");
+  target.style.removeProperty("--showscore-marquee-duration");
+
+  const overflow = inner.scrollWidth - target.clientWidth;
+  if (overflow <= 2) return;
+
+  const padding = Number(target.dataset.scrollPadding) || 36;
+  const pixelsPerSecond = Number(target.dataset.scrollPixelsPerSecond) || 18;
+  const minDuration = Number(target.dataset.scrollMinDuration) || 9;
+  const maxDuration = Number(target.dataset.scrollMaxDuration) || 24;
+  const distance = Math.ceil(overflow + padding);
+  const duration = Math.min(Math.max(distance / pixelsPerSecond, minDuration), maxDuration);
+  target.style.setProperty("--showscore-marquee-distance", `${distance}px`);
+  target.style.setProperty("--showscore-marquee-duration", `${duration}s`);
+  target.dataset.scrolling = "true";
 }
 
 function updateStandingsSlides(snapshot) {
@@ -480,7 +543,7 @@ function formatRun(run, includeScore) {
     name: run.rider || "Cavalier / Rider",
     meta: [order, run.backNumber ? `Back ${run.backNumber}` : ""].filter(Boolean).join(" · "),
     details: [run.horse, run.owner ? `Propriétaire / Owner: ${run.owner}` : ""].filter(Boolean).join(" · "),
-    score: includeScore ? String(run.scoreTotal || "") : "",
+    score: includeScore ? String(run.scoreTotal ?? "").trim() : "",
   };
 }
 
@@ -538,6 +601,10 @@ function formatTimer(seconds) {
 
 function normalize(value) { return String(value || "").replace(/\s+/g, " ").trim().toLowerCase(); }
 function initials(value) { return String(value || "").split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]).join("").toUpperCase(); }
+
+window.addEventListener("resize", () => {
+  document.querySelectorAll(".scrolling-text").forEach(measureScrollingText);
+});
 
 setInterval(() => {
   if (currentSnapshot) {
