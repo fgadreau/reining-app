@@ -18,6 +18,7 @@ import {
 } from "./announcerLiveSyncQueue";
 
 let activeFlush = null;
+const ANNOUNCER_CLOUD_REQUEST_TIMEOUT_MS = 8000;
 
 function toAnnouncerLiveSession(row, classId, setupRuns = []) {
   return normalizeAnnouncerLiveSession(
@@ -58,7 +59,15 @@ async function upsertRemoteSession(classId, session) {
 
   try {
     const row = toAnnouncerLiveRow(classId, session);
-    const { data, error } = await supabase.rpc(
+    const abortController =
+      typeof AbortController === "undefined" ? null : new AbortController();
+    const timeout = abortController
+      ? setTimeout(
+          () => abortController.abort(),
+          ANNOUNCER_CLOUD_REQUEST_TIMEOUT_MS
+        )
+      : null;
+    const request = supabase.rpc(
       "save_show_score_announcer_live_session",
       {
         target_class_id: row.class_id,
@@ -70,6 +79,15 @@ async function upsertRemoteSession(classId, session) {
         target_revision: row.revision,
       }
     );
+    let result;
+    try {
+      result = await (abortController && request.abortSignal
+        ? request.abortSignal(abortController.signal)
+        : request);
+    } finally {
+      if (timeout) clearTimeout(timeout);
+    }
+    const { data, error } = result;
 
     if (error) throw error;
     if (data !== true) {
@@ -277,7 +295,23 @@ export async function saveAnnouncerLiveSessionRepository(
   if (typeof onStatusChange === "function") {
     onStatusChange(ANNOUNCER_LIVE_SYNC_STATUSES.LOCAL);
   }
-  await flushAnnouncerLiveSyncQueue({ classId, onStatusChange });
+
+  // The live controls must never wait for Supabase. On a LAN that still has
+  // link connectivity but no Internet, navigator.onLine can remain true and
+  // the HTTP request may otherwise take a long time to fail. The local copy is
+  // authoritative for the announcer and relay; cloud sync continues in the
+  // background and the durable queue is retried later.
+  if (typeof navigator === "undefined" || navigator.onLine !== false) {
+    void flushAnnouncerLiveSyncQueue({ classId, onStatusChange }).catch(
+      (error) => {
+        console.error("Erreur synchronisation live annonceur:", error);
+        onStatusChange?.(ANNOUNCER_LIVE_SYNC_STATUSES.PENDING);
+      }
+    );
+  } else {
+    onStatusChange?.(ANNOUNCER_LIVE_SYNC_STATUSES.PENDING);
+  }
+
   return normalized;
 }
 

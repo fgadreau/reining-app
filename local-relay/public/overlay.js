@@ -11,6 +11,9 @@ const elements = {
   takeover: document.querySelector("#sponsor-takeover"),
   takeoverTitle: document.querySelector("#takeover-title"),
   takeoverList: document.querySelector("#takeover-list"),
+  sponsorRail: document.querySelector("#sponsor-rail"),
+  sponsorRailLevel: document.querySelector("#sponsor-rail-level"),
+  sponsorRailList: document.querySelector("#sponsor-rail-list"),
 };
 
 const selectedArena = new URLSearchParams(location.search).get("arena")?.trim() || "";
@@ -54,15 +57,19 @@ function render(snapshot) {
 
   sponsorSlides = buildSponsorSlides(association.sponsorGroups || []);
   const sponsorTakeover = dragActive && !neutral && sponsorSlides.length > 0;
+  const hasSponsors = sponsorSlides.length > 0;
   elements.takeover.hidden = !sponsorTakeover;
+  elements.sponsorRail.hidden = sponsorTakeover || !hasSponsors;
   elements.bar.hidden = sponsorTakeover;
+  elements.overlay.dataset.hasSponsors = hasSponsors ? "true" : "false";
   elements.overlay.dataset.mode = sponsorTakeover ? "sponsor-takeover" : neutral ? "neutral" : liveItem ? "live" : "waiting";
 
   if (sponsorTakeover) {
-    startSponsorTakeover();
+    startSponsorRotation(true);
     return;
   }
-  stopSponsorTakeover();
+  if (hasSponsors) startSponsorRotation(false);
+  else stopSponsorRotation();
 
   elements.eyebrow.textContent = neutral ? "Vous regardez" : show.name || "ShowScore local";
   elements.className.textContent = neutral
@@ -140,15 +147,22 @@ function buildSponsorSlides(groups) {
   });
 }
 
-function startSponsorTakeover() {
+function startSponsorRotation(isTakeover) {
   clearInterval(sponsorTimer);
   const draw = () => {
     const slide = sponsorSlides[sponsorIndex % sponsorSlides.length];
-    elements.takeoverTitle.textContent = slide.name ? `Merci à nos commanditaires · ${slide.name}` : "Merci à nos commanditaires";
-    elements.takeoverList.style.setProperty("--sponsor-count", Math.min(slide.logos.length, 2));
-    elements.takeoverList.replaceChildren(...slide.logos.map((logo) => {
+    const target = isTakeover ? elements.takeoverList : elements.sponsorRailList;
+    if (isTakeover) {
+      elements.takeoverTitle.textContent = slide.name
+        ? `Merci à nos commanditaires · ${slide.name}`
+        : "Merci à nos commanditaires";
+    } else {
+      elements.sponsorRailLevel.textContent = slide.name || "";
+    }
+    target.style.setProperty("--sponsor-count", Math.min(slide.logos.length, 2));
+    target.replaceChildren(...slide.logos.map((logo) => {
       const tile = document.createElement("div");
-      tile.className = "takeover__sponsor";
+      tile.className = isTakeover ? "takeover__sponsor" : "sponsor-rail__sponsor";
       const image = document.createElement("img");
       image.src = logo.logoDataUrl;
       image.alt = logo.name || "Commanditaire";
@@ -161,7 +175,7 @@ function startSponsorTakeover() {
   if (sponsorSlides.length > 1) sponsorTimer = setInterval(draw, 8000);
 }
 
-function stopSponsorTakeover() {
+function stopSponsorRotation() {
   clearInterval(sponsorTimer);
   sponsorTimer = null;
 }
