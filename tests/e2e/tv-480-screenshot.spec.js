@@ -104,11 +104,16 @@ test("keeps the information strip below the video at 480 by 270", async ({
       return {
         nameWeight: getComputedStyle(name).fontWeight,
         horseWeight: getComputedStyle(horse).fontWeight,
+        nameFontSize: Number.parseFloat(getComputedStyle(name).fontSize),
+        horseFontSize: Number.parseFloat(getComputedStyle(horse).fontSize),
         scoreFontSize: Number.parseFloat(getComputedStyle(score).fontSize),
       };
     });
   expect(lastParticipantTypography.horseWeight).toBe(
     lastParticipantTypography.nameWeight
+  );
+  expect(lastParticipantTypography.horseFontSize).toBe(
+    lastParticipantTypography.nameFontSize
   );
   expect(lastParticipantTypography.scoreFontSize).toBeGreaterThanOrEqual(34);
 
