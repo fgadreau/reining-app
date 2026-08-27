@@ -59,6 +59,31 @@
   -webkit-line-clamp: 1 !important;
 }
 
+.tv-competition-participant--has-score {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.tv-competition-participant--has-score
+  .tv-competition-participant-label,
+.tv-competition-participant--has-score
+  .tv-competition-participant-name {
+  grid-column: 1 / -1;
+}
+
+.tv-competition-participant--has-score
+  .tv-competition-participant-horse {
+  grid-row: 3;
+  grid-column: 1;
+}
+
+.tv-competition-participant--has-score
+  .tv-competition-participant-score {
+  grid-row: 3;
+  grid-column: 2;
+  align-self: center;
+  justify-self: end !important;
+}
+
 @media (max-height: 820px) {
   .tv-display:not(.tv-display--competition) {
     gap: clamp(7px, 1.2vh, 10px) !important;
@@ -363,8 +388,8 @@
 
 @media (max-width: 600px) and (max-height: 400px) {
   .tv-competition-strip {
-    height: 64px !important;
-    min-height: 64px !important;
+    height: 74px !important;
+    min-height: 74px !important;
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     box-sizing: border-box;
     overflow: hidden;
@@ -435,11 +460,11 @@
 
   .tv-competition-participant--has-score
     .tv-competition-participant-horse {
-    display: none !important;
+    display: block !important;
   }
 
   .tv-competition-participant--has-score
     .tv-competition-participant-score {
-    font-size: 17px !important;
+    font-size: 34px !important;
   }
 }
