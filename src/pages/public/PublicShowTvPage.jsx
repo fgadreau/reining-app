@@ -243,8 +243,6 @@ function PublicShowTvPage() {
           videoUrl={tvVideoUrl}
           liveItem={liveItem}
           upcomingScheduleItem={upcomingScheduleItem}
-          selectedArena={selectedArena}
-          show={show}
         />
       ) : displayMode === "competition-loading" ? (
         <CompetitionLoadingPanel selectedArena={selectedArena} />
@@ -367,18 +365,9 @@ function CompetitionVideoPanel({
   videoUrl,
   liveItem,
   upcomingScheduleItem,
-  selectedArena,
-  show,
 }) {
   const videoRef = useRef(null);
   const isWarmup = liveItem?.kind === "paidWarmup";
-  const title = liveItem
-    ? isWarmup
-      ? liveItem.item?.name || "Paid warm up"
-      : liveItem.item?.className || "Classe / Class"
-    : upcomingScheduleItem
-      ? getTvScheduleItemName(upcomingScheduleItem)
-      : show?.name || "";
   const current = liveItem
     ? isWarmup
       ? buildWarmupCurrent(liveItem.item)
@@ -456,9 +445,13 @@ function CompetitionVideoPanel({
   return (
     <section
       style={competitionVideoLayoutStyle}
+      className="tv-competition-layout"
       data-tv-layout="competition-video"
     >
-      <div style={competitionVideoWrapStyle}>
+      <div
+        style={competitionVideoWrapStyle}
+        className="tv-competition-video-wrap"
+      >
         <video
           ref={videoRef}
           key={videoUrl}
@@ -470,52 +463,41 @@ function CompetitionVideoPanel({
           playsInline
           preload="auto"
           disablePictureInPicture
+          className="tv-competition-video"
           data-tv-competition-video
         />
       </div>
 
-      <div style={competitionLiveStripStyle} data-tv-live-strip>
-        <div style={competitionBlockStyle}>
-          <div style={competitionLiveLabelStyle}>
-            {liveItem ? (
-              <BilingualText fr="En direct" en="Live" />
-            ) : upcomingScheduleItem ? (
-              <BilingualText fr="À venir" en="Upcoming" />
-            ) : (
-              <BilingualText fr="En attente" en="Waiting" />
-            )}
-            {selectedArena ? ` · ${selectedArena}` : ""}
-          </div>
-          <CompetitionScrollingText
-            style={competitionClassNameStyle}
-            dataLabel="class-name"
-          >
-            {title}
-          </CompetitionScrollingText>
-        </div>
-
+      <div
+        style={competitionLiveStripStyle}
+        className="tv-competition-strip"
+        data-tv-live-strip
+      >
         {liveItem ? (
           <>
             <CompetitionStripParticipant
               labelFr="En piste"
-              labelEn="On course"
+              labelEn="Live"
               participant={current}
               timerWarmup={isWarmup ? liveItem.item : null}
               active
             />
             <CompetitionStripParticipant
               labelFr="Prochain"
-              labelEn="Up next"
+              labelEn="Next"
               participant={upcoming}
             />
             <CompetitionStripParticipant
-              labelFr="Dernier passage"
-              labelEn="Last run"
+              labelFr="Dernier"
+              labelEn="Last"
               participant={previous}
             />
           </>
         ) : (
-          <div style={competitionWaitingStyle}>
+          <div
+            style={competitionWaitingStyle}
+            className="tv-competition-waiting"
+          >
             {upcomingScheduleItem ? (
               formatTvUpcomingSchedule(upcomingScheduleItem)
             ) : (
@@ -539,8 +521,18 @@ function CompetitionStripParticipant({
   active = false,
 }) {
   return (
-    <div style={competitionParticipantStyle(active)}>
-      <div style={competitionParticipantLabelStyle}>
+    <div
+      style={competitionParticipantStyle(active)}
+      className={`tv-competition-participant${
+        active ? " tv-competition-participant--active" : ""
+      }${timerWarmup ? " tv-competition-participant--timer" : ""}${
+        participant?.score ? " tv-competition-participant--has-score" : ""
+      }`}
+    >
+      <div
+        style={competitionParticipantLabelStyle}
+        className="tv-competition-participant-label"
+      >
         <BilingualText fr={labelFr} en={labelEn} />
       </div>
       {timerWarmup ? (
@@ -549,26 +541,37 @@ function CompetitionStripParticipant({
       <CompetitionScrollingText
         style={competitionParticipantNameStyle}
         dataLabel="participant-name"
+        dataAttributes={{ className: "tv-competition-participant-name" }}
       >
-        {`${participant?.meta ? `${participant.meta} · ` : ""}${
-          participant?.fr || "—"
+        {`${participant?.fr || "—"}${
+          participant?.meta ? ` · ${participant.meta}` : ""
         }`}
       </CompetitionScrollingText>
       {participant?.horse ? (
         <CompetitionScrollingText
           style={competitionParticipantHorseStyle}
           dataLabel="participant-details"
+          dataAttributes={{ className: "tv-competition-participant-horse" }}
         >
-          {participant.horse}
+          {getCompetitionHorseText(participant.horse)}
         </CompetitionScrollingText>
       ) : null}
       {participant?.score ? (
-        <div style={competitionParticipantScoreStyle}>
+        <div
+          style={competitionParticipantScoreStyle}
+          className="tv-competition-participant-score"
+        >
           Score · {participant.score}
         </div>
       ) : null}
     </div>
   );
+}
+
+function getCompetitionHorseText(value) {
+  return String(value || "")
+    .split(" · Propriétaire / Owner:")[0]
+    .trim();
 }
 
 function CompetitionScrollingText({
@@ -1718,6 +1721,7 @@ const pageStyle = {
 const competitionPageStyle = {
   ...pageStyle,
   display: "grid",
+  gridTemplateRows: "minmax(0, 1fr)",
   placeItems: "center",
   padding: 0,
   background: "#000",
@@ -1796,47 +1800,23 @@ const competitionVideoWrapStyle = {
 };
 
 const competitionVideoStyle = {
-  width: "90%",
-  height: "90%",
-  maxWidth: "90%",
-  maxHeight: "90%",
+  width: "85%",
+  height: "85%",
+  maxWidth: "85%",
+  maxHeight: "85%",
   display: "block",
   objectFit: "contain",
   background: "#000",
 };
 
 const competitionLiveStripStyle = {
-  minHeight: 150,
+  minHeight: "clamp(64px, 14vh, 150px)",
   display: "grid",
-  gridTemplateColumns: "minmax(250px, 0.85fr) repeat(3, minmax(0, 1fr))",
+  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
   alignItems: "stretch",
   borderTop: "3px solid #f4d98c",
   background: "linear-gradient(90deg, #111827 0%, #17252c 100%)",
   color: "#fff",
-};
-
-const competitionBlockStyle = {
-  minWidth: 0,
-  display: "grid",
-  alignContent: "center",
-  gap: 8,
-  padding: "18px 24px",
-  background: "rgba(244, 217, 140, 0.1)",
-  borderRight: "1px solid rgba(255, 255, 255, 0.16)",
-};
-
-const competitionLiveLabelStyle = {
-  color: "#f4d98c",
-  fontSize: "clamp(16px, 1.2vw, 23px)",
-  fontWeight: 950,
-  textTransform: "uppercase",
-};
-
-const competitionClassNameStyle = {
-  color: "#fff",
-  fontSize: "clamp(22px, 2vw, 38px)",
-  fontWeight: 950,
-  lineHeight: 1,
 };
 
 const competitionParticipantStyle = (active) => ({
@@ -1844,38 +1824,38 @@ const competitionParticipantStyle = (active) => ({
   minWidth: 0,
   display: "grid",
   alignContent: "center",
-  gap: 5,
-  padding: "16px 22px",
+  gap: 3,
+  padding: "10px 14px",
   borderRight: "1px solid rgba(255, 255, 255, 0.16)",
   background: active ? "rgba(13, 148, 136, 0.22)" : "transparent",
 });
 
 const competitionParticipantLabelStyle = {
   color: "#f4d98c",
-  fontSize: "clamp(14px, 1vw, 20px)",
+  fontSize: "clamp(17px, 1.25vw, 25px)",
   fontWeight: 950,
   textTransform: "uppercase",
 };
 
 const competitionParticipantNameStyle = {
-  fontSize: "clamp(20px, 1.75vw, 34px)",
+  fontSize: "clamp(25px, 2.1vw, 40px)",
   fontWeight: 950,
   lineHeight: 1.05,
 };
 
 const competitionParticipantHorseStyle = {
   color: "#cbd5e1",
-  fontSize: "clamp(15px, 1.1vw, 22px)",
+  fontSize: "clamp(18px, 1.4vw, 27px)",
   fontWeight: 750,
 };
 
 const competitionParticipantScoreStyle = {
   justifySelf: "start",
-  padding: "3px 8px",
+  padding: "2px 6px",
   borderRadius: 6,
   background: "rgba(34, 197, 94, 0.18)",
   color: "#bbf7d0",
-  fontSize: "clamp(15px, 1vw, 20px)",
+  fontSize: "clamp(18px, 1.3vw, 25px)",
   fontWeight: 950,
 };
 
@@ -1896,8 +1876,8 @@ const warmupTimerStyle = (cue, variant) => {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: variant === "competition" ? 10 : 18,
-    padding: variant === "competition" ? "5px 10px" : "9px 16px",
+    gap: variant === "competition" ? 8 : 18,
+    padding: variant === "competition" ? "4px 8px" : "9px 16px",
     border: `2px solid ${border}`,
     borderRadius: variant === "competition" ? 8 : 12,
     background,
@@ -1910,7 +1890,7 @@ const warmupTimerStyle = (cue, variant) => {
 const warmupTimerLabelStyle = (variant) => ({
   fontSize:
     variant === "competition"
-      ? "clamp(11px, 0.8vw, 16px)"
+      ? "clamp(14px, 1vw, 19px)"
       : "clamp(15px, 1.2vw, 22px)",
   fontWeight: 950,
   textTransform: "uppercase",
@@ -1920,7 +1900,7 @@ const warmupTimerLabelStyle = (variant) => ({
 const warmupTimerValueStyle = (variant) => ({
   fontSize:
     variant === "competition"
-      ? "clamp(25px, 2.1vw, 42px)"
+      ? "clamp(30px, 2.5vw, 48px)"
       : "clamp(44px, 4.8vw, 82px)",
   fontVariantNumeric: "tabular-nums",
   fontWeight: 1000,
@@ -1934,7 +1914,7 @@ const competitionWaitingStyle = {
   placeItems: "center",
   padding: "18px 28px",
   color: "#dbeafe",
-  fontSize: "clamp(20px, 1.6vw, 30px)",
+  fontSize: "clamp(24px, 2vw, 38px)",
   fontWeight: 850,
   textAlign: "center",
 };
