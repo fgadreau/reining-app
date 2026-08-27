@@ -87,7 +87,30 @@ test("keeps the information strip below the video at 480 by 270", async ({
   await expect(strip).toBeVisible();
   await expect(
     page.locator(".tv-competition-participant-score")
-  ).toHaveText("Score · 72½");
+  ).toHaveText("72½");
+
+  const lastParticipantTypography = await page
+    .locator(".tv-competition-participant--has-score")
+    .evaluate((participant) => {
+      const name = participant.querySelector(
+        ".tv-competition-participant-name"
+      );
+      const horse = participant.querySelector(
+        ".tv-competition-participant-horse"
+      );
+      const score = participant.querySelector(
+        ".tv-competition-participant-score"
+      );
+      return {
+        nameWeight: getComputedStyle(name).fontWeight,
+        horseWeight: getComputedStyle(horse).fontWeight,
+        scoreFontSize: Number.parseFloat(getComputedStyle(score).fontSize),
+      };
+    });
+  expect(lastParticipantTypography.horseWeight).toBe(
+    lastParticipantTypography.nameWeight
+  );
+  expect(lastParticipantTypography.scoreFontSize).toBeGreaterThanOrEqual(34);
 
   await page.locator("video").evaluate((video) => {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
@@ -117,7 +140,7 @@ test("keeps the information strip below the video at 480 by 270", async ({
   });
 
   expect(geometry.viewport).toEqual([480, 270]);
-  expect(geometry.stripHeight).toBe(64);
+  expect(geometry.stripHeight).toBe(74);
   expect(geometry.videoBottom).toBeLessThanOrEqual(geometry.stripTop);
   expect(geometry.stripTop).toBeGreaterThan(190);
   expect(geometry.columns).toHaveLength(3);
