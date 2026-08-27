@@ -174,8 +174,9 @@ function mergeStandingRunWithSetupRun(run, setupRun, classCodes) {
 function normalizeStandingEntry(run, index = 0) {
   const scoreTotal = formatTotalValue(run?.scoreTotal);
   const cleanScore = String(scoreTotal || "").trim();
+  const scoreValue = parseStandingScore(scoreTotal);
 
-  if (!cleanScore || cleanScore === "Review") {
+  if (!cleanScore || cleanScore === "Review" || scoreValue === 0) {
     return null;
   }
 
@@ -192,7 +193,7 @@ function normalizeStandingEntry(run, index = 0) {
     horseId: run?.horseId || "",
     horseNrha: run?.horseNrha || "",
     scoreTotal,
-    scoreValue: parseStandingScore(scoreTotal),
+    scoreValue,
     status: String(run?.status || "").trim(),
   };
 }
