@@ -1845,7 +1845,7 @@ const competitionParticipantNameStyle = {
 
 const competitionParticipantHorseStyle = {
   color: "#cbd5e1",
-  fontSize: "clamp(18px, 1.4vw, 27px)",
+  fontSize: "clamp(25px, 2.1vw, 40px)",
   fontWeight: 950,
 };
 
