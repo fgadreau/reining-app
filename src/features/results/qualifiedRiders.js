@@ -32,9 +32,10 @@ function selectQualifiedEntries(entries, qualifiedRiderCount) {
   const count = Number.parseInt(qualifiedRiderCount, 10);
   if (!Number.isFinite(count) || count <= 0) return [];
 
-  const ranked = (Array.isArray(entries) ? entries : []).filter((entry) =>
-    Number.isFinite(parseScoreTotalValue(entry?.scoreTotal))
-  );
+  const ranked = (Array.isArray(entries) ? entries : []).filter((entry) => {
+    const score = parseScoreTotalValue(entry?.scoreTotal);
+    return Number.isFinite(score) && score !== 0;
+  });
   if (ranked.length <= count) return ranked;
 
   const cutoffScore = parseScoreTotalValue(ranked[count - 1]?.scoreTotal);

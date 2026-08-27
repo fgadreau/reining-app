@@ -288,7 +288,13 @@ function getOrCreateGroup(groupsByCode, groupDetails) {
 }
 
 function normalizeResultEntries(entries) {
-  return (Array.isArray(entries) ? entries : []).map(normalizeResultEntry);
+  return (Array.isArray(entries) ? entries : [])
+    .map(normalizeResultEntry)
+    .filter(hasNonZeroResultScore)
+    .map((entry, index) => ({
+      ...entry,
+      rank: index + 1,
+    }));
 }
 
 function normalizeResultEntry(run, index = 0) {
@@ -345,11 +351,16 @@ function firstResultText(source, keys) {
 
 function rankResultEntries(entries) {
   return [...entries]
+    .filter(hasNonZeroResultScore)
     .sort(compareResultEntries)
     .map((entry, index) => ({
       ...entry,
       rank: index + 1,
     }));
+}
+
+function hasNonZeroResultScore(entry) {
+  return parseResultScore(entry?.scoreTotal) !== 0;
 }
 
 function compareResultEntries(a, b) {
