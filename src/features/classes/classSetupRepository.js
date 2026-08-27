@@ -8,6 +8,7 @@ import {
 } from "./classSchedule";
 import {
   deleteClassSetup,
+  getAllClassSetups,
   getClassSetup,
   normalizeClassSetup,
   saveClassSetup,
@@ -20,6 +21,8 @@ const LIVE_DISPLAY_PENDING_STORAGE_KEY =
   "showscore_live_display_mode_pending_v1";
 const LIVE_SOURCE_PENDING_STORAGE_KEY =
   "showscore_live_data_source_pending_v1";
+const CLASS_SETUP_PENDING_STORAGE_KEY =
+  "showscore_class_setup_pending_v1";
 
 function loadPendingValues(storageKey) {
   try {
@@ -65,6 +68,30 @@ function clearPendingLiveDataSource(classId) {
   const pending = loadPendingValues(LIVE_SOURCE_PENDING_STORAGE_KEY);
   delete pending[classId];
   savePendingValues(LIVE_SOURCE_PENDING_STORAGE_KEY, pending);
+}
+
+function getPendingClassSetupToken(classId) {
+  return loadPendingValues(CLASS_SETUP_PENDING_STORAGE_KEY)[classId] || null;
+}
+
+function setPendingClassSetup(classId) {
+  const pending = loadPendingValues(CLASS_SETUP_PENDING_STORAGE_KEY);
+  const token = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  pending[classId] = token;
+  savePendingValues(CLASS_SETUP_PENDING_STORAGE_KEY, pending);
+  return token;
+}
+
+function clearPendingClassSetup(classId, expectedToken = null) {
+  const pending = loadPendingValues(CLASS_SETUP_PENDING_STORAGE_KEY);
+
+  if (expectedToken && pending[classId] !== expectedToken) {
+    return false;
+  }
+
+  delete pending[classId];
+  savePendingValues(CLASS_SETUP_PENDING_STORAGE_KEY, pending);
+  return true;
 }
 
 async function pushLiveDisplayMode(classId, liveDisplayMode) {
@@ -164,12 +191,53 @@ function toSetupRow(classId, setup) {
   return row;
 }
 
+function hasImportedDraw(setup) {
+  return Boolean(
+    setup?.isDrawImported &&
+      Array.isArray(setup?.runs) &&
+      setup.runs.length > 0
+  );
+}
+
+async function pushClassSetup(classId, setup, supabase = getSupabaseClient()) {
+  if (!supabase) return false;
+
+  const { error } = await supabase
+    .from("show_score_block_setups")
+    .upsert(toSetupRow(classId, setup));
+
+  if (error) throw error;
+  return true;
+}
+
+function clearClassSetupSyncState(classId, expectedToken = null) {
+  if (!clearPendingClassSetup(classId, expectedToken)) {
+    return false;
+  }
+
+  clearPendingLiveDataSource(classId);
+  clearPendingLiveDisplayMode(classId);
+  return true;
+}
+
 export async function getClassSetupRepository(classId) {
   const localSetup = getClassSetup(classId);
   const supabase = getSupabaseClient();
 
   if (!supabase) {
     return localSetup;
+  }
+
+  const pendingClassSetupToken = getPendingClassSetupToken(classId);
+  if (pendingClassSetupToken) {
+    try {
+      await pushClassSetup(classId, localSetup, supabase);
+      clearClassSetupSyncState(classId, pendingClassSetupToken);
+      return localSetup;
+    } catch (error) {
+      console.error("Erreur resynchronisation setup Supabase:", error);
+      return localSetup;
+    }
   }
 
   const pendingLiveDataSource = getPendingLiveDataSource(classId);
@@ -205,7 +273,20 @@ export async function getClassSetupRepository(classId) {
       .maybeSingle();
 
     if (error) throw error;
-    if (!data) return localSetup;
+    if (!data) {
+      const hasStoredLocalSetup = Object.prototype.hasOwnProperty.call(
+        getAllClassSetups(),
+        classId
+      );
+
+      if (hasStoredLocalSetup && hasImportedDraw(localSetup)) {
+        const recoveryToken = setPendingClassSetup(classId);
+        await pushClassSetup(classId, localSetup, supabase);
+        clearClassSetupSyncState(classId, recoveryToken);
+      }
+
+      return localSetup;
+    }
 
     const setup = toSetup(data);
     saveClassSetup(classId, setup);
@@ -231,6 +312,7 @@ export async function getClassSetupsForClassesRepository(classIds) {
 
   const pendingIds = uniqueIds.filter(
     (classId) =>
+      getPendingClassSetupToken(classId) ||
       getPendingLiveDataSource(classId) ||
       getPendingLiveDisplayMode(classId)
   );
@@ -244,6 +326,7 @@ export async function getClassSetupsForClassesRepository(classIds) {
   const protectedIds = new Set(
     uniqueIds.filter(
       (classId) =>
+        getPendingClassSetupToken(classId) ||
         getPendingLiveDataSource(classId) ||
         getPendingLiveDisplayMode(classId)
     )
@@ -266,13 +349,37 @@ export async function getClassSetupsForClassesRepository(classIds) {
 
     if (error) throw error;
 
-    (Array.isArray(data) ? data : []).forEach((row) => {
+    const remoteRows = Array.isArray(data) ? data : [];
+    const remoteSetupIds = new Set(remoteRows.map((row) => row?.block_id));
+
+    remoteRows.forEach((row) => {
       if (!row?.block_id || protectedIds.has(row.block_id)) return;
 
       const setup = toSetup(row);
       saveClassSetup(row.block_id, setup);
       setups[row.block_id] = setup;
     });
+
+    const storedSetups = getAllClassSetups();
+    const missingImportedDrawIds = remoteIds.filter(
+      (classId) =>
+        !remoteSetupIds.has(classId) &&
+        Object.prototype.hasOwnProperty.call(storedSetups, classId) &&
+        hasImportedDraw(setups[classId])
+    );
+
+    await Promise.all(
+      missingImportedDrawIds.map(async (classId) => {
+        const recoveryToken = setPendingClassSetup(classId);
+
+        try {
+          await pushClassSetup(classId, setups[classId], supabase);
+          clearClassSetupSyncState(classId, recoveryToken);
+        } catch (error) {
+          console.error("Erreur récupération draw importé Supabase:", error);
+        }
+      })
+    );
 
     return setups;
   } catch (error) {
@@ -313,19 +420,15 @@ export async function saveClassSetupRepository(classId, setup) {
   const supabase = getSupabaseClient();
 
   saveClassSetup(classId, normalized);
+  const pendingClassSetupToken = setPendingClassSetup(classId);
   if (previousSetup?.liveDataSource !== normalized.liveDataSource) {
     setPendingLiveDataSource(classId, normalized.liveDataSource);
   }
 
   if (supabase) {
     try {
-      const { error } = await supabase
-        .from("show_score_block_setups")
-        .upsert(toSetupRow(classId, normalized));
-
-      if (error) throw error;
-      clearPendingLiveDataSource(classId);
-      clearPendingLiveDisplayMode(classId);
+      await pushClassSetup(classId, normalized, supabase);
+      clearClassSetupSyncState(classId, pendingClassSetupToken);
     } catch (error) {
       console.error("Erreur sauvegarde setup Supabase:", error);
     }
@@ -431,6 +534,7 @@ export async function deleteClassSetupRepository(classId) {
   }
 
   deleteClassSetup(classId);
+  clearClassSetupSyncState(classId);
 }
 
 function isSetupReady(setup) {
