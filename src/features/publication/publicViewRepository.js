@@ -2110,6 +2110,9 @@ function buildResolvedPublicLiveState({
 }) {
   const scheduleItems = buildPublicLiveScheduleItems(timingSections);
   const scheduleRowsByItemKey = buildScheduleRowsByItemKey(timingSections);
+  const importedOrderRunsByClassId = buildImportedOrderRunsByClassId(
+    timingSections
+  );
   const paidWarmupViewsById = buildPaidWarmupViewsById({
     timingSections,
     scheduleItems,
@@ -2120,6 +2123,7 @@ function buildResolvedPublicLiveState({
       view: attachScheduleArenaToWarmup(warmup, scheduleItems),
       scheduleItems,
       scheduleRowsByItemKey,
+      importedOrderRunsByClassId,
       type: LIVE_SCHEDULE_ITEM_TYPES.PAID_WARMUP,
       itemId: warmup.id,
     })
@@ -2166,6 +2170,7 @@ function buildResolvedPublicLiveState({
         view: pendingWarmupView,
         scheduleItems,
         scheduleRowsByItemKey,
+        importedOrderRunsByClassId,
         type: LIVE_SCHEDULE_ITEM_TYPES.PAID_WARMUP,
         itemId: pendingWarmupView.id,
       });
@@ -2188,6 +2193,7 @@ function buildResolvedPublicLiveState({
         view: attachPublicTiming(explicitClass, timingByClassId),
         scheduleItems,
         scheduleRowsByItemKey,
+        importedOrderRunsByClassId,
         type: LIVE_SCHEDULE_ITEM_TYPES.CLASS,
         itemId: explicitClass.classId,
       })
@@ -2225,6 +2231,32 @@ function buildScheduleRowsByItemKey(timingSections) {
       .map((row) => [
         getScheduleItemKey(row.itemType, row.itemId || row.classId),
         row,
+      ])
+  );
+}
+
+function buildImportedOrderRunsByClassId(timingSections) {
+  return new Map(
+    (Array.isArray(timingSections) ? timingSections : [])
+      .flatMap((section) => section.classRows || [])
+      .filter(
+        (classData) =>
+          classData?.classItem?.id &&
+          classData?.setup?.isDrawImported &&
+          Array.isArray(classData.setup.runs) &&
+          classData.setup.runs.length > 0
+      )
+      .map((classData) => [
+        classData.classItem.id,
+        classData.setup.runs.map((run, index) => ({
+          id: run?.id || `${classData.classItem.id}-run-${index + 1}`,
+          draw: run?.draw ?? run?.order ?? index + 1,
+          order: run?.order ?? index + 1,
+          backNumber: run?.backNumber || "",
+          rider: run?.rider || "",
+          horse: run?.horse || "",
+          liveOrderStatus: "upcoming",
+        })),
       ])
   );
 }
@@ -2267,6 +2299,7 @@ function attachNextScheduleItem({
   view,
   scheduleItems,
   scheduleRowsByItemKey,
+  importedOrderRunsByClassId,
   type,
   itemId,
 }) {
@@ -2300,6 +2333,7 @@ function attachNextScheduleItem({
           )
         : null,
       currentScheduleRow: scheduleRow,
+      importedOrderRunsByClassId,
     }),
   };
 }
@@ -2308,6 +2342,7 @@ function buildPublicNextScheduleItem({
   scheduleItem,
   scheduleRow,
   currentScheduleRow,
+  importedOrderRunsByClassId,
 }) {
   const publicItem = toPublicScheduleItem(scheduleItem);
 
@@ -2336,6 +2371,10 @@ function buildPublicNextScheduleItem({
     startKind: hasFixedStart ? "fixed" : startAt ? "estimated" : "unknown",
     plannedStartAt: scheduleRow?.plannedStartAt || null,
     estimatedStartAt: estimatedStartAt || null,
+    orderRuns:
+      scheduleItem?.type === LIVE_SCHEDULE_ITEM_TYPES.CLASS
+        ? importedOrderRunsByClassId?.get(scheduleItem.itemId) || []
+        : [],
   };
 }
 

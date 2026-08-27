@@ -1219,8 +1219,10 @@ function PublicLiveClassStandings({ standings, panelId }) {
         style={standingsHeaderStyle(isOpen)}
       >
         <div>
-          <div style={runLabelStyle}>{t("public.results.provisionalStandings")}</div>
-          <div style={mutedTextStyle}>
+          <div style={accordionTitleStyle}>
+            {t("public.results.provisionalStandings")}
+          </div>
+          <div style={accordionSubtitleStyle}>
             {t("public.results.provisionalStandingsNote")}
           </div>
         </div>
@@ -1539,6 +1541,19 @@ function PublicNextScheduleItem({ item }) {
       <span style={nextScheduleNameStyle}>{item.name || "—"}</span>
       {startLabel && <span style={nextScheduleTimeStyle}>{startLabel}</span>}
       {meta && <span style={mutedTextStyle}>{meta}</span>}
+      {item.orderRuns?.length > 0 && (
+        <PublicLiveOrderTable
+          runs={item.orderRuns}
+          showScores={false}
+          description={t("public.results.participantCount", {
+            count: item.orderRuns.length,
+          })}
+          panelId={buildAccordionPanelId(
+            "public-next-class-order",
+            item.itemId || "class"
+          )}
+        />
+      )}
     </div>
   );
 }
@@ -1772,7 +1787,13 @@ function PublicPlannedDragCard({ item }) {
   );
 }
 
-function PublicLiveOrderTable({ runs, blockClasses, showScores, panelId }) {
+function PublicLiveOrderTable({
+  runs,
+  blockClasses,
+  showScores,
+  panelId,
+  description = null,
+}) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const runCount = runs.filter((item) => !isLiveDragItem(item)).length;
@@ -1803,9 +1824,9 @@ function PublicLiveOrderTable({ runs, blockClasses, showScores, panelId }) {
         style={orderHeaderStyle(isOpen)}
       >
         <div>
-          <div style={runLabelStyle}>{t("public.results.orderOfGo")}</div>
-          <div style={mutedTextStyle}>
-            {t("public.results.passedWithScores")}
+          <div style={accordionTitleStyle}>{t("public.results.orderOfGo")}</div>
+          <div style={accordionSubtitleStyle}>
+            {description || t("public.results.passedWithScores")}
           </div>
         </div>
         <div style={badgeStackStyle}>
@@ -1926,7 +1947,7 @@ function PublicPaidWarmupOrderTable({ entries, warmup, panelId }) {
         style={orderHeaderStyle(isOpen)}
       >
         <div>
-          <div style={runLabelStyle}>{t("public.results.orderOfGo")}</div>
+          <div style={accordionTitleStyle}>{t("public.results.orderOfGo")}</div>
           <div style={mutedTextStyle}>
             {t("public.results.participantCount", { count: participantCount })}
           </div>
@@ -2680,6 +2701,22 @@ const runLabelStyle = {
   fontSize: 12,
   letterSpacing: 0,
   marginBottom: 6,
+};
+
+const accordionTitleStyle = {
+  color: publicColors.text,
+  fontWeight: 950,
+  textTransform: "uppercase",
+  fontSize: 16,
+  lineHeight: 1.2,
+  marginBottom: 5,
+};
+
+const accordionSubtitleStyle = {
+  color: publicColors.text,
+  fontWeight: 800,
+  fontSize: 14,
+  lineHeight: 1.35,
 };
 
 const runTitleStyle = {
