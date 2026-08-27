@@ -197,6 +197,107 @@ test("loads a multi-day public show with one query per table", async () => {
   ).toBe(false);
 });
 
+test("exposes the imported draw of the next class from Supabase", async () => {
+  const currentClass = {
+    id: "current-class",
+    organization_id: "organization-1",
+    show_id: "show-next-draw",
+    show_day_id: "day-next-draw",
+    name: "Current class",
+    pattern: "8",
+    block_type: "competition",
+    sort_order: 1,
+  };
+  const nextClass = {
+    ...currentClass,
+    id: "next-class",
+    name: "Next class",
+    sort_order: 2,
+  };
+  const supabase = createSupabaseStub(
+    {
+      shows: [
+        {
+          id: "show-next-draw",
+          organization_id: "organization-1",
+          name: "Draw Show",
+          status: "active",
+          is_public: true,
+        },
+      ],
+      show_score_class_documents: [],
+      show_days: [
+        {
+          id: "day-next-draw",
+          organization_id: "organization-1",
+          show_id: "show-next-draw",
+          day_name: "Day 1",
+          day_date: "2026-08-27",
+          sort_order: 1,
+        },
+      ],
+      blocks: [currentClass, nextClass],
+      show_score_paid_warmups: [],
+      show_score_publication_states: [
+        { block_id: currentClass.id, status: "live_no_score" },
+        { block_id: nextClass.id, status: "hidden" },
+      ],
+      show_score_official_results: [],
+      show_score_scoring_sessions: [],
+      show_score_judge_sessions: [],
+      show_score_block_setups: [
+        { block_id: currentClass.id, pattern: "8", runs: [] },
+        {
+          block_id: nextClass.id,
+          pattern: "8",
+          is_draw_imported: true,
+          runs: [
+            {
+              id: "next-run-1",
+              draw: 1,
+              backNumber: "101",
+              rider: "First Rider",
+              horse: "First Horse",
+            },
+            {
+              id: "next-run-2",
+              draw: 2,
+              backNumber: "202",
+              rider: "Second Rider",
+              horse: "Second Horse",
+            },
+          ],
+        },
+      ],
+      show_score_announcer_live_sessions: [],
+      block_result_publications: [],
+    },
+    { public_show_timing_summary: [] }
+  );
+  getSupabaseClientMock.mockReturnValue(supabase.client);
+
+  const view = await getPublicShowViewRepository("show-next-draw");
+
+  expect(view.liveClass.nextScheduleItem).toMatchObject({
+    itemId: nextClass.id,
+    name: "Next class",
+    orderRuns: [
+      {
+        draw: 1,
+        backNumber: "101",
+        rider: "First Rider",
+        horse: "First Horse",
+      },
+      {
+        draw: 2,
+        backNumber: "202",
+        rider: "Second Rider",
+        horse: "Second Horse",
+      },
+    ],
+  });
+});
+
 test("applies a live scoring event without issuing another public read", async () => {
   const supabase = createSupabaseStub(
     {
