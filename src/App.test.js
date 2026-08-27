@@ -5243,6 +5243,87 @@ test("builds independent result groups by imported class code", () => {
   ).toMatchObject([{ rank: 1 }, { rank: 2 }]);
 });
 
+test("excludes zero, scratch and no-score entries from every ranking", () => {
+  const setupRuns = [
+    { id: "ranked", draw: 1, rider: "Ranked Rider" },
+    { id: "zero", draw: 2, rider: "Zero Rider" },
+    { id: "scratch-status", draw: 3, rider: "Scratch Status Rider" },
+    { id: "scratch-score", draw: 4, rider: "Scratch Score Rider" },
+    { id: "no-score-status", draw: 5, rider: "No Score Status Rider" },
+    { id: "no-score-total", draw: 6, rider: "No Score Total Rider" },
+  ];
+  const resultRuns = [
+    { id: "ranked", draw: 1, scoreTotal: "72", status: "scored" },
+    { id: "zero", draw: 2, scoreTotal: "0", status: "scored" },
+    {
+      id: "scratch-status",
+      draw: 3,
+      scoreTotal: "68",
+      status: "scratched",
+    },
+    { id: "scratch-score", draw: 4, scoreTotal: "SCR", status: "" },
+    {
+      id: "no-score-status",
+      draw: 5,
+      scoreTotal: "67",
+      status: "no_score",
+    },
+    { id: "no-score-total", draw: 6, scoreTotal: "NS", status: "" },
+  ];
+  const classData = {
+    classItem: {
+      id: "unranked-results",
+      name: "Rookie",
+      classCode: "ROOKIE",
+    },
+    setup: { runs: setupRuns },
+    official: { officialRuns: resultRuns },
+  };
+
+  const publishedGroups = buildClassResultGroups(classData);
+  const normalizedGroups = normalizeResultGroups([
+    {
+      id: "already-published",
+      entries: setupRuns.map((run, index) => ({
+        ...run,
+        ...resultRuns[index],
+        rank: index + 1,
+      })),
+    },
+  ]);
+  const liveGroups = buildLiveClassStandings({
+    classItem: classData.classItem,
+    setupRuns,
+    runs: resultRuns,
+  });
+  const qualifiedRiders = buildQualifiedRiderList({
+    standings: [
+      {
+        id: "qualified-class",
+        entries: setupRuns.map((run, index) => ({
+          ...run,
+          ...resultRuns[index],
+          rank: index + 1,
+        })),
+      },
+    ],
+    qualifiedRiderCount: 6,
+  });
+
+  expect(publishedGroups[0].entries).toMatchObject([
+    { rank: 1, rider: "Ranked Rider", scoreTotal: "72" },
+  ]);
+  expect(normalizedGroups[0].entries).toMatchObject([
+    { rank: 1, rider: "Ranked Rider", scoreTotal: "72" },
+  ]);
+  expect(liveGroups[0].entries).toMatchObject([
+    { rank: 1, rider: "Ranked Rider", scoreTotal: "72" },
+  ]);
+  expect(qualifiedRiders.map((rider) => rider.rider)).toEqual([
+    "Ranked Rider",
+  ]);
+});
+
 test("uses completed announcer scores before multi-judge scribe sessions for class results", () => {
   const classData = {
     classItem: {

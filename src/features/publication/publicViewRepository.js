@@ -338,6 +338,7 @@ function toClassSetup(row) {
         ? row.custom_pattern
         : null,
     runs: Array.isArray(row.runs) ? row.runs : [],
+    isDrawImported: Boolean(row.is_draw_imported),
     scheduleDetails: normalizeClassScheduleDetails(row.schedule_details),
     judges: Array.isArray(row.judges) ? row.judges : [],
     blockClasses: Array.isArray(row.block_classes) ? row.block_classes : [],
