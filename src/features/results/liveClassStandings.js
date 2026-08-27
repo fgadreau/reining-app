@@ -1,5 +1,8 @@
 import { formatTotalValue, parseScoreTotalValue } from "../../utils/scoring";
-import { normalizeBlockClasses } from "./classResults";
+import {
+  isRankableResultEntry,
+  normalizeBlockClasses,
+} from "./classResults";
 
 const DEFAULT_VISIBLE_ENTRIES = null;
 
@@ -176,7 +179,11 @@ function normalizeStandingEntry(run, index = 0) {
   const cleanScore = String(scoreTotal || "").trim();
   const scoreValue = parseStandingScore(scoreTotal);
 
-  if (!cleanScore || cleanScore === "Review" || scoreValue === 0) {
+  if (
+    !cleanScore ||
+    cleanScore === "Review" ||
+    !isRankableResultEntry({ ...run, scoreTotal })
+  ) {
     return null;
   }
 

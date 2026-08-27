@@ -1,4 +1,5 @@
 import { parseScoreTotalValue } from "../../utils/scoring";
+import { isRankableResultEntry } from "./classResults";
 
 function normalizeIdentityId(value) {
   return String(value || "")
@@ -34,7 +35,7 @@ function selectQualifiedEntries(entries, qualifiedRiderCount) {
 
   const ranked = (Array.isArray(entries) ? entries : []).filter((entry) => {
     const score = parseScoreTotalValue(entry?.scoreTotal);
-    return Number.isFinite(score) && score !== 0;
+    return isRankableResultEntry(entry) && Number.isFinite(score);
   });
   if (ranked.length <= count) return ranked;
 

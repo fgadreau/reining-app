@@ -27,6 +27,40 @@ const APPROVED_ANNOUNCER_RUN_STATUSES = new Set([
   "scratch",
 ]);
 
+const UNRANKED_RESULT_STATUSES = new Set([
+  "scratch",
+  "scratched",
+  "scr",
+  "no_score",
+  "noscore",
+  "ns",
+]);
+
+const UNRANKED_RESULT_SCORE_TOKENS = new Set([
+  "SCR",
+  "SCRATCH",
+  "SCRATCHED",
+  "NS",
+  "NOSCORE",
+]);
+
+export function isRankableResultEntry(entry = {}) {
+  const status = String(entry?.status || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  const scoreToken = String(entry?.scoreTotal || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s_-]+/g, "");
+
+  if (UNRANKED_RESULT_STATUSES.has(status)) return false;
+  if (UNRANKED_RESULT_SCORE_TOKENS.has(scoreToken)) return false;
+
+  const score = parseScoreTotalValue(entry?.scoreTotal);
+  return !Number.isFinite(score) || score !== 0;
+}
+
 export function hasCompletedAnnouncerResults(classData) {
   const session = classData?.announcerSession || {};
   const runs = Array.isArray(session.runs) ? session.runs : [];
@@ -290,7 +324,7 @@ function getOrCreateGroup(groupsByCode, groupDetails) {
 function normalizeResultEntries(entries) {
   return (Array.isArray(entries) ? entries : [])
     .map(normalizeResultEntry)
-    .filter(hasNonZeroResultScore)
+    .filter(isRankableResultEntry)
     .map((entry, index) => ({
       ...entry,
       rank: index + 1,
@@ -351,16 +385,12 @@ function firstResultText(source, keys) {
 
 function rankResultEntries(entries) {
   return [...entries]
-    .filter(hasNonZeroResultScore)
+    .filter(isRankableResultEntry)
     .sort(compareResultEntries)
     .map((entry, index) => ({
       ...entry,
       rank: index + 1,
     }));
-}
-
-function hasNonZeroResultScore(entry) {
-  return parseResultScore(entry?.scoreTotal) !== 0;
 }
 
 function compareResultEntries(a, b) {
