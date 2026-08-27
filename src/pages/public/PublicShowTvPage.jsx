@@ -561,7 +561,7 @@ function CompetitionStripParticipant({
           style={competitionParticipantScoreStyle}
           className="tv-competition-participant-score"
         >
-          Score · {participant.score}
+          {participant.score}
         </div>
       ) : null}
     </div>
@@ -1846,7 +1846,7 @@ const competitionParticipantNameStyle = {
 const competitionParticipantHorseStyle = {
   color: "#cbd5e1",
   fontSize: "clamp(18px, 1.4vw, 27px)",
-  fontWeight: 750,
+  fontWeight: 950,
 };
 
 const competitionParticipantScoreStyle = {
@@ -1855,8 +1855,9 @@ const competitionParticipantScoreStyle = {
   borderRadius: 6,
   background: "rgba(34, 197, 94, 0.18)",
   color: "#bbf7d0",
-  fontSize: "clamp(18px, 1.3vw, 25px)",
+  fontSize: "clamp(36px, 3vw, 56px)",
   fontWeight: 950,
+  lineHeight: 0.9,
 };
 
 const warmupTimerStyle = (cue, variant) => {
