@@ -25,6 +25,7 @@ import {
   normalizeClassJudges,
 } from "../../features/classes/classJudges";
 import {
+  buildImportedBlockClassSummary,
   parseImportedDraw,
   parseImportedDrawFile,
 } from "../../features/classes/classSetupImport";
@@ -204,73 +205,6 @@ function sortRunsByDraw(runs) {
   return resequenceRuns(
     [...runs].sort((a, b) => getRunDrawNumber(a) - getRunDrawNumber(b))
   );
-}
-
-function normalizeImportedClassCode(value) {
-  return String(value || "").trim().toUpperCase();
-}
-
-function getRunClassCodes(run) {
-  return Array.from(
-    new Set(
-      Array.isArray(run?.classCodes)
-        ? run.classCodes.map(normalizeImportedClassCode).filter(Boolean)
-        : []
-    )
-  );
-}
-
-function buildImportedBlockClassSummary(blockClasses, runs) {
-  const classesByCode = new Map();
-  const normalizedRuns = Array.isArray(runs) ? runs : [];
-  const entryCountsByCode = new Map();
-
-  (Array.isArray(blockClasses) ? blockClasses : []).forEach((classEntry) => {
-    const code = normalizeImportedClassCode(classEntry?.code);
-    if (!code) return;
-
-    classesByCode.set(code, {
-      code,
-      name: String(classEntry?.name || "").trim(),
-      classNumber: String(classEntry?.classNumber || "").trim(),
-      association: String(classEntry?.association || "").trim(),
-      entryCount: 0,
-    });
-  });
-
-  normalizedRuns.forEach((run) => {
-    const classCodes = getRunClassCodes(run);
-
-    classCodes.forEach((code) => {
-      entryCountsByCode.set(code, (entryCountsByCode.get(code) || 0) + 1);
-
-      if (!classesByCode.has(code)) {
-        classesByCode.set(code, {
-          code,
-          name: "",
-          classNumber: "",
-          association: "",
-          entryCount: 0,
-        });
-      }
-    });
-  });
-
-  const classSummaries = Array.from(classesByCode.values());
-
-  if (
-    classSummaries.length === 1 &&
-    normalizedRuns.length > 0 &&
-    entryCountsByCode.size === 0
-  ) {
-    classSummaries[0].entryCount = normalizedRuns.length;
-    return classSummaries;
-  }
-
-  return classSummaries.map((classEntry) => ({
-    ...classEntry,
-    entryCount: entryCountsByCode.get(classEntry.code) || 0,
-  }));
 }
 
 function isImportedRunScratched(run) {

@@ -9,6 +9,7 @@ import {
   runHasVideoReview,
 } from "./utils/scoring";
 import {
+  buildImportedBlockClassSummary,
   parseImportedDraw,
   parseImportedRuns,
   parsePositionedPdfPages,
@@ -4450,6 +4451,84 @@ test("parses Funware positioned PDF class codes with spaces and split headers", 
     rider: "ELENA DORE",
     classCodes: ["ROK2", "DEB-II", "ROK 1", "D CLAS"],
   });
+});
+
+test("uses the fragmented Funware category totals declared by the PDF", () => {
+  const importedDraw = parsePositionedPdfPages([
+    [
+      {
+        cells: [
+          { x: 161, text: "6240" },
+          { x: 197, text: "NRHA" },
+          { x: 233, text: "Level 4 Non Pro-Cat 6 Clsd [605]" },
+          { x: 565, text: "1" },
+          { x: 570, text: "7" },
+        ],
+      },
+      {
+        cells: [
+          { x: 161, text: "603" },
+          { x: 197, text: "AQR" },
+          { x: 233, text: "Fut Lev 4 OP AQR [FUL4AQ]" },
+          { x: 565, text: "1" },
+          { x: 570, text: "9" },
+        ],
+      },
+      {
+        cells: [
+          { x: 54, text: "1" },
+          { x: 141, text: "FIRST HORSE" },
+          { x: 317, text: "FIRST OWNER" },
+        ],
+      },
+      {
+        cells: [{ x: 317, text: "605,FUL4AQ" }],
+      },
+      {
+        cells: [
+          { x: 108, text: "1001" },
+          { x: 141, text: "FIRST RIDER" },
+        ],
+      },
+      {
+        cells: [
+          { x: 54, text: "2" },
+          { x: 141, text: "SECOND HORSE" },
+          { x: 317, text: "SECOND OWNER" },
+        ],
+      },
+      {
+        cells: [{ x: 317, text: "FUL4AQ" }],
+      },
+      {
+        cells: [
+          { x: 108, text: "1002" },
+          { x: 141, text: "SECOND RIDER" },
+        ],
+      },
+    ],
+  ]);
+
+  expect(importedDraw.blockClasses).toMatchObject([
+    { code: "605", entryCount: 17 },
+    { code: "FUL4AQ", entryCount: 19 },
+  ]);
+  expect(
+    buildImportedBlockClassSummary(
+      importedDraw.blockClasses,
+      importedDraw.runs
+    ).map(({ code, entryCount }) => ({ code, entryCount }))
+  ).toEqual([
+    { code: "605", entryCount: 17 },
+    { code: "FUL4AQ", entryCount: 19 },
+  ]);
+  expect(
+    normalizeClassSetup({ blockClasses: importedDraw.blockClasses })
+      .blockClasses
+  ).toMatchObject([
+    { code: "605", entryCount: 17 },
+    { code: "FUL4AQ", entryCount: 19 },
+  ]);
 });
 
 test("parses the multi-division AQR Derby Open and Non Pro Funware blocks", () => {
