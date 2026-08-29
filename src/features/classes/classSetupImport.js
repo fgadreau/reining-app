@@ -64,18 +64,28 @@ function normalizeBlockClasses(value) {
     const code = normalizeClassCode(classEntry?.code);
     if (!code) return;
 
+    const entryCount = Number.parseInt(classEntry?.entryCount, 10);
+
     classesByCode.set(code, {
       code,
       name: cleanText(classEntry?.name),
       classNumber: cleanText(classEntry?.classNumber),
       association: cleanText(classEntry?.association),
+      ...(Number.isFinite(entryCount) && entryCount >= 0
+        ? { entryCount }
+        : {}),
     });
   });
 
   return Array.from(classesByCode.values());
 }
 
-function parseBlockClassText(classNumber, association, classNameText) {
+function parseBlockClassText(
+  classNumber,
+  association,
+  classNameText,
+  entryCount = null
+) {
   const normalizedClassNameText = cleanText(classNameText);
   const match = normalizedClassNameText.match(CLASS_HEADER_PATTERN);
   const code = normalizeClassCode(match?.[1]);
@@ -93,12 +103,31 @@ function parseBlockClassText(classNumber, association, classNameText) {
     name = cleanText(embeddedAssociationMatch[2]);
   }
 
+  const parsedEntryCount = Number.parseInt(entryCount, 10);
+
   return {
     code,
     name,
     classNumber: cleanText(classNumber),
     association: detectedAssociation,
+    ...(Number.isFinite(parsedEntryCount) && parsedEntryCount >= 0
+      ? { entryCount: parsedEntryCount }
+      : {}),
   };
+}
+
+function getFunwareClassEntryCount(cells) {
+  const countText = (Array.isArray(cells) ? cells : [])
+    .filter(
+      (cell) =>
+        cell.x >= 545 && cell.x < 600 && /^\d+$/.test(cleanText(cell.text))
+    )
+    .sort((left, right) => left.x - right.x)
+    .map((cell) => cleanText(cell.text))
+    .join("");
+  const entryCount = Number.parseInt(countText, 10);
+
+  return Number.isFinite(entryCount) ? entryCount : null;
 }
 
 function getFunwareBlockClassPartsFromCells(cells) {
@@ -152,6 +181,7 @@ function getFunwareBlockClassPartsFromCells(cells) {
     association:
       associationCell?.text || combinedClassNumberMatch?.[2] || "",
     classNameText,
+    entryCount: getFunwareClassEntryCount(cells),
   };
 }
 
@@ -162,7 +192,8 @@ function extractBlockClassFromCells(cells) {
   return parseBlockClassText(
     parts.classNumber,
     parts.association,
-    parts.classNameText
+    parts.classNameText,
+    parts.entryCount
   );
 }
 
@@ -174,7 +205,8 @@ function extractPartialBlockClassFromCells(cells) {
     parseBlockClassText(
       parts.classNumber,
       parts.association,
-      parts.classNameText
+      parts.classNameText,
+      parts.entryCount
     )
   ) {
     return null;
@@ -582,6 +614,76 @@ function finalizeImportedRuns(runs) {
     }));
 }
 
+export function buildImportedBlockClassSummary(blockClasses, runs) {
+  const classesByCode = new Map();
+  const declaredEntryCountsByCode = new Map();
+  const normalizedRuns = Array.isArray(runs) ? runs : [];
+  const entryCountsByCode = new Map();
+
+  (Array.isArray(blockClasses) ? blockClasses : []).forEach((classEntry) => {
+    const code = normalizeClassCode(classEntry?.code);
+    if (!code) return;
+
+    const declaredEntryCount = Number.parseInt(classEntry?.entryCount, 10);
+
+    classesByCode.set(code, {
+      code,
+      name: cleanText(classEntry?.name),
+      classNumber: cleanText(classEntry?.classNumber),
+      association: cleanText(classEntry?.association),
+      entryCount: 0,
+    });
+
+    if (Number.isFinite(declaredEntryCount) && declaredEntryCount >= 0) {
+      declaredEntryCountsByCode.set(code, declaredEntryCount);
+    }
+  });
+
+  normalizedRuns.forEach((run) => {
+    const classCodes = Array.from(
+      new Set(
+        (Array.isArray(run?.classCodes) ? run.classCodes : [])
+          .map(normalizeClassCode)
+          .filter(Boolean)
+      )
+    );
+
+    classCodes.forEach((code) => {
+      entryCountsByCode.set(code, (entryCountsByCode.get(code) || 0) + 1);
+
+      if (!classesByCode.has(code)) {
+        classesByCode.set(code, {
+          code,
+          name: "",
+          classNumber: "",
+          association: "",
+          entryCount: 0,
+        });
+      }
+    });
+  });
+
+  const classSummaries = Array.from(classesByCode.values());
+
+  if (
+    classSummaries.length === 1 &&
+    normalizedRuns.length > 0 &&
+    entryCountsByCode.size === 0 &&
+    !declaredEntryCountsByCode.has(classSummaries[0].code)
+  ) {
+    classSummaries[0].entryCount = normalizedRuns.length;
+    return classSummaries;
+  }
+
+  return classSummaries.map((classEntry) => ({
+    ...classEntry,
+    entryCount:
+      declaredEntryCountsByCode.get(classEntry.code) ??
+      entryCountsByCode.get(classEntry.code) ??
+      0,
+  }));
+}
+
 function parseStructuredCsv(lines) {
   const header = parseCsvLine(lines[0] || "");
   const positionIndex = findHeaderIndex(header, ["Position", "Draw", "Order"]);
@@ -827,7 +929,8 @@ function parseFunwarePositionedPdfPages(pages) {
         const completedBlockClass = parseBlockClassText(
           pendingBlockClass.classNumber,
           pendingBlockClass.association,
-          `${pendingBlockClass.classNameText} ${blockClassContinuationText}`
+          `${pendingBlockClass.classNameText} ${blockClassContinuationText}`,
+          pendingBlockClass.entryCount
         );
 
         if (completedBlockClass) {

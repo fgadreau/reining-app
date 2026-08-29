@@ -328,6 +328,8 @@ function normalizeBlockClasses(value) {
             .toUpperCase();
           if (!code) return null;
 
+          const entryCount = Number.parseInt(classEntry?.entryCount, 10);
+
           return [
             code,
             {
@@ -357,6 +359,9 @@ function normalizeBlockClasses(value) {
               name: String(classEntry?.name || "").trim(),
               classNumber: String(classEntry?.classNumber || "").trim(),
               association: String(classEntry?.association || "").trim(),
+              ...(Number.isFinite(entryCount) && entryCount >= 0
+                ? { entryCount }
+                : {}),
             },
           ];
         })
