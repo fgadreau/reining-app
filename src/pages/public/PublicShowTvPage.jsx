@@ -243,6 +243,7 @@ function PublicShowTvPage() {
           videoUrl={tvVideoUrl}
           liveItem={liveItem}
           upcomingScheduleItem={upcomingScheduleItem}
+          showName={show?.name || ""}
         />
       ) : displayMode === "competition-loading" ? (
         <CompetitionLoadingPanel selectedArena={selectedArena} />
@@ -361,10 +362,11 @@ function CompetitionLoadingPanel({ selectedArena }) {
   );
 }
 
-function CompetitionVideoPanel({
+export function CompetitionVideoPanel({
   videoUrl,
   liveItem,
   upcomingScheduleItem,
+  showName,
 }) {
   const videoRef = useRef(null);
   const isWarmup = liveItem?.kind === "paidWarmup";
@@ -498,14 +500,25 @@ function CompetitionVideoPanel({
             style={competitionWaitingStyle}
             className="tv-competition-waiting"
           >
-            {upcomingScheduleItem ? (
-              formatTvUpcomingSchedule(upcomingScheduleItem)
-            ) : (
+            {showName ? (
+              <div
+                style={competitionWaitingShowNameStyle}
+                data-tv-competition-show-name
+              >
+                {showName}
+              </div>
+            ) : null}
+            <div style={competitionWaitingMessageStyle}>
               <BilingualText
                 fr="Les données du passage apparaîtront ici dès que le live sera lancé."
                 en="Run data will appear here as soon as live starts."
               />
-            )}
+            </div>
+            {upcomingScheduleItem ? (
+              <div style={competitionWaitingUpcomingStyle}>
+                {formatTvUpcomingSchedule(upcomingScheduleItem)}
+              </div>
+            ) : null}
           </div>
         )}
       </div>
@@ -1913,11 +1926,33 @@ const competitionWaitingStyle = {
   gridColumn: "span 3",
   display: "grid",
   placeItems: "center",
-  padding: "18px 28px",
+  alignContent: "center",
+  gap: 5,
+  padding: "10px 28px",
   color: "#dbeafe",
-  fontSize: "clamp(24px, 2vw, 38px)",
-  fontWeight: 850,
   textAlign: "center",
+};
+
+const competitionWaitingShowNameStyle = {
+  maxWidth: "100%",
+  overflow: "hidden",
+  color: "#f4d98c",
+  fontSize: "clamp(24px, 2.1vw, 40px)",
+  fontWeight: 950,
+  lineHeight: 1.05,
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const competitionWaitingMessageStyle = {
+  fontSize: "clamp(17px, 1.35vw, 26px)",
+  fontWeight: 850,
+};
+
+const competitionWaitingUpcomingStyle = {
+  color: "#cbd5e1",
+  fontSize: "clamp(15px, 1.15vw, 22px)",
+  fontWeight: 750,
 };
 
 const backgroundGlowStyle = {
