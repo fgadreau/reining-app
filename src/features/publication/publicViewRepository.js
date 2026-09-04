@@ -352,7 +352,7 @@ function toClassSetup(row) {
 }
 
 function toAnnouncerLiveSession(row) {
-  return normalizeAnnouncerLiveSession({
+  const session = normalizeAnnouncerLiveSession({
     classId: row.class_id,
     runs: Array.isArray(row.runs) ? row.runs : [],
     activeManoeuvre:
@@ -365,6 +365,11 @@ function toAnnouncerLiveSession(row) {
     revision: row.revision,
     updatedAt: row.updated_at || null,
   });
+
+  return {
+    ...session,
+    revision: row.revision ?? null,
+  };
 }
 
 function toJudgeScoringSession(row) {
@@ -414,6 +419,121 @@ const PUBLIC_SHOW_REALTIME_STATE = Symbol("public-show-realtime-state");
 
 export function isPublicShowViewRealtimeReady(publicView) {
   return Boolean(publicView?.[PUBLIC_SHOW_REALTIME_STATE]);
+}
+
+function toAnnouncerRevision(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const revision = Number(value);
+  return Number.isFinite(revision) ? revision : null;
+}
+
+export function getPublicShowAnnouncerRevisionSnapshot(publicView) {
+  const sourceState = publicView?.[PUBLIC_SHOW_REALTIME_STATE];
+  if (!sourceState) return null;
+  return Array.from(sourceState.announcerLiveByClassId || [])
+    .map(([classId, session]) => ({
+      classId,
+      revision: toAnnouncerRevision(session?.revision),
+      updatedAt: session?.updatedAt || null,
+    }))
+    .sort((left, right) => left.classId.localeCompare(right.classId));
+}
+
+export function hasActivePublicAnnouncerSession(publicView) {
+  return (publicView?.liveClasses || []).some(
+    (liveClass) => liveClass?.liveDataSource === LIVE_DATA_SOURCES.ANNOUNCER
+  );
+}
+
+export async function getPublicShowAnnouncerRevisionRepository(classIds) {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+  const uniqueClassIds = Array.from(new Set((classIds || []).filter(Boolean)));
+  if (uniqueClassIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("show_score_announcer_live_sessions")
+    .select("class_id,revision,updated_at")
+    .in("class_id", uniqueClassIds);
+  if (error) throw error;
+  return (data || [])
+    .map((row) => ({
+      classId: row.class_id,
+      revision: toAnnouncerRevision(row.revision),
+      updatedAt: row.updated_at || null,
+    }))
+    .sort((left, right) => left.classId.localeCompare(right.classId));
+}
+
+export function shouldRefreshForAnnouncerRevisions(current, remote) {
+  if (!current || !remote || current.length !== remote.length) return true;
+  let hasNewerMarker = false;
+  for (let index = 0; index < current.length; index += 1) {
+    const local = current[index];
+    const candidate = remote[index];
+    if (local.classId !== candidate?.classId) return true;
+    if ((local.revision === null) !== (candidate.revision === null)) return true;
+    const localMarker = local.revision ?? local.updatedAt;
+    const remoteMarker = candidate.revision ?? candidate.updatedAt;
+    if (
+      localMarker === null ||
+      localMarker === undefined ||
+      remoteMarker === null ||
+      remoteMarker === undefined
+    ) {
+      return true;
+    }
+    if (remoteMarker < localMarker) return false;
+    if (remoteMarker > localMarker) hasNewerMarker = true;
+  }
+  return hasNewerMarker;
+}
+
+export function shouldPublishPublicShowViewSnapshot(
+  currentView,
+  candidateView,
+  requestStartView = null
+) {
+  const currentState = currentView?.[PUBLIC_SHOW_REALTIME_STATE];
+  const candidateState = candidateView?.[PUBLIC_SHOW_REALTIME_STATE];
+  if (!currentState || !candidateState) return true;
+
+  const currentSessions = currentState.announcerLiveByClassId || new Map();
+  const candidateSessions = candidateState.announcerLiveByClassId || new Map();
+  const mayAcceptUnversionedChange = requestStartView === currentView;
+
+  for (const [key, currentSession] of currentSessions) {
+    const candidateSession = candidateSessions.get(key);
+    if (!candidateSession) {
+      if (!mayAcceptUnversionedChange) return false;
+      continue;
+    }
+
+    const currentRevision = toAnnouncerRevision(currentSession?.revision);
+    const candidateRevision = toAnnouncerRevision(candidateSession?.revision);
+    if (currentRevision === null || candidateRevision === null) {
+      if (
+        JSON.stringify(currentSession) !== JSON.stringify(candidateSession) &&
+        !mayAcceptUnversionedChange
+      ) {
+        return false;
+      }
+    } else if (candidateRevision < currentRevision) return false;
+    else if (
+      requestStartView &&
+      requestStartView !== currentView &&
+      candidateRevision === currentRevision
+    ) return false;
+  }
+
+  const mergedSequences = new Map(currentState.broadcastSequenceByKey || []);
+  candidateState.broadcastSequenceByKey?.forEach((sequence, key) => {
+    if (sequence > Number(mergedSequences.get(key) || 0)) {
+      mergedSequences.set(key, sequence);
+    }
+  });
+  candidateState.broadcastSequenceByKey = mergedSequences;
+
+  return true;
 }
 
 function attachPublicShowRealtimeState(publicView, sourceState) {
@@ -659,7 +779,7 @@ export function applyPublicShowViewRealtimeChange(publicView, payload) {
   } else if (table === "show_score_paid_warmups") {
     if (!row.id) return null;
     if (!sourceState.paidWarmups.some((warmup) => warmup.id === row.id)) {
-      return publicView;
+      return null;
     }
     const nextPaidWarmups = sourceState.paidWarmups.filter(
       (warmup) => warmup.id !== row.id

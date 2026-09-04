@@ -2,11 +2,17 @@ import { useEffect, useRef } from "react";
 import { getSupabaseClient } from "../cloud/supabaseClient";
 import {
   applyPublicShowViewRealtimeChange,
+  getPublicShowAnnouncerRevisionRepository,
+  getPublicShowAnnouncerRevisionSnapshot,
+  hasActivePublicAnnouncerSession,
   isPublicShowViewRealtimeReady,
+  shouldRefreshForAnnouncerRevisions,
+  shouldPublishPublicShowViewSnapshot,
   subscribePublicShowViewRepository,
 } from "./publicViewRepository";
 
 const DEFAULT_FALLBACK_REFRESH_MS = 10 * 60_000;
+const ACTIVE_REVISION_CHECK_MS = 20_000;
 const LOCAL_FALLBACK_REFRESH_MS = 5_000;
 const DISCONNECTED_FALLBACK_REFRESH_MS = 5_000;
 const MAX_DISCONNECTED_FALLBACK_REFRESH_MS = 60_000;
@@ -35,7 +41,21 @@ export function getFallbackRefreshDelay({
   return Math.round(baseDelay * jitterMultiplier);
 }
 
-export function createRefreshCoordinator({ load, onData, onError }) {
+export function getActiveRevisionCheckDelay(random = Math.random) {
+  const boundedRandom = Math.min(Math.max(Number(random()) || 0, 0), 1);
+  return Math.round(
+    ACTIVE_REVISION_CHECK_MS *
+      (1 - FALLBACK_JITTER_RATIO + boundedRandom * FALLBACK_JITTER_RATIO * 2)
+  );
+}
+
+export function createRefreshCoordinator({
+  load,
+  onData,
+  onError,
+  getCurrentData = () => undefined,
+  shouldPublish = () => true,
+}) {
   let activePromise = null;
   let isQueued = false;
   let isStopped = false;
@@ -50,10 +70,11 @@ export function createRefreshCoordinator({ load, onData, onError }) {
       return activePromise;
     }
 
+    const requestStartData = getCurrentData();
     activePromise = Promise.resolve()
       .then(load)
       .then((data) => {
-        if (!isStopped) {
+        if (!isStopped && shouldPublish(data, requestStartData)) {
           onData(data);
         }
         return data;
@@ -169,33 +190,76 @@ export function usePublicShowViewUpdates({
 
     let realtimeRefreshTimer = null;
     let fallbackRefreshTimer = null;
+    let revisionCheckTimer = null;
     let displayReturnRefreshTimer = null;
     let isEffectActive = true;
     let isRealtimeSubscribed = false;
     let reconnectAttempt = 0;
+    let realtimeGeneration = 0;
     const coordinator = createRefreshCoordinator({
       load: () => loadRef.current(),
+      getCurrentData: () => ({
+        data: dataRef.current,
+        realtimeGeneration,
+      }),
+      shouldPublish: (nextData, requestStart) => {
+        if (realtimeGeneration !== requestStart.realtimeGeneration) {
+          void coordinator.run();
+          return false;
+        }
+        return shouldPublishPublicShowViewSnapshot(
+          dataRef.current,
+          nextData,
+          requestStart.data
+        );
+      },
       onData: (nextData) => {
         dataRef.current = nextData;
         onDataRef.current(nextData);
+        scheduleRevisionCheck();
+        scheduleFallbackRefresh();
       },
       onError: (error) => {
         console.error("Erreur actualisation vue publique:", error);
       },
     });
+    const revisionCoordinator = createRefreshCoordinator({
+      load: () =>
+        getPublicShowAnnouncerRevisionRepository(
+          classIdsKey ? classIdsKey.split("|") : []
+        ),
+      onData: (remoteSnapshot) => {
+        const currentSnapshot = getPublicShowAnnouncerRevisionSnapshot(
+          dataRef.current
+        );
+        if (shouldRefreshForAnnouncerRevisions(currentSnapshot, remoteSnapshot)) {
+          void coordinator.run();
+        }
+      },
+      onError: (error) => {
+        console.error("Erreur vérification légère vue publique:", error);
+        void coordinator.run();
+      },
+    });
 
     const requestRealtimeRefresh = (payload) => {
       if (payload) {
+        const currentData = dataRef.current;
         const nextData = applyPublicShowViewRealtimeChange(
-          dataRef.current,
+          currentData,
           payload
         );
 
-        if (nextData) {
+        if (nextData && nextData !== currentData) {
+          realtimeGeneration += 1;
           dataRef.current = nextData;
           onDataRef.current(nextData);
+          scheduleRevisionCheck();
+          scheduleFallbackRefresh();
           return;
         }
+        if (nextData === currentData) return;
+        realtimeGeneration += 1;
       }
 
       window.clearTimeout(realtimeRefreshTimer);
@@ -218,6 +282,22 @@ export function usePublicShowViewUpdates({
         reconnectAttempt,
       }));
     };
+    const scheduleRevisionCheck = () => {
+      window.clearTimeout(revisionCheckTimer);
+      if (
+        !hasRealtime ||
+        !isRealtimeSubscribed ||
+        !hasActivePublicAnnouncerSession(dataRef.current)
+      ) {
+        return;
+      }
+      revisionCheckTimer = window.setTimeout(async () => {
+        if (document.visibilityState !== "hidden") {
+          await revisionCoordinator.run();
+        }
+        if (isEffectActive) scheduleRevisionCheck();
+      }, getActiveRevisionCheckDelay());
+    };
     const handleRealtimeStatus = (status) => {
       if (status === "SUBSCRIBED") {
         isRealtimeSubscribed = true;
@@ -226,6 +306,10 @@ export function usePublicShowViewUpdates({
         isRealtimeSubscribed = false;
         reconnectAttempt += 1;
       }
+      if (["SUBSCRIBED", "CHANNEL_ERROR", "TIMED_OUT"].includes(status)) {
+        requestRealtimeRefresh();
+      }
+      scheduleRevisionCheck();
       scheduleFallbackRefresh();
     };
     const unsubscribe = subscribePublicShowViewRepository(
@@ -235,6 +319,7 @@ export function usePublicShowViewUpdates({
       handleRealtimeStatus
     );
     scheduleFallbackRefresh();
+    scheduleRevisionCheck();
     const refreshWhenDisplayReturns = () => {
       if (document.visibilityState === "hidden") return;
 
@@ -255,11 +340,13 @@ export function usePublicShowViewUpdates({
       isEffectActive = false;
       window.clearTimeout(realtimeRefreshTimer);
       window.clearTimeout(fallbackRefreshTimer);
+      window.clearTimeout(revisionCheckTimer);
       window.clearTimeout(displayReturnRefreshTimer);
       window.removeEventListener("focus", refreshWhenDisplayReturns);
       window.removeEventListener("online", refreshWhenDisplayReturns);
       document.removeEventListener("visibilitychange", refreshWhenDisplayReturns);
       coordinator.stop();
+      revisionCoordinator.stop();
       unsubscribe();
     };
   }, [
