@@ -224,8 +224,10 @@ import {
   clampPaidWarmupTimerSeconds,
   getPaidWarmupTimerCueType,
   setPaidWarmupEntryStatus,
+  startPaidWarmupEntry,
   startPaidWarmupDrag,
   stopPaidWarmupDrag,
+  stopPaidWarmupTimer,
 } from "./features/paidWarmups/paidWarmupLive";
 import {
   calculatePaidWarmupScheduleSummary,
@@ -7799,6 +7801,114 @@ test("paid warmup live rolls riders forward when staged rider is marked done", (
   expect(nextLiveView.nextEntry.rider).toBe("Félix");
   expect(nextLiveView.secondNextEntry.rider).toBe("Late add");
   expect(nextLiveView.lastPassedEntries[0].rider).toBe("Marie");
+});
+
+test("stopping a paid warmup timer closes its public live state atomically", () => {
+  const stopped = stopPaidWarmupTimer(
+    {
+      id: "warmup-stop",
+      isPublicLive: true,
+      activeEntryId: "entry-1",
+      activeStartedAt: "2026-05-25T14:00:00.000Z",
+      entries: [{ id: "entry-1", rider: "Marie", status: "pending" }],
+    },
+    new Date("2026-05-25T14:05:00.000Z")
+  );
+
+  expect(stopped).toMatchObject({
+    activeEntryId: null,
+    activeStartedAt: null,
+    isPublicLive: false,
+    entries: [
+      {
+        id: "entry-1",
+        status: "done",
+        completedAt: "2026-05-25T14:05:00.000Z",
+      },
+    ],
+  });
+});
+
+test("finishing the last paid warmup entry closes public live without auto-reopening", () => {
+  const completed = setPaidWarmupEntryStatus(
+    {
+      id: "warmup-complete",
+      isPublicLive: true,
+      activeEntryId: "entry-1",
+      activeStartedAt: "2026-05-25T14:00:00.000Z",
+      entries: [{ id: "entry-1", rider: "Marie", status: "pending" }],
+    },
+    "entry-1",
+    "done",
+    new Date("2026-05-25T14:05:00.000Z")
+  );
+  const reopened = startPaidWarmupEntry(
+    {
+      ...completed,
+      entries: [{ id: "entry-1", rider: "Marie", status: "pending" }],
+    },
+    "entry-1",
+    new Date("2026-05-25T14:06:00.000Z")
+  );
+  const explicitlyRepublished = startPaidWarmupEntry(
+    {
+      ...completed,
+      isPublicLive: true,
+      entries: [{ id: "entry-1", rider: "Marie", status: "pending" }],
+    },
+    "entry-1",
+    new Date("2026-05-25T14:07:00.000Z")
+  );
+
+  expect(completed.isPublicLive).toBe(false);
+  expect(completed.activeEntryId).toBeNull();
+  expect(completed.activeStartedAt).toBeNull();
+  expect(reopened).toMatchObject({
+    activeEntryId: "entry-1",
+    activeStartedAt: "2026-05-25T14:06:00.000Z",
+    isPublicLive: false,
+  });
+  expect(explicitlyRepublished.isPublicLive).toBe(true);
+});
+
+test("stopping one paid warmup timer keeps a remaining queue public", () => {
+  const advanced = stopPaidWarmupTimer(
+    {
+      id: "warmup-in-progress",
+      isPublicLive: true,
+      activeEntryId: "entry-1",
+      activeStartedAt: "2026-05-25T14:00:00.000Z",
+      entries: [
+        { id: "entry-1", rider: "Marie", status: "pending" },
+        { id: "entry-2", rider: "Alex", status: "pending" },
+      ],
+    },
+    new Date("2026-05-25T14:05:00.000Z")
+  );
+
+  expect(advanced.isPublicLive).toBe(true);
+  expect(advanced.entries).toEqual([
+    expect.objectContaining({ id: "entry-1", status: "done" }),
+    expect.objectContaining({ id: "entry-2", status: "pending" }),
+  ]);
+});
+
+test("stopping a paid warmup drag does not close the warmup itself", () => {
+  const stopped = stopPaidWarmupDrag({
+    id: "warmup-drag-stop",
+    isPublicLive: true,
+    activeEntryId: "drag-after-entry-1",
+    activeStartedAt: "2026-05-25T14:00:00.000Z",
+    dragInterval: 1,
+    dragDurationMinutes: 6,
+    entries: [
+      { id: "entry-1", rider: "Marie", status: "done" },
+      { id: "entry-2", rider: "Alex", status: "pending" },
+    ],
+  });
+
+  expect(stopped.isPublicLive).toBe(true);
+  expect(stopped.activeStartedAt).toBeNull();
 });
 
 test("paid warmup drag starts explicitly and stays completed after stopping", () => {
