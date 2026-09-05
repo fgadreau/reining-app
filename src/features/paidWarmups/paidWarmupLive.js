@@ -192,14 +192,24 @@ export function setPaidWarmupEntryStatus(warmup, entryId, status, now = new Date
       ? { ...entry, status, completedAt: isFinishedStatus ? completedAt : null }
       : entry
   );
+  const isComplete =
+    nextEntries.length > 0 &&
+    nextEntries.every((entry) =>
+      ["done", "no_show", "scratch"].includes(entry.status)
+    );
 
   return {
     ...normalized,
     entries: nextEntries,
+    isPublicLive: isComplete ? false : normalized.isPublicLive,
     activeEntryId:
-      normalized.activeEntryId === entryId ? null : normalized.activeEntryId,
+      isComplete || normalized.activeEntryId === entryId
+        ? null
+        : normalized.activeEntryId,
     activeStartedAt:
-      normalized.activeEntryId === entryId ? null : normalized.activeStartedAt,
+      isComplete || normalized.activeEntryId === entryId
+        ? null
+        : normalized.activeStartedAt,
   };
 }
 
@@ -213,10 +223,16 @@ export function stopPaidWarmupTimer(warmup, now = new Date()) {
           : entry
       )
     : normalized.entries;
+  const isComplete =
+    nextEntries.length > 0 &&
+    nextEntries.every((entry) =>
+      ["done", "no_show", "scratch"].includes(entry.status)
+    );
 
   return {
     ...normalized,
     entries: nextEntries,
+    isPublicLive: isComplete ? false : normalized.isPublicLive,
     activeEntryId: null,
     activeStartedAt: null,
   };

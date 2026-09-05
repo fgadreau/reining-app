@@ -208,6 +208,7 @@ export function buildClassResultGroups(classData, options = {}) {
   return Array.from(groupsByCode.values())
     .map((group) => ({
       ...group,
+      entryCount: group.entries.length,
       entries: rankResultEntries(group.entries),
     }))
     .sort((a, b) => String(a.code).localeCompare(String(b.code)));

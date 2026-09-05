@@ -326,6 +326,7 @@ export async function savePaidWarmupLiveRepository(item) {
     }
   );
 
+  // An absent or incompatible live RPC must not widen this write to setup fields.
   if (error) throw error;
 
   const persisted = data ? toPaidWarmup(data, warmup) : warmup;
