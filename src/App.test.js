@@ -104,7 +104,10 @@ import {
   saveArenaCurrentLiveClassRepository,
 } from "./features/publication/publicationCloudRepository";
 import { buildClassWithSetupScheduleStart } from "./features/classes/classRepository";
-import { normalizeClassSetup } from "./features/classes/classSetupStorage";
+import {
+  normalizeClassSetup,
+  saveClassSetup,
+} from "./features/classes/classSetupStorage";
 import { mergeImportedRunsWithExistingIds } from "./features/classes/runIdentity";
 import { isClassScoringFinalized } from "./features/classes/classStatusSelectors";
 import { shouldFitScoringTableToViewport } from "./features/scoring/scoringTableViewport";
@@ -5397,6 +5400,7 @@ test("excludes zero, scratch and no-score entries from every ranking", () => {
   expect(normalizedGroups[0].entries).toMatchObject([
     { rank: 1, rider: "Ranked Rider", scoreTotal: "72" },
   ]);
+  expect(liveGroups[0].entryCount).toBe(1);
   expect(liveGroups[0].entries).toMatchObject([
     { rank: 1, rider: "Ranked Rider", scoreTotal: "72" },
   ]);
@@ -6734,6 +6738,83 @@ test("public live view uses setup order before scoring starts", () => {
     "waiting",
     "upcoming",
   ]);
+});
+
+test("public live exposes an imported setup order for the next class", () => {
+  saveActiveTestShow("show-next-imported-order");
+  saveDays([
+    {
+      id: "day-next-imported-order",
+      showId: "show-next-imported-order",
+      label: "Jour 1",
+      date: "2026-06-15",
+      sortOrder: 1,
+    },
+  ]);
+  saveClasses([
+    {
+      id: "current-live-class",
+      showId: "show-next-imported-order",
+      dayId: "day-next-imported-order",
+      name: "Current class",
+      arena: "Main",
+      sortOrder: 1,
+    },
+    {
+      id: "next-imported-class",
+      showId: "show-next-imported-order",
+      dayId: "day-next-imported-order",
+      name: "Next class",
+      arena: "Main",
+      sortOrder: 2,
+    },
+  ]);
+  saveClassSetup("next-imported-class", {
+    pattern: "2",
+    isDrawImported: true,
+    runs: [
+      {
+        id: "next-run-1",
+        draw: 1,
+        backNumber: "101",
+        rider: "First Rider",
+        horse: "First Horse",
+      },
+      {
+        id: "next-run-2",
+        draw: 2,
+        backNumber: "202",
+        rider: "Second Rider",
+        horse: "Second Horse",
+      },
+    ],
+  });
+  savePublicationState("current-live-class", {
+    status: PUBLICATION_STATUSES.LIVE_NO_SCORE,
+  });
+
+  const publicView = getPublicShowView("show-next-imported-order");
+
+  expect(publicView.liveClass.nextScheduleItem).toMatchObject({
+    itemId: "next-imported-class",
+    name: "Next class",
+    orderRuns: [
+      {
+        draw: 1,
+        backNumber: "101",
+        rider: "First Rider",
+        horse: "First Horse",
+        liveOrderStatus: "upcoming",
+      },
+      {
+        draw: 2,
+        backNumber: "202",
+        rider: "Second Rider",
+        horse: "Second Horse",
+        liveOrderStatus: "upcoming",
+      },
+    ],
+  });
 });
 
 test("public live scoring shows completed totals only", () => {
