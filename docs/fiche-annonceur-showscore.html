@@ -5,6 +5,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ShowScore - Fiche rapide annonceur</title>
     <link rel="stylesheet" href="fiches-role-print.css" />
+    <style>
+      .grid {
+        gap: 7px;
+        margin-top: 8px;
+      }
+
+      section.block {
+        padding: 7px 8px;
+      }
+
+      li {
+        margin: 2.4px 0;
+      }
+
+      .callout {
+        margin-top: 6px;
+        padding: 6px 7px;
+      }
+
+      .num {
+        display: inline-flex;
+        flex: 0 0 21px;
+        align-items: center;
+        justify-content: center;
+      }
+
+      footer {
+        margin-top: 7px;
+        padding-top: 5px;
+      }
+
+      .sheet {
+        break-after: auto;
+        page-break-after: auto;
+      }
+
+      .sheet + .sheet {
+        break-before: page;
+        page-break-before: always;
+      }
+      /* Fixed local font stack and print geometry for one page per language. */
+      @media print {
+        body { font-family: Arial, "Liberation Sans", sans-serif; font-size: 10px; line-height: 1.2; }
+        h1 { font-size: 23px; }
+        .subtitle { font-size: 11px; }
+        .grid { gap: 6px; margin-top: 7px; }
+        section.block { padding: 6px 7px; }
+        li { margin: 2px 0; }
+        .callout { margin-top: 5px; padding: 5px 6px; }
+        .sheet { break-inside: avoid; }
+      }
+    </style>
   </head>
   <body>
     <main>
@@ -13,8 +65,8 @@
           <div>
             <h1>ShowScore - Fiche rapide annonceur</h1>
             <div class="subtitle">
-              Objectif: annoncer la bonne information au bon moment, suivre le
-              live et éviter les résultats non confirmés.
+              Objectif: piloter le bloc actif depuis « En cours », annoncer la
+              bonne information et transmettre des résultats fiables.
             </div>
           </div>
           <div class="qr-card">
@@ -26,101 +78,107 @@
 
         <div class="grid">
           <section class="block">
-            <h2><span class="num">1</span> Avant la classe</h2>
+            <h2><span class="num">1</span> Préparer la vue</h2>
             <ul>
-              <li>Scanner le QR, se connecter, puis ouvrir la bonne association.</li>
-              <li>Choisir le bon show et la vue <strong>Annonceur</strong>.</li>
-              <li>Vérifier le bloc actif, le draw et l'ordre de passage.</li>
-              <li>Confirmer la prononciation des noms au besoin.</li>
-              <li>Garder la page ouverte pendant la classe.</li>
+              <li>Scanner le QR, se connecter et ouvrir le bon show.</li>
+              <li>Choisir <strong>Annonceur</strong>, puis activer les alertes sonores.</li>
+              <li>Vérifier le manège, le bloc, le pattern et le draw.</li>
+              <li>Repérer le badge <strong>Source: annonceur</strong> ou <strong>Source: scribes</strong>.</li>
+              <li>Garder cette page ouverte pendant tout le bloc.</li>
             </ul>
             <div class="callout ok">
-              Le QR ouvre l'association unique, ou la sélection si ton compte en a plusieurs.
+              Le bloc réellement actif monte automatiquement dans l'encadré <strong>En cours</strong> et s'ouvre.
             </div>
           </section>
 
           <section class="block">
-            <h2><span class="num">2</span> Pendant le live</h2>
+            <h2><span class="num">2</span> Lire « En cours »</h2>
             <ul>
-              <li>Utiliser le cavalier actuel et le prochain cavalier affichés.</li>
-              <li>Ne pas deviner un back number, un nom ou une classe manquante.</li>
-              <li>Suivre les drags, pauses et changements confirmés.</li>
-              <li>Dire les informations publiques, pas les notes internes.</li>
+              <li><strong>En piste</strong>: passage actuel confirmé.</li>
+              <li><strong>Prochain</strong> et <strong>2e prochain</strong>: préparer l'appel.</li>
+              <li><strong>Dernier concurrent</strong>: annoncer seulement ce qui est visible.</li>
+              <li>Les autres cartes plus bas sont à venir; <strong>Voir</strong> ouvre leurs détails.</li>
+              <li>Des classes concurrentes partagent une carte et un seul draw.</li>
             </ul>
             <div class="callout">
-              Si l'écran et le papier ne concordent pas, demander au secrétariat avant d'annoncer.
+              Ne jamais présenter le premier nom comme « en piste » avant son démarrage réel.
             </div>
           </section>
 
           <section class="block wide">
-            <h2><span class="num">3</span> Flux d'annonce</h2>
+            <h2><span class="num">3</span> Contrôle par l'annonceur</h2>
             <div class="flow">
-              <div class="step">1. Bloc actif<span>confirmé avec secrétariat</span></div>
-              <div class="step">2. Cavalier actuel<span>nom et numéro</span></div>
-              <div class="step">3. Prochain<span>préparer l'entrée</span></div>
-              <div class="step">4. Scores<span>seulement si visibles</span></div>
-              <div class="step">5. Pause/drag<span>annoncer la durée</span></div>
+              <div class="step">1. Démarrer prochain<span>quand il entre en piste</span></div>
+              <div class="step">2. Annoncer<span>numéro, cavalier, cheval</span></div>
+              <div class="step">3. Entrer le résultat<span>score confirmé seulement</span></div>
+              <div class="step">4. Cas spécial<span>Review, No score, Scratch</span></div>
+              <div class="step">5. Continuer<span>prochain ou drag prévu</span></div>
+            </div>
+            <div class="callout ok">
+              Les boutons de la carte « En cours » pilotent le live. Un horaire fixe informe l'écran TV, mais ne bloque jamais un démarrage anticipé.
             </div>
           </section>
 
           <section class="block">
-            <h2><span class="num">4</span> Scores et résultats</h2>
+            <h2><span class="num">4</span> Source scribes et écran TV</h2>
             <ul>
-              <li>Annoncer un score seulement quand il est visible/confirmé dans l'interface.</li>
-              <li>Ne pas annoncer une run en <strong>Review</strong> comme finale.</li>
-              <li>Pour No score, Score 0, DQ ou Scratch, attendre la confirmation officielle.</li>
-              <li>Les classements provisoires peuvent changer tant que le secrétariat n'a pas publié.</li>
+              <li>Avec <strong>Source: scribes</strong>, les scribes alimentent les scores.</li>
+              <li>L'annonceur suit l'ordre et lit les résultats; il ne ressaisit pas le score.</li>
+              <li>Surveiller l'indicateur de fraîcheur avant d'annoncer.</li>
+              <li><strong>Affichage minimal</strong> masque identités et scores sur les écrans publics.</li>
             </ul>
             <div class="callout danger">
-              La décision du juge et du secrétariat prime sur toute lecture rapide de l'écran.
+              Si la donnée est en retard ou ne concorde pas avec le papier, confirmer avec le secrétariat.
             </div>
           </section>
 
           <section class="block">
-            <h2><span class="num">5</span> Classes sans scoring</h2>
+            <h2><span class="num">5</span> Paid warm ups</h2>
             <ul>
-              <li>Certains blocs servent seulement à l'horaire ou au live.</li>
-              <li>Utiliser les contrôles d'avancement si le bloc n'a pas de scores.</li>
-              <li>Marquer complété seulement quand l'aréna a vraiment terminé.</li>
-              <li>Confirmer les changements d'ordre avec le secrétariat.</li>
+              <li><strong>Démarrer en piste</strong> lance le cavalier et son chronomètre.</li>
+              <li>À la fin: <strong>Arrêter et marquer passé</strong>, <strong>No show en piste</strong> ou <strong>Scratch en piste</strong>.</li>
+              <li>Utiliser <strong>Démarrer drag</strong> et <strong>Terminer drag</strong> au bon moment.</li>
+              <li><strong>Annuler dernière action</strong> restaure la dernière action si nécessaire.</li>
+              <li>L'heure prévue gère l'affichage TV, sans bloquer les contrôles.</li>
             </ul>
           </section>
 
           <section class="block">
-            <h2><span class="num">6</span> Sync et écran public</h2>
+            <h2><span class="num">6</span> Fin du bloc et résultats</h2>
             <ul>
-              <li>Si l'écran semble figé, ne pas fermer tout de suite.</li>
-              <li>Vérifier la connexion et demander au responsable si nécessaire.</li>
-              <li>Le public voit seulement ce qui est activé/publié.</li>
-              <li>Ne pas promettre une publication avant confirmation.</li>
+              <li>Régler les passages en Review avant de terminer.</li>
+              <li>Marquer le bloc terminé seulement quand le manège a fini.</li>
+              <li>Les classements affichés restent provisoires.</li>
+              <li>Terminer une classe arrête sa diffusion. Activer explicitement la classe suivante pour la mettre en direct.</li>
             </ul>
           </section>
 
           <section class="block">
-            <h2><span class="num">7</span> Corrections</h2>
+            <h2><span class="num">7</span> Sync, erreurs et corrections</h2>
             <ul>
-              <li>Erreur de nom/numéro: corriger à l'annonce seulement après confirmation.</li>
-              <li>Erreur de score: référer au secrétariat, ne pas régler au micro.</li>
-              <li>Changement de draw: attendre le signal officiel avant de l'annoncer.</li>
-              <li>Note sensible: ne jamais lire au public.</li>
+              <li><strong>Synchronisé</strong>: la sauvegarde est confirmée en ligne.</li>
+              <li><strong>Sync en attente</strong> ou <strong>Sauvegardé localement</strong>: garder la page ouverte.</li>
+              <li>Corriger un résultat avec l'outil prévu, jamais seulement au micro.</li>
+              <li>Pour nom, draw ou décision officielle: confirmer avec le secrétariat.</li>
+              <li>Ne jamais lire une note interne ou sensible.</li>
             </ul>
           </section>
 
           <section class="block wide">
             <h2><span class="num">8</span> Checklist annonceur</h2>
             <div class="checklist">
-              <div class="check">Bon show ouvert<div class="small">association confirmée</div></div>
-              <div class="check">Bloc actif OK<div class="small">draw et ordre</div></div>
-              <div class="check">Noms confirmés<div class="small">prononciation au besoin</div></div>
-              <div class="check">Scores visibles<div class="small">pas de Review finale</div></div>
-              <div class="check">Pauses suivies<div class="small">drag/durée annoncés</div></div>
-              <div class="check">Corrections validées<div class="small">par secrétariat</div></div>
+              <div class="check">Bonne source<div class="small">annonceur ou scribes</div></div>
+              <div class="check">Carte « En cours »<div class="small">bloc et manège confirmés</div></div>
+              <div class="check">Passage démarré<div class="small">seulement à l'entrée réelle</div></div>
+              <div class="check">Résultat confirmé<div class="small">Review réglée</div></div>
+              <div class="check">Drags suivis<div class="small">début et fin enregistrés</div></div>
+              <div class="check">Bloc terminé<div class="small">secrétariat avisé</div></div>
             </div>
           </section>
         </div>
 
         <footer>
-          ShowScore - fiche annonceur FR, version 2026-07-06. Les décisions officielles du juge et du secrétariat priment toujours.
+          ShowScore - fiche annonceur FR, version 2026-09-05. Les décisions officielles du juge et du secrétariat priment toujours.
         </footer>
       </article>
 
@@ -129,8 +187,8 @@
           <div>
             <h1>ShowScore - Quick Announcer Sheet</h1>
             <div class="subtitle">
-              Goal: announce the right information at the right time, follow
-              live status, and avoid unconfirmed results.
+              Goal: control the active block from “In progress,” announce the
+              right information, and deliver reliable results.
             </div>
           </div>
           <div class="qr-card">
@@ -142,101 +200,107 @@
 
         <div class="grid">
           <section class="block">
-            <h2><span class="num">1</span> Before the class</h2>
+            <h2><span class="num">1</span> Prepare the view</h2>
             <ul>
-              <li>Scan the QR, sign in, then open the correct association.</li>
-              <li>Choose the correct show and the <strong>Announcer</strong> view.</li>
-              <li>Check the active block, draw, and order of go.</li>
-              <li>Confirm name pronunciation when needed.</li>
-              <li>Keep the page open during the class.</li>
+              <li>Scan the QR, sign in, and open the correct show.</li>
+              <li>Choose <strong>Announcer</strong>, then enable sound alerts.</li>
+              <li>Check the arena, block, pattern, and draw.</li>
+              <li>Find the <strong>Source: announcer</strong> or <strong>Source: scribes</strong> badge.</li>
+              <li>Keep this page open for the entire block.</li>
             </ul>
             <div class="callout ok">
-              The QR opens the single association, or the association picker if your account has several.
+              The actual active block automatically moves into the <strong>In progress</strong> panel and opens.
             </div>
           </section>
 
           <section class="block">
-            <h2><span class="num">2</span> During live</h2>
+            <h2><span class="num">2</span> Read “In progress”</h2>
             <ul>
-              <li>Use the current rider and next rider shown on screen.</li>
-              <li>Do not guess a missing back number, name, or class.</li>
-              <li>Follow confirmed drags, breaks, and changes.</li>
-              <li>Announce public information, not internal notes.</li>
+              <li><strong>In the arena</strong>: confirmed current run.</li>
+              <li><strong>Next</strong> and <strong>Second next</strong>: prepare the call.</li>
+              <li><strong>Last competitor</strong>: announce only what is visible.</li>
+              <li>Cards below are upcoming; <strong>View</strong> opens their details.</li>
+              <li>Concurrent classes share one card and one draw.</li>
             </ul>
             <div class="callout">
-              If the screen and paper disagree, ask the secretariat before announcing.
+              Never present the first name as “on course” before the run truly starts.
             </div>
           </section>
 
           <section class="block wide">
-            <h2><span class="num">3</span> Announcing flow</h2>
+            <h2><span class="num">3</span> Announcer-controlled live</h2>
             <div class="flow">
-              <div class="step">1. Active block<span>confirmed with secretariat</span></div>
-              <div class="step">2. Current rider<span>name and number</span></div>
-              <div class="step">3. Next rider<span>prepare entry</span></div>
-              <div class="step">4. Scores<span>only if visible</span></div>
-              <div class="step">5. Break/drag<span>announce timing</span></div>
+              <div class="step">1. Start next<span>when entering the arena</span></div>
+              <div class="step">2. Announce<span>number, rider, horse</span></div>
+              <div class="step">3. Enter result<span>confirmed score only</span></div>
+              <div class="step">4. Special case<span>Review, No score, Scratch</span></div>
+              <div class="step">5. Continue<span>next run or planned drag</span></div>
+            </div>
+            <div class="callout ok">
+              Buttons in the “In progress” card control live status. A fixed schedule informs TV, but never blocks an early start.
             </div>
           </section>
 
           <section class="block">
-            <h2><span class="num">4</span> Scores and results</h2>
+            <h2><span class="num">4</span> Scribe source and TV</h2>
             <ul>
-              <li>Announce a score only when it is visible/confirmed in the interface.</li>
-              <li>Do not announce a run in <strong>Review</strong> as final.</li>
-              <li>For No score, Score 0, DQ, or Scratch, wait for official confirmation.</li>
-              <li>Provisional standings can change until the secretariat publishes them.</li>
+              <li>With <strong>Source: scribes</strong>, scribes feed the scores.</li>
+              <li>The announcer follows the order and reads results; do not re-enter scores.</li>
+              <li>Check the freshness indicator before announcing.</li>
+              <li><strong>Minimal display</strong> hides identities and scores on public screens.</li>
             </ul>
             <div class="callout danger">
-              The judge and secretariat decision overrides any quick screen read.
+              If data is late or conflicts with paper, confirm with the secretariat.
             </div>
           </section>
 
           <section class="block">
-            <h2><span class="num">5</span> Non-scored classes</h2>
+            <h2><span class="num">5</span> Paid warm ups</h2>
             <ul>
-              <li>Some blocks are used only for schedule or live tracking.</li>
-              <li>Use progress controls when the block has no scores.</li>
-              <li>Mark completed only when the arena has truly finished.</li>
-              <li>Confirm order changes with the secretariat.</li>
+              <li><strong>Start in arena</strong> starts the rider and timer.</li>
+              <li>At the end: <strong>Stop and mark done</strong>, <strong>No show in arena</strong>, or <strong>Scratch in arena</strong>.</li>
+              <li>Use <strong>Start drag</strong> and <strong>End drag</strong> at the correct time.</li>
+              <li><strong>Undo last action</strong> restores the last action when needed.</li>
+              <li>Scheduled time controls TV display without blocking controls.</li>
             </ul>
           </section>
 
           <section class="block">
-            <h2><span class="num">6</span> Sync and public screen</h2>
+            <h2><span class="num">6</span> End block and results</h2>
             <ul>
-              <li>If the screen seems frozen, do not close it right away.</li>
-              <li>Check connection and ask the person in charge if needed.</li>
-              <li>The public sees only what is active/published.</li>
-              <li>Do not promise publication before confirmation.</li>
+              <li>Resolve Review runs before completing the block.</li>
+              <li>Mark completed only when the arena is truly finished.</li>
+              <li>Displayed standings remain provisional.</li>
+              <li>Completing a class stops its broadcast. Explicitly activate the next class to put it on air.</li>
             </ul>
           </section>
 
           <section class="block">
-            <h2><span class="num">7</span> Corrections</h2>
+            <h2><span class="num">7</span> Sync, errors, corrections</h2>
             <ul>
-              <li>Name/number error: correct on mic only after confirmation.</li>
-              <li>Score error: refer to the secretariat, do not resolve on mic.</li>
-              <li>Draw change: wait for the official signal before announcing.</li>
-              <li>Sensitive note: never read it publicly.</li>
+              <li><strong>Synced</strong>: the online save is confirmed.</li>
+              <li><strong>Sync pending</strong> or <strong>Saved locally</strong>: keep the page open.</li>
+              <li>Correct a result with the proper tool, never only on mic.</li>
+              <li>For name, draw, or official decision: confirm with the secretariat.</li>
+              <li>Never read an internal or sensitive note.</li>
             </ul>
           </section>
 
           <section class="block wide">
             <h2><span class="num">8</span> Announcer checklist</h2>
             <div class="checklist">
-              <div class="check">Correct show open<div class="small">association confirmed</div></div>
-              <div class="check">Active block OK<div class="small">draw and order</div></div>
-              <div class="check">Names confirmed<div class="small">pronunciation if needed</div></div>
-              <div class="check">Scores visible<div class="small">no final Review</div></div>
-              <div class="check">Breaks tracked<div class="small">drag/timing announced</div></div>
-              <div class="check">Corrections validated<div class="small">by secretariat</div></div>
+              <div class="check">Correct source<div class="small">announcer or scribes</div></div>
+              <div class="check">“In progress” card<div class="small">block and arena confirmed</div></div>
+              <div class="check">Run started<div class="small">only on actual entry</div></div>
+              <div class="check">Result confirmed<div class="small">Review resolved</div></div>
+              <div class="check">Drags tracked<div class="small">start and end recorded</div></div>
+              <div class="check">Block completed<div class="small">secretariat notified</div></div>
             </div>
           </section>
         </div>
 
         <footer>
-          ShowScore - announcer sheet EN, version 2026-07-06. Official judge and secretariat decisions always prevail.
+          ShowScore - announcer sheet EN, version 2026-09-05. Official judge and secretariat decisions always prevail.
         </footer>
       </article>
     </main>
