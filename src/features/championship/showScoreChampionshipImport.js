@@ -40,7 +40,7 @@ export function buildShowScoreChampionshipImportPreview({
         association,
         code: group.classCode || group.code,
         name: group.className,
-        entryCount: group.entries.length,
+        entryCount: group.entryCount,
         classMappings,
       });
       const sourceClassKey = buildSourceClassKey(classData, group);
@@ -69,7 +69,7 @@ export function buildShowScoreChampionshipImportPreview({
         matchStatus: match?.status || ASSOCIATION_CLASS_MATCH_STATUSES.UNKNOWN,
         matchType: match?.matchType || "",
         reason: match?.reason || ignoredReason,
-        entryCount: group.entries.length,
+        entryCount: group.entryCount,
         scoredCount: scoredEntries.length,
         rowCount: scoredEntries.length,
         canInclude,
@@ -129,8 +129,8 @@ export function buildShowScoreChampionshipImportPreview({
           importedClassName: group.className || "",
           importedClassCode: group.classCode || group.code || "",
           patternNum: group.pattern || official.pattern || "",
-          entryCount: group.entries.length,
-          rawEntryCount: String(group.entries.length || ""),
+          entryCount: group.entryCount,
+          rawEntryCount: String(group.entryCount || ""),
           shownCount: scoredEntries.length,
           rawShownCount: String(scoredEntries.length || ""),
           goType: "ShowScore",
