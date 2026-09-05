@@ -179,6 +179,48 @@ function playTone(audioContext, note) {
   oscillator.stop(endAt + 0.04);
 }
 
+export function useSavePaidWarmupUpdate(
+  showId,
+  refreshLiveViewNow,
+  setLiveView,
+  liveViewRefreshGenerationRef
+) {
+  const pendingWarmupsRef = useRef(new Set());
+
+  return useCallback((nextWarmup, wasPublicLive = false) => {
+    const key = `${showId}:${nextWarmup.id}`;
+    const isClosing = wasPublicLive && isPaidWarmupComplete(nextWarmup);
+    if (isClosing && pendingWarmupsRef.current.has(key)) {
+      return Promise.resolve(nextWarmup);
+    }
+    if (isClosing) pendingWarmupsRef.current.add(key);
+
+    const syncPromise = savePaidWarmupLiveRepository(nextWarmup);
+    liveViewRefreshGenerationRef.current += 1;
+    setLiveView(getAnnouncerShowView(showId));
+
+    void (async () => {
+      try {
+        const saved = await syncPromise;
+        if (wasPublicLive && isPaidWarmupComplete(saved)) {
+          await advanceArenaLivePaidWarmupAfterCompletionRepository({
+            showId,
+            arena: saved.arena,
+            paidWarmupId: saved.id,
+          });
+        }
+        await refreshLiveViewNow();
+      } catch (error) {
+        console.error("Erreur synchronisation paid warmup annonceur:", error);
+      } finally {
+        if (isClosing) pendingWarmupsRef.current.delete(key);
+      }
+    })();
+
+    return Promise.resolve(nextWarmup);
+  }, [refreshLiveViewNow, showId, setLiveView, liveViewRefreshGenerationRef]);
+}
+
 function AnnouncerDashboardPage() {
   const { associationId, showId } = useParams();
   const navigate = useNavigate();
@@ -290,32 +332,9 @@ function AnnouncerDashboardPage() {
     return refreshPromise;
   }, [showId]);
 
-  const savePaidWarmupUpdate = useCallback((nextWarmup) => {
-    const syncPromise = savePaidWarmupLiveRepository(nextWarmup);
-
-    liveViewRefreshGenerationRef.current += 1;
-    setLiveView(getAnnouncerShowView(showId));
-
-    void (async () => {
-      try {
-        const saved = await syncPromise;
-
-        if (saved?.isPublicLive && isPaidWarmupComplete(saved)) {
-          await advanceArenaLivePaidWarmupAfterCompletionRepository({
-            showId,
-            arena: saved.arena,
-            paidWarmupId: saved.id,
-          });
-        }
-
-        await refreshLiveViewNow();
-      } catch (error) {
-        console.error("Erreur synchronisation paid warmup annonceur:", error);
-      }
-    })();
-
-    return Promise.resolve(nextWarmup);
-  }, [refreshLiveViewNow, showId]);
+  const savePaidWarmupUpdate = useSavePaidWarmupUpdate(
+    showId, refreshLiveViewNow, setLiveView, liveViewRefreshGenerationRef
+  );
 
   const saveScheduleDetailsUpdate = useCallback((classView, details) => {
     const syncPromise = saveClassScheduleDetailsRepository(
@@ -444,7 +463,10 @@ function AnnouncerDashboardPage() {
 
   const handleStopPaidWarmupTimer = (warmup) => {
     rememberPaidWarmupUndo(warmup);
-    return savePaidWarmupUpdate(stopPaidWarmupTimer(warmup));
+    return savePaidWarmupUpdate(
+      stopPaidWarmupTimer(warmup),
+      warmup.isPublicLive
+    );
   };
 
   const handleStartPaidWarmupDrag = (warmup) => {
@@ -459,7 +481,10 @@ function AnnouncerDashboardPage() {
 
   const handleSetPaidWarmupEntryStatus = (warmup, entryId, status) => {
     rememberPaidWarmupUndo(warmup);
-    return savePaidWarmupUpdate(setPaidWarmupEntryStatus(warmup, entryId, status));
+    return savePaidWarmupUpdate(
+      setPaidWarmupEntryStatus(warmup, entryId, status),
+      warmup.isPublicLive
+    );
   };
 
   const handleUndoPaidWarmupAction = async (warmup) => {
@@ -531,7 +556,7 @@ function AnnouncerDashboardPage() {
     }
 
     autoCompletedPaidWarmupKeyRef.current = completionKey;
-    savePaidWarmupUpdate(stopPaidWarmupTimer(warmup));
+    savePaidWarmupUpdate(stopPaidWarmupTimer(warmup), warmup.isPublicLive);
   }, [liveView.activePaidWarmup, now, savePaidWarmupUpdate]);
 
   useEffect(() => {
