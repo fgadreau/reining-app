@@ -1,4 +1,6 @@
 import React from "react";
+import { useLocation } from "react-router-dom";
+import { isProtectedDisplayPath } from "../styles/BrandBoundary";
 import {
   getConfiguredSupabaseProjectRef,
   getDeployEnvironmentLabel,
@@ -6,10 +8,11 @@ import {
 } from "../features/cloud/deployEnvironment";
 
 export default function EnvironmentBanner() {
+  const { pathname } = useLocation();
   const label = getDeployEnvironmentLabel();
   const configurationError = getSupabaseConfigurationError();
 
-  if (!label && !configurationError) return null;
+  if (!configurationError && (!label || isProtectedDisplayPath(pathname))) return null;
 
   return (
     <aside

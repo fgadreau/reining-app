@@ -415,6 +415,11 @@ async function captureReview(page, name) {
     fullPage: true,
     animations: "disabled",
   });
+  if (process.env.E2E_CAPTURE_SIGNATURE_PAIRS === "1") {
+    await page.locator(".tv-showscore-signature").evaluateAll(images => images.forEach(img => { img.style.visibility = "hidden"; }));
+    await page.screenshot({ path: path.join(process.env.E2E_CAPTURE_DIR, `${name}-sans-signature.png`), fullPage: true, animations: "disabled" });
+    await page.locator(".tv-showscore-signature").evaluateAll(images => images.forEach(img => { img.style.visibility = ""; }));
+  }
 }
 
 async function showStep(page) {
@@ -690,6 +695,7 @@ test.describe("robot de show local", () => {
     await expect(page.locator('[role="table"]')).toContainText("Cavalier 2");
     await expect(page.locator('[role="table"]')).toContainText("70");
     await expect(page.locator('[role="table"]')).toContainText("69½");
+    await captureReview(page, "tv-standings");
   });
 
   test("remplace les cartes TV vides par la prochaine classe", async ({
@@ -834,6 +840,7 @@ test.describe("robot de show local", () => {
     await expect(page.locator("body")).toContainText("Live en pause");
     await expect(page.locator("[data-sponsor-layout]")).toBeVisible();
     await expect(page.locator("[data-tv-public-qr]")).toBeVisible();
+    await captureReview(page, "tv-paused");
   });
 
   test("separe clairement les reglages TV generaux et competition", async ({
