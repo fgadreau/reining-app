@@ -1,0 +1,13 @@
+
+> reining-app@0.1.0 test
+> VITE_SUPABASE_URL= VITE_SUPABASE_PUBLISHABLE_KEY= VITE_SUPABASE_ANON_KEY= vitest run src/App.test.js src/features/auth/useAuthUser.test.jsx src/features/championship/championshipRepository.test.js src/features/classes/classSetupRepository.test.js src/features/classes/officialResultRepository.test.js src/features/days/showDayNavigation.test.js src/features/live/announcerLiveRepository.test.js src/features/localRelay/localDisplaySnapshot.test.js src/features/localRelay/localRelayClient.test.js src/features/publication/publicViewRepository.batch.test.js src/features/publication/usePublicShowViewUpdates.test.js src/components/ShowDayTabs.test.jsx --environment jsdom --globals --maxWorkers=2
+
+
+ RUN  v4.1.8 /workspaces/reining-app
+
+
+ Test Files  12 passed (12)
+      Tests  270 passed (270)
+   Start at  22:09:08
+   Duration  38.35s (transform 9.21s, setup 0ms, import 15.69s, tests 5.77s, environment 43.63s)
+

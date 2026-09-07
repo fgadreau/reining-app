@@ -8,9 +8,15 @@ const {
   buildRobotShowStorageSeed,
 } = require("./showRobotData");
 
-async function seedRobotShow(page) {
+async function seedRobotShow(page, { unclaimedJudgeId } = {}) {
   const seed = buildRobotShowStorageSeed();
 
+  if (unclaimedJudgeId) {
+    const session = seed.json["showscore_judge_scoring_sessions_v1"][`${CLASS_ID}:${unclaimedJudgeId}`];
+    session.claimedBy = null;
+    session.claimedByEmail = null;
+    session.claimedAt = null;
+  }
   await seedStorage(page, seed);
 }
 
@@ -367,7 +373,10 @@ async function seedOverlayDragShow(page, { neutral = false } = {}) {
 }
 
 async function seedStorage(page, seed) {
-  await page.addInitScript((storageSeed) => {
+  // Seed once on this origin. Reloads must preserve writes made by the app;
+  // adding multiple init scripts also makes replacement fixtures order-dependent.
+  if (page.url() === "about:blank") await page.goto("/");
+  await page.evaluate((storageSeed) => {
     window.localStorage.clear();
 
     Object.entries(storageSeed.raw).forEach(([key, value]) => {
@@ -396,6 +405,16 @@ async function expectNoHorizontalOverflow(page) {
       )
     )
     .toBe(true);
+}
+
+async function captureReview(page, name) {
+  if (!process.env.E2E_CAPTURE_DIR) return;
+  fs.mkdirSync(process.env.E2E_CAPTURE_DIR, { recursive: true });
+  await page.screenshot({
+    path: path.join(process.env.E2E_CAPTURE_DIR, `${name}.png`),
+    fullPage: true,
+    animations: "disabled",
+  });
 }
 
 async function showStep(page) {
@@ -431,7 +450,7 @@ test.describe("robot de show local", () => {
   test("valide une classe live a 5 juges de la vue scribe a la vitrine", async ({
     page,
   }) => {
-    await seedRobotShow(page);
+    await seedRobotShow(page, { unclaimedJudgeId: "judge-3" });
 
     await page.goto(`/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/scribe`);
     await expect(page.getByRole("heading", { name: "Robot Derby local" })).toBeVisible();
@@ -450,7 +469,13 @@ test.describe("robot de show local", () => {
 
     await page.getByRole("button", { name: "Juge Charlie" }).click();
     await expect(page.getByRole("heading", { name: "Juge Charlie" })).toBeVisible();
-    await expect(page.locator("body")).toContainText("test@showscore.local");
+    await expect(page.getByText("Feuille réservée à test@showscore.local.", { exact: true })).toBeVisible();
+    await expect.poll(() => page.evaluate((classId) => {
+      const sessions = JSON.parse(localStorage.getItem("showscore_judge_scoring_sessions_v1"));
+      const session = sessions[`${classId}:judge-3`];
+      return { claimedBy: session.claimedBy, email: session.claimedByEmail, claimed: Boolean(session.claimedAt) };
+    }, CLASS_ID)).toEqual({ claimedBy: "local-test-user", email: "test@showscore.local", claimed: true });
+    await captureReview(page, "scribe-reservation");
     await showStep(page);
 
     await page.goto(`/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}`);
@@ -496,6 +521,7 @@ test.describe("robot de show local", () => {
     await expect(page.locator("body")).toContainText("Ordre de passage");
     await expect(page.locator("body")).toContainText("Cavalier 3");
     await expectNoHorizontalOverflow(page);
+    await captureReview(page, "mobile-live");
 
     await seedPublishedRobotShow(page);
     await page.goto(`/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}`);
@@ -587,6 +613,8 @@ test.describe("robot de show local", () => {
       })
       .toEqual({ x: 0, y: 0, width: 1920, height: 1080 });
 
+    await captureReview(page, "sponsors-drag");
+
     if (process.env.E2E_CAPTURE_OVERLAY_DRAG === "1") {
       await page.screenshot({
         path: "/tmp/overlay-drag-sponsors.png",
@@ -624,6 +652,7 @@ test.describe("robot de show local", () => {
       page.locator('[data-overlay-sponsor-mode="rail"]')
     ).toBeVisible();
     await expect(page.locator("[data-overlay-bottom-bar]")).toBeVisible();
+    await captureReview(page, "sponsors-live-restored");
   });
 
   test("garde l'overlay neutre inchangé pendant un drag", async ({ page }) => {
@@ -678,6 +707,7 @@ test.describe("robot de show local", () => {
     await expect(body).toContainText("Prochaine classe");
     await expect(body).toContainText("Classe robot suivante");
     await expect(body).not.toContainText("À confirmer");
+    await captureReview(page, "tv-next-class");
   });
 
   test("garde toutes les zones TV separees sur un viewport Fire Stick", async ({
@@ -766,21 +796,26 @@ test.describe("robot de show local", () => {
       "loop",
       ""
     );
-    await expect(page.locator("[data-tv-live-strip]")).toContainText(
-      "Classe robot 5 juges"
-    );
-    await expect(page.locator("[data-tv-live-strip]")).toContainText(
-      "Cavalier 3"
-    );
-    await expect(
-      page.locator('[data-tv-overflow-text="class-name"]')
-    ).toHaveAttribute("data-tv-scrolling", "true");
+    // The approved 480px layout (32e318a) replaced the class-title column
+    // with three participant columns. Verify their business content and geometry.
+    const participants = page.locator(".tv-competition-participant");
+    await expect(participants).toHaveCount(3);
+    await expect(participants.nth(0)).toContainText("Cavalier 3");
+    await expect(participants.nth(0)).toContainText("Cheval 3");
+    await expect(participants.nth(1)).toContainText("Cavalier 4");
+    await expect(participants.nth(2)).toContainText("Cavalier 2");
+    await expect(participants.nth(2).locator(".tv-competition-participant-score")).toHaveText("217½");
+    const videoBox = await page.locator(".tv-competition-video-wrap").boundingBox();
+    const stripBox = await page.locator("[data-tv-live-strip]").boundingBox();
+    expect(videoBox.y + videoBox.height).toBeLessThanOrEqual(stripBox.y);
+    await expectNoHorizontalOverflow(page);
     await expect(
       page
         .locator('[data-tv-overflow-text="participant-name"]')
         .filter({ hasText: "Cavalier 3" })
     ).toHaveAttribute("data-tv-scrolling", "true");
     await expect(page.locator("[data-sponsor-layout]")).toHaveCount(0);
+    await captureReview(page, "tv-competition-video");
 
     await page.goto(
       `/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}/tv?mode=competition&arena=Autre`
@@ -867,6 +902,7 @@ test.describe("robot de show local", () => {
       `/associations/${ASSOCIATION_ID}/classes/${CLASS_ID}/setup`
     );
     const liveSourceSelect = page.getByLabel("Source des données live");
+    await expect(liveSourceSelect).toHaveValue("scribe");
     page.once("dialog", (dialog) => dialog.accept());
     await liveSourceSelect.selectOption("announcer");
     await expect(liveSourceSelect).toHaveValue("announcer");
@@ -880,6 +916,8 @@ test.describe("robot de show local", () => {
         }, CLASS_ID)
       )
       .toBe("announcer");
+    await page.reload();
+    await expect(liveSourceSelect).toHaveValue("announcer");
 
     await navigateSpa(
       page,
@@ -946,6 +984,7 @@ test.describe("robot de show local", () => {
     await expect(body).not.toContainText("Cheval 3");
     await expect(body).not.toContainText("Back 103");
     await expectNoHorizontalOverflow(page);
+    await captureReview(page, "announcer-order-only");
   });
 
   test("enregistre au clavier un résultat annonceur à un juge sur laptop", async ({

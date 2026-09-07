@@ -1,0 +1,75 @@
+
+ RUN  v4.1.8 /workspaces/reining-app
+
+ ❯ src/features/auth/useAuthUser.test.jsx (2 tests | 2 failed) 1069ms
+   × loads the local scribe identity without a configured cloud client 33ms
+   × observes local sign-in and sign-out without inventing an identity 1034ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/auth/useAuthUser.test.jsx > loads the local scribe identity without a configured cloud client
+AssertionError: expected { user: null, authEvent: null, …(4) } to match object { isConfigured: false, …(3) }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "isAuthenticated": true,
++   "isAuthenticated": false,
+    "isConfigured": false,
+-   "isLocalTestUser": true,
+-   "user": {
+-     "email": "test@showscore.local",
+-     "id": "local-test-user",
+-   },
++   "isLocalTestUser": false,
++   "user": null,
+  }
+
+ ❯ src/features/auth/useAuthUser.test.jsx:18:26
+     16|   const { result } = renderHook(() => useAuthUser());
+     17|   await waitFor(() => expect(result.current.isLoading).toBe(false));
+     18|   expect(result.current).toMatchObject({
+       |                          ^
+     19|     isConfigured: false,
+     20|     isAuthenticated: true,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/features/auth/useAuthUser.test.jsx > observes local sign-in and sign-out without inventing an identity
+AssertionError: expected false to be true // Object.is equality
+
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div />
+  </body>
+</html>
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/features/auth/useAuthUser.test.jsx:31:62
+     29|   expect(result.current.user).toBeNull();
+     30|   act(() => saveLocalTestSession());
+     31|   await waitFor(() => expect(result.current.isAuthenticated).toBe(true…
+       |                                                              ^
+     32|   act(() => clearLocalTestSession());
+     33|   await waitFor(() => expect(result.current.user).toBeNull());
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  22:02:40
+   Duration  2.44s (transform 131ms, setup 0ms, import 255ms, tests 1.07s, environment 909ms)
+

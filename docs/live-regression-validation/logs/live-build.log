@@ -1,0 +1,24 @@
+
+> reining-app@0.1.0 build
+> vite build
+
+vite v6.4.3 building for production...
+transforming...
+✓ 553 modules transformed.
+rendering chunks...
+computing gzip size...
+build/index.html                              2.05 kB │ gzip:   0.66 kB
+build/assets/pdf.worker-2htIQpfR.mjs      2,358.23 kB
+build/assets/index-V9gox_qc.css              15.03 kB │ gzip:   3.52 kB
+build/assets/purify.es-CKWrWwPe.js           28.15 kB │ gzip:  10.60 kB
+build/assets/index-m9VXT_iI.js               60.21 kB │ gzip:  15.94 kB
+build/assets/index.es-B6axhzZK.js           159.60 kB │ gzip:  53.51 kB
+build/assets/html2canvas.esm-QH1iLAAe.js    202.38 kB │ gzip:  48.04 kB
+build/assets/pdf-dqd5vC4d.js                512.51 kB │ gzip: 155.91 kB
+build/assets/index-eS5N4Ltv.js            2,148.92 kB │ gzip: 610.30 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 32.49s

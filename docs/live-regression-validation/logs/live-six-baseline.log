@@ -1,0 +1,301 @@
+[WebServer] (node:60574) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+(node:60591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:60591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [chromium] › tests/e2e/show-robot.spec.js:431:3 › robot de show local › valide une classe live a 5 juges de la vue scribe a la vitrine (17.3s)
+(node:61320) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:61320) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] Files in the public directory are served at the root path.
+[WebServer] Instead of /public/associations/e2e-robot-association/shows/e2e-robot-show, use /associations/e2e-robot-association/shows/e2e-robot-show.
+  ✘  2 [chromium] › tests/e2e/show-robot.spec.js:483:3 › robot de show local › garde la vitrine publique mobile lisible avec details a la demande (12.5s)
+(node:61741) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:61741) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] Files in the public directory are served at the root path.
+[WebServer] Instead of /public/associations/e2e-robot-association/shows/e2e-robot-show/overlay, use /associations/e2e-robot-association/shows/e2e-robot-show/overlay.
+  ✘  3 [chromium] › tests/e2e/show-robot.spec.js:556:3 › robot de show local › agrandit les commanditaires pendant le drag puis restaure le live (12.0s)
+(node:62228) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:62228) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] Files in the public directory are served at the root path.
+[WebServer] Instead of /public/associations/e2e-robot-association/shows/e2e-robot-show/tv, use /associations/e2e-robot-association/shows/e2e-robot-show/tv.
+  ✘  4 [chromium] › tests/e2e/show-robot.spec.js:666:3 › robot de show local › remplace les cartes TV vides par la prochaine classe (13.1s)
+(node:62633) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:62633) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] Files in the public directory are served at the root path.
+[WebServer] Instead of /public/associations/e2e-robot-association/shows/e2e-robot-show/tv?mode=competition&arena=Manege Robot, use /associations/e2e-robot-association/shows/e2e-robot-show/tv?mode=competition&arena=Manege Robot.
+  ✘  5 [chromium] › tests/e2e/show-robot.spec.js:746:3 › robot de show local › garde la video du manege principal avec les donnees live dessous (14.2s)
+(node:63282) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:63282) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  6 [chromium] › tests/e2e/show-robot.spec.js:860:3 › robot de show local › permet le live annonceur et l affichage minimal ordre seulement (13.9s)
+
+
+  1) [chromium] › tests/e2e/show-robot.spec.js:431:3 › robot de show local › valide une classe live a 5 juges de la vue scribe a la vitrine 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('body')
+    Timeout: 10000ms
+    - Expected substring  - 1
+    + Received string     + 7
+
+    - test@showscore.local
+    +
+    +     
+    +     AccueilPrésentationVitrine publiqueAssociationAdminMode localFRENCompétitionsUtilisateursRéglagesJournalSauvé localementLes scores sont sauvegardés localement sur cet appareil, mais Supabase n’est pas disponible pour cette session. Garde cette page ouverte, vérifie la connexion ou le login, puis réessaie la sync.← RetourClasse robot 5 juges | Pattern RR1 | Juge Juge Charlie | 10 run(s)Statut: En coursSauvé localementExporter sauvegardeExporter PDF provisoireSigner le blocScoring pourJuge CharlieConnecte-toi avec ton propre compte scribe pour réserver cette feuille.Changer de jugeGestion du tempsDébut14 h 00Complétés0/10Moyenne/run—Drags restants0Temps restant—Fin estimée—Le début réel sera enregistré au premier score ou à la première pénalité. L’estimation s’activera après le premier run complété avec un temps mesuré.DrawBackPENWTET/STT360LLL_1/2_CIRCLELCRL_1/2_CIRCLEERLCLETWLSTBKRHAPén. totalesScore1101P———————————————S—————————————2102P———————————————S—————————————3103P———————————————S—————————————4104P———————————————S—————————————5105P———————————————S—————————————6106P———————————————S—————————————7107P———————————————S—————————————8108P———————————————S—————————————9109P———————————————S—————————————10110P———————————————S—————————————
+    +     
+    +   
+    +
+    +
+
+    Call log:
+      - Expect "toContainText" with timeout 10000ms
+      - waiting for locator('body')
+        22 × locator resolved to <body>…</body>
+           - unexpected value "
+        
+        AccueilPrésentationVitrine publiqueAssociationAdminMode localFRENCompétitionsUtilisateursRéglagesJournalSauvé localementLes scores sont sauvegardés localement sur cet appareil, mais Supabase n’est pas disponible pour cette session. Garde cette page ouverte, vérifie la connexion ou le login, puis réessaie la sync.← RetourClasse robot 5 juges | Pattern RR1 | Juge Juge Charlie | 10 run(s)Statut: En coursSauvé localementExporter sauvegardeExporter PDF provisoireSigner le blocScoring pourJuge CharlieConnecte-toi avec ton propre compte scribe pour réserver cette feuille.Changer de jugeGestion du tempsDébut14 h 00Complétés0/10Moyenne/run—Drags restants0Temps restant—Fin estimée—Le début réel sera enregistré au premier score ou à la première pénalité. L’estimation s’activera après le premier run complété avec un temps mesuré.DrawBackPENWTET/STT360LLL_1/2_CIRCLELCRL_1/2_CIRCLEERLCLETWLSTBKRHAPén. totalesScore1101P———————————————S—————————————2102P———————————————S—————————————3103P———————————————S—————————————4104P———————————————S—————————————5105P———————————————S—————————————6106P———————————————S—————————————7107P———————————————S—————————————8108P———————————————S—————————————9109P———————————————S—————————————10110P———————————————S—————————————
+        
+      
+    
+    "
+
+
+      451 |     await page.getByRole("button", { name: "Juge Charlie" }).click();
+      452 |     await expect(page.getByRole("heading", { name: "Juge Charlie" })).toBeVisible();
+    > 453 |     await expect(page.locator("body")).toContainText("test@showscore.local");
+          |                                        ^
+      454 |     await showStep(page);
+      455 |
+      456 |     await page.goto(`/public/associations/${ASSOCIATION_ID}/shows/${SHOW_ID}`);
+        at /workspaces/reining-app/tests/e2e/show-robot.spec.js:453:40
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/show-robot-robot-de-show-l-4c38c--la-vue-scribe-a-la-vitrine-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/show-robot-robot-de-show-l-4c38c--la-vue-scribe-a-la-vitrine-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/show-robot-robot-de-show-l-4c38c--la-vue-scribe-a-la-vitrine-chromium/error-context.md
+
+  2) [chromium] › tests/e2e/show-robot.spec.js:483:3 › robot de show local › garde la vitrine publique mobile lisible avec details a la demande 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('body')
+    Timeout: 10000ms
+    - Expected substring  - 1
+    + Received string     + 7
+
+    - Cavalier 3
+    +
+    +     
+    +     Par HSPVitrine publiqueFREN☰← RetourROBOFeuilles de pointage publiquesRobot Derby localROBOT · Centre de testPartagerShowsLiveClasse robot 5 juges (E2E-5J)Manège Manege Robot · Pattern Ranch Riding #1En attente de mise à jour depuis 2455 h 37 minLive scores complétésEn coursMasquerFin estimée du bloc22 h 13Fin estimée de la journée22 h 13Estimation ajustée selon les temps réels enregistrés et les drags prévus.Les scores s’affichent seulement quand la run du participant est complétée par le scribe.En piste—Prochain participantEn préparation#1 · Back 101Cavalier 1Cheval 1Propriétaire: Proprio 12e prochain participantEn attente#2 · Back 102Cavalier 2Cheval 2Propriétaire: Proprio 2Ordre de passagePassés avec scores10Voir0publicationsLive actifs dans la vitrine: 1Aucun résultat ni feuille de pointage officielle publié pour l’instant. Le live public apparaît ici si un bloc ou un paid warm up du show est autorisé.
+    +     
+    +   
+    +
+    +
+
+    Call log:
+      - Expect "toContainText" with timeout 10000ms
+      - waiting for locator('body')
+        24 × locator resolved to <body>…</body>
+           - unexpected value "
+        
+        Par HSPVitrine publiqueFREN☰← RetourROBOFeuilles de pointage publiquesRobot Derby localROBOT · Centre de testPartagerShowsLiveClasse robot 5 juges (E2E-5J)Manège Manege Robot · Pattern Ranch Riding #1En attente de mise à jour depuis 2455 h 37 minLive scores complétésEn coursMasquerFin estimée du bloc22 h 13Fin estimée de la journée22 h 13Estimation ajustée selon les temps réels enregistrés et les drags prévus.Les scores s’affichent seulement quand la run du participant est complétée par le scribe.En piste—Prochain participantEn préparation#1 · Back 101Cavalier 1Cheval 1Propriétaire: Proprio 12e prochain participantEn attente#2 · Back 102Cavalier 2Cheval 2Propriétaire: Proprio 2Ordre de passagePassés avec scores10Voir0publicationsLive actifs dans la vitrine: 1Aucun résultat ni feuille de pointage officielle publié pour l’instant. Le live public apparaît ici si un bloc ou un paid warm up du show est autorisé.
+        
+      
+    
+    "
+
+
+      495 |       .click();
+      496 |     await expect(page.locator("body")).toContainText("Ordre de passage");
+    > 497 |     await expect(page.locator("body")).toContainText("Cavalier 3");
+          |                                        ^
+      498 |     await expectNoHorizontalOverflow(page);
+      499 |
+      500 |     await seedPublishedRobotShow(page);
+        at /workspaces/reining-app/tests/e2e/show-robot.spec.js:497:40
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/show-robot-robot-de-show-l-0e0ad-e-avec-details-a-la-demande-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/show-robot-robot-de-show-l-0e0ad-e-avec-details-a-la-demande-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/show-robot-robot-de-show-l-0e0ad-e-avec-details-a-la-demande-chromium/error-context.md
+
+  3) [chromium] › tests/e2e/show-robot.spec.js:556:3 › robot de show local › agrandit les commanditaires pendant le drag puis restaure le live 
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  locator('main')
+    Expected: "sponsor-takeover"
+    Received: "live"
+    Timeout:  10000ms
+
+    Call log:
+      - Expect "toHaveAttribute" with timeout 10000ms
+      - waiting for locator('main')
+        23 × locator resolved to <main data-overlay-layout="live">…</main>
+           - unexpected value "live"
+
+
+      565 |     const overlay = page.locator("main");
+      566 |     const sponsors = page.locator('[data-overlay-sponsor-mode="takeover"]');
+    > 567 |     await expect(overlay).toHaveAttribute(
+          |                           ^
+      568 |       "data-overlay-layout",
+      569 |       "sponsor-takeover"
+      570 |     );
+        at /workspaces/reining-app/tests/e2e/show-robot.spec.js:567:27
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/show-robot-robot-de-show-l-850b2--drag-puis-restaure-le-live-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/show-robot-robot-de-show-l-850b2--drag-puis-restaure-le-live-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/show-robot-robot-de-show-l-850b2--drag-puis-restaure-le-live-chromium/error-context.md
+
+  4) [chromium] › tests/e2e/show-robot.spec.js:666:3 › robot de show local › remplace les cartes TV vides par la prochaine classe 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('body')
+    Timeout: 10000ms
+    - Expected substring  - 1
+    + Received string     + 7
+
+    - Cavalier 10
+    +
+    +     
+    +     ShowScoreVitrine publiqueAccueilFRENGestionROBOAffichage manège/Arena displayRobot Derby localAssociation Robot Ranch · Centre de test · Manege AScannez pour suivreScan to followshowscore.appLien vers la vitrine publique de ce showEn cours/Now liveClasse robot 5 jugesE2E-5J · Manege Robot · Ranch Riding #1En piste/On course#1 · Back 101Cavalier 1Cheval 1 · Propriétaire / Owner: Proprio 1À venir/Up nextProchain/Next#1 · Back 101Cavalier 1Cheval 1 · Propriétaire / Owner: Proprio 12e prochain/Second next#2 · Back 102Cavalier 2Cheval 2 · Propriétaire / Owner: Proprio 2Derniers passés/Last completedDernier/Last—Avant-dernier/Previous—Commanditaires/SponsorsShowScoreshowScore.app
+    +     
+    +   
+    +
+    +
+
+    Call log:
+      - Expect "toContainText" with timeout 10000ms
+      - waiting for locator('body')
+        23 × locator resolved to <body>…</body>
+           - unexpected value "
+        
+        ShowScoreVitrine publiqueAccueilFRENGestionROBOAffichage manège/Arena displayRobot Derby localAssociation Robot Ranch · Centre de test · Manege AScannez pour suivreScan to followshowscore.appLien vers la vitrine publique de ce showEn cours/Now liveClasse robot 5 jugesE2E-5J · Manege Robot · Ranch Riding #1En piste/On course#1 · Back 101Cavalier 1Cheval 1 · Propriétaire / Owner: Proprio 1À venir/Up nextProchain/Next#1 · Back 101Cavalier 1Cheval 1 · Propriétaire / Owner: Proprio 12e prochain/Second next#2 · Back 102Cavalier 2Cheval 2 · Propriétaire / Owner: Proprio 2Derniers passés/Last completedDernier/Last—Avant-dernier/Previous—Commanditaires/SponsorsShowScoreshowScore.app
+        
+      
+    
+    "
+
+
+      675 |
+      676 |     const body = page.locator("body");
+    > 677 |     await expect(body).toContainText("Cavalier 10");
+          |                        ^
+      678 |     await expect(body).toContainText("Prochaine classe");
+      679 |     await expect(body).toContainText("Classe robot suivante");
+      680 |     await expect(body).not.toContainText("À confirmer");
+        at /workspaces/reining-app/tests/e2e/show-robot.spec.js:677:24
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/show-robot-robot-de-show-l-64b02-des-par-la-prochaine-classe-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/show-robot-robot-de-show-l-64b02-des-par-la-prochaine-classe-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/show-robot-robot-de-show-l-64b02-des-par-la-prochaine-classe-chromium/error-context.md
+
+  5) [chromium] › tests/e2e/show-robot.spec.js:746:3 › robot de show local › garde la video du manege principal avec les donnees live dessous 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('[data-tv-live-strip]')
+    Expected substring: "Classe robot 5 juges"
+    Received string:    "En piste/LiveCavalier 1 · #1 · Back 101Cheval 1Prochain/NextCavalier 1 · #1 · Back 101Cheval 1Dernier/Last—"
+    Timeout: 10000ms
+
+    Call log:
+      - Expect "toContainText" with timeout 10000ms
+      - waiting for locator('[data-tv-live-strip]')
+        24 × locator resolved to <div data-tv-live-strip="true" class="tv-competition-strip">…</div>
+           - unexpected value "En piste/LiveCavalier 1 · #1 · Back 101Cheval 1Prochain/NextCavalier 1 · #1 · Back 101Cheval 1Dernier/Last—"
+
+
+      767 |       ""
+      768 |     );
+    > 769 |     await expect(page.locator("[data-tv-live-strip]")).toContainText(
+          |                                                        ^
+      770 |       "Classe robot 5 juges"
+      771 |     );
+      772 |     await expect(page.locator("[data-tv-live-strip]")).toContainText(
+        at /workspaces/reining-app/tests/e2e/show-robot.spec.js:769:56
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/show-robot-robot-de-show-l-df2ae-ec-les-donnees-live-dessous-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/show-robot-robot-de-show-l-df2ae-ec-les-donnees-live-dessous-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/show-robot-robot-de-show-l-df2ae-ec-les-donnees-live-dessous-chromium/error-context.md
+
+  6) [chromium] › tests/e2e/show-robot.spec.js:860:3 › robot de show local › permet le live annonceur et l affichage minimal ordre seulement 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: "announcer"
+    Received: ""
+
+    Call Log:
+    - Timeout 10000ms exceeded while waiting on the predicate
+
+      880 |         }, CLASS_ID)
+      881 |       )
+    > 882 |       .toBe("announcer");
+          |        ^
+      883 |
+      884 |     await navigateSpa(
+      885 |       page,
+        at /workspaces/reining-app/tests/e2e/show-robot.spec.js:882:8
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/show-robot-robot-de-show-l-12e1d-age-minimal-ordre-seulement-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/show-robot-robot-de-show-l-12e1d-age-minimal-ordre-seulement-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/show-robot-robot-de-show-l-12e1d-age-minimal-ordre-seulement-chromium/error-context.md
+
+  6 failed
+    [chromium] › tests/e2e/show-robot.spec.js:431:3 › robot de show local › valide une classe live a 5 juges de la vue scribe a la vitrine 
+    [chromium] › tests/e2e/show-robot.spec.js:483:3 › robot de show local › garde la vitrine publique mobile lisible avec details a la demande 
+    [chromium] › tests/e2e/show-robot.spec.js:556:3 › robot de show local › agrandit les commanditaires pendant le drag puis restaure le live 
+    [chromium] › tests/e2e/show-robot.spec.js:666:3 › robot de show local › remplace les cartes TV vides par la prochaine classe 
+    [chromium] › tests/e2e/show-robot.spec.js:746:3 › robot de show local › garde la video du manege principal avec les donnees live dessous 
+    [chromium] › tests/e2e/show-robot.spec.js:860:3 › robot de show local › permet le live annonceur et l affichage minimal ordre seulement 
