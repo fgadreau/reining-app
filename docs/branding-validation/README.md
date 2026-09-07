@@ -84,3 +84,7 @@ Tous reproduits sur `3b1be06`, avant intégration de la marque. Les observations
 | Source annonceur (ligne 860) | Le champ de source live reste vide au lieu de `announcer`. | Le scénario d’activation de cette source puis d’affichage minimal ne peut pas être validé. Les tests distincts clavier/iPad/synchronisation après score passent. |
 
 Les lignes se réfèrent à `tests/e2e/show-robot.spec.js`. Aucun changement de logique n’a été introduit pour contourner ces échecs.
+
+## Suivi ultérieur des six échecs live
+
+Les échecs consignés ci-dessus restent le résultat historique de la validation de l’identité. Leur reproduction, leurs causes et leurs corrections sont maintenant documentées séparément dans le [rapport des six scénarios live](../live-regression-validation/README.md), avec les journaux avant/après et les captures. Aucun changement visuel TV n’a été ajouté dans ce correctif.

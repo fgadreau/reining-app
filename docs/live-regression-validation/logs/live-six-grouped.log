@@ -1,0 +1,33 @@
+[WebServer] (node:72595) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+(node:72639) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:72639) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] Files in the public directory are served at the root path.
+[WebServer] Instead of /public/associations/e2e-robot-association/shows/e2e-robot-show, use /associations/e2e-robot-association/shows/e2e-robot-show.
+  ✓  1 [chromium] › tests/e2e/show-robot.spec.js:450:3 › robot de show local › valide une classe live a 5 juges de la vue scribe a la vitrine (19.2s)
+[WebServer] Files in the public directory are served at the root path.
+[WebServer] Instead of /public/associations/e2e-robot-association/shows/e2e-robot-show, use /associations/e2e-robot-association/shows/e2e-robot-show.
+[WebServer] Files in the public directory are served at the root path.
+[WebServer] Instead of /public/associations/e2e-robot-association/shows/e2e-robot-show, use /associations/e2e-robot-association/shows/e2e-robot-show.
+  ✓  2 [chromium] › tests/e2e/show-robot.spec.js:508:3 › robot de show local › garde la vitrine publique mobile lisible avec details a la demande (8.9s)
+[WebServer] Files in the public directory are served at the root path.
+[WebServer] Instead of /public/associations/e2e-robot-association/shows/e2e-robot-show/overlay, use /associations/e2e-robot-association/shows/e2e-robot-show/overlay.
+  ✓  3 [chromium] › tests/e2e/show-robot.spec.js:582:3 › robot de show local › agrandit les commanditaires pendant le drag puis restaure le live (13.2s)
+[WebServer] Files in the public directory are served at the root path.
+[WebServer] Instead of /public/associations/e2e-robot-association/shows/e2e-robot-show/tv, use /associations/e2e-robot-association/shows/e2e-robot-show/tv.
+  ✓  4 [chromium] › tests/e2e/show-robot.spec.js:695:3 › robot de show local › remplace les cartes TV vides par la prochaine classe (7.5s)
+[WebServer] Files in the public directory are served at the root path.
+[WebServer] Instead of /public/associations/e2e-robot-association/shows/e2e-robot-show/tv?mode=competition&arena=Manege Robot, use /associations/e2e-robot-association/shows/e2e-robot-show/tv?mode=competition&arena=Manege Robot.
+[WebServer] Files in the public directory are served at the root path.
+[WebServer] Instead of /public/associations/e2e-robot-association/shows/e2e-robot-show/tv?mode=competition&arena=Autre, use /associations/e2e-robot-association/shows/e2e-robot-show/tv?mode=competition&arena=Autre.
+[WebServer] Files in the public directory are served at the root path.
+[WebServer] Instead of /public/associations/e2e-robot-association/shows/e2e-robot-show/tv?arena=Autre, use /associations/e2e-robot-association/shows/e2e-robot-show/tv?arena=Autre.
+  ✓  5 [chromium] › tests/e2e/show-robot.spec.js:776:3 › robot de show local › garde la video du manege principal avec les donnees live dessous (11.7s)
+  ✓  6 [chromium] › tests/e2e/show-robot.spec.js:895:3 › robot de show local › permet le live annonceur et l affichage minimal ordre seulement (11.3s)
+
+  6 passed (1.3m)

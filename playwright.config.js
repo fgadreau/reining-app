@@ -1,6 +1,6 @@
 const { defineConfig, devices } = require("@playwright/test");
 
-const PORT = process.env.E2E_PORT || "3010";
+const PORT = process.env.E2E_PORT || "3020";
 const HOST = process.env.E2E_HOST || "127.0.0.1";
 const BASE_URL = `http://${HOST}:${PORT}`;
 const slowMo = Number(process.env.E2E_SLOW_MO || 0);
@@ -28,7 +28,7 @@ module.exports = defineConfig({
   use: {
     baseURL: BASE_URL,
     trace: "on-first-retry",
-    screenshot: "only-on-failure",
+    screenshot: process.env.E2E_CAPTURE_SCREENSHOTS === "1" ? "on" : "only-on-failure",
     video: shouldRecordVideo
       ? {
           mode: "on",
@@ -46,9 +46,17 @@ module.exports = defineConfig({
     },
   ],
   webServer: {
-    command: `npm start -- --host ${HOST} --port ${PORT}`,
+    command: `npm start -- --host ${HOST} --port ${PORT} --strictPort`,
     url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
+    // Never reuse a developer/cloud-connected preview for the local fixtures.
+    reuseExistingServer: false,
+    env: {
+      VITE_SUPABASE_URL: "",
+      VITE_SUPABASE_PUBLISHABLE_KEY: "",
+      VITE_SUPABASE_ANON_KEY: "",
+      VITE_DEPLOY_ENV: "",
+      VERCEL_ENV: "",
+    },
     timeout: 120 * 1000,
   },
 });

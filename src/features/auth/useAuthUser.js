@@ -9,17 +9,12 @@ import { isLocalTestUser } from "./localTestAuth";
 export function useAuthUser() {
   const [user, setUser] = useState(null);
   const [authEvent, setAuthEvent] = useState(null);
-  const [isLoading, setIsLoading] = useState(isAuthAvailable());
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
 
-    if (!isAuthAvailable()) {
-      setUser(null);
-      setIsLoading(false);
-      return undefined;
-    }
-
+    // A local test session is valid even when Supabase is not configured.
     async function loadUser() {
       setIsLoading(true);
       const nextUser = await getAuthUser();
