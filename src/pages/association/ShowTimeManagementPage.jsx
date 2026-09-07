@@ -625,7 +625,7 @@ const heroStyle = {
 };
 
 const eyebrowStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontWeight: 700,
   textTransform: "uppercase",
   fontSize: 12,
@@ -638,7 +638,7 @@ const titleStyle = {
 };
 
 const subtitleStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 const summaryGridStyle = {
@@ -659,7 +659,7 @@ const summaryTileStyle = (tone) => ({
 });
 
 const summaryLabelStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontWeight: 700,
   textTransform: "uppercase",
   fontSize: 12,
@@ -753,7 +753,7 @@ const classNameStyle = {
 };
 
 const metaStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 13,
   marginTop: 4,
 };
@@ -817,7 +817,7 @@ const linkButtonStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   textDecoration: "none",
 };
 
@@ -832,7 +832,7 @@ const secondaryButtonStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   cursor: "pointer",
 };
 
@@ -841,7 +841,7 @@ const emptyStateStyle = {
   borderRadius: 12,
   padding: 20,
   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   marginTop: 16,
 };
 
@@ -849,7 +849,7 @@ const softEmptyStyle = {
   border: "1px dashed #cbd5e1",
   borderRadius: 8,
   padding: 14,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 export default ShowTimeManagementPage;

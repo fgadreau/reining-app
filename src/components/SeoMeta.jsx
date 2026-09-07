@@ -3,7 +3,7 @@ import { useEffect } from "react";
 const DEFAULT_TITLE = "ShowScore | Vitrine publique";
 const DEFAULT_DESCRIPTION =
   "Consulte les shows publics, le live, l'ordre de passage et les feuilles de pointage officielles publiees dans ShowScore.";
-const DEFAULT_IMAGE_PATH = "/favicon.ico?v=showscore";
+const DEFAULT_IMAGE_PATH = "/branding/icon-512.png?v=showscore-hsp-2";
 const SITE_NAME = "ShowScore";
 
 function getAbsoluteUrl(value) {

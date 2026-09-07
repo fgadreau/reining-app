@@ -256,7 +256,7 @@ const promptSectionStyle = {
 
 const promptTitleStyle = {
   fontWeight: 900,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
 };
 
 const promptTextStyle = {
@@ -276,8 +276,8 @@ const actionRowStyle = {
 const primaryButtonStyle = {
   padding: "9px 12px",
   borderRadius: 8,
-  border: "1px solid #111827",
-  background: "#111827",
+  border: "1px solid var(--ss-primary, #111827)",
+  background: "var(--ss-primary, #111827)",
   color: "#fff",
   cursor: "pointer",
   fontWeight: 800,
@@ -288,7 +288,7 @@ const secondaryButtonStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   cursor: "pointer",
   fontWeight: 800,
 };

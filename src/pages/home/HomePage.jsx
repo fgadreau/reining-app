@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import ShowScoreBrand from "../../components/ShowScoreBrand";
 import AssociationLogo from "../../components/AssociationLogo";
 import { loadAssociationsRepository } from "../../features/associations/associationRepository";
 import {
@@ -119,30 +120,34 @@ function HomePage() {
   }, [isLocalMode, isPlatformAdmin, managementAssociations, memberships]);
 
   return (
-    <div style={styles.app}>
+    <div className="showscore-home" style={styles.app}>
       <section style={heroStyle} aria-labelledby="showscore-home-title">
         <div style={heroContentStyle}>
           <div style={eyebrowStyle}>{t("home.eyebrow")}</div>
           <h1 id="showscore-home-title" style={titleStyle}>
-            {t("home.title")}
+            <ShowScoreBrand hero />
           </h1>
           <div style={subtitleStyle}>{t("home.subtitle")}</div>
-          <div style={actionRowStyle}>
-            <Link to="/public" style={primaryLinkStyle}>
-              {t("home.viewPublicShowcase")}
-            </Link>
-            {canLoadManagement ? (
-              <Link to="/associations" style={secondaryLinkStyle}>
-                {t("home.continueManagement")}
-              </Link>
-            ) : (
-              <Link to="/login" style={secondaryLinkStyle}>
-                {t("home.managerLogin")}
-              </Link>
-            )}
-          </div>
+
         </div>
       </section>
+
+      <div className="showscore-home-access">
+        <section aria-labelledby="public-access-title">
+          <h2 id="public-access-title">{t("home.publicLabel")}</h2>
+          <p>{t("home.publicDescription")}</p>
+          <Link to="/public" style={primaryLinkStyle}>{t("home.viewPublicShowcase")}</Link>
+        </section>
+        <section aria-labelledby="management-access-title">
+          <h2 id="management-access-title">{t("home.managementTitle")}</h2>
+          <p>{t("home.managementDescription")}</p>
+          {canLoadManagement ? (
+            <Link to="/associations" style={secondaryLinkStyle}>{t("home.continueManagement")}</Link>
+          ) : (
+            <Link to="/login" style={secondaryLinkStyle}>{t("home.managerLogin")}</Link>
+          )}
+        </section>
+      </div>
 
       <section style={contentSectionStyle}>
         <div style={sectionHeaderStyle}>
@@ -252,7 +257,7 @@ const heroStyle = {
   marginBottom: 16,
   border: "1px solid #d8dee8",
   boxSizing: "border-box",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
 };
 
 const heroContentStyle = {
@@ -263,7 +268,7 @@ const heroContentStyle = {
 };
 
 const eyebrowStyle = {
-  color: "#166534",
+  color: "var(--ss-accent)",
   fontWeight: 800,
   textTransform: "uppercase",
   fontSize: 12,
@@ -284,14 +289,8 @@ const subtitleStyle = {
   maxWidth: 720,
 };
 
-const actionRowStyle = {
-  display: "flex",
-  gap: 8,
-  flexWrap: "wrap",
-};
-
 const contentSectionStyle = {
-  marginBottom: 16,
+  marginBottom: 28,
 };
 
 const sectionHeaderStyle = {
@@ -310,7 +309,7 @@ const sectionTitleStyle = {
 
 const associationGridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(260px, 100%), 1fr))",
   gap: 12,
 };
 
@@ -339,12 +338,12 @@ const associationCopyStyle = {
 const associationNameStyle = {
   margin: 0,
   fontSize: 18,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   lineHeight: 1.25,
 };
 
 const mutedTextStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   marginTop: 6,
 };
 
@@ -354,8 +353,8 @@ const primaryLinkStyle = {
   justifyContent: "center",
   padding: "10px 14px",
   borderRadius: 8,
-  border: "1px solid #111827",
-  background: "#111827",
+  border: "1px solid var(--ss-primary, #111827)",
+  background: "var(--ss-primary, #111827)",
   color: "#fff",
   textDecoration: "none",
   fontWeight: 850,
@@ -369,7 +368,7 @@ const secondaryLinkStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   textDecoration: "none",
   fontWeight: 800,
 };
@@ -383,7 +382,7 @@ const emptyStateStyle = {
   border: "1px dashed #cbd5e1",
   borderRadius: 8,
   padding: 14,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 const legalLinkRowStyle = {
@@ -397,7 +396,7 @@ const legalFooterStyle = {
 };
 
 const footerLinkStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontWeight: 750,
   fontSize: 13,
   textDecoration: "none",

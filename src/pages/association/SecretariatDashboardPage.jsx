@@ -1528,7 +1528,7 @@ const heroStyle = {
 };
 
 const eyebrowStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontWeight: 700,
   textTransform: "uppercase",
   fontSize: 12,
@@ -1541,7 +1541,7 @@ const titleStyle = {
 };
 
 const subtitleStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 const heroActionsStyle = {
@@ -1569,11 +1569,11 @@ const summaryTileStyle = (tone) => ({
 const summaryValueStyle = {
   fontSize: 28,
   fontWeight: 800,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
 };
 
 const summaryLabelStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   marginTop: 4,
 };
 
@@ -1654,7 +1654,7 @@ const classNameStyle = {
 };
 
 const metaStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   marginTop: 4,
   fontSize: 13,
 };
@@ -1683,7 +1683,7 @@ const judgeStatusListStyle = {
 };
 
 const judgeStatusTitleStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 12,
   fontWeight: 800,
   textTransform: "uppercase",
@@ -1707,11 +1707,11 @@ const judgeStatusTextStyle = {
 
 const judgeStatusNameStyle = {
   fontWeight: 700,
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
 };
 
 const judgeStatusMetaStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 12,
 };
 
@@ -1724,7 +1724,7 @@ const judgeStatusActionsStyle = {
 };
 
 const fileNameStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 12,
   maxWidth: 180,
   overflow: "hidden",
@@ -1744,7 +1744,7 @@ const documentPublicationStyle = {
   gap: 6,
   flexWrap: "wrap",
   marginTop: 4,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 12,
 };
 
@@ -1807,7 +1807,7 @@ const linkButtonStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   textDecoration: "none",
 };
 
@@ -1821,7 +1821,7 @@ const smallButtonStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   cursor: "pointer",
 };
 
@@ -1863,8 +1863,8 @@ const hiddenFileInputStyle = {
 
 const smallPrimaryButtonStyle = {
   ...smallButtonStyle,
-  border: "1px solid #111827",
-  background: "#111827",
+  border: "1px solid var(--ss-primary, #111827)",
+  background: "var(--ss-primary, #111827)",
   color: "#fff",
 };
 
@@ -1873,7 +1873,7 @@ const secondaryButtonStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   cursor: "pointer",
 };
 
@@ -1882,7 +1882,7 @@ const emptyStateStyle = {
   borderRadius: 12,
   padding: 20,
   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   marginTop: 16,
 };
 
@@ -1890,7 +1890,7 @@ const softEmptyStyle = {
   border: "1px dashed #cbd5e1",
   borderRadius: 8,
   padding: 14,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 const modalBackdropStyle = {

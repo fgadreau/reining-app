@@ -2914,8 +2914,8 @@ const secondaryButtonStyle = {
 const primaryButtonStyle = {
   padding: "10px 14px",
   borderRadius: "8px",
-  border: "1px solid #111827",
-  background: "#111827",
+  border: "1px solid var(--ss-primary, #111827)",
+  background: "var(--ss-primary, #111827)",
   color: "#fff",
   cursor: "pointer",
 };
@@ -3113,7 +3113,7 @@ const judgeSessionCardStyle = {
 };
 
 const judgeSessionLabelStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: "12px",
   fontWeight: 800,
   textTransform: "uppercase",
@@ -3226,7 +3226,7 @@ const setReviewManeuverHeaderStyle = {
 const setReviewManeuverLegendStyle = {
   display: "block",
   marginTop: 2,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 9,
   fontWeight: 700,
 };
@@ -3267,7 +3267,7 @@ const setReviewPenaltyBoxStyle = {
 const setReviewManeuverScoreBoxStyle = {
   minHeight: 22,
   padding: "3px 4px",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   fontSize: 14,
   fontWeight: 900,
   lineHeight: 1.2,
@@ -3304,7 +3304,7 @@ const modalHeaderStyle = {
 };
 
 const helperTextStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: "13px",
   lineHeight: 1.4,
 };
@@ -3328,18 +3328,18 @@ const rankingRowStyle = {
 const rankingRankStyle = {
   fontWeight: 900,
   fontSize: "18px",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
 };
 
 const rankingNameStyle = {
   fontWeight: 800,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
 };
 
 const rankingScoreStyle = {
   fontWeight: 900,
   fontSize: "20px",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
 };
 
 const timingCardStyle = {
@@ -3375,7 +3375,7 @@ const timingMetricStyle = {
 };
 
 const timingLabelStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: "12px",
   fontWeight: 700,
   textTransform: "uppercase",
@@ -3384,7 +3384,7 @@ const timingLabelStyle = {
 
 const timingHintStyle = {
   marginTop: "10px",
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: "14px",
 };
 

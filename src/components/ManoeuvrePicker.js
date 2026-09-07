@@ -241,6 +241,7 @@ function ManoeuvrePicker({
     isManualPenaltyOpen && typeof document !== "undefined"
       ? createPortal(
           <div
+            className="showscore-theme"
             style={styles.manualPenaltyModalBackdrop}
             role="presentation"
             onMouseDown={(event) => {
@@ -329,6 +330,7 @@ function ManoeuvrePicker({
     reasonRequest && typeof document !== "undefined"
       ? createPortal(
           <div
+            className="showscore-theme"
             style={styles.manualPenaltyModalBackdrop}
             role="presentation"
             onMouseDown={(event) => {

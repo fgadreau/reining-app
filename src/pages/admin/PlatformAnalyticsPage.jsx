@@ -569,7 +569,7 @@ const headerStyle = {
 };
 
 const eyebrowStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontWeight: 800,
   textTransform: "uppercase",
   fontSize: 12,
@@ -614,7 +614,7 @@ const selectStyle = {
   borderRadius: 8,
   padding: "10px 12px",
   background: "#ffffff",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 14,
 };
 
@@ -638,7 +638,7 @@ const metricStyle = {
 };
 
 const metricLabelStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontWeight: 800,
   textTransform: "uppercase",
   fontSize: 11,
@@ -647,14 +647,14 @@ const metricLabelStyle = {
 
 const metricValueStyle = {
   marginTop: 6,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontWeight: 900,
   fontSize: 30,
 };
 
 const metricCompactValueStyle = {
   marginTop: 8,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontWeight: 850,
   fontSize: 16,
   lineHeight: 1.25,
@@ -697,11 +697,11 @@ const sectionTitleStyle = {
 };
 
 const mutedTextStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 const smallMutedTextStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 12,
 };
 
@@ -773,18 +773,18 @@ const trendBarStyle = {
 
 const trendLabelStyle = {
   fontSize: 11,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 const trendCountStyle = {
   fontSize: 16,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontWeight: 900,
 };
 
 const trendMetaStyle = {
   fontSize: 10,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 const tableWrapStyle = {
@@ -816,7 +816,7 @@ const emptyStateStyle = {
   borderRadius: 8,
   padding: 20,
   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 export default PlatformAnalyticsPage;

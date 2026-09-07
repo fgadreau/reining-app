@@ -2592,7 +2592,7 @@ const customPatternWarningStyle = {
 
 const characterCountStyle = {
   marginTop: 4,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 12,
   textAlign: "right",
 };
@@ -2673,8 +2673,8 @@ const buttonRowStyle = {
 const primaryButtonStyle = {
   padding: "10px 14px",
   borderRadius: "8px",
-  border: "1px solid #111827",
-  background: "#111827",
+  border: "1px solid var(--ss-primary, #111827)",
+  background: "var(--ss-primary, #111827)",
   color: "#fff",
   cursor: "pointer",
 };
@@ -2798,7 +2798,7 @@ const classCodePillStyle = {
 };
 
 const classCodeNameStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: "11px",
   fontWeight: 600,
 };
@@ -2818,7 +2818,7 @@ const mutedClassCodeStyle = {
 };
 
 const mutedTextStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: "14px",
 };
 
@@ -2869,7 +2869,7 @@ const importSummaryEyebrowStyle = {
 const importSummaryTitleStyle = {
   margin: "4px 0 0",
   fontSize: "22px",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
 };
 
 const importSummaryStatsStyle = {
@@ -2887,7 +2887,7 @@ const importSummaryStatStyle = {
 };
 
 const importSummaryStatValueStyle = {
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: "24px",
   fontWeight: 800,
   lineHeight: 1,
@@ -2916,7 +2916,7 @@ const importSummaryClassRowStyle = {
 };
 
 const importSummaryClassCodeStyle = {
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: "13px",
   fontWeight: 800,
 };
@@ -2969,14 +2969,14 @@ const importSummaryImportedClassStyle = {
 const importSummaryChampionshipClassStyle = {
   display: "grid",
   gap: "3px",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: "13px",
   minWidth: 0,
   overflowWrap: "anywhere",
 };
 
 const importSummaryChampionshipReasonStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: "12px",
   fontWeight: 600,
 };

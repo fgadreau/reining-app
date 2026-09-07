@@ -627,7 +627,7 @@ const headerActionStyle = {
 const cardTitleStyle = {
   fontWeight: 700,
   fontSize: 18,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   lineHeight: 1.25,
 };
 
@@ -696,8 +696,8 @@ const inputStyle = {
 const primaryButtonStyle = {
   padding: "10px 14px",
   borderRadius: 8,
-  border: "1px solid #111827",
-  background: "#111827",
+  border: "1px solid var(--ss-primary, #111827)",
+  background: "var(--ss-primary, #111827)",
   color: "#fff",
   cursor: "pointer",
   fontWeight: 800,
@@ -708,7 +708,7 @@ const secondaryButtonStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   cursor: "pointer",
   fontWeight: 700,
 };
@@ -741,7 +741,7 @@ const linkButtonStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   textDecoration: "none",
 };
 
@@ -751,7 +751,7 @@ const emptyStateStyle = {
   padding: 20,
   border: "1px solid #e2e8f0",
   boxShadow: "0 10px 24px rgba(15,23,42,0.06)",
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 const statusBadgeStyle = (status) => {

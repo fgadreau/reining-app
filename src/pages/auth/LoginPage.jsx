@@ -1,3 +1,4 @@
+import ShowScoreBrand from "../../components/ShowScoreBrand";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -462,7 +463,7 @@ function LoginPage() {
       </div>
 
       <section style={cardStyle}>
-        <div style={eyebrowStyle}>Supabase</div>
+        <ShowScoreBrand />
         <h1 style={titleStyle}>
           {isAcceptingAuthenticatedInvite
             ? t("login.finalizeInviteTitle")
@@ -801,21 +802,13 @@ const cardStyle = {
   maxWidth: 560,
 };
 
-const eyebrowStyle = {
-  color: "#64748b",
-  fontWeight: 700,
-  textTransform: "uppercase",
-  fontSize: 12,
-  letterSpacing: 0,
-};
-
 const titleStyle = {
   margin: "4px 0",
   fontSize: 28,
 };
 
 const subtitleStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   marginTop: 0,
 };
 
@@ -841,7 +834,7 @@ const inputStyle = {
 };
 
 const helperTextStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 13,
   fontWeight: 500,
 };
@@ -876,7 +869,7 @@ const forgotPasswordButtonStyle = {
   padding: 0,
   border: 0,
   background: "transparent",
-  color: "#1d4ed8",
+  color: "var(--ss-primary, #1d4ed8)",
   cursor: "pointer",
   fontWeight: 700,
   textAlign: "left",
@@ -884,7 +877,7 @@ const forgotPasswordButtonStyle = {
 };
 
 const inlineLinkStyle = {
-  color: "#1d4ed8",
+  color: "var(--ss-primary, #1d4ed8)",
   fontWeight: 700,
   textDecoration: "none",
 };
@@ -896,15 +889,15 @@ const legalLinksStyle = {
   alignItems: "center",
   maxWidth: 560,
   marginTop: 14,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 13,
 };
 
 const primaryButtonStyle = {
   padding: "10px 14px",
   borderRadius: 8,
-  border: "1px solid #111827",
-  background: "#111827",
+  border: "1px solid var(--ss-primary, #111827)",
+  background: "var(--ss-primary, #111827)",
   color: "#fff",
   cursor: "pointer",
 };
@@ -914,7 +907,7 @@ const secondaryButtonStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   cursor: "pointer",
 };
 
@@ -961,7 +954,7 @@ const localTestBoxStyle = {
 };
 
 const localTestTitleStyle = {
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontWeight: 800,
 };
 

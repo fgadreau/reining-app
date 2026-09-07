@@ -2772,7 +2772,7 @@ const headerStyle = {
 };
 
 const eyebrowStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontWeight: 800,
   textTransform: "uppercase",
   fontSize: 12,
@@ -2780,16 +2780,16 @@ const eyebrowStyle = {
 
 const titleStyle = {
   margin: "4px 0",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
 };
 
 const mutedTextStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   lineHeight: 1.35,
 };
 
 const mutedInlineStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontWeight: 700,
 };
 
@@ -2836,7 +2836,7 @@ const seasonOverviewWideFieldStyle = {
 
 const seasonOverviewLabelStyle = {
   marginBottom: 5,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 12,
   fontWeight: 850,
   textTransform: "uppercase",
@@ -2844,7 +2844,7 @@ const seasonOverviewLabelStyle = {
 };
 
 const seasonOverviewValueStyle = {
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 14,
   fontWeight: 750,
   lineHeight: 1.45,
@@ -2887,7 +2887,7 @@ const collapsiblePanelButtonStyle = {
   alignItems: "center",
   gap: 12,
   background: "#ffffff",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   cursor: "pointer",
   textAlign: "left",
 };
@@ -2902,7 +2902,7 @@ const collapsiblePanelMetaStyle = {
   alignItems: "center",
   justifyContent: "flex-end",
   gap: 10,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 12,
   fontWeight: 800,
   textAlign: "right",
@@ -2935,7 +2935,7 @@ const okPanelStyle = {
 const sectionTitleStyle = {
   fontSize: 18,
   fontWeight: 850,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   marginBottom: 12,
 };
 
@@ -3212,7 +3212,7 @@ const showScoreImportClassRowStyle = {
 
 const showScoreImportClassRowDisabledStyle = {
   background: "#f8fafc",
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 const showScoreImportClassContentStyle = {
@@ -3293,7 +3293,7 @@ const adminClassNoteStyle = {
 };
 
 const fieldHelpStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 12,
   lineHeight: 1.35,
 };
@@ -3393,14 +3393,14 @@ const showChipStyle = {
   border: "1px solid #cbd5e1",
   borderRadius: 999,
   background: "#f8fafc",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   padding: "7px 10px",
   fontSize: 13,
   fontWeight: 850,
 };
 
 const showChipMetaStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 12,
   fontWeight: 750,
 };
@@ -3408,7 +3408,7 @@ const showChipMetaStyle = {
 const summaryValueStyle = {
   fontSize: 28,
   fontWeight: 900,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
 };
 
 const reportGridStyle = {
@@ -3427,7 +3427,7 @@ const reportBlockStyle = {
 const reportTitleStyle = {
   fontWeight: 850,
   marginBottom: 8,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
 };
 
 const reportListStyle = {
@@ -3490,7 +3490,7 @@ const duplicateItemStyle = {
 
 const duplicateHeaderStyle = {
   fontWeight: 850,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   marginBottom: 10,
 };
 
@@ -3537,11 +3537,11 @@ const classPreviewStyle = {
 
 const classTitleStyle = {
   fontWeight: 850,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
 };
 
 const leaderStyle = {
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontWeight: 800,
 };
 
@@ -3550,7 +3550,7 @@ const emptyStateStyle = {
   border: "1px solid #e2e8f0",
   borderRadius: 8,
   padding: 16,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 export default AssociationChampionshipPage;
