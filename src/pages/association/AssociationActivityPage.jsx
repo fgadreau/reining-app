@@ -188,7 +188,7 @@ const headerStyle = {
 };
 
 const eyebrowStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontWeight: 800,
   textTransform: "uppercase",
   fontSize: 12,
@@ -207,7 +207,7 @@ const cardStyle = {
 };
 
 const mutedTextStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 const timelineStyle = {
@@ -237,7 +237,7 @@ const detailGridStyle = {
 };
 
 const detailLabelStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontWeight: 800,
   textTransform: "uppercase",
   fontSize: 11,
@@ -246,7 +246,7 @@ const detailLabelStyle = {
 
 const detailValueStyle = {
   marginTop: 4,
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   overflowWrap: "anywhere",
 };
 
@@ -255,7 +255,7 @@ const emptyStateStyle = {
   borderRadius: 8,
   padding: 20,
   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 export default AssociationActivityPage;

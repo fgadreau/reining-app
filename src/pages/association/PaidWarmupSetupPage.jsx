@@ -771,12 +771,12 @@ const eyebrowStyle = {
   textTransform: "uppercase",
   letterSpacing: 0,
   fontSize: 12,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontWeight: 700,
 };
 
 const metaStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 const cardStyle = {
@@ -849,7 +849,7 @@ const secondaryButtonStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   cursor: "pointer",
 };
 
@@ -888,7 +888,7 @@ const emptyStateStyle = {
   borderRadius: 12,
   padding: 20,
   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 const tableWrapStyle = {
@@ -934,7 +934,7 @@ const iconButtonStyle = (isDisabled) => ({
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: isDisabled ? "#f8fafc" : "#fff",
-  color: isDisabled ? "#94a3b8" : "#111827",
+  color: isDisabled ? "#94a3b8" : "var(--ss-text, #111827)",
   cursor: isDisabled ? "not-allowed" : "pointer",
   fontWeight: 900,
 });

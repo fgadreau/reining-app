@@ -428,7 +428,7 @@ const headerStyle = {
 };
 
 const eyebrowStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 11,
   fontWeight: 900,
   textTransform: "uppercase",
@@ -437,7 +437,7 @@ const eyebrowStyle = {
 
 const titleStyle = {
   margin: "2px 0 0",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 20,
   lineHeight: 1.15,
 };
@@ -446,7 +446,7 @@ const closeButtonStyle = {
   border: "1px solid #cbd5e1",
   borderRadius: 8,
   background: "#ffffff",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   padding: "7px 10px",
   font: "inherit",
   fontWeight: 900,
@@ -472,7 +472,7 @@ const fieldStyle = {
 };
 
 const labelStyle = {
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 13,
   fontWeight: 900,
 };
@@ -483,7 +483,7 @@ const inputStyle = (hasError) => ({
   border: `1px solid ${hasError ? "#dc2626" : "#cbd5e1"}`,
   borderRadius: 8,
   padding: "8px 10px",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   background: "#ffffff",
   font: "inherit",
   boxSizing: "border-box",
@@ -505,7 +505,7 @@ const radioLabelStyle = {
   display: "inline-flex",
   alignItems: "center",
   gap: 6,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 13,
   fontWeight: 800,
 };
@@ -525,14 +525,14 @@ const showCheckStyle = {
   display: "flex",
   alignItems: "flex-start",
   gap: 6,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 13,
   fontWeight: 800,
   lineHeight: 1.25,
 };
 
 const mutedTextStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 13,
   fontWeight: 750,
 };
@@ -541,7 +541,7 @@ const matchStyle = {
   border: "1px solid #bae6fd",
   borderRadius: 8,
   background: "#ecfeff",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   padding: 10,
   fontSize: 13,
   fontWeight: 850,
@@ -567,9 +567,9 @@ const noticeStyle = (status) => ({
 });
 
 const submitButtonStyle = {
-  border: "1px solid #0f172a",
+  border: "1px solid var(--ss-primary, #0f172a)",
   borderRadius: 8,
-  background: "#0f172a",
+  background: "var(--ss-primary, #0f172a)",
   color: "#ffffff",
   padding: "10px 12px",
   font: "inherit",

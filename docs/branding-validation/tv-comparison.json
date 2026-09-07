@@ -1,0 +1,152 @@
+[
+  {
+    "name": "livestream-en-desktop.png",
+    "identical": true,
+    "before": "7a61edd91d4c0f9cc70c14a9dec7bf50e56812e3f751037b5be1740b32e306fa",
+    "after": "7a61edd91d4c0f9cc70c14a9dec7bf50e56812e3f751037b5be1740b32e306fa"
+  },
+  {
+    "name": "livestream-en-mobile.png",
+    "identical": true,
+    "before": "7bc7fd6a6fd5ebfa4cff08039d16b6f56ac6c6cfa1f7fa3baeb032c4c981d5de",
+    "after": "7bc7fd6a6fd5ebfa4cff08039d16b6f56ac6c6cfa1f7fa3baeb032c4c981d5de"
+  },
+  {
+    "name": "livestream-en-tablet.png",
+    "identical": true,
+    "before": "8dbaaa81486bc2c40f95a1451cee68f5787544b674b2e493c47ca6b2a31cc982",
+    "after": "8dbaaa81486bc2c40f95a1451cee68f5787544b674b2e493c47ca6b2a31cc982"
+  },
+  {
+    "name": "livestream-fr-desktop.png",
+    "identical": true,
+    "before": "7a61edd91d4c0f9cc70c14a9dec7bf50e56812e3f751037b5be1740b32e306fa",
+    "after": "7a61edd91d4c0f9cc70c14a9dec7bf50e56812e3f751037b5be1740b32e306fa"
+  },
+  {
+    "name": "livestream-fr-mobile.png",
+    "identical": true,
+    "before": "7bc7fd6a6fd5ebfa4cff08039d16b6f56ac6c6cfa1f7fa3baeb032c4c981d5de",
+    "after": "7bc7fd6a6fd5ebfa4cff08039d16b6f56ac6c6cfa1f7fa3baeb032c4c981d5de"
+  },
+  {
+    "name": "livestream-fr-tablet.png",
+    "identical": true,
+    "before": "8dbaaa81486bc2c40f95a1451cee68f5787544b674b2e493c47ca6b2a31cc982",
+    "after": "8dbaaa81486bc2c40f95a1451cee68f5787544b674b2e493c47ca6b2a31cc982"
+  },
+  {
+    "name": "overlay-en-desktop.png",
+    "identical": true,
+    "before": "5fe681c810a38bff282ebae36013cb26b1b72146276a5dc313748a5a5a01a243",
+    "after": "5fe681c810a38bff282ebae36013cb26b1b72146276a5dc313748a5a5a01a243"
+  },
+  {
+    "name": "overlay-en-mobile.png",
+    "identical": true,
+    "before": "b9d98f6109bd727d6c3ae4daae38ede2c1f65f345c2a0670294d8eda9d8edc04",
+    "after": "b9d98f6109bd727d6c3ae4daae38ede2c1f65f345c2a0670294d8eda9d8edc04"
+  },
+  {
+    "name": "overlay-en-tablet.png",
+    "identical": true,
+    "before": "254473e46ac6e1b310c6066345b330dd5896e7d9095762a24803a5dda11b927b",
+    "after": "254473e46ac6e1b310c6066345b330dd5896e7d9095762a24803a5dda11b927b"
+  },
+  {
+    "name": "overlay-fr-desktop.png",
+    "identical": true,
+    "before": "ac220715ef901da9dd7ba840f5848f6d410b53a44a4b47ae088112c87bd46c04",
+    "after": "ac220715ef901da9dd7ba840f5848f6d410b53a44a4b47ae088112c87bd46c04"
+  },
+  {
+    "name": "overlay-fr-mobile.png",
+    "identical": true,
+    "before": "6fb5c6426da8c73fd14cce31ba9147a5bfa2e5a4aaefc07f9860b9cfb7a0613b",
+    "after": "6fb5c6426da8c73fd14cce31ba9147a5bfa2e5a4aaefc07f9860b9cfb7a0613b"
+  },
+  {
+    "name": "overlay-fr-tablet.png",
+    "identical": true,
+    "before": "78f6261e05fc99add63154b8988d0b74d28f3a9297861cbdb559fbf9e8208ee9",
+    "after": "78f6261e05fc99add63154b8988d0b74d28f3a9297861cbdb559fbf9e8208ee9"
+  },
+  {
+    "name": "shortcut-en-desktop.png",
+    "identical": true,
+    "before": "fd9509075e557388652e14409d9be0777750ed66aa55ef47847a859f39c3926d",
+    "after": "fd9509075e557388652e14409d9be0777750ed66aa55ef47847a859f39c3926d"
+  },
+  {
+    "name": "shortcut-en-mobile.png",
+    "identical": true,
+    "before": "6d972ccbd833902f955abcb84a481a7ac8884a063a8ac919d84888d7e1b1617a",
+    "after": "6d972ccbd833902f955abcb84a481a7ac8884a063a8ac919d84888d7e1b1617a"
+  },
+  {
+    "name": "shortcut-en-tablet.png",
+    "identical": true,
+    "before": "2c1bc6b6fb92a22b41d8380f3964423b82cf2f8023a8cbe509a27308a8c3060d",
+    "after": "2c1bc6b6fb92a22b41d8380f3964423b82cf2f8023a8cbe509a27308a8c3060d"
+  },
+  {
+    "name": "shortcut-fr-desktop.png",
+    "identical": true,
+    "before": "fd9509075e557388652e14409d9be0777750ed66aa55ef47847a859f39c3926d",
+    "after": "fd9509075e557388652e14409d9be0777750ed66aa55ef47847a859f39c3926d"
+  },
+  {
+    "name": "shortcut-fr-mobile.png",
+    "identical": true,
+    "before": "6d972ccbd833902f955abcb84a481a7ac8884a063a8ac919d84888d7e1b1617a",
+    "after": "6d972ccbd833902f955abcb84a481a7ac8884a063a8ac919d84888d7e1b1617a"
+  },
+  {
+    "name": "shortcut-fr-tablet.png",
+    "identical": true,
+    "before": "2c1bc6b6fb92a22b41d8380f3964423b82cf2f8023a8cbe509a27308a8c3060d",
+    "after": "2c1bc6b6fb92a22b41d8380f3964423b82cf2f8023a8cbe509a27308a8c3060d"
+  },
+  {
+    "name": "tv-480.png",
+    "identical": true,
+    "before": "68eb7f892d4f2a4bf310afec875b7ffc2c8134844c3e5d0f476319837aa30830",
+    "after": "68eb7f892d4f2a4bf310afec875b7ffc2c8134844c3e5d0f476319837aa30830"
+  },
+  {
+    "name": "tv-en-desktop.png",
+    "identical": true,
+    "before": "b705f3403e93f9460749b03ae3c55ddc1b9ad445f5b8a2c501e26fe73eaf6aac",
+    "after": "b705f3403e93f9460749b03ae3c55ddc1b9ad445f5b8a2c501e26fe73eaf6aac"
+  },
+  {
+    "name": "tv-en-mobile.png",
+    "identical": true,
+    "before": "51d7c4be3151b7a37cab40853b3d587658db4c0d8c360f1711611fc0bf81d964",
+    "after": "51d7c4be3151b7a37cab40853b3d587658db4c0d8c360f1711611fc0bf81d964"
+  },
+  {
+    "name": "tv-en-tablet.png",
+    "identical": true,
+    "before": "60ec684495b1ec5d8f5069fd9cf1f58dae83905439f2fc05f838c1e131c40960",
+    "after": "60ec684495b1ec5d8f5069fd9cf1f58dae83905439f2fc05f838c1e131c40960"
+  },
+  {
+    "name": "tv-fr-desktop.png",
+    "identical": true,
+    "before": "b705f3403e93f9460749b03ae3c55ddc1b9ad445f5b8a2c501e26fe73eaf6aac",
+    "after": "b705f3403e93f9460749b03ae3c55ddc1b9ad445f5b8a2c501e26fe73eaf6aac"
+  },
+  {
+    "name": "tv-fr-mobile.png",
+    "identical": true,
+    "before": "51d7c4be3151b7a37cab40853b3d587658db4c0d8c360f1711611fc0bf81d964",
+    "after": "51d7c4be3151b7a37cab40853b3d587658db4c0d8c360f1711611fc0bf81d964"
+  },
+  {
+    "name": "tv-fr-tablet.png",
+    "identical": true,
+    "before": "60ec684495b1ec5d8f5069fd9cf1f58dae83905439f2fc05f838c1e131c40960",
+    "after": "60ec684495b1ec5d8f5069fd9cf1f58dae83905439f2fc05f838c1e131c40960"
+  }
+]

@@ -67,7 +67,7 @@ const shareButtonStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   fontWeight: 800,
   cursor: "pointer",
 };

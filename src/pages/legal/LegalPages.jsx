@@ -554,7 +554,7 @@ const documentStyle = {
 };
 
 const eyebrowStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontWeight: 800,
   textTransform: "uppercase",
   fontSize: 12,
@@ -568,7 +568,7 @@ const titleStyle = {
 };
 
 const updatedStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 13,
   fontWeight: 700,
   marginBottom: 14,
@@ -615,7 +615,7 @@ const secondaryLinkStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   textDecoration: "none",
   fontWeight: 700,
 };

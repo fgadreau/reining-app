@@ -530,7 +530,7 @@ const headerTextStyle = {
 };
 
 const eyebrowStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 12,
   fontWeight: 900,
   textTransform: "uppercase",
@@ -544,7 +544,7 @@ const compactEyebrowStyle = {
 
 const titleStyle = {
   margin: "3px 0",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 24,
   lineHeight: 1.16,
 };
@@ -579,7 +579,7 @@ const closeButtonStyle = {
   border: "1px solid #cbd5e1",
   borderRadius: 8,
   background: "#fff",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   padding: "8px 11px",
   font: "inherit",
   fontWeight: 900,
@@ -611,7 +611,7 @@ const metaItemStyle = {
 };
 
 const metaLabelStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 11,
   fontWeight: 900,
   textTransform: "uppercase",
@@ -620,7 +620,7 @@ const metaLabelStyle = {
 
 const metaValueStyle = {
   marginTop: 2,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 13,
   fontWeight: 850,
   lineHeight: 1.25,
@@ -643,9 +643,9 @@ const compactActionBarStyle = {
 };
 
 const requestVerificationButtonStyle = {
-  border: "1px solid #0f172a",
+  border: "1px solid var(--ss-primary, #0f172a)",
   borderRadius: 8,
-  background: "#0f172a",
+  background: "var(--ss-primary, #0f172a)",
   color: "#ffffff",
   padding: "9px 12px",
   font: "inherit",
@@ -701,7 +701,7 @@ const mobileResultRankStyle = {
 };
 
 const mobileResultRankLabelStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 10,
   fontWeight: 900,
   textTransform: "uppercase",
@@ -709,7 +709,7 @@ const mobileResultRankLabelStyle = {
 };
 
 const mobileResultRankValueStyle = {
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 16,
   fontWeight: 950,
   lineHeight: 1,
@@ -720,7 +720,7 @@ const mobileResultIdentityStyle = {
 };
 
 const mobileResultNameStyle = {
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 15,
   fontWeight: 950,
   lineHeight: 1.18,
@@ -738,7 +738,7 @@ const mobileResultHorseStyle = {
 
 const mobileResultBackNumberStyle = {
   marginTop: 4,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 12,
   fontWeight: 800,
 };
@@ -749,7 +749,7 @@ const mobileResultPointsStyle = {
 };
 
 const mobileResultPointsValueStyle = {
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 16,
   fontWeight: 950,
   lineHeight: 1.05,
@@ -757,7 +757,7 @@ const mobileResultPointsValueStyle = {
 
 const mobileResultPointsLabelStyle = {
   marginTop: 2,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 10,
   fontWeight: 900,
   textTransform: "uppercase",
@@ -791,7 +791,7 @@ const mobileResultDetailDangerStyle = {
 };
 
 const mobileResultDetailLabelStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 10,
   fontWeight: 900,
   textTransform: "uppercase",
@@ -800,7 +800,7 @@ const mobileResultDetailLabelStyle = {
 
 const mobileResultDetailValueStyle = {
   marginTop: 2,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 12,
   fontWeight: 850,
   lineHeight: 1.22,
@@ -811,7 +811,7 @@ const mobileEmptyResultStyle = {
   border: "1px dashed #cbd5e1",
   borderRadius: 8,
   background: "#ffffff",
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   padding: 14,
   fontWeight: 850,
 };
@@ -836,7 +836,7 @@ const thStyle = {
   borderBottom: "1px solid #cbd5e1",
   borderRight: "1px solid #e2e8f0",
   background: "#f1f5f9",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   padding: "9px 8px",
   textAlign: "center",
   fontSize: 12,
@@ -852,7 +852,7 @@ const tdStyle = {
   borderBottom: "1px solid #e2e8f0",
   borderRight: "1px solid #e2e8f0",
   padding: "9px 8px",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   textAlign: "center",
   verticalAlign: "top",
   fontSize: 13,
@@ -918,7 +918,7 @@ const dqReasonInlineStyle = {
 const emptyTdStyle = {
   ...tdStyle,
   padding: 18,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontWeight: 800,
 };
 

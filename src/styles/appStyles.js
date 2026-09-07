@@ -1,7 +1,7 @@
 export const appStyles = {
   app: {
     fontFamily: "Arial, sans-serif",
-    backgroundColor: "#f3f4f6",
+    backgroundColor: "var(--ss-page, #f3f4f6)",
     minHeight: "100vh",
     padding: "16px",
     boxSizing: "border-box",
@@ -16,7 +16,7 @@ export const appStyles = {
   },
 
   topbar: {
-    backgroundColor: "#1e293b",
+    backgroundColor: "var(--ss-primary, #1e293b)",
     color: "white",
     padding: "14px 18px",
     borderRadius: "12px",
@@ -38,9 +38,9 @@ export const appStyles = {
   secondaryButton: {
     padding: "10px 14px",
     borderRadius: "10px",
-    border: "1px solid #cbd5e1",
-    backgroundColor: "#ffffff",
-    color: "#0f172a",
+    border: "1px solid var(--ss-border, #cbd5e1)",
+    backgroundColor: "var(--ss-surface, #ffffff)",
+    color: "var(--ss-text, #0f172a)",
     fontWeight: "700",
     cursor: "pointer",
   },
@@ -48,15 +48,15 @@ export const appStyles = {
   primaryButton: {
     padding: "10px 14px",
     borderRadius: "10px",
-    border: "1px solid #2563eb",
-    backgroundColor: "#dbeafe",
-    color: "#1d4ed8",
+    border: "1px solid var(--ss-primary, #2563eb)",
+    backgroundColor: "var(--ss-primary, #dbeafe)",
+    color: "var(--ss-surface, #1d4ed8)",
     fontWeight: "700",
     cursor: "pointer",
   },
 
   panel: {
-    backgroundColor: "#ffffff",
+    backgroundColor: "var(--ss-surface, #ffffff)",
     borderRadius: "14px",
     padding: "16px",
     boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
@@ -66,7 +66,7 @@ export const appStyles = {
   panelTitle: {
     fontWeight: "700",
     fontSize: "16px",
-    color: "#0f172a",
+    color: "var(--ss-text, #0f172a)",
     marginBottom: "14px",
   },
 
@@ -92,9 +92,9 @@ export const appStyles = {
   textInput: {
     width: "100%",
     padding: "10px 12px",
-    border: "1px solid #cbd5e1",
+    border: "1px solid var(--ss-border, #cbd5e1)",
     borderRadius: "8px",
-    backgroundColor: "#ffffff",
+    backgroundColor: "var(--ss-surface, #ffffff)",
     fontSize: "14px",
     boxSizing: "border-box",
   },
@@ -115,9 +115,9 @@ export const appStyles = {
   textareaInput: {
     width: "100%",
     padding: "10px 12px",
-    border: "1px solid #cbd5e1",
+    border: "1px solid var(--ss-border, #cbd5e1)",
     borderRadius: "8px",
-    backgroundColor: "#ffffff",
+    backgroundColor: "var(--ss-surface, #ffffff)",
     fontSize: "14px",
     resize: "vertical",
     boxSizing: "border-box",
@@ -126,12 +126,12 @@ export const appStyles = {
 
   helperText: {
     fontSize: "12px",
-    color: "#64748b",
+    color: "var(--ss-muted, #64748b)",
     marginTop: "6px",
   },
 
   tableWrap: {
-    backgroundColor: "#ffffff",
+    backgroundColor: "var(--ss-surface, #ffffff)",
     borderRadius: "14px",
     padding: "12px",
     boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
@@ -274,7 +274,7 @@ export const appStyles = {
   },
 
   runNoteLabel: {
-    color: "#64748b",
+    color: "var(--ss-muted, #64748b)",
     fontSize: "12px",
     fontWeight: 800,
     textTransform: "uppercase",
@@ -423,7 +423,7 @@ export const appStyles = {
     margin: 0,
     fontSize: "18px",
     fontWeight: "900",
-    color: "#0f172a",
+    color: "var(--ss-text, #0f172a)",
   },
 
   manualPenaltyModalSubtitle: {
@@ -540,7 +540,7 @@ export const appStyles = {
     borderRadius: "10px",
     border: "1px solid #cbd5e1",
     backgroundColor: "#ffffff",
-    color: "#0f172a",
+    color: "var(--ss-text, #0f172a)",
     fontSize: "14px",
     fontWeight: "800",
     textAlign: "left",
@@ -551,7 +551,7 @@ export const appStyles = {
     padding: "12px",
     borderRadius: "10px",
     backgroundColor: "#f8fafc",
-    color: "#64748b",
+    color: "var(--ss-muted, #64748b)",
     fontSize: "13px",
     fontWeight: "800",
     textAlign: "center",

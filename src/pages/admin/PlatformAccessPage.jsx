@@ -402,7 +402,7 @@ const headerStyle = {
 };
 
 const eyebrowStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 12,
   fontWeight: 800,
   letterSpacing: 0,
@@ -411,7 +411,7 @@ const eyebrowStyle = {
 
 const titleStyle = {
   margin: "4px 0",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 30,
   lineHeight: 1.1,
 };
@@ -459,14 +459,14 @@ const inputStyle = {
   border: "1px solid #cbd5e1",
   borderRadius: 8,
   padding: "8px 10px",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 14,
   background: "#fff",
 };
 
 const sectionTitleStyle = {
   margin: "0 0 12px",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 18,
 };
 
@@ -502,7 +502,7 @@ const userHeaderStyle = {
 
 const userNameStyle = {
   margin: "0 0 4px",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 16,
 };
 
@@ -534,12 +534,12 @@ const roleRowStyle = {
 };
 
 const roleNameStyle = {
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontWeight: 900,
 };
 
 const mutedTextStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 13,
   wordBreak: "break-word",
 };
@@ -548,14 +548,14 @@ const emptyStateStyle = {
   padding: 18,
   border: "1px dashed #cbd5e1",
   borderRadius: 8,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   background: "#f8fafc",
 };
 
 const softEmptyStyle = {
   padding: 10,
   borderRadius: 8,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   background: "#fff",
 };
 

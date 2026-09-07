@@ -4,14 +4,21 @@
   "description": "Public live scores and official score sheets for reining shows.",
   "icons": [
     {
-      "src": "favicon.ico",
+      "src": "/branding/icon-192.png?v=showscore-hsp-2",
       "type": "image/png",
-      "sizes": "1254x1254"
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/branding/icon-512.png?v=showscore-hsp-2",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
     }
   ],
   "start_url": "/public",
   "scope": "/",
   "display": "standalone",
-  "theme_color": "#111827",
+  "theme_color": "#18334D",
   "background_color": "#ffffff"
 }

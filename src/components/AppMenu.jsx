@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import ShowScoreBrand from "./ShowScoreBrand";
+import { isProtectedDisplayPath } from "../styles/BrandBoundary";
 import AssociationLogo from "./AssociationLogo";
 import CloudAuthBar from "./CloudAuthBar";
 import LanguageSwitcher from "./LanguageSwitcher";
@@ -35,6 +37,7 @@ function getIsMobileMenuViewport(pathname = "") {
 
 function AppMenu() {
   const location = useLocation();
+  const protectedDisplay = isProtectedDisplayPath(location.pathname);
   const auth = useAuthUser();
   const { t } = useTranslation();
   const isPublicOverlayPath =
@@ -332,7 +335,7 @@ function AppMenu() {
         <div style={publicMenuShellStyle}>
           <div style={publicMobileTopBarStyle}>
             <Link to="/public" style={publicBrandStyle}>
-              <span style={publicBrandMarkStyle}>ShowScore</span>
+              {protectedDisplay ? <span style={publicBrandMarkStyle}>ShowScore</span> : <ShowScoreBrand compact={isMobile} />}
               <span style={publicBrandLabelStyle}>{t("nav.publicShowcase")}</span>
             </Link>
             <div style={publicMobileActionsStyle}>
@@ -366,7 +369,7 @@ function AppMenu() {
                   style={publicBrandStyle}
                   onClick={closeMobileMenu}
                 >
-                  <span style={publicBrandMarkStyle}>ShowScore</span>
+                  {protectedDisplay ? <span style={publicBrandMarkStyle}>ShowScore</span> : <ShowScoreBrand compact={isMobile} />}
                   <span style={publicBrandLabelStyle}>
                     {t("nav.publicShowcase")}
                   </span>
@@ -400,7 +403,7 @@ function AppMenu() {
       <div style={publicMenuShellStyle}>
         <nav style={publicNavStyle} aria-label={t("nav.main")}>
           <Link to="/public" style={publicBrandStyle}>
-            <span style={publicBrandMarkStyle}>ShowScore</span>
+            {protectedDisplay ? <span style={publicBrandMarkStyle}>ShowScore</span> : <ShowScoreBrand compact={isMobile} />}
             <span style={publicBrandLabelStyle}>{t("nav.publicShowcase")}</span>
           </Link>
 
@@ -428,7 +431,7 @@ function AppMenu() {
     return (
       <div style={menuShellStyle}>
         <div style={mobileTopBarStyle}>
-          <span style={mobileContextLabelStyle}>{mobileContextLabel}</span>
+          <span style={mobileContextLabelStyle}>{!protectedDisplay && <Link to="/" aria-label="ShowScore"><ShowScoreBrand compact /></Link>} {associationId ? mobileContextLabel : protectedDisplay ? mobileContextLabel : null}</span>
           <button
             type="button"
             style={mobileMenuButtonStyle}
@@ -452,7 +455,7 @@ function AppMenu() {
             aria-label={t("nav.main")}
           >
             <div style={mobileDrawerHeaderStyle}>
-              <span style={mobileContextLabelStyle}>{mobileContextLabel}</span>
+              <span style={mobileContextLabelStyle}>{!protectedDisplay && <Link to="/" aria-label="ShowScore"><ShowScoreBrand compact /></Link>} {associationId ? mobileContextLabel : protectedDisplay ? mobileContextLabel : null}</span>
               <button
                 type="button"
                 style={mobileMenuButtonStyle}
@@ -509,6 +512,7 @@ function AppMenu() {
   return (
     <div style={menuShellStyle}>
       <nav style={navStyle} aria-label={t("nav.main")}>
+        {!protectedDisplay && <Link to="/" aria-label="ShowScore"><ShowScoreBrand /></Link>}
         {mainLinks.map((link) => (
           <Link key={link.to} to={link.to} style={linkStyle(link.isActive)}>
             {link.label}
@@ -585,9 +589,9 @@ const linkStyle = (isActive) => ({
   minHeight: 34,
   padding: "6px 10px",
   borderRadius: 8,
-  border: `1px solid ${isActive ? "#94a3b8" : "transparent"}`,
-  background: isActive ? "#fff" : "transparent",
-  color: "#0f172a",
+  border: `1px solid ${isActive ? "var(--ss-primary, #94a3b8)" : "transparent"}`,
+  background: isActive ? "var(--ss-soft, #fff)" : "transparent",
+  color: "var(--ss-text, #0f172a)",
   fontWeight: isActive ? 800 : 700,
   textDecoration: "none",
 });
@@ -614,7 +618,7 @@ const associationContextStyle = {
 };
 
 const associationNameStyle = {
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontWeight: 900,
   whiteSpace: "nowrap",
   overflow: "hidden",
@@ -648,7 +652,7 @@ const mobileTopBarStyle = {
 };
 
 const mobileContextLabelStyle = {
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 16,
   fontWeight: 900,
   minWidth: 0,
@@ -661,7 +665,7 @@ const mobileMenuButtonStyle = {
   alignItems: "center",
   background: "transparent",
   border: 0,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   cursor: "pointer",
   display: "inline-flex",
   flex: "0 0 auto",
@@ -718,10 +722,10 @@ const mobileDrawerLinkStyle = (isActive, isMuted = false) => ({
   width: "100%",
   padding: "8px 10px",
   borderRadius: 8,
-  border: `1px solid ${isActive ? "#94a3b8" : "transparent"}`,
-  background: isActive ? "#f8fafc" : "transparent",
+  border: `1px solid ${isActive ? "var(--ss-primary, #94a3b8)" : "transparent"}`,
+  background: isActive ? "var(--ss-soft, #f8fafc)" : "transparent",
   boxSizing: "border-box",
-  color: isMuted ? "#475569" : "#0f172a",
+  color: isMuted ? "#475569" : "var(--ss-text, #0f172a)",
   fontWeight: isActive ? 900 : 800,
   textDecoration: "none",
 });
@@ -780,7 +784,7 @@ const publicMobileMenuButtonStyle = {
   border: "1px solid #cbd5e1",
   borderRadius: 8,
   background: "#fff",
-  color: "#101827",
+  color: "var(--ss-text, #101827)",
   font: "inherit",
   fontSize: 20,
   fontWeight: 950,
@@ -799,7 +803,7 @@ const publicBrandStyle = {
   flexDirection: "column",
   justifyContent: "center",
   minHeight: 38,
-  color: "#101827",
+  color: "var(--ss-text, #101827)",
   textDecoration: "none",
   minWidth: 0,
 };
@@ -810,7 +814,7 @@ const publicBrandMarkStyle = {
 };
 
 const publicBrandLabelStyle = {
-  color: "#66758d",
+  color: "var(--ss-muted, #66758d)",
   fontSize: 12,
   fontWeight: 800,
   marginTop: 2,
@@ -824,7 +828,7 @@ const publicNavigationLinkStyle = {
   padding: "6px 10px",
   borderRadius: 8,
   border: "1px solid transparent",
-  color: "#101827",
+  color: "var(--ss-text, #101827)",
   fontSize: 13,
   fontWeight: 850,
   textDecoration: "none",
