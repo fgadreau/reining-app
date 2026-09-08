@@ -51,9 +51,12 @@ import {
   ResultsNoticePage,
   TermsPage,
 } from "../../pages/legal/LegalPages";
+import EnvironmentBanner from "../../components/EnvironmentBanner";
+
 function AppRouter() {
   return (
     <BrowserRouter>
+      <EnvironmentBanner />
       <AnalyticsRouteTracker />
       <AppRouteChangeNotifier />
       <BrandBoundary>
