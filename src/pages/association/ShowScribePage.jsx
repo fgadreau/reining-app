@@ -291,7 +291,7 @@ const heroStyle = {
 };
 
 const eyebrowStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontWeight: 700,
   textTransform: "uppercase",
   fontSize: 12,
@@ -304,7 +304,7 @@ const titleStyle = {
 };
 
 const subtitleStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 const countBadgeStyle = {
@@ -361,11 +361,11 @@ const classCardHeaderStyle = {
 
 const classNameStyle = {
   fontWeight: 800,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
 };
 
 const mutedTextStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 13,
 };
 
@@ -384,7 +384,7 @@ const metricStyle = {
 };
 
 const metricLabelStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontWeight: 800,
   textTransform: "uppercase",
   fontSize: 11,
@@ -393,7 +393,7 @@ const metricLabelStyle = {
 
 const metricValueStyle = {
   marginTop: 4,
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   fontWeight: 900,
   fontSize: 18,
 };
@@ -412,8 +412,8 @@ const primaryLinkStyle = {
   minHeight: 36,
   padding: "8px 12px",
   borderRadius: 8,
-  border: "1px solid #0f172a",
-  background: "#0f172a",
+  border: "1px solid var(--ss-primary, #0f172a)",
+  background: "var(--ss-primary, #0f172a)",
   color: "#fff",
   fontWeight: 700,
   textDecoration: "none",
@@ -432,7 +432,7 @@ const emptyStateStyle = {
   borderRadius: 12,
   padding: 20,
   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 function statusBadgeStyle(status) {

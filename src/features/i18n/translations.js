@@ -529,6 +529,8 @@ export const translations = {
       underMinute: "moins d’une minute",
     },
     home: {
+      publicDescription: "Suivez les shows, les ordres de passage et les résultats publiés.",
+      managementDescription: "Préparez vos shows et retrouvez vos outils de secrétariat, d’annonce et de pointage.",
       continueManagement: "Continuer la gestion",
       eyebrow: "Pointage live · Vitrine publique",
       localRole: "Local",
@@ -2605,6 +2607,8 @@ export const translations = {
       underMinute: "less than a minute",
     },
     home: {
+      publicDescription: "Follow shows, running orders and published results.",
+      managementDescription: "Prepare your shows and access your secretary, announcer and scoring tools.",
       continueManagement: "Continue management",
       eyebrow: "Live scoring · Public showcase",
       localRole: "Local",

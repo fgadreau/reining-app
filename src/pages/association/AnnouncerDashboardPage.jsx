@@ -3387,7 +3387,7 @@ const qualifiedRidersShortcutStyle = {
 };
 
 const manualLiveTitleStyle = {
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 18,
   fontWeight: 900,
   marginBottom: 4,
@@ -3549,7 +3549,7 @@ const smallButtonStyle = {
   borderRadius: 999,
   border: "1px solid #d4dee7",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   cursor: "pointer",
   fontWeight: 800,
 };
@@ -3569,7 +3569,7 @@ const textInputStyle = {
   borderRadius: 8,
   padding: "10px 12px",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   fontSize: 16,
 };
 
@@ -3583,7 +3583,7 @@ const scoreInputStyle = {
 const scoreKeyboardHintStyle = {
   marginTop: -4,
   marginBottom: 12,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 13,
   fontWeight: 700,
 };
@@ -3615,7 +3615,7 @@ const combinedScorePreviewStyle = {
   border: "1px solid #cbd5e1",
   borderRadius: 8,
   background: "#f8fafc",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 18,
 };
 
@@ -3655,13 +3655,13 @@ const rankingRowStyle = {
 const rankingRankStyle = {
   fontWeight: 900,
   fontSize: 18,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
 };
 
 const rankingScoreStyle = {
   fontWeight: 900,
   fontSize: 20,
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
 };
 
 const announcerPageStyle = {
@@ -3671,7 +3671,7 @@ const announcerPageStyle = {
   background:
     "linear-gradient(180deg, #e8f1f2 0%, #f8fafc 38%, #f1f5f9 100%)",
   padding: "clamp(14px, 2vw, 28px)",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   width: "100%",
   maxWidth: 1760,
   margin: "0 auto",
@@ -3682,7 +3682,7 @@ const announcerBackRowStyle = {
 };
 
 const heroStyle = {
-  background: "linear-gradient(135deg, #0f172a 0%, #164e63 100%)",
+  background: "linear-gradient(135deg, var(--ss-primary, #0f172a) 0%, #164e63 100%)",
   color: "#fff",
   borderRadius: 22,
   padding: "22px 24px",
@@ -3724,14 +3724,14 @@ const subtitleStyle = {
 const timerInlineStyle = {
   fontSize: 28,
   fontWeight: 900,
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   marginTop: 8,
 };
 
 const compactScoreStyle = {
   fontSize: 24,
   fontWeight: 900,
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   marginTop: 8,
 };
 
@@ -3764,7 +3764,7 @@ const judgeScoreNameStyle = {
 };
 
 const judgeScoreValueStyle = {
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   fontWeight: 900,
 };
 
@@ -3864,7 +3864,7 @@ const priorityHeaderStyle = {
 const priorityTitleStyle = {
   margin: 0,
   fontSize: "clamp(24px, 2vw, 32px)",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   letterSpacing: "-0.02em",
 };
 
@@ -3937,7 +3937,7 @@ const classCardIdentityStyle = {
 };
 
 const classMetaStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 13,
   lineHeight: 1.4,
   marginTop: 5,
@@ -3945,7 +3945,7 @@ const classMetaStyle = {
 
 const classNameStyle = {
   fontWeight: 900,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 19,
   lineHeight: 1.16,
   letterSpacing: "-0.015em",
@@ -4182,7 +4182,7 @@ const announcerStandingIdentityStyle = {
 const announcerStandingScoreStyle = {
   fontSize: 18,
   fontWeight: 900,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
 };
 
 const announcerOrderWrapStyle = {
@@ -4213,7 +4213,7 @@ const announcerOrderDrawStyle = {
   width: 48,
   flex: "0 0 48px",
   fontWeight: 900,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
 };
 
 const announcerOrderIdentityStyle = {
@@ -4232,7 +4232,7 @@ const runLabelStyle = {
 
 const runTitleStyle = {
   fontWeight: 900,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 17,
 };
 
@@ -4243,7 +4243,7 @@ const runNameStyle = {
 };
 
 const mutedTextStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 13,
 };
 
@@ -4263,13 +4263,13 @@ const detailCellStyle = {
 };
 
 const detailNameStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 11,
   fontWeight: 800,
 };
 
 const detailScoreStyle = {
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 16,
   fontWeight: 900,
   marginTop: 2,
@@ -4382,7 +4382,7 @@ const linkButtonStyle = {
   borderRadius: 12,
   border: "1px solid rgba(203, 213, 225, 0.9)",
   background: "#fff",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   textDecoration: "none",
   fontWeight: 800,
   boxShadow: "0 4px 12px rgba(15, 23, 42, 0.08)",
@@ -4411,7 +4411,7 @@ const secondaryButtonStyle = {
   borderRadius: 12,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   cursor: "pointer",
   fontWeight: 800,
   boxShadow: "0 4px 12px rgba(15, 23, 42, 0.06)",
@@ -4436,7 +4436,7 @@ const emptyStateStyle = {
   borderRadius: 12,
   padding: 20,
   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   marginTop: 16,
 };
 
@@ -4444,7 +4444,7 @@ const softEmptyStyle = {
   border: "1px dashed #cbd5e1",
   borderRadius: 8,
   padding: 14,
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 export default AnnouncerDashboardPage;

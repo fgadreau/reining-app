@@ -349,7 +349,7 @@ const titleStyle = {
 };
 
 const mutedTextStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 const cardStyle = {
@@ -383,7 +383,7 @@ const testModeFieldStyle = {
 };
 
 const helperTextStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 13,
   fontWeight: 400,
 };
@@ -432,8 +432,8 @@ const actionRowStyle = {
 const primaryButtonStyle = {
   padding: "10px 14px",
   borderRadius: 8,
-  border: "1px solid #111827",
-  background: "#111827",
+  border: "1px solid var(--ss-primary, #111827)",
+  background: "var(--ss-primary, #111827)",
   color: "#fff",
   cursor: "pointer",
   fontWeight: 700,
@@ -444,7 +444,7 @@ const secondaryButtonStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   cursor: "pointer",
   fontWeight: 700,
 };
@@ -457,7 +457,7 @@ const linkButtonStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   textDecoration: "none",
   fontWeight: 700,
 };
@@ -476,7 +476,7 @@ const emptyStateStyle = {
   borderRadius: 12,
   padding: 20,
   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 const syncBadgeStyle = (isCloudReady) => ({

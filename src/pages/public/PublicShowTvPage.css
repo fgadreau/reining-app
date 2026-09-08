@@ -468,3 +468,25 @@
     font-size: 34px !important;
   }
 }
+
+/* Keep the existing QR size; let the header's text column actually shrink. */
+.tv-header { min-width: 0; }
+.tv-header__brand > div:last-child { flex: 1; min-width: 0; }
+
+.tv-welcome-panel[data-welcome-fit] {
+  gap: var(--welcome-gap) !important;
+  padding: var(--welcome-padding) !important;
+}
+.tv-welcome-panel[data-welcome-fit] .tv-center-title { font-size: var(--welcome-title) !important; }
+.tv-welcome-panel[data-welcome-fit] .tv-center-subtitle { font-size: var(--welcome-subtitle) !important; }
+.tv-showscore-signature {
+  width: 116px;
+  height: auto;
+  flex: 0 0 auto;
+  align-self: center;
+  filter: brightness(0) invert(1);
+  opacity: 0.8;
+}
+@media (max-height: 820px) {
+  .tv-showscore-signature { width: 80px; }
+}

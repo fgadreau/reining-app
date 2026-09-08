@@ -8,6 +8,7 @@ import {
   useParams,
 } from "react-router-dom";
 
+import BrandBoundary from "../../styles/BrandBoundary";
 import AppMenu from "../../components/AppMenu";
 import PublicAppInstallPrompt from "../../components/PublicAppInstallPrompt";
 import AnalyticsRouteTracker from "../../features/analytics/AnalyticsRouteTracker";
@@ -50,11 +51,15 @@ import {
   ResultsNoticePage,
   TermsPage,
 } from "../../pages/legal/LegalPages";
+import EnvironmentBanner from "../../components/EnvironmentBanner";
+
 function AppRouter() {
   return (
     <BrowserRouter>
+      <EnvironmentBanner />
       <AnalyticsRouteTracker />
       <AppRouteChangeNotifier />
+      <BrandBoundary>
       <AppMenu />
       <PublicAppInstallPrompt />
       <Routes>
@@ -229,6 +234,7 @@ function AppRouter() {
         />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      </BrandBoundary>
     </BrowserRouter>
   );
 }

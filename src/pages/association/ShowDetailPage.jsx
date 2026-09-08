@@ -949,14 +949,14 @@ function ShowDetailPage() {
         <div style={{ fontWeight: 700 }}>
           {show?.venue || t("management.days.venueFallback")}
         </div>
-        <div style={{ color: "#64748b", marginTop: 4 }}>
+        <div style={{ color: "var(--ss-muted, #64748b)", marginTop: 4 }}>
           {show?.location || ""}
           {show?.startDate ? ` • ${show.startDate}` : ""}
           {show?.endDate
             ? ` ${t("management.shows.dateRangeJoin")} ${show.endDate}`
             : ""}
         </div>
-        <div style={{ color: "#64748b", marginTop: 4 }}>
+        <div style={{ color: "var(--ss-muted, #64748b)", marginTop: 4 }}>
           {t("management.shows.statusPrefix")}: {formatShowStatus(show?.status, t)}
         </div>
         <div style={actionRowStyle}>
@@ -2255,7 +2255,7 @@ const cardTitleStyle = {
 };
 
 const cardMetaStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   marginTop: 6,
 };
 
@@ -2289,7 +2289,7 @@ const publicStatusHeaderStyle = {
 };
 
 const publicStatusEyebrowStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 12,
   fontWeight: 900,
   textTransform: "uppercase",
@@ -2297,7 +2297,7 @@ const publicStatusEyebrowStyle = {
 };
 
 const publicStatusTitleStyle = {
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontWeight: 900,
   fontSize: 17,
   marginTop: 2,
@@ -2349,7 +2349,7 @@ const publicStatusItemStyle = (tone) => {
 };
 
 const publicStatusItemLabelStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 12,
   fontWeight: 800,
 };
@@ -2397,7 +2397,7 @@ const arenaOverlayPickerStyle = {
 
 const arenaOverlayNameStyle = {
   minWidth: 120,
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   fontWeight: 800,
 };
 
@@ -2437,7 +2437,7 @@ const competitionTvSectionStyle = {
   padding: 20,
   borderRadius: 16,
   border: "2px solid #0f766e",
-  background: "linear-gradient(135deg, #0f172a 0%, #164e63 100%)",
+  background: "linear-gradient(135deg, var(--ss-primary, #0f172a) 0%, #164e63 100%)",
   boxShadow: "0 12px 28px rgba(15, 23, 42, 0.18)",
 };
 
@@ -2534,7 +2534,7 @@ const competitionTvInputStyle = {
   borderRadius: 9,
   border: "1px solid #94a3b8",
   background: "#fff",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   boxSizing: "border-box",
   fontSize: 15,
   fontWeight: 750,
@@ -2630,7 +2630,7 @@ const competitionTvLinkHintStyle = {
 
 const overlaySponsorTitleStyle = {
   margin: 0,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 15,
 };
 
@@ -2672,7 +2672,7 @@ const sponsorLevelNameInputStyle = {
   borderRadius: 10,
   border: "1px solid #94a3b8",
   background: "#fff",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 17,
   fontWeight: 850,
   boxSizing: "border-box",
@@ -2726,7 +2726,7 @@ const sponsorImageStyle = {
 };
 
 const sponsorMetaStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 12,
   fontWeight: 700,
 };
@@ -2784,7 +2784,7 @@ const livestreamDayDateStyle = {
   minWidth: 0,
   display: "grid",
   gap: 3,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   textTransform: "capitalize",
 };
 
@@ -2803,7 +2803,7 @@ const checkboxLabelStyle = {
   display: "inline-flex",
   alignItems: "center",
   gap: 8,
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   fontWeight: 800,
 };
 
@@ -2838,7 +2838,7 @@ const modalHeaderStyle = {
 };
 
 const modalEyebrowStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   fontSize: 12,
   fontWeight: 900,
   letterSpacing: 0,
@@ -2847,7 +2847,7 @@ const modalEyebrowStyle = {
 
 const modalTitleStyle = {
   margin: "4px 0",
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
 };
 
 const modalDescriptionStyle = {
@@ -2860,7 +2860,7 @@ const iconCloseButtonStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   cursor: "pointer",
   fontSize: 24,
   lineHeight: 1,
@@ -2883,7 +2883,7 @@ const settingsSectionStyle = {
 
 const settingsTitleStyle = {
   margin: 0,
-  color: "#0f172a",
+  color: "var(--ss-text, #0f172a)",
   fontSize: 18,
 };
 
@@ -2917,8 +2917,8 @@ const syncNoticeStyle = (tone) => ({
 const primaryButtonStyle = {
   padding: "10px 14px",
   borderRadius: 8,
-  border: "1px solid #111827",
-  background: "#111827",
+  border: "1px solid var(--ss-primary, #111827)",
+  background: "var(--ss-primary, #111827)",
   color: "#fff",
   cursor: "pointer",
 };
@@ -2928,7 +2928,7 @@ const secondaryButtonStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   cursor: "pointer",
 };
 
@@ -2949,7 +2949,7 @@ const linkButtonStyle = {
   borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   textDecoration: "none",
 };
 
@@ -2958,7 +2958,7 @@ const emptyStateStyle = {
   borderRadius: 12,
   padding: 20,
   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
 };
 
 const warningBadgeStyle = {

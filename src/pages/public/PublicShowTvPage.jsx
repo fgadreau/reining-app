@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useLocation, useParams } from "react-router-dom";
+import { useWelcomeFit } from "../../features/tvDisplay/useWelcomeFit";
+import TvSignature from "../../components/TvSignature";
 import AssociationLogo from "../../components/AssociationLogo";
 import {
   getPublicAssociationRepository,
@@ -879,12 +881,13 @@ function PausePanel({ association, show }) {
 }
 
 function WelcomePanel({ association, show, upcomingScheduleItem }) {
+  const panelRef = useWelcomeFit([association?.name, show?.name, show?.venue, show?.location, upcomingScheduleItem]);
   const showName = show?.name || association?.name || "";
   const associationName =
     association?.name && association.name !== showName ? association.name : "";
 
   return (
-    <section style={centerPanelStyle} className="tv-center-panel">
+    <section ref={panelRef} style={centerPanelStyle} className="tv-center-panel tv-welcome-panel">
       <div style={centerLogoWrapStyle} className="tv-center-logo">
         <AssociationLogo association={association} size={148} />
       </div>
@@ -1143,7 +1146,7 @@ function SponsorRail({ slide, expanded = false }) {
         </div>
       ) : (
         <div style={sponsorEmptyStyle}>
-          <strong>ShowScore</strong>
+          <TvSignature />
           <span>showScore.app</span>
         </div>
       )}

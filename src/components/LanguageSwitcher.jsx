@@ -40,7 +40,7 @@ const buttonStyle = (isActive) => ({
   border: "none",
   borderRight: "1px solid #e2e8f0",
   padding: "6px 9px",
-  background: isActive ? "#111827" : "#fff",
+  background: isActive ? "var(--ss-primary, #111827)" : "#fff",
   color: isActive ? "#fff" : "#334155",
   fontWeight: 900,
   cursor: "pointer",

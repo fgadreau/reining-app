@@ -52,7 +52,7 @@ const lockShackleStyle = {
   top: 4,
   width: 22,
   height: 22,
-  border: "4px solid #111827",
+  border: "4px solid var(--ss-primary, #111827)",
   borderBottom: "none",
   borderRadius: "14px 14px 0 0",
 };
@@ -64,18 +64,18 @@ const lockBodyStyle = {
   width: 32,
   height: 22,
   borderRadius: 6,
-  background: "#111827",
+  background: "var(--ss-primary, #111827)",
 };
 
 const titleStyle = {
   fontSize: 22,
   fontWeight: 700,
-  color: "#111827",
+  color: "var(--ss-text, #111827)",
   margin: "0 0 12px",
 };
 
 const messageStyle = {
-  color: "#64748b",
+  color: "var(--ss-muted, #64748b)",
   lineHeight: 1.6,
   margin: "0 0 8px",
 };
@@ -85,7 +85,7 @@ const buttonStyle = {
   marginTop: 20,
   padding: "12px 24px",
   borderRadius: 8,
-  background: "#111827",
+  background: "var(--ss-primary, #111827)",
   color: "#fff",
   textDecoration: "none",
   fontWeight: 600,

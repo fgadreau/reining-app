@@ -143,6 +143,8 @@ function buildRobotShowStorageSeed() {
   };
 
   const setup = {
+    // This fixture contains scribe sessions, not an announcer session.
+    liveDataSource: "scribe",
     pattern: "RR1",
     customPattern: null,
     judges,

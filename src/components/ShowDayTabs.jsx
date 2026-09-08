@@ -97,10 +97,10 @@ const tabListStyle = {
 
 const tabStyle = (isActive) => ({
   appearance: "none",
-  background: isActive ? "#0f766e" : "transparent",
-  border: isActive ? "1px solid #0f766e" : "1px solid transparent",
+  background: isActive ? "var(--ss-primary, #0f766e)" : "transparent",
+  border: isActive ? "1px solid var(--ss-primary, #0f766e)" : "1px solid transparent",
   borderRadius: 9,
-  color: isActive ? "#fff" : "#0f172a",
+  color: isActive ? "#fff" : "var(--ss-text, #0f172a)",
   cursor: "pointer",
   display: "grid",
   gap: 2,
@@ -115,7 +115,7 @@ const tabLabelStyle = {
 };
 
 const tabMetaStyle = (isActive) => ({
-  color: isActive ? "#ccfbf1" : "#64748b",
+  color: isActive ? "var(--ss-surface, #ccfbf1)" : "#64748b",
   fontSize: 12,
   fontWeight: 600,
 });

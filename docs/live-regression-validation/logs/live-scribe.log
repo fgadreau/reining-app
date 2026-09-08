@@ -1,0 +1,14 @@
+[WebServer] (node:66768) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:66787) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:66787) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] Files in the public directory are served at the root path.
+[WebServer] Instead of /public/associations/e2e-robot-association/shows/e2e-robot-show, use /associations/e2e-robot-association/shows/e2e-robot-show.
+  ✓  1 [chromium] › tests/e2e/show-robot.spec.js:440:3 › robot de show local › valide une classe live a 5 juges de la vue scribe a la vitrine (8.9s)
+
+  1 passed (12.9s)

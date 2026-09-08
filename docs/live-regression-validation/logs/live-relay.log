@@ -1,0 +1,23 @@
+
+> reining-app@0.1.0 relay:test
+> npm --prefix local-relay test
+
+
+> showscore-local-relay@0.2.2 test
+> node --test test/*.test.mjs
+
+✔ validates and normalizes a current snapshot (6.794355ms)
+✔ rejects malformed, obsolete-schema, and incomplete snapshots (0.391651ms)
+✔ compares large monotonic versions without losing precision (0.282037ms)
+✔ relays current state, rejects stale updates, and restores state after restart (979.653428ms)
+✔ persists the latest state and never lets an older update replace it (10.295372ms)
+✔ parses browser byte ranges (4.021227ms)
+✔ downloads a competition video once and serves it with range support (144.764242ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4495.693793

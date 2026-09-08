@@ -26,5 +26,11 @@
       "source": "/(.*)",
       "destination": "/"
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "fix/show-live-regression-scenarios": false,
+      "fix/tv-readability-signature": false
+    }
+  }
 }
