@@ -1,4 +1,11 @@
 {
+  "redirects": [
+    {
+      "source": "/aqr2026",
+      "destination": "https://showscore.app/public/associations/04b478f9-d90c-4589-8466-d3b25ea865df/championnat",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/public/associations/:associationId/championnat",
