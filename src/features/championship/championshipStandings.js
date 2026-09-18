@@ -538,256 +538,110 @@ export function getChampionshipIncludedShows(dataset) {
   return Array.from(showsByKey.values()).sort(compareChampionshipOccurrences);
 }
 
+function isDisqualifiedResult(result) {
+  return Boolean(result?.disqualified) || /^(DQ|DSQ|DISQUALIFIED)$/i.test(String(result?.rawPlaceNum || "").trim());
+}
+
+// Titles are presentation-only: preserve the existing points and numeric ranks.
+export function buildChampionshipTitles(classEntry, status) {
+  const titles = new Map();
+  if (status !== "final") return titles;
+  const teams = (classEntry?.teams || []).filter((team) =>
+    !isDisqualifiedResult(team) && team.eligible !== false && Number.isFinite(team.totalPoints) &&
+    team.totalPoints > 0 && (!team.details?.length || team.details.some((detail) => !isDisqualifiedResult(detail)))
+  ).slice().sort((a, b) => b.totalPoints - a.totalPoints);
+  const groups = [];
+  for (const team of teams) {
+    const group = groups.at(-1);
+    if (group && Math.abs(group[0].totalPoints - team.totalPoints) < 1e-9) group.push(team);
+    else groups.push([team]);
+  }
+  groups.slice(0, 2).forEach((group, index) => {
+    const title = index === 0
+      ? (group.length > 1 ? "coChampion" : "champion")
+      : (group.length > 1 ? "coReserveChampion" : "reserveChampion");
+    group.forEach((team) => titles.set(team.teamKey, title));
+  });
+  return titles;
+}
+
 export function buildChampionshipFunFacts(dataset) {
-  const classes = Array.isArray(dataset?.classes) ? dataset.classes : [];
-  const highestScores = [];
-  const highestRanchRidingScores = [];
-  const highestReiningScores = [];
-  const teamsByKey = new Map();
-  const ridersByKey = new Map();
-  const horsesByKey = new Map();
-
-  classes.forEach((classEntry) => {
-    const events = Array.isArray(classEntry?.events) ? classEntry.events : [];
-    const teams = Array.isArray(classEntry?.teams) ? classEntry.teams : [];
-    const isRanchRidingClass = isRanchRidingChampionshipClass(classEntry);
-
-    events.forEach((event) => {
-      const results = Array.isArray(event?.results) ? event.results : [];
-
-      results.forEach((result) => {
-        const score = toNumber(result.totalScore);
-        if (score <= 0) return;
-
-        const entry = {
-          rider: result.rider || "",
-          horse: result.horse || "",
-          className: classEntry.name || result.championshipClassName || "",
-          showLabel:
-            event.label || result.eventLabel || result.showName || result.showNum || "",
-          score,
-        };
-
-        highestScores.push(entry);
-
-        if (isRanchRidingClass) {
-          highestRanchRidingScores.push(entry);
-        } else {
-          highestReiningScores.push(entry);
-        }
-      });
-    });
-
-    teams.forEach((team) => {
-      const details = Array.isArray(team?.details) ? team.details : [];
-
-      if (details.length > 0) {
-        const key = team.teamKey || `${team.rider || ""}|${team.horse || ""}`;
-        const entry = teamsByKey.get(key) || {
-          rider: team.rider || "",
-          horse: team.horse || "",
-          classNames: [],
-          classCount: 0,
-          podiumCount: 0,
-          scoreEntries: [],
-          totalPoints: 0,
-        };
-
-        entry.classCount += details.length;
-        if (classEntry.name && !entry.classNames.includes(classEntry.name)) {
-          entry.classNames.push(classEntry.name);
-        }
-        teamsByKey.set(key, entry);
-
-        details.forEach((detail) => {
-          if (isPodiumPlacement(detail)) {
-            entry.podiumCount += 1;
-          }
-
-          const score = toNumber(detail.totalScore || detail.rawTotalScore);
-          if (score > 0) {
-            entry.scoreEntries.push({
-              score,
-              showNum: detail.showNum || "",
-              sourceImportedAt: detail.sourceImportedAt || "",
-              sourceImportOrder: detail.sourceImportOrder,
-              sourceRowNumber: detail.sourceRowNumber,
-              sequence: entry.scoreEntries.length,
-            });
-          }
-
-          const points = toNumber(detail.points);
-          if (points <= 0) return;
-
-          entry.totalPoints += points;
-          addPointAggregate(ridersByKey, normalizePersonKey(team.rider), {
-            rider: team.rider || "",
-            horse: "",
-            relationKey: "horse",
-            relationName: team.horse || "",
-            className: classEntry.name || "",
-            points,
-          });
-          addPointAggregate(horsesByKey, normalizeHorseKey(team.horse), {
-            rider: "",
-            horse: team.horse || "",
-            relationKey: "rider",
-            relationName: team.rider || "",
-            className: classEntry.name || "",
-            points,
-          });
-        });
-      }
-    });
-  });
-
-  const teamFacts = Array.from(teamsByKey.values()).map((team) => {
-    const { scoreEntries, ...teamFact } = team;
-    const progression = buildScoreProgression(scoreEntries);
-
-    return {
-      ...teamFact,
-      ...(progression || {}),
-      className: team.classNames.join(", "),
+  const rows = (dataset?.classes || []).flatMap((classEntry) =>
+    (classEntry.events || []).flatMap((event) => (event.results || []).map((result) => {
+      const identity = normalizeChampionshipRowIdentity(result);
+      // Persisted occurrence results already carry the resolved duo identity.
+      const [riderKey, horseKey] = (result.teamKey || "").split("|");
+      return {
+        ...identity,
+        riderKey: result.riderKey || riderKey || identity.riderKey,
+        horseKey: result.horseKey || horseKey || identity.horseKey,
+        className: classEntry.name || result.className || "",
+        showLabel: event.label || result.showName || result.showNum || "",
+        eventKey: event.eventKey || result.eventKey,
+      };
+    }))
+  );
+  const resolvedRows = resolveChampionshipImportIdentities([{ rows }])[0].rows;
+  const riders = new Set(), horses = new Set(), duos = new Set();
+  const teamsByKey = new Map(), ridersByKey = new Map(), horsesByKey = new Map();
+  function aggregate(map, key, row, points) {
+    if (!key) return;
+    const entry = map.get(key) || {
+      key, rider: row.rider || "", horse: row.horse || "",
+      totalPoints: 0, classCount: 0, podiumCount: 0,
+      contributions: [], teamKeys: new Set(), riderKeys: new Set(), horseKeys: new Set(),
     };
+    entry.totalPoints += points;
+    entry.classCount += 1;
+    if (toNumber(row.placeNum) >= 1 && toNumber(row.placeNum) <= 3) entry.podiumCount += 1;
+    entry.teamKeys.add(row.teamKey);
+    entry.riderKeys.add(row.riderKey);
+    entry.horseKeys.add(row.horseKey);
+    entry.contributions.push({ placeNum: toNumber(row.placeNum), rider: row.rider, horse: row.horse, className: row.className, showLabel: row.showLabel, eventKey: row.eventKey, points });
+    entry.riderCount = entry.riderKeys.size;
+    entry.horseCount = entry.horseKeys.size;
+    map.set(key, entry);
+  }
+  resolvedRows.forEach((row) => {
+    if (row.riderKey) riders.add(row.riderKey);
+    if (row.horseKey) horses.add(row.horseKey);
+    if (row.teamKey) duos.add(row.teamKey);
+    // DQ results count in season participation, never in performance distinctions.
+    if (isDisqualifiedResult(row)) return;
+    const points = Math.max(0, toNumber(row.points));
+    aggregate(teamsByKey, row.teamKey, row, points);
+    if (points > 0) {
+      aggregate(ridersByKey, row.riderKey, row, points);
+      aggregate(horsesByKey, row.horseKey, row, points);
+    }
   });
-
+  const leaders = (map, field) => {
+    const entries = [...map.values()].filter((entry) => entry[field] > 0);
+    const maximum = Math.max(0, ...entries.map((entry) => entry[field]));
+    return entries.filter((entry) => Math.abs(entry[field] - maximum) < 1e-9);
+  };
+  const topRiderPoints = leaders(ridersByKey, "totalPoints");
+  const topHorsePoints = leaders(horsesByKey, "totalPoints");
+  const topTeamPoints = leaders(teamsByKey, "totalPoints");
+  // Merge only a complete one-to-one set of leaders with identical contributions.
+  // This preserves every tie and forbids assigning another partner's points to a duo.
+  const canCombine = topTeamPoints.length > 0 &&
+    topRiderPoints.length === topTeamPoints.length && topHorsePoints.length === topTeamPoints.length &&
+    topTeamPoints.every((team) => [topRiderPoints, topHorsePoints].every((entries) =>
+      entries.some((entry) => entry.teamKeys.size === 1 && entry.teamKeys.has(team.key) &&
+        Math.abs(entry.totalPoints - team.totalPoints) < 1e-9 &&
+        entry.contributions.length === team.contributions.filter((item) => item.points > 0).length)
+    ));
   return {
-    highestScore: pickLeader(highestScores, compareHighestScores),
-    highestReiningScore: pickLeader(highestReiningScores, compareHighestScores),
-    highestRanchRidingScore: pickLeader(
-      highestRanchRidingScores,
-      compareHighestScores
-    ),
-    topRiderPoints: pickLeaders(
-      Array.from(ridersByKey.values()),
-      comparePointLeaders,
-      "totalPoints"
-    ),
-    topHorsePoints: pickLeaders(
-      Array.from(horsesByKey.values()),
-      comparePointLeaders,
-      "totalPoints"
-    ),
-    topTeamPoints: pickLeaders(
-      teamFacts.filter((team) => toNumber(team.totalPoints) > 0),
-      comparePointLeaders,
-      "totalPoints"
-    ),
-    mostPodiums: pickLeaders(
-      teamFacts.filter((team) => toNumber(team.podiumCount) > 0),
-      comparePodiumLeaders,
-      "podiumCount"
-    ),
-    bestProgression: pickLeaders(
-      teamFacts.filter((team) => toNumber(team.progressionDelta) > 0),
-      compareProgressionLeaders,
-      "progressionDelta"
-    ),
-    mostClasses: pickLeaders(teamFacts, compareMostClasses, "classCount"),
+    counts: { riders: riders.size, horses: horses.size, duos: duos.size },
+    // CSV/public results lack a reliable judge count, scoring scale and discipline
+    // contract. Raw score maxima and import-order progression are not comparable.
+    highestScore: [], highestReiningScore: [], highestRanchRidingScore: [], bestProgression: [],
+    topRiderPoints, topHorsePoints, topTeamPoints,
+    combinedPointLeaders: canCombine ? topTeamPoints : [],
+    mostPodiums: leaders(teamsByKey, "podiumCount"),
+    mostClasses: leaders(teamsByKey, "classCount"),
   };
-}
-
-function isPodiumPlacement(detail) {
-  const place = toNumber(detail?.placeNum || detail?.rawPlaceNum);
-  return place >= 1 && place <= 3;
-}
-
-function buildScoreProgression(scoreEntries) {
-  const scores = (Array.isArray(scoreEntries) ? scoreEntries : [])
-    .filter((entry) => toNumber(entry.score) > 0)
-    .slice()
-    .sort(compareScoreEntries);
-
-  if (scores.length < 4) return null;
-
-  const firstScoreAverage = averageNumbers(
-    scores.slice(0, 2).map((entry) => entry.score)
-  );
-  const lastScoreAverage = averageNumbers(
-    scores.slice(-2).map((entry) => entry.score)
-  );
-  const progressionDelta = lastScoreAverage - firstScoreAverage;
-
-  if (progressionDelta <= 0) return null;
-
-  return {
-    firstScoreAverage,
-    lastScoreAverage,
-    progressionDelta,
-    scoreCount: scores.length,
-  };
-}
-
-function averageNumbers(values) {
-  const numbers = values.map(toNumber).filter((value) => value > 0);
-  if (!numbers.length) return 0;
-
-  return numbers.reduce((total, value) => total + value, 0) / numbers.length;
-}
-
-function compareScoreEntries(a, b) {
-  const importDiff = toNumber(a.sourceImportOrder) - toNumber(b.sourceImportOrder);
-  if (Math.abs(importDiff) > 1e-9) return importDiff;
-
-  const showDiff = String(a.showNum || "").localeCompare(
-    String(b.showNum || ""),
-    undefined,
-    { numeric: true, sensitivity: "base" }
-  );
-  if (showDiff !== 0) return showDiff;
-
-  const importedAtDiff = String(a.sourceImportedAt || "").localeCompare(
-    String(b.sourceImportedAt || "")
-  );
-  if (importedAtDiff !== 0) return importedAtDiff;
-
-  const rowDiff = toNumber(a.sourceRowNumber) - toNumber(b.sourceRowNumber);
-  if (Math.abs(rowDiff) > 1e-9) return rowDiff;
-
-  return toNumber(a.sequence) - toNumber(b.sequence);
-}
-
-function addPointAggregate(map, key, fact) {
-  if (!key) return;
-
-  const entry = map.get(key) || {
-    rider: fact.rider || "",
-    horse: fact.horse || "",
-    totalPoints: 0,
-    detailCount: 0,
-    classNames: [],
-    relatedNames: [],
-  };
-
-  entry.totalPoints += fact.points;
-  entry.detailCount += 1;
-
-  if (fact.className && !entry.classNames.includes(fact.className)) {
-    entry.classNames.push(fact.className);
-  }
-
-  if (fact.relationName && !entry.relatedNames.includes(fact.relationName)) {
-    entry.relatedNames.push(fact.relationName);
-  }
-
-  entry.classCount = entry.classNames.length;
-  entry[`${fact.relationKey}Count`] = entry.relatedNames.length;
-  entry.className = entry.classNames.join(", ");
-
-  map.set(key, entry);
-}
-
-function isRanchRidingChampionshipClass(classEntry) {
-  const id = String(classEntry?.id || "").trim().toLowerCase();
-  const name = String(classEntry?.name || "").trim().toLowerCase();
-  const events = Array.isArray(classEntry?.events) ? classEntry.events : [];
-
-  return (
-    id === "ranch-riding" ||
-    name.includes("ranch riding") ||
-    events.some((event) => normalizeClassCode(event?.classCode) === "399")
-  );
 }
 
 function hasCompleteOccurrenceResults(dataset) {
@@ -818,71 +672,6 @@ function normalizeIncludedShow(show, index) {
     occurrenceCount: show.occurrenceCount || 0,
     resultCount: show.resultCount || 0,
   };
-}
-
-function pickLeaders(items, compare, valueKey) {
-  const sorted = items.slice().sort(compare);
-  const leader = sorted[0] || null;
-
-  if (!leader) return [];
-
-  return sorted.filter(
-    (item) => Math.abs(toNumber(item[valueKey]) - toNumber(leader[valueKey])) < 1e-9
-  );
-}
-
-function pickLeader(items, compare) {
-  const leader = items.slice().sort(compare)[0] || null;
-  return leader ? [leader] : [];
-}
-
-function compareHighestScores(a, b) {
-  const scoreDiff = toNumber(b.score) - toNumber(a.score);
-  if (Math.abs(scoreDiff) > 1e-9) return scoreDiff;
-
-  return compareFunFactNames(a, b);
-}
-
-function comparePointLeaders(a, b) {
-  const pointDiff = toNumber(b.totalPoints) - toNumber(a.totalPoints);
-  if (Math.abs(pointDiff) > 1e-9) return pointDiff;
-
-  return compareFunFactNames(a, b);
-}
-
-function comparePodiumLeaders(a, b) {
-  const podiumDiff = toNumber(b.podiumCount) - toNumber(a.podiumCount);
-  if (Math.abs(podiumDiff) > 1e-9) return podiumDiff;
-
-  const pointDiff = toNumber(b.totalPoints) - toNumber(a.totalPoints);
-  if (Math.abs(pointDiff) > 1e-9) return pointDiff;
-
-  return compareFunFactNames(a, b);
-}
-
-function compareProgressionLeaders(a, b) {
-  const progressionDiff =
-    toNumber(b.progressionDelta) - toNumber(a.progressionDelta);
-  if (Math.abs(progressionDiff) > 1e-9) return progressionDiff;
-
-  const lastScoreDiff =
-    toNumber(b.lastScoreAverage) - toNumber(a.lastScoreAverage);
-  if (Math.abs(lastScoreDiff) > 1e-9) return lastScoreDiff;
-
-  return compareFunFactNames(a, b);
-}
-
-function compareMostClasses(a, b) {
-  const classDiff = toNumber(b.classCount) - toNumber(a.classCount);
-  if (Math.abs(classDiff) > 1e-9) return classDiff;
-
-  return compareFunFactNames(a, b);
-}
-
-function compareFunFactNames(a, b) {
-  return `${a.rider} ${a.horse} ${a.className}`.localeCompare(
-    `${b.rider} ${b.horse} ${b.className}`
-  );
 }
 
 function normalizeSearchKey(value) {
