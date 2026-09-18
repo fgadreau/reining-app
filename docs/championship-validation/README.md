@@ -23,3 +23,9 @@ Evidence:
 - [Rendered final PDF](pdf-final.png) and [fictional PDF](final-fiction.pdf), including 50/50/48/48.
 
 These fixtures validate final-only behavior. They are not evidence of final titles on a provisional production season. Deployment verification and promotion SHAs belong in the delivery PRs.
+
+## Compact presentation follow-up
+
+The public highlights now show only a short title, the shared record value and every tied holder. The combined points record adds the short label “Cavalier · Cheval · Duo”. Class/show lists, contribution details and calculation explanations are no longer rendered, including in hidden disclosures. Counts, accordion behavior, calculations, championship titles and PDF remain unchanged.
+
+The current presentation supersedes the expanded highlight screenshots above: [desktop](compact-desktop.png), [mobile](compact-mobile.png). Both were visually inspected. The existing two Playwright scenarios also verify that context lists are absent and both tied points holders remain visible. All 288 unit tests, both browser scenarios and the production build pass.
