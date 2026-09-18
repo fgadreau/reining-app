@@ -446,7 +446,7 @@ export const translations = {
         subtitle:
           "Importe les résultats de saison, valide les classes et publie la vitrine du championnat.",
         teamCount: "{{count}} équipes",
-        teams: "Duos cheval-cavalier",
+        teams: "Équipes",
         title: "Championnat de saison",
         unmappedClasses: "Classes non mappées",
         uniqueRows: "Lignes actives",
@@ -2533,7 +2533,7 @@ export const translations = {
         subtitle:
           "Import season results, validate classes, and publish the championship showcase.",
         teamCount: "{{count}} teams",
-        teams: "Horse–rider duos",
+        teams: "Teams",
         title: "Season championship",
         unmappedClasses: "Unmapped classes",
         uniqueRows: "Active rows",
