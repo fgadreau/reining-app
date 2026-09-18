@@ -1017,17 +1017,13 @@ function ChampionshipTitle({ title, t }) {
 
 function ChampionshipHighlights({ isOpen, onToggle, funFacts, t }) {
   const combined = funFacts.combinedPointLeaders.length > 0;
-  const context = (entry, { partners = false, top3 = false, points = false } = {}) => [...new Set(entry.contributions
-    .filter((item) => (!top3 || (item.placeNum >= 1 && item.placeNum <= 3)) && (!points || item.points > 0))
-    .map((item) => [partners ? `${item.rider} / ${item.horse}` : "", item.className, item.showLabel].filter(Boolean).join(" · "))
-  )].join(" ; ");
   const facts = [
     {
       key: "combinedPointLeaders",
       title: t("championship.public.combinedPointLeaders"),
       entries: funFacts.combinedPointLeaders,
       renderValue: (entry) => `${formatChampionshipPoints(entry.totalPoints)} pts`,
-      renderMeta: (entry) => context(entry, { points: true }),
+      label: t("championship.public.combinedPointLeaderRoles"),
     },
     {
       key: "topRiderPoints",
@@ -1036,7 +1032,6 @@ function ChampionshipHighlights({ isOpen, onToggle, funFacts, t }) {
       renderValue: (entry) =>
         `${formatChampionshipPoints(entry.totalPoints)} pts`,
       renderName: (entry) => entry.rider || "-",
-      renderMeta: (entry) => `${t("championship.public.funFactsAllClassesAndTeams")} · ${context(entry, { partners: true, points: true })}`,
     },
     {
       key: "topHorsePoints",
@@ -1045,7 +1040,6 @@ function ChampionshipHighlights({ isOpen, onToggle, funFacts, t }) {
       renderValue: (entry) =>
         `${formatChampionshipPoints(entry.totalPoints)} pts`,
       renderName: (entry) => entry.horse || "-",
-      renderMeta: (entry) => `${t("championship.public.funFactsAllClassesAndTeams")} · ${context(entry, { partners: true, points: true })}`,
     },
     {
       key: "topTeamPoints",
@@ -1053,7 +1047,6 @@ function ChampionshipHighlights({ isOpen, onToggle, funFacts, t }) {
       entries: combined ? [] : funFacts.topTeamPoints,
       renderValue: (entry) =>
         `${formatChampionshipPoints(entry.totalPoints)} pts`,
-      renderMeta: (entry) => `${t("championship.public.funFactsAllClassesAndTeams")} · ${context(entry, { partners: true, points: true })}`,
     },
     {
       key: "mostPodiums",
@@ -1065,7 +1058,6 @@ function ChampionshipHighlights({ isOpen, onToggle, funFacts, t }) {
           : t("championship.public.funFactsPodiumCount", {
               count: entry.podiumCount,
             }),
-      renderMeta: (entry) => `${t("championship.public.funFactsAllClassesAndTeams")} · ${context(entry, { top3: true })}`,
     },
     {
       key: "mostClasses",
@@ -1077,7 +1069,6 @@ function ChampionshipHighlights({ isOpen, onToggle, funFacts, t }) {
           : t("championship.public.funFactsClassCount", {
               count: entry.classCount,
             }),
-      renderMeta: (entry) => `${t("championship.public.funFactsActiveMeta")} · ${context(entry)}`,
     },
   ].filter((fact) => fact.entries.length > 0);
 
@@ -1100,21 +1091,19 @@ function ChampionshipHighlights({ isOpen, onToggle, funFacts, t }) {
           {facts.map((fact) => (
             <div key={fact.key} style={funFactsRowStyle}>
               <div style={funFactLabelStyle}>{fact.title}</div>
+              {fact.label && <div style={funFactMetaStyle}>{fact.label}</div>}
+              <div style={funFactValueStyle}>{fact.renderValue(fact.entries[0])}</div>
               <div style={funFactEntryListStyle}>
                 {fact.entries.map((entry) => (
                   <div
                     key={`${fact.key}-${entry.key}`}
                     style={funFactEntryStyle}
                   >
-                    <div style={funFactValueStyle}>{fact.renderValue(entry)}</div>
                     <div style={funFactNameStyle}>
                       {fact.renderName
                         ? fact.renderName(entry)
                         : formatFunFactTeam(entry, t)}
                     </div>
-                    {fact.renderMeta(entry) && (
-                      <div style={funFactMetaStyle}>{fact.renderMeta(entry)}</div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -1952,23 +1941,22 @@ const championshipRuleTextStyle = {
 
 const funFactsListStyle = {
   display: "grid",
-  gap: 0,
-  borderTop: `1px solid ${publicColors.border}`,
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
+  alignItems: "start",
+  gap: 12,
 };
 
 const funFactsRowStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-  gap: 12,
-  padding: "13px 0",
-  borderBottom: `1px solid ${publicColors.border}`,
+  minWidth: 0,
+  padding: 14,
+  border: `1px solid ${publicColors.border}`,
+  borderRadius: 10,
 };
 
 const funFactLabelStyle = {
   color: publicColors.muted,
   fontSize: 13,
   fontWeight: 900,
-  textTransform: "uppercase",
   letterSpacing: 0,
 };
 
@@ -1982,6 +1970,7 @@ const funFactEntryStyle = {
 };
 
 const funFactValueStyle = {
+  marginTop: 10,
   color: publicColors.text,
   fontSize: 22,
   fontWeight: 950,

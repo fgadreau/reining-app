@@ -23,6 +23,17 @@ for (const width of [1440, 390]) {
     await expect(page.getByText("Meilleure progression", { exact: true })).toHaveCount(0);
     await expect(page.getByText(/Meilleur score/)).toHaveCount(0);
     await expect(page.getByRole("dialog")).toHaveCount(0);
+    const highlights = page.locator("#championship-highlights-content");
+    await expect(highlights.getByText("Le plus de points", { exact: true })).toBeVisible();
+    await expect(highlights.getByText("Cavalier · Cheval · Duo", { exact: true })).toBeVisible();
+    await expect(highlights.getByText("2 participations à des classes", { exact: true })).toBeVisible();
+    await expect(highlights.getByText(/Omnium NRHA|Juillet|classes comptées|passages distincts/)).toHaveCount(0);
+    await expect(highlights.getByRole("button")).toHaveCount(0);
+    // Both tied point holders remain visible when the shared value is shown once.
+    const pointCard = highlights.getByText("Le plus de points", { exact: true }).locator("..");
+    await expect(pointCard).toContainText("RIDER ALICE avec SHINEY STAR");
+    await expect(pointCard).toContainText("RIDER BEN avec SMART GUN");
+    await toggle.locator("..").screenshot({ path: testInfo.outputPath(`compact-highlights-${width}.png`) });
     await page.screenshot({ path: testInfo.outputPath(`highlights-${width}.png`), fullPage: true });
     await page.keyboard.press("Space");
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
