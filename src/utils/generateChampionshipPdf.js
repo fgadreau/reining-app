@@ -1,3 +1,5 @@
+import { buildChampionshipTitles, buildChampionshipFunFacts } from "../features/championship/championshipStandings";
+import { translate } from "../features/i18n/i18n";
 import jsPDF from "jspdf";
 import { formatChampionshipPoints } from "../features/championship/championshipPoints";
 import { normalizeChampionshipClassNotes } from "../features/championship/championshipClassNotes";
@@ -146,6 +148,7 @@ export function generateChampionshipPdf({
   associationAbbreviation,
   associationLogoDataUrl,
   season,
+  language = "fr",
   generatedAt = new Date(),
 }) {
   const doc = new jsPDF({
@@ -335,7 +338,7 @@ export function generateChampionshipPdf({
       ["Classes", season?.classCount ?? classes.length],
       ["Shows", season?.showCount ?? includedShows.length],
       ["Occurrences", season?.eventCount ?? 0],
-      ["Equipes", season?.teamCount ?? 0],
+      ["Duos cheval-cavalier", buildChampionshipFunFacts(season).counts.duos],
     ];
     const cardGap = 7;
     const cardWidth = (usableWidth - cardGap * (stats.length - 1)) / stats.length;
@@ -432,7 +435,7 @@ export function generateChampionshipPdf({
         doc.setFontSize(metaFontSize);
         setTextColor("#64748b");
         doc.text(
-          `${entry.teamCount} equipes`,
+          `${entry.teamCount} duos`,
           columnX + columnWidth - 13,
           rowY,
           { align: "right" }
@@ -455,7 +458,7 @@ export function generateChampionshipPdf({
         : safeText(classEntry?.name || "Classe"),
       `${Array.isArray(classEntry?.events) ? classEntry.events.length : 0} shows - ${
         Array.isArray(classEntry?.teams) ? classEntry.teams.length : 0
-      } equipes`
+      } duos cheval-cavalier`
     );
 
     const note = classNotes[classEntry?.id];
@@ -637,7 +640,9 @@ export function generateChampionshipPdf({
     return backNumber ? `${score} / #${backNumber}` : score;
   }
 
-  function drawTeamRow(team, eventRefs, columns, index, classEntry, layout) {
+  function drawTeamRow(team, eventRefs, columns, index, classEntry, layout, titles) {
+    const titleKey = titles.get(team.teamKey);
+    const title = titleKey ? translate(language, `championship.public.${titleKey}`) : "";
     const rowH = layout?.rowH || 10.4;
     ensureSpace(rowH, classEntry, eventRefs, layout);
 
@@ -662,12 +667,17 @@ export function generateChampionshipPdf({
     });
 
     x += columns[0].width;
-    drawFitted(team.rider || "-", x + 2, baseline, columns[1].width - 4, {
+    drawFitted(team.rider || "-", x + 2, title ? y + rowH * 0.36 : baseline, columns[1].width - 4, {
       fontStyle: "bold",
       fontSize: layout?.nameFontSize || 6.8,
       minFontSize: 4.7,
     });
 
+    if (title) {
+      setTextColor("#854d0e");
+      drawFitted(title, x + 2, y + rowH * 0.78, columns[1].width - 4, { fontStyle: "bold", fontSize: 5.5, minFontSize: 4.7 });
+      setTextColor();
+    }
     x += columns[1].width;
     drawFitted(team.horse || "-", x + 2, baseline, columns[2].width - 4, {
       fontSize: layout?.nameFontSize || 6.8,
@@ -784,13 +794,14 @@ export function generateChampionshipPdf({
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       setTextColor("#64748b");
-      doc.text("Aucune equipe classee.", margin, y);
+      doc.text("Aucun duo cheval-cavalier classe.", margin, y);
       return;
     }
 
     drawTableHeader(columns, layout);
+    const titles = buildChampionshipTitles(classEntry, season?.status);
     teams.forEach((team, index) => {
-      drawTeamRow(team, eventRefs, columns, index, classEntry, layout);
+      drawTeamRow(team, eventRefs, columns, index, classEntry, layout, titles);
     });
     drawEventTotals(classEntry, eventRefs, columns, layout);
   }
