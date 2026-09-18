@@ -10,6 +10,7 @@ import { getPublicAssociationRepository } from "../../features/publication/publi
 import { getPublicChampionshipSeasonRepository } from "../../features/championship/championshipRepository";
 import {
   buildChampionshipFunFacts,
+  buildChampionshipTitles,
   getChampionshipIncludedShows,
 } from "../../features/championship/championshipStandings";
 import {
@@ -82,7 +83,9 @@ function PublicAssociationChampionshipPage() {
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClassId, setSelectedClassId] = useState("");
-  const classes = Array.isArray(season?.classes) ? season.classes : [];
+  const classes = useMemo(() => (season?.classes || []).map((entry) => ({
+    ...entry, titles: buildChampionshipTitles(entry, season.status),
+  })), [season]);
   const associationWebsiteHref = getAssociationWebsiteHref(association);
   const normalizedSearchQuery = normalizeSearchText(searchQuery);
   const includedShows = useMemo(
@@ -90,7 +93,6 @@ function PublicAssociationChampionshipPage() {
     [season]
   );
   const funFacts = useMemo(() => buildChampionshipFunFacts(season), [season]);
-  const hasFunFacts = hasChampionshipFunFacts(funFacts);
   const championshipRules = useMemo(
     () => normalizeChampionshipRules(season),
     [season]
@@ -325,6 +327,7 @@ function PublicAssociationChampionshipPage() {
         associationAbbreviation: association?.shortName || "ASSOC",
         associationLogoDataUrl: association?.logoDataUrl || null,
         season,
+        language,
         generatedAt,
       });
       const fileName = buildChampionshipPdfFileName({
@@ -414,18 +417,6 @@ function PublicAssociationChampionshipPage() {
                       id="championship-mobile-more-actions"
                       style={mobileMoreActionsPanelStyle}
                     >
-                      {classes.length > 0 && hasFunFacts && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsFunFactsOpen(true);
-                            setIsMobileMoreOpen(false);
-                          }}
-                          style={mobileMoreActionButtonStyle}
-                        >
-                          {t("championship.public.funFactsOpen")}
-                        </button>
-                      )}
                       {hasRules && (
                         <button
                           type="button"
@@ -479,15 +470,6 @@ function PublicAssociationChampionshipPage() {
               )}
               {classes.length > 0 && (
                 <>
-                  {hasFunFacts && (
-                    <button
-                      type="button"
-                      onClick={() => setIsFunFactsOpen(true)}
-                      style={quietActionButtonStyle}
-                    >
-                      {t("championship.public.funFactsOpen")}
-                    </button>
-                  )}
                   <button
                     type="button"
                     onClick={() => openVerificationPanel()}
@@ -580,22 +562,6 @@ function PublicAssociationChampionshipPage() {
           ) : (
             <section style={summaryStyle}>
               <SummaryItem
-                label={t("championship.public.classes")}
-                value={season.classCount || 0}
-              />
-              <SummaryItem
-                label={t("championship.public.events")}
-                value={season.eventCount || 0}
-              />
-              <SummaryItem
-                label={t("championship.public.shows")}
-                value={season.showCount ?? includedShows.length}
-              />
-              <SummaryItem
-                label={t("championship.public.teams")}
-                value={season.teamCount || 0}
-              />
-              <SummaryItem
                 label={t("championship.public.updated")}
                 value={formatDate(season.updatedAt || season.importedAt)}
               />
@@ -653,6 +619,13 @@ function PublicAssociationChampionshipPage() {
               )}
             </div>
           </section>
+
+          <ChampionshipHighlights
+            isOpen={isFunFactsOpen}
+            onToggle={() => setIsFunFactsOpen((value) => !value)}
+            funFacts={funFacts}
+            t={t}
+          />
 
           {filteredClasses.length === 0 ? (
             <div style={emptyStateStyle}>{t("championship.public.noSearchResults")}</div>
@@ -715,12 +688,6 @@ function PublicAssociationChampionshipPage() {
         occurrence={selectedOccurrence}
         onClose={() => setSelectedOccurrence(null)}
         onRequestVerification={requestOccurrenceVerification}
-        t={t}
-      />
-      <ChampionshipFunFactsModal
-        isOpen={isFunFactsOpen}
-        onClose={() => setIsFunFactsOpen(false)}
-        funFacts={funFacts}
         t={t}
       />
       <ChampionshipVerificationRequestPanel
@@ -907,7 +874,7 @@ function ChampionshipClassTable({
             return (
               <tr key={team.teamKey}>
                 <td style={tdStyle}>#{team.rank}</td>
-                <td style={nameTdStyle}>{team.rider}</td>
+                <td style={nameTdStyle}>{team.rider}<ChampionshipTitle title={classEntry.titles?.get(team.teamKey)} t={t} /></td>
                 <td style={nameTdStyle}>{team.horse}</td>
                 <td style={strongTdStyle}>
                   {formatChampionshipPoints(team.totalPoints)}
@@ -984,6 +951,7 @@ function ChampionshipClassMobileStandings({ classEntry, onSelectOccurrence, t })
               <div style={mobileTeamIdentityStyle}>
                 <div style={mobileRiderStyle}>{team.rider || "-"}</div>
                 <div style={mobileHorseStyle}>{team.horse || "-"}</div>
+                <ChampionshipTitle title={classEntry.titles?.get(team.teamKey)} t={t} />
               </div>
               <div style={mobilePointsPillStyle}>
                 <span style={mobilePointsValueStyle}>
@@ -1043,51 +1011,49 @@ function ChampionshipClassMobileStandings({ classEntry, onSelectOccurrence, t })
   );
 }
 
-function ChampionshipFunFactsModal({ isOpen, onClose, funFacts, t }) {
-  if (!isOpen) return null;
+function ChampionshipTitle({ title, t }) {
+  return title ? <div style={{ marginTop: 5, color: "#854d0e", fontSize: 13, fontWeight: 800 }}>{t(`championship.public.${title}`)}</div> : null;
+}
 
+function ChampionshipHighlights({ isOpen, onToggle, funFacts, t }) {
+  const combined = funFacts.combinedPointLeaders.length > 0;
+  const context = (entry, { partners = false, top3 = false, points = false } = {}) => [...new Set(entry.contributions
+    .filter((item) => (!top3 || (item.placeNum >= 1 && item.placeNum <= 3)) && (!points || item.points > 0))
+    .map((item) => [partners ? `${item.rider} / ${item.horse}` : "", item.className, item.showLabel].filter(Boolean).join(" · "))
+  )].join(" ; ");
   const facts = [
     {
-      key: "highestReiningScore",
-      title: t("championship.public.funFactsHighestReiningScore"),
-      entries: funFacts.highestReiningScore || [],
-      renderValue: (entry) => formatChampionshipPoints(entry.score),
-      renderMeta: (entry) =>
-        [entry.className, entry.showLabel].filter(Boolean).join(" · "),
-    },
-    {
-      key: "highestRanchRidingScore",
-      title: t("championship.public.funFactsHighestRanchRidingScore"),
-      entries: funFacts.highestRanchRidingScore || [],
-      renderValue: (entry) => formatChampionshipPoints(entry.score),
-      renderMeta: (entry) =>
-        [entry.className, entry.showLabel].filter(Boolean).join(" · "),
+      key: "combinedPointLeaders",
+      title: t("championship.public.combinedPointLeaders"),
+      entries: funFacts.combinedPointLeaders,
+      renderValue: (entry) => `${formatChampionshipPoints(entry.totalPoints)} pts`,
+      renderMeta: (entry) => context(entry, { points: true }),
     },
     {
       key: "topRiderPoints",
       title: t("championship.public.funFactsTopRiderPoints"),
-      entries: funFacts.topRiderPoints || [],
+      entries: combined ? [] : funFacts.topRiderPoints,
       renderValue: (entry) =>
         `${formatChampionshipPoints(entry.totalPoints)} pts`,
       renderName: (entry) => entry.rider || "-",
-      renderMeta: () => t("championship.public.funFactsAllClassesAndTeams"),
+      renderMeta: (entry) => `${t("championship.public.funFactsAllClassesAndTeams")} · ${context(entry, { partners: true, points: true })}`,
     },
     {
       key: "topHorsePoints",
       title: t("championship.public.funFactsTopHorsePoints"),
-      entries: funFacts.topHorsePoints || [],
+      entries: combined ? [] : funFacts.topHorsePoints,
       renderValue: (entry) =>
         `${formatChampionshipPoints(entry.totalPoints)} pts`,
       renderName: (entry) => entry.horse || "-",
-      renderMeta: () => t("championship.public.funFactsAllClassesAndTeams"),
+      renderMeta: (entry) => `${t("championship.public.funFactsAllClassesAndTeams")} · ${context(entry, { partners: true, points: true })}`,
     },
     {
       key: "topTeamPoints",
       title: t("championship.public.funFactsTopTeamPoints"),
-      entries: funFacts.topTeamPoints || [],
+      entries: combined ? [] : funFacts.topTeamPoints,
       renderValue: (entry) =>
         `${formatChampionshipPoints(entry.totalPoints)} pts`,
-      renderMeta: () => t("championship.public.funFactsAllClassesAndTeams"),
+      renderMeta: (entry) => `${t("championship.public.funFactsAllClassesAndTeams")} · ${context(entry, { partners: true, points: true })}`,
     },
     {
       key: "mostPodiums",
@@ -1099,19 +1065,7 @@ function ChampionshipFunFactsModal({ isOpen, onClose, funFacts, t }) {
           : t("championship.public.funFactsPodiumCount", {
               count: entry.podiumCount,
             }),
-      renderMeta: () => t("championship.public.funFactsAllClassesAndTeams"),
-    },
-    {
-      key: "bestProgression",
-      title: t("championship.public.funFactsBestProgression"),
-      entries: funFacts.bestProgression || [],
-      renderValue: (entry) =>
-        `${formatSignedChampionshipPoints(entry.progressionDelta)} pts`,
-      renderMeta: (entry) =>
-        t("championship.public.funFactsProgressionMeta", {
-          first: formatChampionshipPoints(entry.firstScoreAverage),
-          last: formatChampionshipPoints(entry.lastScoreAverage),
-        }),
+      renderMeta: (entry) => `${t("championship.public.funFactsAllClassesAndTeams")} · ${context(entry, { top3: true })}`,
     },
     {
       key: "mostClasses",
@@ -1123,31 +1077,25 @@ function ChampionshipFunFactsModal({ isOpen, onClose, funFacts, t }) {
           : t("championship.public.funFactsClassCount", {
               count: entry.classCount,
             }),
-      renderMeta: () => t("championship.public.funFactsActiveMeta"),
+      renderMeta: (entry) => `${t("championship.public.funFactsActiveMeta")} · ${context(entry)}`,
     },
   ].filter((fact) => fact.entries.length > 0);
 
   return (
-    <div style={funFactsBackdropStyle} role="presentation" onClick={onClose}>
-      <section
-        style={funFactsModalStyle}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="championship-fun-facts-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div style={funFactsHeaderStyle}>
-          <div>
-            <div style={eyebrowStyle}>{t("championship.public.funFactsEyebrow")}</div>
-            <h2 id="championship-fun-facts-title" style={funFactsTitleStyle}>
-              {t("championship.public.funFactsTitle")}
-            </h2>
-          </div>
-          <button type="button" onClick={onClose} style={funFactsCloseButtonStyle}>
-            {t("championship.public.funFactsClose")}
-          </button>
+    <section style={championshipRulesPanelStyle}>
+      <button type="button" onClick={onToggle} aria-expanded={isOpen}
+        aria-controls="championship-highlights-content" style={championshipRulesPanelButtonStyle}>
+        <span>
+          <span style={{ ...championshipRulesPanelTitleStyle, display: "block" }}>{t("championship.public.funFactsTitle")}</span>
+          <span style={{ ...publicMutedTextStyle, display: "block", marginTop: 5 }}>{t("championship.public.highlightsSubtitle")}</span>
+        </span>
+        <span aria-hidden="true" style={{ fontSize: 24 }}>{isOpen ? "−" : "+"}</span>
+      </button>
+      <div id="championship-highlights-content" hidden={!isOpen} style={{ padding: "0 16px 16px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, padding: "16px 0" }}>
+          {["riders", "horses", "duos"].map((key) => <SummaryItem key={key}
+            label={t(`championship.public.unique${key[0].toUpperCase() + key.slice(1)}`)} value={funFacts.counts[key]} />)}
         </div>
-
         <div style={funFactsListStyle}>
           {facts.map((fact) => (
             <div key={fact.key} style={funFactsRowStyle}>
@@ -1155,7 +1103,7 @@ function ChampionshipFunFactsModal({ isOpen, onClose, funFacts, t }) {
               <div style={funFactEntryListStyle}>
                 {fact.entries.map((entry) => (
                   <div
-                    key={`${fact.key}-${entry.rider}-${entry.horse}-${fact.renderValue(entry)}-${fact.renderMeta(entry)}`}
+                    key={`${fact.key}-${entry.key}`}
                     style={funFactEntryStyle}
                   >
                     <div style={funFactValueStyle}>{fact.renderValue(entry)}</div>
@@ -1173,8 +1121,8 @@ function ChampionshipFunFactsModal({ isOpen, onClose, funFacts, t }) {
             </div>
           ))}
         </div>
-      </section>
-    </div>
+      </div>
+    </section>
   );
 }
 
@@ -1394,28 +1342,6 @@ function formatChampionshipDetailMeta(detail, t) {
 
 function getCurrentPageUrl() {
   return typeof window === "undefined" ? "" : window.location.href;
-}
-
-function hasChampionshipFunFacts(funFacts) {
-  return Boolean(
-    funFacts &&
-      ((funFacts.highestReiningScore || []).length ||
-        (funFacts.highestRanchRidingScore || []).length ||
-        (funFacts.highestScore || []).length ||
-        (funFacts.topRiderPoints || []).length ||
-        (funFacts.topHorsePoints || []).length ||
-        (funFacts.topTeamPoints || []).length ||
-        (funFacts.mostPodiums || []).length ||
-        (funFacts.bestProgression || []).length ||
-        (funFacts.mostClasses || []).length)
-  );
-}
-
-function formatSignedChampionshipPoints(value) {
-  const number = Number(value);
-  const formatted = formatChampionshipPoints(value);
-
-  return number > 0 ? `+${formatted}` : formatted;
 }
 
 function formatFunFactTeam(entry, t) {
@@ -1934,27 +1860,9 @@ const summaryValueStyle = {
   color: publicColors.text,
 };
 
-const funFactsBackdropStyle = {
-  position: "fixed",
-  inset: 0,
-  zIndex: 940,
-  background: "rgba(15, 23, 42, 0.32)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: 14,
-};
 
-const funFactsModalStyle = {
-  width: "min(520px, 100%)",
-  maxHeight: "calc(100dvh - 28px)",
-  overflow: "auto",
-  background: publicColors.surface,
-  border: `1px solid ${publicColors.border}`,
-  borderRadius: 8,
-  boxShadow: "0 22px 70px rgba(15, 23, 42, 0.25)",
-  padding: 16,
-};
+
+
 
 const championshipRulesPanelStyle = {
   ...publicCardStyle,
@@ -2036,28 +1944,11 @@ const championshipRuleTextStyle = {
   whiteSpace: "pre-wrap",
 };
 
-const funFactsHeaderStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-start",
-  gap: 12,
-  marginBottom: 10,
-};
 
-const funFactsTitleStyle = {
-  margin: "2px 0 0",
-  color: publicColors.text,
-  fontSize: 20,
-  lineHeight: 1.2,
-};
 
-const funFactsCloseButtonStyle = {
-  ...publicSecondaryActionStyle,
-  font: "inherit",
-  flex: "0 0 auto",
-  minHeight: 36,
-  padding: "7px 10px",
-};
+
+
+
 
 const funFactsListStyle = {
   display: "grid",
@@ -2067,7 +1958,7 @@ const funFactsListStyle = {
 
 const funFactsRowStyle = {
   display: "grid",
-  gridTemplateColumns: "minmax(120px, 0.8fr) minmax(0, 1.2fr)",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
   gap: 12,
   padding: "13px 0",
   borderBottom: `1px solid ${publicColors.border}`,

@@ -1948,33 +1948,9 @@ test("builds lightweight championship fun facts", () => {
   });
   const funFacts = buildChampionshipFunFacts(dataset);
 
-  expect(funFacts.highestScore).toHaveLength(1);
-  expect(funFacts.highestScore).toMatchObject([
-    {
-      rider: "RIDER, DANA",
-      horse: "HORSE D",
-      score: 78,
-      showLabel: "AQR JULY SHOW 1",
-    },
-  ]);
-  expect(funFacts.highestReiningScore).toHaveLength(1);
-  expect(funFacts.highestReiningScore).toMatchObject([
-    {
-      rider: "RIDER, BOB",
-      horse: "HORSE B",
-      score: 75.5,
-      showLabel: "AQR MAY SHOW 1",
-    },
-  ]);
-  expect(funFacts.highestRanchRidingScore).toHaveLength(1);
-  expect(funFacts.highestRanchRidingScore).toMatchObject([
-    {
-      rider: "RIDER, DANA",
-      horse: "HORSE D",
-      score: 78,
-      showLabel: "AQR JULY SHOW 1",
-    },
-  ]);
+  expect(funFacts.highestScore).toEqual([]);
+  expect(funFacts.highestReiningScore).toEqual([]);
+  expect(funFacts.highestRanchRidingScore).toEqual([]);
   expect(funFacts).not.toHaveProperty("topMoney");
   expect(funFacts.topRiderPoints).toMatchObject([
     {
@@ -2004,16 +1980,7 @@ test("builds lightweight championship fun facts", () => {
       podiumCount: 3,
     },
   ]);
-  expect(funFacts.bestProgression).toMatchObject([
-    {
-      rider: "RIDER, GINA",
-      horse: "HORSE G",
-      firstScoreAverage: 68.5,
-      lastScoreAverage: 73.5,
-      progressionDelta: 5,
-      scoreCount: 4,
-    },
-  ]);
+  expect(funFacts.bestProgression).toEqual([]);
   expect(funFacts.mostClasses).toMatchObject([
     {
       rider: "RIDER, GINA",
