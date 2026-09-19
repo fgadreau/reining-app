@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildChampionshipTitles, buildChampionshipFunFacts, buildChampionshipDatasetFromCsv } from "./championshipStandings";
+import { buildChampionshipTitles, buildChampionshipFunFacts, buildChampionshipDatasetFromCsv, normalizeAqrHighlightScore } from "./championshipStandings";
 import { generateChampionshipPdf } from "../../utils/generateChampionshipPdf";
 
 const standings = (points) => ({ id: "fiction", name: "Classe fictive", events: [], teams: points.map((totalPoints, index) => ({
@@ -92,7 +92,7 @@ describe("season highlights", () => {
     expect(facts.topTeamPoints[0].totalPoints).toBe(5);
     expect(facts.mostClasses[0].classCount).toBe(2);
     expect(facts.mostPodiums[0].podiumCount).toBe(2);
-    for (const key of ["highestScore", "highestReiningScore", "highestRanchRidingScore", "bestProgression"]) expect(facts[key]).toEqual([]);
+    for (const key of ["highestReiningScore", "highestRanchRidingScore", "bestProgression"]) expect(facts[key]).toEqual([]);
   });
   it("counts CSV non-point earners omitted from class standings", () => {
     const season = buildChampionshipDatasetFromCsv({ csvText: [
@@ -103,5 +103,83 @@ describe("season highlights", () => {
     ].join("\n") });
     expect(season.classes.flatMap((entry) => entry.teams).every((team) => team.rider === "Alice")).toBe(true);
     expect(buildChampionshipFunFacts(season).counts).toEqual({ riders: 2, horses: 2, duos: 2 });
+  });
+});
+
+const scoreRow = (rider, horse, score, extra = {}) => row(rider, horse, 0, {
+  totalScore: score, rawTotalScore: String(score), backNumber: "101", patternNum: "8",
+  goType: "1", goNum: "1", ...extra,
+});
+const scoreEvent = (showNum, publicOrder, results, extra = {}) => ({
+  eventKey: `${showNum}|${extra.classCode || "1100"}|1|1`, showNum,
+  label: showNum, publicOrder, goType: "1", goNum: "1", results,
+  ...extra,
+});
+const scoreSeason = (...classes) => ({ classes });
+const scoreClass = (id, ...events) => ({ id, name: id, events });
+const aqrFacts = (season) => buildChampionshipFunFacts(season, { associationCode: "AQR" });
+
+describe("AQR score highlights", () => {
+  it("normalizes at 90 and 175, testing the upper tier first", () => {
+    expect([90, 90.001, 175, 175.001, 210].map(normalizeAqrHighlightScore))
+      .toEqual([90, 45.0005, 87.5, 175.001 / 3, 70]);
+    for (const invalid of [null, undefined, "", 0, -1, "DQ", "72xyz", Infinity]) {
+      expect(normalizeAqrHighlightScore(invalid)).toBeNull();
+    }
+  });
+  it("keeps all score ties and deduplicates a duo across concurrent classes", () => {
+    const season = scoreSeason(
+      scoreClass("nrha-open", scoreEvent("S1", 1, [scoreRow("A", "X", 210), scoreRow("B", "Y", 70, { backNumber: "202" }), scoreRow("DQ", "Z", 270, { disqualified: true })])),
+      scoreClass("nrha-intermediate-open", scoreEvent("S1", 1, [scoreRow("A", "X", 210)], { classCode: "1200" })),
+      scoreClass("ranch-riding", scoreEvent("S1", 1, [scoreRow("R", "H", 140), scoreRow("Q", "P", 0, { backNumber: "303" })], { classCode: "399" })),
+    );
+    const facts = aqrFacts(season);
+    expect(facts.highestReiningScore.map((item) => item.rider)).toEqual(["A", "B"]);
+    expect(facts.highestReiningScore.every((item) => item.normalizedScore === 70)).toBe(true);
+    expect(facts.highestRanchRidingScore.map((item) => item.rider)).toEqual(["R"]);
+    expect(facts.highestRanchRidingScore[0].normalizedScore).toBe(70);
+    expect(buildChampionshipFunFacts(season, { associationCode: "OTHER" }).highestReiningScore).toEqual([]);
+  });
+  it("uses public chronology, merges concurrent classes and separates disciplines", () => {
+    const events = [
+      scoreEvent("S4", 4, [scoreRow("A", "X", 73)]),
+      scoreEvent("S2", 2, [scoreRow("A", "X", 67)]),
+      scoreEvent("S1", 1, [scoreRow("A", "X", 66)]),
+      scoreEvent("S3", 3, [scoreRow("A", "X", 72)]),
+    ];
+    const concurrent = scoreEvent("S2", 2, [scoreRow("A", "X", 67)], { classCode: "1200" });
+    const ranchEvents = [1, 2, 3, 4].map((n) => scoreEvent(`R${n}`, n, [scoreRow("A", "X", 60 + n)], { classCode: "399" }));
+    const facts = aqrFacts(scoreSeason(
+      scoreClass("nrha-open", ...events),
+      scoreClass("nrha-intermediate-open", concurrent),
+      scoreClass("ranch-riding", ...ranchEvents),
+    ));
+    expect(facts.bestProgression).toMatchObject([{ rider: "A", discipline: "reining", firstAverage: 66.5, lastAverage: 72.5, improvement: 6 }]);
+  });
+  it("keeps tied positive progressions and excludes ambiguous passages", () => {
+    const makeEvents = (rider, horse, backNumber) => [1, 2, 3, 4].map((n) =>
+      scoreEvent(`S${n}`, n, [scoreRow(rider, horse, 60 + n * 2, { backNumber })]));
+    const facts = aqrFacts(scoreSeason(scoreClass("nrha-open",
+      ...makeEvents("A", "X", "101"), ...makeEvents("B", "Y", "202"))));
+    expect(facts.bestProgression.map((item) => item.rider)).toEqual(["A", "B"]);
+    expect(facts.bestProgression[0].improvement).toBe(4);
+    const ambiguous = aqrFacts(scoreSeason(
+      scoreClass("nrha-open", ...makeEvents("A", "X", "101")),
+      scoreClass("nrha-intermediate-open", scoreEvent("S2", 2, [scoreRow("A", "X", 99)], { classCode: "1200" })),
+    ));
+    expect(ambiguous.bestProgression).toEqual([]);
+    expect(ambiguous.ambiguousPassages).toBe(1);
+  });
+  it("does not collapse distinct equal-score passages or infer order within one go", () => {
+    const regular = [1, 2, 3, 4].map((n) => scoreEvent(`S${n}`, n,
+      [scoreRow("A", "X", 60 + n, { patternNum: "8" })]));
+    const secondPattern = scoreEvent("S2", 2,
+      [scoreRow("A", "X", 62, { patternNum: "9" })], { classCode: "1200" });
+    const facts = aqrFacts(scoreSeason(
+      scoreClass("nrha-open", ...regular),
+      scoreClass("nrha-intermediate-open", secondPattern),
+    ));
+    expect(facts.bestProgression).toEqual([]);
+    expect(facts.ambiguousPassages).toBe(1);
   });
 });
