@@ -95,3 +95,52 @@ for (const width of [1440, 390]) {
     }
   });
 }
+
+for (const width of [1440, 390]) {
+  test(`AQR score highlights stay compact at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto("/");
+    await page.evaluate(async () => {
+      const { seedChampionshipDemo } = await import("/src/features/demo/championshipDemo.js");
+      seedChampionshipDemo();
+      const associations = JSON.parse(localStorage.getItem("reiningApp.associations"));
+      associations.find((item) => item.id === "demo-championship-association").shortName = "AQR";
+      localStorage.setItem("reiningApp.associations", JSON.stringify(associations));
+      const seasons = JSON.parse(localStorage.getItem("showscore_championship_seasons_v1"));
+      const season = seasons.find((item) => item.id === "demo-championship-season-2026");
+      const base = season.classes[0].events[0].results[0];
+      const makeResult = (score, showNum, classCode, discipline) => ({
+        ...base, teamKey: "member:FICTION|horse-nrha:FICTION", rider: "CAVALIER FICTIF",
+        horse: "CHEVAL FICTIF", memberNrha: "FICTION", horseNrha: "FICTION",
+        totalScore: score, rawTotalScore: String(score), showNum, classCode,
+        championshipClassId: discipline, backNumber: "909", patternNum: "8",
+        disqualified: false,
+      });
+      const events = [66, 67, 72, 73].map((score, index) => ({
+        eventKey: `F${index + 1}|1100|1|1`, showNum: `F${index + 1}`,
+        label: `Fiction ${index + 1}`, publicOrder: index + 1, goType: "1", goNum: "1",
+        results: [makeResult(score, `F${index + 1}`, "1100", "nrha-open")],
+      }));
+      season.classes[0].events.push(...events);
+      season.classes.push({ id: "ranch-riding", name: "Ranch Riding", events: [{
+        eventKey: "R1|399|1|1", showNum: "R1", label: "Fiction Ranch", publicOrder: 5,
+        classCode: "399", goType: "1", goNum: "1",
+        results: [makeResult(140, "R1", "399", "ranch-riding")],
+      }], teams: [] });
+      localStorage.setItem("showscore_championship_seasons_v1", JSON.stringify(seasons));
+    });
+    await page.goto("/public/associations/demo-championship-association/championnat");
+    const toggle = page.getByRole("button", { name: /Faits saillants de la saison/ });
+    await toggle.click();
+    const highlights = page.locator("#championship-highlights-content");
+    await expect(highlights.getByText("Meilleur score Reining")).toBeVisible();
+    await expect(highlights.getByText("Meilleur score Ranch Riding")).toBeVisible();
+    await expect(highlights.getByText("Meilleure progression — Reining")).toBeVisible();
+    await expect(highlights.getByText("+6 pts")).toBeVisible();
+    await expect(highlights.getByText("Moyenne estimée par juge", { exact: true }).first()).toBeVisible();
+    await expect(highlights).toContainText("CAVALIER FICTIF avec CHEVAL FICTIF");
+    await expect(highlights.getByText(/classes comptées|passages distincts|Omnium NRHA|Fiction Ranch/)).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await toggle.locator("..").screenshot({ path: testInfo.outputPath(`aqr-scores-${width}.png`) });
+  });
+}

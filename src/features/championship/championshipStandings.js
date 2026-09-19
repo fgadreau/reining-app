@@ -565,7 +565,119 @@ export function buildChampionshipTitles(classEntry, status) {
   return titles;
 }
 
-export function buildChampionshipFunFacts(dataset) {
+// AQR presentation convention only; never changes official scores or points.
+export function normalizeAqrHighlightScore(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const text = String(value).trim().replace(",", ".");
+  if (!/^\d+(?:\.\d+)?$/.test(text)) return null;
+  const score = Number(text);
+  if (!Number.isFinite(score) || score <= 0) return null;
+  if (score > 175) return score / 3;
+  if (score > 90) return score / 2;
+  return score;
+}
+
+const HIGHLIGHT_SCORE_TOLERANCE = 1e-9;
+const highlightDiscipline = (classEntry, row) =>
+  /ranch[ -]?riding/i.test(`${classEntry.id || ""} ${classEntry.name || ""} ${row.className || ""}`)
+    ? "ranchRiding" : "reining";
+
+function buildAqrScoreHighlights(rows) {
+  const scoreRows = rows.filter((row) => !isDisqualifiedResult(row) && row.teamKey &&
+    row.normalizedScore !== null);
+  const highest = (discipline) => {
+    const relevant = scoreRows.filter((row) => row.discipline === discipline);
+    const maximum = Math.max(0, ...relevant.map((row) => row.normalizedScore));
+    const leaders = new Map();
+    relevant.filter((row) => Math.abs(row.normalizedScore - maximum) < HIGHLIGHT_SCORE_TOLERANCE)
+      .forEach((row) => {
+        if (!leaders.has(row.teamKey)) leaders.set(row.teamKey, {
+          key: row.teamKey, rider: row.rider, horse: row.horse,
+          normalizedScore: row.normalizedScore,
+        });
+      });
+    return [...leaders.values()];
+  };
+
+  // A passage shared by concurrent classes has the same show, go and back
+  // number. Distinct known patterns distinguish passages; pattern is often
+  // absent (notably in AQR Ranch Riding), so mixed known/unknown is ambiguous.
+  const passages = new Map();
+  let missingPassageIdentity = 0;
+  for (const row of scoreRows) {
+    const show = String(row.showNum || "").trim();
+    const back = String(row.backNumber || "").trim();
+    const goType = String(row.goType || "").trim();
+    const goNum = String(row.goNum || "").trim();
+    if (!show || !back || !goType || !goNum) {
+      missingPassageIdentity += 1;
+      continue;
+    }
+    const key = [row.teamKey, row.discipline, show, goType, goNum, back].join("|");
+    if (!passages.has(key)) passages.set(key, []);
+    passages.get(key).push(row);
+  }
+  const byTeamAndDiscipline = new Map();
+  let ambiguousPassages = 0;
+  for (const baseGroup of passages.values()) {
+    const patterns = baseGroup.map((row) => String(row.patternNum || "").trim());
+    const knownPatterns = new Set(patterns.filter(Boolean));
+    if (knownPatterns.size && patterns.some((pattern) => !pattern)) {
+      ambiguousPassages += 1;
+      continue;
+    }
+    const groups = knownPatterns.size > 1
+      ? [...knownPatterns].map((pattern) => baseGroup.filter((row) => String(row.patternNum).trim() === pattern))
+      : [baseGroup];
+    for (const group of groups) {
+      const classKeys = group.map((row) => row.classCode || row.championshipClassId);
+      if (new Set(classKeys).size !== group.length ||
+        group.some((row) => Math.abs(row.normalizedScore - group[0].normalizedScore) >= HIGHLIGHT_SCORE_TOLERANCE)) {
+        ambiguousPassages += 1;
+        continue;
+      }
+      const passage = group[0];
+      const key = `${passage.teamKey}|${passage.discipline}`;
+      if (!byTeamAndDiscipline.has(key)) byTeamAndDiscipline.set(key, []);
+      byTeamAndDiscipline.get(key).push(passage);
+    }
+  }
+  const progressions = [];
+  const chronological = (row) => ({
+    label: row.showLabel, showNum: row.showNum, goType: row.goType,
+    goNum: row.goNum, publicOrder: row.publicOrder,
+  });
+  for (const performances of byTeamAndDiscipline.values()) {
+    // The public show order takes precedence; go order resolves performances
+    // within a show. A chronological tie cannot be resolved from import order.
+    performances.sort((a, b) => compareChampionshipOccurrences(chronological(a), chronological(b)));
+    if (performances.length < 4) continue;
+    if (performances.some((row, index) => index > 0 &&
+      compareChampionshipOccurrences(chronological(performances[index - 1]), chronological(row)) === 0)) {
+      ambiguousPassages += 1;
+      continue;
+    }
+    const firstAverage = (performances[0].normalizedScore + performances[1].normalizedScore) / 2;
+    const lastAverage = (performances.at(-2).normalizedScore + performances.at(-1).normalizedScore) / 2;
+    const improvement = lastAverage - firstAverage;
+    if (improvement > HIGHLIGHT_SCORE_TOLERANCE) progressions.push({
+      key: `${performances[0].teamKey}|${performances[0].discipline}`,
+      rider: performances[0].rider, horse: performances[0].horse,
+      discipline: performances[0].discipline, firstAverage, lastAverage, improvement,
+    });
+  }
+  const bestImprovement = Math.max(0, ...progressions.map((item) => item.improvement));
+  return {
+    highestReiningScore: highest("reining"),
+    highestRanchRidingScore: highest("ranchRiding"),
+    bestProgression: progressions.filter((item) =>
+      Math.abs(item.improvement - bestImprovement) < HIGHLIGHT_SCORE_TOLERANCE),
+    ambiguousPassages,
+    missingPassageIdentity,
+  };
+}
+
+export function buildChampionshipFunFacts(dataset, { associationCode = "" } = {}) {
   const rows = (dataset?.classes || []).flatMap((classEntry) =>
     (classEntry.events || []).flatMap((event) => (event.results || []).map((result) => {
       const identity = normalizeChampionshipRowIdentity(result);
@@ -578,6 +690,14 @@ export function buildChampionshipFunFacts(dataset) {
         className: classEntry.name || result.className || "",
         showLabel: event.label || result.showName || result.showNum || "",
         eventKey: event.eventKey || result.eventKey,
+        classCode: event.classCode || result.classCode,
+        showNum: event.showNum || result.showNum,
+        goType: event.goType || result.goType,
+        goNum: event.goNum || result.goNum,
+        publicOrder: event.publicOrder || result.publicOrder,
+        label: event.label || result.eventLabel,
+        discipline: highlightDiscipline(classEntry, result),
+        normalizedScore: normalizeAqrHighlightScore(result.rawTotalScore ?? result.totalScore),
       };
     }))
   );
@@ -632,11 +752,13 @@ export function buildChampionshipFunFacts(dataset) {
         Math.abs(entry.totalPoints - team.totalPoints) < 1e-9 &&
         entry.contributions.length === team.contributions.filter((item) => item.points > 0).length)
     ));
+  const scoreHighlights = String(associationCode).trim().toUpperCase() === "AQR"
+    ? buildAqrScoreHighlights(resolvedRows)
+    : { highestReiningScore: [], highestRanchRidingScore: [], bestProgression: [], ambiguousPassages: 0, missingPassageIdentity: 0 };
   return {
     counts: { riders: riders.size, horses: horses.size, duos: duos.size },
-    // CSV/public results lack a reliable judge count, scoring scale and discipline
-    // contract. Raw score maxima and import-order progression are not comparable.
-    highestScore: [], highestReiningScore: [], highestRanchRidingScore: [], bestProgression: [],
+    highestScore: [],
+    ...scoreHighlights,
     topRiderPoints, topHorsePoints, topTeamPoints,
     combinedPointLeaders: canCombine ? topTeamPoints : [],
     mostPodiums: leaders(teamsByKey, "podiumCount"),
