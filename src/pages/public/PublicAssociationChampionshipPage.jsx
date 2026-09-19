@@ -92,7 +92,9 @@ function PublicAssociationChampionshipPage() {
     () => getChampionshipIncludedShows(season),
     [season]
   );
-  const funFacts = useMemo(() => buildChampionshipFunFacts(season), [season]);
+  const funFacts = useMemo(() => buildChampionshipFunFacts(season, {
+    associationCode: association?.shortName,
+  }), [season, association?.shortName]);
   const championshipRules = useMemo(
     () => normalizeChampionshipRules(season),
     [season]
@@ -625,6 +627,7 @@ function PublicAssociationChampionshipPage() {
             onToggle={() => setIsFunFactsOpen((value) => !value)}
             funFacts={funFacts}
             t={t}
+            language={language}
           />
 
           {filteredClasses.length === 0 ? (
@@ -1015,9 +1018,26 @@ function ChampionshipTitle({ title, t }) {
   return title ? <div style={{ marginTop: 5, color: "#854d0e", fontSize: 13, fontWeight: 800 }}>{t(`championship.public.${title}`)}</div> : null;
 }
 
-function ChampionshipHighlights({ isOpen, onToggle, funFacts, t }) {
+function ChampionshipHighlights({ isOpen, onToggle, funFacts, t, language }) {
   const combined = funFacts.combinedPointLeaders.length > 0;
+  const scoreNumber = (value) => new Intl.NumberFormat(language === "fr" ? "fr-CA" : "en-CA", {
+    maximumFractionDigits: 2,
+  }).format(value);
   const facts = [
+    ...["reining", "ranchRiding"].map((discipline) => ({
+      key: `highest-${discipline}`,
+      title: t(`championship.public.${discipline === "reining" ? "funFactsHighestReiningScore" : "funFactsHighestRanchRidingScore"}`),
+      entries: funFacts[discipline === "reining" ? "highestReiningScore" : "highestRanchRidingScore"] || [],
+      renderValue: (entry) => scoreNumber(entry.normalizedScore),
+      label: t("championship.public.estimatedPerJudge"),
+    })),
+    ...["reining", "ranchRiding"].map((discipline) => ({
+      key: `progression-${discipline}`,
+      title: t(`championship.public.${discipline === "reining" ? "funFactsProgressionReining" : "funFactsProgressionRanchRiding"}`),
+      entries: (funFacts.bestProgression || []).filter((entry) => entry.discipline === discipline),
+      renderValue: (entry) => `+${scoreNumber(entry.improvement)} pts`,
+      renderMeta: (entry) => `${scoreNumber(entry.firstAverage)} → ${scoreNumber(entry.lastAverage)} · ${t("championship.public.estimatedPerJudge").toLowerCase()}`,
+    })),
     {
       key: "combinedPointLeaders",
       title: t("championship.public.combinedPointLeaders"),
@@ -1104,6 +1124,7 @@ function ChampionshipHighlights({ isOpen, onToggle, funFacts, t }) {
                         ? fact.renderName(entry)
                         : formatFunFactTeam(entry, t)}
                     </div>
+                    {fact.renderMeta && <div style={funFactMetaStyle}>{fact.renderMeta(entry)}</div>}
                   </div>
                 ))}
               </div>
