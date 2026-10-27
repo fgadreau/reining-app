@@ -12,6 +12,8 @@ Tester les parcours publics, acheteurs et équipe/TV ainsi que les notifications
 
 Audit initial : [accès publics et publication](showscore-live-pass-access-audit.md).
 
+Pour reprendre sur un autre appareil ou dans Codex Cloud : [état du travail et prochaines vérifications](showscore-live-pass-handoff.md).
+
 ## Objectif et périmètre
 
 Lancer les pass live pour l'AQR. Une association paie séparément son accès saison aux outils HSP et ShowScore destinés à la gestion et au déroulement du concours. Les utilisateurs publics peuvent acheter un pass SS pour suivre les données provisoires et recevoir des notifications.
