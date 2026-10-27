@@ -4,6 +4,14 @@ Date : 26 octobre 2026.
 
 Statut : décisions produit approuvées; document de référence pour l'implémentation. Aucun paiement réel ni contrôle d'accès payant n'est activé par ce document.
 
+## Préproduction obligatoire
+
+Décision explicite : commencer les essais sur la préproduction. Les branches de fonctionnalité et leurs PR ciblent `preprod`, pas `main`. Utiliser la base PREPROD partagée avec HSP, des comptes et concours de test et Stripe sandbox, sans débit réel. Aucun changement de permissions, migration ou activation commerciale ne doit être appliqué en production dans cette phase.
+
+Tester les parcours publics, acheteurs et équipe/TV ainsi que les notifications sur iPhone et Android dans cet environnement. La promotion en production intervient seulement après validation de la préproduction et selon [production-promotion.md](production-promotion.md). Ne pas confondre une PR documentaire avec un déploiement ou une validation de l'environnement.
+
+Audit initial : [accès publics et publication](showscore-live-pass-access-audit.md).
+
 ## Objectif et périmètre
 
 Lancer les pass live pour l'AQR. Une association paie séparément son accès saison aux outils HSP et ShowScore destinés à la gestion et au déroulement du concours. Les utilisateurs publics peuvent acheter un pass SS pour suivre les données provisoires et recevoir des notifications.
