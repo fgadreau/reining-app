@@ -1,6 +1,6 @@
 # Audit initial — accès publics et pass ShowScore
 
-Date : 26 octobre 2026. Périmètre : examen statique des dépôts locaux SS et HSP. Aucune base distante interrogée ou modifiée, aucun déploiement ni paiement effectué. Les règles réellement déployées en PREPROD restent à comparer à ces sources.
+Date initiale : 26 octobre 2026. Périmètre : examen statique des dépôts locaux SS et HSP, puis lecture des métadonnées de la base PREPROD via le connecteur Supabase. Aucune donnée métier nominative extraite, aucune base modifiée, aucun déploiement ni paiement effectué. Aucune interrogation du contenu de la base PROD.
 
 ## Conclusion
 
@@ -79,8 +79,45 @@ Ces points constituent des propositions techniques à préciser avant implément
 
 Conserver les preuves PREPROD par scénario (environnement, SHA SS/HSP, résultat attendu/obtenu, appareil). Aucun de ces essais fonctionnels n'a encore été exécuté dans cet audit documentaire.
 
+## Complément — configuration PREPROD effectivement lue
+
+Le connecteur distingue « Horse Show Platform » de « Horse Show Platform PREPROD ». Les requêtes de catalogue ont été limitées au projet explicitement nommé PREPROD (`qaguotdproxamgudnnsd`). Cette identification confirme la cible des requêtes SQL, pas la configuration du déploiement web actuellement servi. Celle-ci reste à vérifier séparément.
+
+Lecture de `pg_policies`, `pg_proc`, `pg_class`, privilèges de tables/colonnes, `pg_publication_tables`, `storage.buckets` et historique des migrations. Les migrations `0051`, `0061`, `20260801000800`, `20260801002700` et `20260807000100` sont inscrites comme appliquées. Aucun essai d'achat ou de notification n'a été effectué.
+
+### Constats classés par priorité
+
+| Priorité | Constat vérifié | Conséquence et correction à préparer |
+| --- | --- | --- |
+| Bloquant pour les pass | Les sept tables scoring/juges/setup/officiel/publication/annonceur/résultats ont RLS activée mais aussi SELECT pour `anon` et `authenticated`. Les colonnes `runs` et `official_runs` sont accessibles selon les politiques de ligne. | RLS activée ne signifie pas accès payant protégé. Prévoir projections filtrées et autorisation du pass avant d'exposer les scores. |
+| Bloquant pour les pass | Les politiques publiques scoring/juges appellent `showscore_public_live_class_exists`; sa définition déployée autorise aussi `live_no_score` sans vérifier de pass. | Le mode sans scores ne protège pas les sessions au niveau serveur; les scores éventuels d'une session restent lisibles si les autres conditions sont réunies. Séparer la progression gratuite des sessions de pointage. |
+| Bloquant pour la publication contrôlée | Les anciennes politiques `Anyone can view official results of public shows` et `Anyone can view class setups of public shows` sont encore présentes, en plus des règles plus récentes. Elles se contentent du show public. | Les politiques permissives s'additionnent : ajouter une règle restrictive supplémentaire ne neutralise pas l'ancienne. Supprimer/remplacer les chemins larges dans une nouvelle migration HSP, en conservant les accès professionnels requis. La politique des résultats officiels ne requiert actuellement ni finalisation ni publication. |
+| Bloquant pour les pass | Le helper de broadcast déployé autorise les visiteurs du show public et le projecteur transporte les tableaux de runs. Les quatre tables scoring/juges/officiel/annonceur restent dans `supabase_realtime`. | Protéger le broadcast et son repli ensemble; distinguer flux gratuit, payant et affichages autorisés. |
+| Bloquant pour la confidentialité avant publication | Le bucket `class-scoresheets` est public. Une politique Storage SELECT permet aussi la lecture de tous ses objets. | Masquer les métadonnées du document ne protège pas une URL connue. Préparer un stockage privé avec accès autorisé, ou une publication contrôlée des fichiers, et revoir les URL mises en cache. Ne pas simplement changer le bucket sans adapter les consommateurs. |
+| Important | La table `show_score_class_documents` vérifie bien un helper de publication pour son chemin public. Celui-ci exige notamment résultats publiés, flags publics et show au statut `open`. | Protection des métadonnées distincte de celle du fichier. Vérifier aussi que les résultats/scoresheets restent publics une fois le show fermé ou archivé, conformément au produit. |
+| Important | La session annonceur possède un chemin public via la visibilité du bloc, sans pass. | Inclure la source annonceur dans la protection, même si le scoring principal est corrigé. |
+
+Ces constats portent sur les définitions et privilèges réellement présents. Ils démontrent des chemins d'autorisation trop larges pour le futur modèle; ils ne constituent pas un test HTTP d'extraction sur des données de participants. Aucun contenu de PDF n'a été téléchargé.
+
+La recherche de vues ordinaires du schéma `public` référençant directement les tables scoring/juges/officiel n'a rien retourné. Ce contrôle limité ne couvre pas toutes les fonctions, vues matérialisées, accès indirects ou autres schémas; il ne vaut pas certification générale d'absence de fuite.
+
+### Replis et publication côté SS
+
+- `getPublicShowViewRepository` revient à `getPublicShowView(showId)` après erreur distante; ce chemin reconstruit le public à partir des données locales. `getPublicResultPublicationMap` possède également un repli local. Un refus d'autorisation ne devra jamais devenir une permission de réafficher un snapshot payant déjà stocké.
+- `resultPublicationRepository.js` enregistre d'abord la publication localement, puis tente l'upsert distant et renvoie un état de synchronisation. `publicationCloudRepository.js` enregistre aussi localement avant l'upsert; certaines erreurs sont journalisées puis la fonction renvoie quand même l'état local. Une action locale ne doit pas déclencher une notification « publié » avant confirmation serveur.
+- `authRepository.js` — `signOut` efface la session de test et le cache de synchronisation du profil, puis déconnecte Supabase. Cette fonction ne purge pas elle-même les données scoring/publication. Vérifier l'ensemble du cycle de déconnexion et isoler les caches par identité sans supprimer les données opérationnelles hors ligne du scribe.
+- Les étapes validation, synchronisation HSP, publication scoresheet et publication des groupes de résultats restent distinctes. Préparer une publication cohérente et un événement serveur unique/versionné pour les alertes, avec reprise après échec.
+- Un show peut contenir plusieurs classes concurrentes dans un bloc. Le futur statut « officiel gratuit » doit suivre la bonne unité de validation; ne pas rendre tout un bloc public si seule une classe doit l'être.
+
 ## Prochaine tranche
 
-Vérifier en lecture seule la configuration PREPROD réelle et figer le contrat de projection publique/payante ainsi que l'autorisation TV. Ensuite seulement, préparer dans HSP le modèle de droits et les protections serveur, avec tests d'autorisation négatifs avant les modifications d'interface et de paiement.
+L'audit initial et la vérification des permissions PREPROD suffisent pour préparer l'implémentation. Avant toute ouverture payante :
+
+1. Figer le contrat des projections progression gratuite / score live payant / résultats officiels gratuits, ainsi que l'autorisation TV/OBS.
+2. Préparer dans HSP la migration du modèle de droits et des politiques cumulatives, avec protection des scans, sans l'appliquer en production.
+3. Ajouter des tests négatifs d'autorisation puis les exécuter en PREPROD avec jeux de données de test : sans pass, mauvais show/saison, mode sans scores, documents non publiés, broadcast et repli.
+4. Vérifier ensuite le vrai déploiement PREPROD (références de build, auth et caches), puis implémenter le paiement distinct en sandbox.
+
+La configuration du déploiement web, les tests HTTP par profil, les parcours TV et les essais téléphones restent non vérifiés à ce stade. Aucun besoin de changer Stripe réel ou PROD pour poursuivre cette tranche.
 
 Référence technique consultée : [Supabase — RLS](https://supabase.com/docs/guides/database/postgres/row-level-security). L'index Markdown du changelog n'a pas pu être lu par l'outil web; vérifier les changements pertinents avant toute implémentation Supabase.
