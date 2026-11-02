@@ -8,6 +8,26 @@ const standings = (points) => ({ id: "fiction", name: "Classe fictive", events: 
 const titles = (points, status = "final") => [...buildChampionshipTitles(standings(points), status).values()];
 
 describe("final championship titles", () => {
+  it("adds a paginated honours summary with every tied winner and correct class pages", () => {
+    const season = { status: "final", classes: Array.from({ length: 18 }, (_, index) => ({
+      ...standings([50, 50, 48, 48, 0]), id: `class-${index}`, name: `Class ${index}`,
+    })) };
+    const doc = generateChampionshipPdf({ season });
+    const pages = doc.internal.pages.slice(1).map((page) => page.join("\n"));
+    const firstClass = pages.findIndex((page) => page.includes("#1"));
+    expect(firstClass).toBeGreaterThan(2);
+    const summary = pages.slice(2, firstClass).join("\n");
+    for (let index = 0; index < 18; index++) expect(summary).toContain(`Class ${index}`);
+    for (let index = 0; index < 4; index++) expect(summary).toContain(`Cavalier ${index}`);
+    expect(summary).not.toContain("Cavalier 4");
+    expect(summary).toContain("Co-champion");
+    expect(pages[1]).toContain(`(${firstClass + 1})`);
+    const provisional = generateChampionshipPdf({ season: { ...season, status: "published" } });
+    expect(provisional.getNumberOfPages()).toBe(20);
+    expect(provisional.output()).not.toContain("Bilan des champions");
+    const english = generateChampionshipPdf({ language: "en", season: { status: "final", classes: [standings([10, 5])] } });
+    expect(english.output()).toContain("Season champions and reserves");
+  });
   it("uses distinct point totals rather than numeric ranks", () => {
     expect(titles([50, 48, 46])).toEqual(["champion", "reserveChampion"]);
     expect(titles([50, 50, 48, 48])).toEqual(["coChampion", "coChampion", "coReserveChampion", "coReserveChampion"]);

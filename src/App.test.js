@@ -2686,7 +2686,11 @@ test("keeps a 20-team championship class on one PDF page", () => {
 
   expect(dataset.classes).toHaveLength(1);
   expect(dataset.classes[0].teams).toHaveLength(20);
-  expect(pdf.getNumberOfPages()).toBe(3);
+  // The class still occupies one page; the final season also has its honours summary.
+  expect(pdf.getNumberOfPages()).toBe(5);
+  const classPage = pdf.internal.pages.at(-1).join("\n");
+  expect(classPage).toContain("HORSE 1");
+  expect(classPage).toContain("HORSE 20");
 });
 
 test("assigns skipped championship ranks when total points are tied", () => {

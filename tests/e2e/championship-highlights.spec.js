@@ -90,6 +90,7 @@ for (const width of [1440, 390]) {
         return { text, png: canvas.toDataURL("image/png").split(",")[1] };
       }, pdf);
       expect(rendered.text.match(/Co-champion/g)).toHaveLength(2);
+      expect(rendered.text).toContain("Bilan des champions et réserves");
       expect(rendered.text.match(/Co-réserve Champion/g)).toHaveLength(2);
       await fs.writeFile(testInfo.outputPath("final-fiction-page3.png"), Buffer.from(rendered.png, "base64"));
     }
