@@ -806,6 +806,62 @@ export function generateChampionshipPdf({
     drawEventTotals(classEntry, eventRefs, columns, layout);
   }
 
+  function drawSeasonHonours() {
+    if (season?.status !== "final" || !classes.length) return;
+    const heading = language === "en" ? "Season champions and reserves" : "Bilan des champions et réserves";
+    const headers = language === "en"
+      ? ["Class", "Title", "Rider", "Horse", "Points"]
+      : ["Classe", "Titre", "Cavalier", "Cheval", "Points"];
+    const widths = [usableWidth * .29, usableWidth * .18, usableWidth * .23, usableWidth * .23, usableWidth * .07];
+    function startPage() {
+      doc.addPage();
+      drawSectionHeader(heading);
+      doc.setFillColor(15, 23, 42);
+      doc.rect(margin, y, usableWidth, 9, "F");
+      let x = margin;
+      headers.forEach((header, index) => {
+        setTextColor("#ffffff");
+        drawFitted(header, x + 2, y + 6, widths[index] - 4, { fontStyle: "bold", fontSize: 8 });
+        x += widths[index];
+      });
+      y += 9;
+    }
+    startPage();
+    let rowIndex = 0;
+    classes.forEach((classEntry) => {
+      const titles = buildChampionshipTitles(classEntry, season.status);
+      const winners = (classEntry.teams || []).filter((team) => titles.has(team.teamKey));
+      (winners.length ? winners : [null]).forEach((team) => {
+        const cells = [classEntry.name || headers[0], team
+          ? translate(language, `championship.public.${titles.get(team.teamKey)}`)
+          : (language === "en" ? "No eligible title" : "Aucun titre admissible"),
+        team?.rider || "-", team?.horse || "-", team ? formatChampionshipPoints(team.totalPoints) : "-"];
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        const lines = cells.map((cell, index) => doc.splitTextToSize(safeText(cell), widths[index] - 4));
+        // Split exceptionally long names too, keeping every line inside the printable area.
+        while (lines.some((cell) => cell.length)) {
+          if (y + 10 > contentBottom) startPage();
+          const count = Math.min(Math.max(...lines.map((cell) => cell.length)), Math.floor((contentBottom - y - 4) / 4));
+          const height = count * 4 + 4;
+          doc.setFillColor(...(rowIndex % 2 ? [248, 250, 252] : [255, 255, 255]));
+          doc.setDrawColor(226, 232, 240);
+          doc.rect(margin, y, usableWidth, height, "FD");
+          let x = margin;
+          setTextColor();
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          lines.forEach((cell, index) => {
+            doc.text(cell.splice(0, count), x + 2, y + 5, { lineHeightFactor: 1.4 });
+            x += widths[index];
+          });
+          y += height;
+        }
+        rowIndex += 1;
+      });
+    });
+  }
+
   function addFooters() {
     const totalPages = doc.getNumberOfPages();
 
@@ -825,6 +881,7 @@ export function generateChampionshipPdf({
 
   drawCoverPage();
   doc.addPage();
+  drawSeasonHonours();
   classes.forEach(drawClassSection);
   drawTableOfContentsPage();
   addFooters();
