@@ -49,6 +49,50 @@ import {
   getFallbackRefreshDelay,
   usePublicShowViewUpdates,
 } from "./usePublicShowViewUpdates";
+import { getPublicWarmupRevisionSnapshot } from "./publicWarmupRevision";
+
+test("reconciles a public warmup that disappears without a realtime stop, then returns to sparse idle reads", async () => {
+  vi.useFakeTimers();
+  vi.spyOn(Math, "random").mockReturnValue(0.5);
+  const warmup = { id: "warmup-1", updatedAt: "2026-11-13T20:00:00Z", activeStartedAt: "2026-11-13T20:00:00Z" };
+  const current = { realtimeReady: true, livePaidWarmups: [warmup] };
+  const stopped = { realtimeReady: true, livePaidWarmups: [] };
+  const read = vi.fn().mockResolvedValueOnce({ data: [{ id: warmup.id, updated_at: warmup.updatedAt }] })
+    .mockResolvedValue({ data: [] });
+  const select = vi.fn(() => ({ in: read }));
+  const from = vi.fn(() => ({ select }));
+  getSupabaseClientMock.mockReturnValue({ from });
+  isPublicShowViewRealtimeReadyMock.mockReturnValue(true);
+  subscribePublicShowViewRepositoryMock.mockImplementation((_show, _classes, _change, status) => {
+    status("SUBSCRIBED");
+    return vi.fn();
+  });
+  const load = vi.fn().mockResolvedValueOnce(current).mockResolvedValue(stopped);
+  const onData = vi.fn();
+  const { unmount } = renderHook(() => usePublicShowViewUpdates({ showId: "show-1", classIds: [], data: current, load, onData }));
+  await act(async () => vi.advanceTimersByTimeAsync(300));
+  await act(async () => vi.advanceTimersByTimeAsync(20_000));
+  expect(from).toHaveBeenCalledWith("show_score_paid_warmups");
+  expect(select).toHaveBeenCalledWith("id,updated_at");
+  expect(read).toHaveBeenCalledWith("id", ["warmup-1"]);
+  expect(load).toHaveBeenCalledTimes(1); // Unchanged marker: no full hydration.
+  await act(async () => vi.advanceTimersByTimeAsync(20_000));
+  expect(load).toHaveBeenCalledTimes(2);
+  expect(onData).toHaveBeenLastCalledWith(stopped);
+  expect(getPublicShowAnnouncerRevisionRepositoryMock).not.toHaveBeenCalled();
+  await act(async () => vi.advanceTimersByTimeAsync(60_000));
+  expect(read).toHaveBeenCalledTimes(2);
+  expect(load).toHaveBeenCalledTimes(2);
+  unmount();
+});
+
+test("warmup revision checks include running timers only and deduplicate IDs", () => {
+  const running = { id: "warmup-1", activeStartedAt: "2026-11-13", updatedAt: "2026-11-13" };
+  expect(getPublicWarmupRevisionSnapshot({ livePaidWarmups: [running, running, { id: "idle" }] }))
+    .toEqual([{ id: "warmup-1", updatedAt: "2026-11-13" }]);
+  expect(getPublicWarmupRevisionSnapshot({ livePaidWarmup: running })).toHaveLength(1);
+  expect(getPublicWarmupRevisionSnapshot(null)).toEqual([]);
+});
 
 beforeEach(() => {
   getSupabaseClientMock.mockReset();

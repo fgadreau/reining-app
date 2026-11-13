@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { getSupabaseClient } from "../cloud/supabaseClient";
+import { getPublicWarmupRevisionSnapshot, getPublicWarmupRevisions } from "./publicWarmupRevision";
 import {
   applyPublicShowViewRealtimeChange,
   getPublicShowAnnouncerRevisionRepository,
@@ -242,6 +243,16 @@ export function usePublicShowViewUpdates({
       },
     });
 
+    const warmupRevisionCoordinator = createRefreshCoordinator({
+      load: () => getPublicWarmupRevisions(getPublicWarmupRevisionSnapshot(dataRef.current).map(warmup => warmup.id)),
+      onData: remote => {
+        if (remote && JSON.stringify(remote) !== JSON.stringify(getPublicWarmupRevisionSnapshot(dataRef.current))) {
+          void coordinator.run();
+        }
+      },
+      onError: () => { void coordinator.run(); },
+    });
+
     const requestRealtimeRefresh = (payload) => {
       if (payload) {
         const currentData = dataRef.current;
@@ -287,13 +298,16 @@ export function usePublicShowViewUpdates({
       if (
         !hasRealtime ||
         !isRealtimeSubscribed ||
-        !hasActivePublicAnnouncerSession(dataRef.current)
+        (!hasActivePublicAnnouncerSession(dataRef.current) && !getPublicWarmupRevisionSnapshot(dataRef.current).length)
       ) {
         return;
       }
       revisionCheckTimer = window.setTimeout(async () => {
         if (document.visibilityState !== "hidden") {
-          await revisionCoordinator.run();
+          await Promise.all([
+            ...(hasActivePublicAnnouncerSession(dataRef.current) ? [revisionCoordinator.run()] : []),
+            ...(getPublicWarmupRevisionSnapshot(dataRef.current).length ? [warmupRevisionCoordinator.run()] : []),
+          ]);
         }
         if (isEffectActive) scheduleRevisionCheck();
       }, getActiveRevisionCheckDelay());
@@ -347,6 +361,7 @@ export function usePublicShowViewUpdates({
       document.removeEventListener("visibilitychange", refreshWhenDisplayReturns);
       coordinator.stop();
       revisionCoordinator.stop();
+      warmupRevisionCoordinator.stop();
       unsubscribe();
     };
   }, [
